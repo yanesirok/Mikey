@@ -1,0 +1,454 @@
+/* ============================================================
+   Mikey (Ink & Dojo) — UI Toolkit theme
+   Translated from ui-mockup/styles.css. Locked palette below.
+   Painted art lands later; this is structure + the real colors.
+   ============================================================ */
+
+/* Palette + root. Custom properties cascade to all descendants. */
+.mikey-app {
+    --base: #0B0E11;     /* near-black charcoal */
+    --bone: #EDE6D8;     /* warm bone / ivory   */
+    --ember: #FF5A1F;    /* ember orange accent */
+    --jade: #2BD9A8;     /* jade green accent   */
+    --seal: #C8472E;     /* vermilion red seal  */
+    --base-2: #12161B;   /* raised surface */
+    --base-3: #1B2129;   /* card surface   */
+    --line: #2A323C;     /* hairline border */
+    --muted: #8B95A1;    /* muted text */
+
+    flex-grow: 1;
+    background-color: var(--base);
+    color: var(--bone);
+}
+
+/* ---------- screens ---------- */
+/* Each screen fills the panel; ScreenManager shows one at a time. */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    flex-direction: column;
+    padding: 22px;
+    background-color: var(--base);
+}
+
+/* Landscape content column: keeps screen content readable + centered on a
+   wide display. The wide margins left/right are room for painted art later. */
+.content {
+    width: 100%;
+    max-width: 720px;
+    align-self: center;
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+/* ---------- typography ---------- */
+.kicker {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--ember);
+}
+.title {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+.lead {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: normal;
+}
+.spacer {
+    flex-grow: 1;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+    width: 100%;
+    padding: 20px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+    color: var(--bone);
+    font-size: 18px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 14px;
+}
+/* smaller inline buttons (e.g. side-by-side camera actions) */
+.btn.sm {
+    padding: 14px;
+    font-size: 15px;
+    margin-top: 0;
+}
+.btn:hover {
+    border-color: var(--bone);
+}
+.btn.primary {
+    background-color: var(--ember);
+    color: #1A0A03;
+    border-color: var(--ember);
+}
+
+/* skip pill, top-right */
+.skip {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: auto;
+    margin-top: 0;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: rgba(0, 0, 0, 0.4);
+    color: var(--muted);
+    font-size: 12px;
+    -unity-font-style: normal;
+}
+
+/* ---------- splash ---------- */
+.splash {
+    align-items: center;
+    justify-content: center;
+}
+.logo-mark {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-2);
+    align-items: center;
+    justify-content: center;
+}
+.logo-glyph {
+    font-size: 46px;
+    color: var(--bone);
+}
+.splash-title {
+    font-size: 34px;
+    letter-spacing: 6px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-top: 22px;
+}
+.splash-tag {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    margin-top: 8px;
+}
+
+/* ---------- intro / video placeholder ---------- */
+.videobox {
+    flex-grow: 1;
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 14px;
+    background-color: #0D1117;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.videobox-label {
+    color: var(--muted);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+/* ---------- title / entrance ---------- */
+.title-screen {
+    padding: 0;
+    align-items: center;
+    justify-content: flex-end;
+    background-color: #15100C;
+}
+.got-sun {
+    position: absolute;
+    top: 16%;
+    left: 50%;
+    translate: -100px 0;
+    width: 200px;
+    height: 200px;
+    border-radius: 100px;
+    background-color: var(--ember);
+}
+.title-block {
+    width: 100%;
+    align-items: center;
+    padding: 0 28px 42px 28px;
+}
+.title-kanji {
+    font-size: 30px;
+    letter-spacing: 14px;
+    color: var(--bone);
+    margin-bottom: 2px;
+}
+.title-name {
+    font-size: 40px;
+    -unity-font-style: bold;
+    letter-spacing: 10px;
+    color: var(--bone);
+}
+.title-rule {
+    width: 54px;
+    height: 2px;
+    background-color: var(--seal);
+    margin-top: 14px;
+    margin-bottom: 14px;
+}
+.title-tag {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    margin-bottom: 26px;
+}
+.begin-btn {
+    max-width: 240px;
+}
+.tap-begin {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--bone);
+    margin-top: 14px;
+}
+
+/* ---------- main menu ---------- */
+.topbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.belt {
+    flex-direction: row;
+    align-items: center;
+}
+.swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background-color: var(--base-3);
+    border-width: 1px;
+    border-color: var(--line);
+    margin-right: 9px;
+}
+.belt-rank {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.belt-level {
+    font-size: 10px;
+    color: var(--muted);
+}
+.coin {
+    font-size: 12px;
+    color: var(--jade);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 20px;
+    padding: 5px 10px;
+}
+.levels {
+    flex-direction: column;
+}
+.level-node {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+}
+.level-node .ic {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background-color: var(--base-3);
+    color: var(--bone);
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+}
+.level-node.active {
+    border-color: var(--ember);
+}
+.level-node.active .ic {
+    background-color: rgba(255, 90, 31, 0.15);
+    color: var(--ember);
+}
+.level-node.locked {
+    opacity: 0.5;
+}
+.ln-title {
+    font-size: 14px;
+    color: var(--bone);
+}
+.ln-sub {
+    font-size: 11px;
+    color: var(--muted);
+}
+.bottomnav {
+    flex-direction: row;
+    margin-top: 14px;
+}
+.navbtn {
+    flex-grow: 1;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    color: var(--muted);
+    border-radius: 12px;
+    padding: 16px 8px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin: 0 5px 0 5px;
+}
+.navbtn:hover {
+    color: var(--bone);
+    border-color: var(--bone);
+}
+
+/* ---------- stat list (Combine intro + results) ---------- */
+.statlist {
+    flex-direction: column;
+    margin-top: 14px;
+}
+.stat {
+    flex-direction: column;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+}
+.stat .sh {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.stat .sh-name {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.stat .sh-meta {
+    font-size: 12px;
+    color: var(--muted);
+}
+/* progress bar */
+.bar {
+    height: 8px;
+    border-radius: 5px;
+    background-color: var(--base-3);
+    margin-top: 10px;
+}
+.bar .fill {
+    height: 8px;
+    border-radius: 5px;
+    background-color: var(--ember);
+}
+.bar.jade .fill {
+    background-color: var(--jade);
+}
+
+/* ---------- camera screen (no painted background) ---------- */
+.camera {
+    padding: 22px;
+    align-items: center;
+    justify-content: flex-start;
+    background-color: #05070A;
+}
+.cam-feed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0A0D11;
+}
+.live {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-start;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    padding: 7px 13px;
+    font-size: 12px;
+    color: var(--bone);
+}
+.live .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 5px;
+    background-color: var(--seal);
+    margin-right: 8px;
+}
+.testname {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-top: 18px;
+}
+.counter {
+    align-items: center;
+    margin-top: 8px;
+}
+.counter .big {
+    font-size: 72px;
+    -unity-font-style: bold;
+    color: var(--jade);
+}
+.counter .lbl {
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--muted);
+}
+.callout {
+    margin-top: 14px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background-color: rgba(255, 90, 31, 0.15);
+    color: var(--ember);
+    font-size: 13px;
+}
+.callout.good {
+    background-color: rgba(43, 217, 168, 0.15);
+    color: var(--jade);
+}
+.pose-box {
+    width: 130px;
+    height: 180px;
+    border-width: 2px;
+    border-color: var(--jade);
+    border-radius: 14px;
+    margin-top: 18px;
+}
+.cam-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+}
+.cam-actions {
+    flex-direction: row;
+    width: 100%;
+    max-width: 720px;
+    margin-top: 18px;
+}
+.cam-actions .btn {
+    flex-grow: 1;
+    margin: 0 5px 0 5px;
+}

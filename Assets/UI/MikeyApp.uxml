@@ -1,0 +1,195 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="app" class="mikey-app">
+        <Style src="theme.uss" />
+
+        <!-- 1 - SPLASH -->
+        <ui:VisualElement name="splash" class="screen splash">
+            <ui:VisualElement class="logo-mark">
+                <ui:Label text="忍" class="logo-glyph" />
+            </ui:VisualElement>
+            <ui:Label text="SHINOBU" class="splash-title" />
+            <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="splash-tag" />
+            <ui:Label name="go-intro" text="tap to continue" class="tap-begin" />
+        </ui:VisualElement>
+
+        <!-- 2 - INTRO VIDEO -->
+        <ui:VisualElement name="intro" class="screen">
+            <ui:Button name="go-title" text="Skip" class="skip" />
+            <ui:VisualElement class="content">
+                <ui:Label text="COLD OPEN" class="kicker" />
+                <ui:Label text="Intro" class="title" />
+                <ui:VisualElement class="videobox">
+                    <ui:Label text="~6s animated intro&#10;(silhouettes step into frame)" class="videobox-label" />
+                </ui:VisualElement>
+                <ui:Button name="go-title" text="Enter the Dojo" class="btn primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 2b - TITLE / ENTRANCE -->
+        <ui:VisualElement name="title" class="screen title-screen">
+            <ui:VisualElement class="got-sun" />
+            <ui:VisualElement class="title-block">
+                <ui:Label text="忍" class="title-kanji" />
+                <ui:Label text="SHINOBU" class="title-name" />
+                <ui:VisualElement class="title-rule" />
+                <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="title-tag" />
+                <ui:Button name="go-menu" text="Begin your path" class="btn primary begin-btn" />
+                <ui:Label name="go-menu" text="tap to begin" class="tap-begin" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 3 - MAIN MENU -->
+        <ui:VisualElement name="menu" class="screen">
+            <ui:VisualElement class="content">
+            <ui:VisualElement class="topbar">
+                <ui:VisualElement class="belt">
+                    <ui:VisualElement class="swatch" />
+                    <ui:VisualElement>
+                        <ui:Label text="White Belt" class="belt-rank" />
+                        <ui:Label text="Level 0" class="belt-level" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label text="$0.00" class="coin" />
+            </ui:VisualElement>
+
+            <ui:Label text="YOUR PATH" class="kicker" />
+            <ui:VisualElement class="levels">
+                <ui:VisualElement name="go-combineIntro" class="level-node active">
+                    <ui:VisualElement class="ic">
+                        <ui:Label text="0" />
+                    </ui:VisualElement>
+                    <ui:VisualElement>
+                        <ui:Label text="The Combine" class="ln-title" />
+                        <ui:Label text="Measure your baseline" class="ln-sub" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="level-node locked">
+                    <ui:VisualElement class="ic">
+                        <ui:Label text="1" />
+                    </ui:VisualElement>
+                    <ui:VisualElement>
+                        <ui:Label text="Lesson 1" class="ln-title" />
+                        <ui:Label text="Locked" class="ln-sub" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="spacer" />
+
+            <ui:VisualElement class="bottomnav">
+                <ui:Button text="Stats" class="navbtn" />
+                <ui:Button text="Collection" class="navbtn" />
+                <ui:Button text="Game" class="navbtn" />
+                <ui:Button text="Support" class="navbtn" />
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 4 - COMBINE INTRO -->
+        <ui:VisualElement name="combineIntro" class="screen">
+            <ui:VisualElement class="content">
+                <ui:Label text="LEVEL 0 · THE COMBINE" class="kicker" />
+                <ui:Label text="Measure your baseline" class="title" />
+                <ui:Label text="Four tests, camera on. We score your body so your fighter starts honest. No technique yet — that's earned next." class="lead" />
+                <ui:VisualElement class="statlist">
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="1 · Push-ups" class="sh-name" />
+                            <ui:Label text="Power · upper" class="sh-meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="2 · Squats" class="sh-name" />
+                            <ui:Label text="Power · lower" class="sh-meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="3 · Wall-sit" class="sh-name" />
+                            <ui:Label text="Endurance" class="sh-meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="4 · Yoko-geri ladder" class="sh-name" />
+                            <ui:Label text="Control" class="sh-meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="spacer" />
+                <ui:Button name="go-camTest" text="Begin · camera on" class="btn primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 5 - CAMERA TEST (live feed, no painted background) -->
+        <ui:VisualElement name="camTest" class="screen camera">
+            <ui:VisualElement class="cam-feed" />
+            <ui:VisualElement class="live">
+                <ui:VisualElement class="dot" />
+                <ui:Label text="LIVE · pose detection" />
+            </ui:VisualElement>
+            <ui:Label text="Push-ups" class="testname" />
+            <ui:VisualElement class="counter">
+                <ui:Label text="0" class="big" />
+                <ui:Label text="REPS" class="lbl" />
+            </ui:VisualElement>
+            <ui:Label text="Good form" class="callout good" />
+            <ui:VisualElement class="pose-box" />
+            <ui:Label text="Live camera feed — no painted background here" class="cam-note" />
+            <ui:VisualElement class="spacer" />
+            <ui:VisualElement class="cam-actions">
+                <ui:Button text="+ simulate reps" class="btn sm" />
+                <ui:Button name="go-combineResults" text="Done ▸" class="btn sm primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 6 - COMBINE RESULTS -->
+        <ui:VisualElement name="combineResults" class="screen">
+            <ui:VisualElement class="content">
+                <ui:Label text="COMBINE COMPLETE" class="kicker" />
+                <ui:Label text="Your baseline" class="title" />
+                <ui:VisualElement class="statlist">
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="Power · upper" class="sh-name" />
+                            <ui:Label text="Push-ups · 24" class="sh-meta" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 62%;" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="Power · lower" class="sh-name" />
+                            <ui:Label text="Squats · 31" class="sh-meta" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 70%;" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="Endurance" class="sh-name" />
+                            <ui:Label text="Wall-sit · 0:48" class="sh-meta" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="bar jade"><ui:VisualElement class="fill" style="width: 55%;" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="Control" class="sh-name" />
+                            <ui:Label text="Yoko-geri · 7.5" class="sh-meta" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="bar jade"><ui:VisualElement class="fill" style="width: 48%;" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat">
+                        <ui:VisualElement class="sh">
+                            <ui:Label text="Technique" class="sh-name" />
+                            <ui:Label text="Locked · learn in Level 1" class="sh-meta" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 0%;" /></ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="spacer" />
+                <ui:Button name="go-menu" text="Unlock Level 1 ▸" class="btn primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
