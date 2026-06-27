@@ -45,6 +45,28 @@
     flex-direction: column;
 }
 
+/* ---------- safe-area foreground wrapper ----------
+   One per screen. Fills the screen's usable area and receives device
+   safe-area insets (as padding) from SafeAreaController. Full-bleed siblings
+   (.cam-feed, .got-sun) stay outside it. The alignment modifiers reproduce the
+   per-screen alignment that otherwise lives on the .screen element. */
+.safe-area-content {
+    flex-grow: 1;
+    width: 100%;
+}
+.safe-area-content.sa-center {
+    align-items: center;
+    justify-content: center;
+}
+.safe-area-content.sa-top-center {
+    align-items: center;
+    justify-content: flex-start;
+}
+.safe-area-content.sa-bottom-center {
+    align-items: center;
+    justify-content: flex-end;
+}
+
 /* ---------- typography ---------- */
 .kicker {
     font-size: 11px;

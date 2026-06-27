@@ -4,16 +4,19 @@
 
         <!-- 1 - SPLASH -->
         <ui:VisualElement name="splash" class="screen splash">
+            <ui:VisualElement class="safe-area-content sa-center">
             <ui:VisualElement class="logo-mark">
                 <ui:Label text="忍" class="logo-glyph" />
             </ui:VisualElement>
             <ui:Label text="SHINOBU" class="splash-title" />
             <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="splash-tag" />
             <ui:Label name="go-intro" text="tap to continue" class="tap-begin" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 2 - INTRO VIDEO -->
         <ui:VisualElement name="intro" class="screen">
+            <ui:VisualElement class="safe-area-content">
             <ui:Button name="go-title" text="Skip" class="skip" />
             <ui:VisualElement class="content">
                 <ui:Label text="COLD OPEN" class="kicker" />
@@ -23,11 +26,13 @@
                 </ui:VisualElement>
                 <ui:Button name="go-title" text="Enter the Dojo" class="btn primary" />
             </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 2b - TITLE / ENTRANCE -->
         <ui:VisualElement name="title" class="screen title-screen">
             <ui:VisualElement class="got-sun" />
+            <ui:VisualElement class="safe-area-content sa-bottom-center">
             <ui:VisualElement class="title-block">
                 <ui:Label text="忍" class="title-kanji" />
                 <ui:Label text="SHINOBU" class="title-name" />
@@ -36,10 +41,12 @@
                 <ui:Button name="go-menu" text="Begin your path" class="btn primary begin-btn" />
                 <ui:Label name="go-menu" text="tap to begin" class="tap-begin" />
             </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 3 - MAIN MENU -->
         <ui:VisualElement name="menu" class="screen">
+            <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="content">
             <ui:VisualElement class="topbar">
                 <ui:VisualElement class="belt">
@@ -83,10 +90,12 @@
                 <ui:Button text="Support" class="navbtn" />
             </ui:VisualElement>
             </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 4 - COMBINE INTRO -->
         <ui:VisualElement name="combineIntro" class="screen">
+            <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="content">
                 <ui:Label text="LEVEL 0 · THE COMBINE" class="kicker" />
                 <ui:Label text="Measure your baseline" class="title" />
@@ -120,11 +129,13 @@
                 <ui:VisualElement class="spacer" />
                 <ui:Button name="go-camTest" text="Begin · camera on" class="btn primary" />
             </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 5 - CAMERA TEST (live feed, no painted background) -->
         <ui:VisualElement name="camTest" class="screen camera">
             <ui:VisualElement class="cam-feed" />
+            <ui:VisualElement class="safe-area-content sa-top-center">
             <ui:VisualElement class="live">
                 <ui:VisualElement class="dot" />
                 <ui:Label text="LIVE · pose detection" />
@@ -142,10 +153,12 @@
                 <ui:Button text="+ simulate reps" class="btn sm" />
                 <ui:Button name="go-combineResults" text="Done ▸" class="btn sm primary" />
             </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 6 - COMBINE RESULTS -->
         <ui:VisualElement name="combineResults" class="screen">
+            <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="content">
                 <ui:Label text="COMBINE COMPLETE" class="kicker" />
                 <ui:Label text="Your baseline" class="title" />
@@ -188,6 +201,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="spacer" />
                 <ui:Button name="go-menu" text="Unlock Level 1 ▸" class="btn primary" />
+            </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

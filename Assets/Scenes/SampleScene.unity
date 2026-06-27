@@ -443,6 +443,7 @@ GameObject:
   - component: {fileID: 1720403619}
   - component: {fileID: 1720403618}
   - component: {fileID: 1720403617}
+  - component: {fileID: 1720403620}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -463,6 +464,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScreenManager
   startScreen: splash
+--- !u!114 &1720403620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &1720403618
 MonoBehaviour:
   m_ObjectHideFlags: 0
