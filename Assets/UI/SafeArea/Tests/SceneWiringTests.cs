@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -8,15 +9,16 @@ namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
     /// Validates that SampleScene wires SafeAreaController onto the UI GameObject
-    /// alongside the existing UIDocument and ScreenManager, with no missing scripts.
-    /// This is the automated guard for the hand-edited scene YAML.
+    /// alongside the existing UIDocument and ScreenManager, with no missing scripts,
+    /// and that the Combine vertical slice is wired in: CombineScreenController is
+    /// attached to the same UI GameObject and ScreenManager opens the "combine"
+    /// screen on start. This is the automated guard for the scene wiring.
     /// </summary>
     public class SceneWiringTests
     {
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
 
-        [Test]
-        public void UiGameObject_HasRequiredComponents_AndNoMissingScripts()
+        private static GameObject OpenSceneAndFindUi()
         {
             Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             Assert.IsTrue(scene.IsValid(), $"Could not open {ScenePath}");
@@ -31,6 +33,13 @@ namespace Mikey.UI.SafeArea.Tests
                 }
             }
             Assert.IsNotNull(ui, "Scene must contain a root GameObject named 'UI'.");
+            return ui;
+        }
+
+        [Test]
+        public void UiGameObject_HasRequiredComponents_AndNoMissingScripts()
+        {
+            GameObject ui = OpenSceneAndFindUi();
 
             // SafeAreaController + UIDocument are reachable as types (asm references the runtime asm).
             Assert.IsNotNull(ui.GetComponent<UIDocument>(), "UI GameObject must have a UIDocument.");
@@ -40,6 +49,32 @@ namespace Mikey.UI.SafeArea.Tests
 
             foreach (var component in ui.GetComponents<Component>())
                 Assert.IsNotNull(component, "UI GameObject has a missing-script component (null).");
+        }
+
+        [Test]
+        public void UiGameObject_HasCombineScreenController()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            // CombineScreenController lives in Mikey.UI.Combine, which this test asm
+            // does not reference: look it up by name (same approach as ScreenManager).
+            Assert.IsNotNull(ui.GetComponent("CombineScreenController"),
+                "UI GameObject must have a CombineScreenController (Combine slice wiring).");
+        }
+
+        [Test]
+        public void ScreenManager_StartScreen_IsCombine()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            var screenManager = ui.GetComponent("ScreenManager");
+            Assert.IsNotNull(screenManager, "UI GameObject must have a ScreenManager.");
+
+            var serialized = new SerializedObject(screenManager);
+            SerializedProperty startScreen = serialized.FindProperty("startScreen");
+            Assert.IsNotNull(startScreen, "ScreenManager must expose a serialized 'startScreen'.");
+            Assert.AreEqual("combine", startScreen.stringValue,
+                "ScreenManager must open the 'combine' screen on start for this vertical-slice branch.");
         }
     }
 }
