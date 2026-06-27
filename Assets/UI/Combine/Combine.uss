@@ -1,0 +1,174 @@
+/* ============================================================
+   Combine screen — vertical slice styles.
+   Palette custom properties (--ember, --jade, --bone, …) cascade in
+   from .mikey-app in theme.uss; this file only adds combine-specific
+   structure so the slice stays modular. Landscape-first: the content
+   column is width-capped and centered, matching .content in theme.uss.
+   ============================================================ */
+
+/* Full-bleed background layer. Lives OUTSIDE .safe-area-content so it
+   bleeds under device insets, like .cam-feed / .got-sun on other screens. */
+.combine-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0D1117;
+}
+
+/* Centered landscape content column for the Combine screen. */
+.combine-content {
+    align-items: center;
+    justify-content: center;
+}
+.combine-kicker {
+    -unity-text-align: middle-center;
+}
+
+/* One state sub-view; the controller shows exactly one at a time. The
+   inline display set by the controller overrides this default-hidden rule. */
+.combine-state {
+    display: none;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    margin-top: 24px;
+}
+.combine-state-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-bottom: 6px;
+}
+.combine-error-title {
+    color: var(--seal);
+}
+.combine-msg {
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+}
+
+/* Loading spinner placeholder (static ring; no animation needed for the slice). */
+.combine-spinner {
+    width: 46px;
+    height: 46px;
+    border-radius: 23px;
+    border-width: 3px;
+    border-color: var(--line);
+    border-top-color: var(--ember);
+    margin-bottom: 16px;
+}
+
+/* Ready state: row of mock selected-item cards, wraps on narrow widths. */
+.combine-items {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.combine-card {
+    width: 150px;
+    align-items: center;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+    padding: 16px 12px;
+    margin: 6px;
+}
+.combine-card__glyph {
+    /* visible-icon size comes from the reusable .icon-32 variant (added in the controller) */
+    color: var(--seal);
+}
+.combine-card__value {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: var(--jade);
+    margin-top: 6px;
+}
+.combine-card__unit {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+}
+.combine-card__name {
+    font-size: 13px;
+    color: var(--bone);
+    margin-top: 8px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.combine-card__stat {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    -unity-text-align: middle-center;
+}
+
+/* ---------- reusable icon-button kit ----------
+   Interactive icon/glyph controls share these classes so touch targets and
+   visible-icon sizes are defined once instead of being repeated per element.
+   ~48x48 logical minimum keeps controls reliably tappable in the Device
+   Simulator; flex-shrink:0 stops them collapsing in the wrapping dev row at
+   small landscape sizes; content stays centered. Scoped to the Combine screen
+   (this file) so other screens are unaffected. */
+.icon-btn {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+/* Visible-icon size variants for glyph/icon content (logical px). */
+.icon-24 {
+    font-size: 24px;
+}
+.icon-32 {
+    font-size: 32px;
+}
+
+/* Error-state retry button: width-capped, not full-bleed. */
+.combine-retry {
+    max-width: 240px;
+    margin-top: 16px;
+}
+
+/* ---------- development-only state switcher ----------
+   Hidden by the controller outside the Editor / a Development Build. */
+.combine-devbar {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.55);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+    padding: 6px;
+}
+.combine-devbar__label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ember);
+    margin: 0 8px;
+}
+/* Dev switcher button = reusable .icon-btn (size/centering/no-shrink) +
+   .icon-24 (visible label size) + these colours. No size literals repeated. */
+.combine-devbtn {
+    margin: 3px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+    color: var(--bone);
+    -unity-font-style: bold;
+}
+.combine-devbtn:hover {
+    border-color: var(--bone);
+}

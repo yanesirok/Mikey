@@ -36,9 +36,9 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
-        public void HasExactlySevenScreens()
+        public void HasExactlyEightScreens()
         {
-            Assert.AreEqual(7, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(8, ByClass(BuildTree(), "screen").Count);
         }
 
         [Test]
@@ -56,7 +56,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "got-sun", "cam-feed" })
+            foreach (var className in new[] { "got-sun", "cam-feed", "combine-bg" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -72,7 +72,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-block", "content", "cam-actions", "live", "skip", "splash-title" })
+            foreach (var className in new[] { "title-block", "content", "cam-actions", "live", "skip", "splash-title", "combine-content" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
