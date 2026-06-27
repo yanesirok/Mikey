@@ -205,5 +205,53 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
+        <!-- 7 - COMBINE (vertical slice: mock loading / empty / ready / error) -->
+        <ui:VisualElement name="combine" class="screen">
+            <Style src="Combine/Combine.uss" />
+            <!-- full-bleed background, outside the safe-area wrapper -->
+            <ui:VisualElement class="combine-bg" />
+            <ui:VisualElement class="safe-area-content sa-center">
+                <ui:VisualElement class="content combine-content">
+                    <ui:Label text="測定 · THE COMBINE" class="kicker combine-kicker" />
+                    <ui:Label text="Your baseline" class="title" />
+
+                    <!-- LOADING -->
+                    <ui:VisualElement name="combine-loading" class="combine-state">
+                        <ui:VisualElement class="combine-spinner" />
+                        <ui:Label text="Measuring your baseline…" class="lead combine-msg" />
+                    </ui:VisualElement>
+
+                    <!-- EMPTY / no selected items -->
+                    <ui:VisualElement name="combine-empty" class="combine-state">
+                        <ui:Label text="No tests selected yet" class="combine-state-title" />
+                        <ui:Label text="Pick your Combine tests to build a baseline." class="lead combine-msg" />
+                    </ui:VisualElement>
+
+                    <!-- READY / success with mock selected items -->
+                    <ui:VisualElement name="combine-ready" class="combine-state">
+                        <ui:VisualElement name="combine-items" class="combine-items" />
+                        <ui:Label text="Four honest numbers. Your fighter starts here." class="lead combine-msg" />
+                    </ui:VisualElement>
+
+                    <!-- ERROR -->
+                    <ui:VisualElement name="combine-error" class="combine-state">
+                        <ui:Label text="Couldn't load your baseline" class="combine-state-title combine-error-title" />
+                        <ui:Label text="Something went wrong. Please try again." class="lead combine-msg" />
+                        <ui:Button name="combine-retry" text="Retry" class="btn combine-retry" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- development-only state switcher (hidden outside Editor / dev build) -->
+                <ui:VisualElement name="combine-devbar" class="combine-devbar">
+                    <ui:Label text="DEV · STATE" class="combine-devbar__label" />
+                    <ui:Button name="combine-dev-loading" text="Loading" class="combine-devbtn" />
+                    <ui:Button name="combine-dev-empty" text="Empty" class="combine-devbtn" />
+                    <ui:Button name="combine-dev-ready" text="Ready" class="combine-devbtn" />
+                    <ui:Button name="combine-dev-error" text="Error" class="combine-devbtn" />
+                    <ui:Button name="combine-dev-cycle" text="Cycle ▸" class="combine-devbtn" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
     </ui:VisualElement>
 </ui:UXML>
