@@ -164,9 +164,16 @@ namespace Mikey.UI.SafeArea
             float screenW = Screen.width;
             float screenH = Screen.height;
 
-            bool geometryValid = panel != null && panelW > 0f && panelH > 0f && screenW > 0f && screenH > 0f;
+            // Require finite, positive geometry. The finiteness checks also reject
+            // +Infinity, which "> 0f" alone would let through.
+            bool geometryValid = panel != null
+                && IsFinite(panelW) && panelW > 0f
+                && IsFinite(panelH) && panelH > 0f
+                && IsFinite(screenW) && screenW > 0f
+                && IsFinite(screenH) && screenH > 0f;
             if (!geometryValid)
             {
+                EnsureFiniteBaselineIfNeverApplied();
                 MaybeLogGeometryFailure(panel, screenW, screenH, panelW, panelH);
                 return;
             }
@@ -192,6 +199,7 @@ namespace Mikey.UI.SafeArea
 
             if (!insets.Valid)
             {
+                EnsureFiniteBaselineIfNeverApplied();
                 MaybeLogGeometryFailure(panel, screenW, screenH, panelW, panelH);
                 return;
             }
@@ -212,6 +220,34 @@ namespace Mikey.UI.SafeArea
             _lastPanelH = panelH;
             _hasApplied = true;
             _geometryErrorLogged = false;
+        }
+
+        /// <summary>
+        /// While geometry is invalid: if no valid safe-area padding has ever been
+        /// applied, write a finite zero baseline so targets never carry a stale or
+        /// non-finite inline value. Once valid padding has been applied, do nothing
+        /// here so the last known-good padding is preserved through transient drops.
+        /// </summary>
+        private void EnsureFiniteBaselineIfNeverApplied()
+        {
+            if (_hasApplied)
+                return;
+
+            for (int i = 0; i < _targets.Count; i++)
+            {
+                IStyle style = _targets[i].style;
+                style.paddingLeft = new Length(0f, LengthUnit.Pixel);
+                style.paddingTop = new Length(0f, LengthUnit.Pixel);
+                style.paddingRight = new Length(0f, LengthUnit.Pixel);
+                style.paddingBottom = new Length(0f, LengthUnit.Pixel);
+            }
+        }
+
+        // Compatibility-safe finiteness test (rejects NaN and ±Infinity) without
+        // depending on float.IsFinite, which is unavailable on older runtimes.
+        private static bool IsFinite(float v)
+        {
+            return !float.IsNaN(v) && !float.IsInfinity(v);
         }
 
         private void MaybeLogGeometryFailure(IPanel panel, float screenW, float screenH, float panelW, float panelH)

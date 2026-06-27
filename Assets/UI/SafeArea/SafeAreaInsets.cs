@@ -72,12 +72,32 @@ namespace Mikey.UI.SafeArea
             Vector2 topLeft = screenToPanel(topLeftScreen);
             Vector2 bottomRight = screenToPanel(bottomRightScreen);
 
+            // RuntimePanelUtils.ScreenToPanel can return non-finite values (inf/NaN)
+            // when the panel transform is not yet valid; reject before they reach styles.
+            if (!IsFinite(topLeft.x) || !IsFinite(topLeft.y)
+                || !IsFinite(bottomRight.x) || !IsFinite(bottomRight.y))
+                return Insets.Invalid;
+
             float left = Mathf.Max(0f, topLeft.x);
             float top = Mathf.Max(0f, topLeft.y);
             float right = Mathf.Max(0f, panelSize.x - bottomRight.x);
             float bottom = Mathf.Max(0f, panelSize.y - bottomRight.y);
 
+            // Mathf.Max does not reject inf/NaN, so re-check the computed insets.
+            if (!IsFinite(left) || !IsFinite(top) || !IsFinite(right) || !IsFinite(bottom))
+                return Insets.Invalid;
+
             return new Insets(left, top, right, bottom, true);
+        }
+
+        /// <summary>
+        /// Compatibility-safe finiteness test (true only for real, non-infinite,
+        /// non-NaN values). Avoids depending on <c>float.IsFinite</c>, which is
+        /// unavailable on older runtimes.
+        /// </summary>
+        private static bool IsFinite(float v)
+        {
+            return !float.IsNaN(v) && !float.IsInfinity(v);
         }
     }
 }

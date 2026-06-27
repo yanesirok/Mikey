@@ -112,5 +112,100 @@ namespace Mikey.UI.SafeArea.Tests
             var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 100f, 100f), new Vector2(100f, 100f), Vector2.zero, Identity);
             Assert.IsFalse(insets.Valid);
         }
+
+        // --- Non-finite geometry rejection (regression: "screen pos inf, -inf") ---
+
+        [Test]
+        public void NaNConversionOutput_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            Func<Vector2, Vector2> nan = _ => new Vector2(float.NaN, float.NaN);
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, screen, nan);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void PositiveInfinityConversionOutput_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            Func<Vector2, Vector2> posInf = _ => new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, screen, posInf);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void NegativeInfinityConversionOutput_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            Func<Vector2, Vector2> negInf = _ => new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, screen, negInf);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void PartiallyNonFiniteConversionOutput_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            // First conversion (top-left) is finite; second (bottom-right) is not.
+            int calls = 0;
+            Func<Vector2, Vector2> partial = p =>
+            {
+                calls++;
+                return calls == 1 ? p : new Vector2(float.PositiveInfinity, 0f);
+            };
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, screen, partial);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void NaNPanelSize_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            var panel = new Vector2(float.NaN, float.NaN);
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, panel, Identity);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void InfinitePanelSize_ReturnsInvalid()
+        {
+            var screen = new Vector2(1920f, 1080f);
+            var panel = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+
+            var insets = SafeAreaInsets.Compute(new Rect(0f, 0f, 1920f, 1080f), screen, panel, Identity);
+
+            Assert.IsFalse(insets.Valid);
+        }
+
+        [Test]
+        public void ValidConversion_ProducesFiniteInsets()
+        {
+            var screen = new Vector2(2400f, 1080f);
+            var panel = new Vector2(1200f, 540f);
+            Func<Vector2, Vector2> half = p => p * 0.5f;
+
+            var insets = SafeAreaInsets.Compute(new Rect(100f, 40f, 2200f, 1000f), screen, panel, half);
+
+            Assert.IsTrue(insets.Valid);
+            Assert.IsTrue(IsFinite(insets.Left), "Left must be finite");
+            Assert.IsTrue(IsFinite(insets.Top), "Top must be finite");
+            Assert.IsTrue(IsFinite(insets.Right), "Right must be finite");
+            Assert.IsTrue(IsFinite(insets.Bottom), "Bottom must be finite");
+        }
+
+        private static bool IsFinite(float v)
+        {
+            return !float.IsNaN(v) && !float.IsInfinity(v);
+        }
     }
 }
