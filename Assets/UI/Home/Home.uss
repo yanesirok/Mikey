@@ -1,0 +1,274 @@
+/* ============================================================
+   Home hub — landscape "menu" screen styles.
+   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
+   in from .mikey-app in theme.uss; this file only adds Home-specific
+   structure so the hub stays modular (same pattern as Combine/Combine.uss).
+
+   Landscape-first: wide, width-capped composition that fills 16:9 and
+   wider phone-landscape ratios — deliberately NOT the old 720px portrait
+   column. Translated from design-pull/assets/screens-home.jsx + theme.css.
+   ============================================================ */
+
+/* ---------- full-bleed background ----------
+   Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
+   .cam-feed / .got-sun / .combine-bg on the other screens. Solid base + a
+   soft ember glow stands in for painted art (which lands later), matching
+   the reference's radial-gradient hero wash. */
+.home-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base);
+    align-items: center;
+}
+.home-glow {
+    position: absolute;
+    top: -160px;
+    width: 760px;
+    height: 760px;
+    border-radius: 380px;
+    background-color: rgba(255, 90, 31, 0.06);
+}
+
+/* ---------- foreground layout ----------
+   One full-height column inside the safe area: ribbon pinned top, hero
+   filling the middle, dock pinned bottom. align-self centers the capped
+   width bands on ultra-wide displays without a narrow portrait column. */
+.home-layout {
+    flex-grow: 1;
+    width: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ---------- top profile / stat ribbon ---------- */
+.home-ribbon {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1400px;
+    align-self: center;
+}
+.home-belt {
+    flex-direction: row;
+    align-items: center;
+}
+.home-belt__swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background-color: var(--bone);
+    border-width: 1px;
+    border-color: var(--line);
+    margin-right: 11px;
+}
+.home-belt__rank {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.home-belt__level {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--muted);
+}
+.home-stats {
+    flex-direction: row;
+    align-items: center;
+}
+.home-chip {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(11, 14, 17, 0.45);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 20px;
+    padding: 7px 14px;
+    margin-left: 10px;
+}
+.home-chip__glyph {
+    font-size: 16px;
+    color: var(--ember);
+    margin-right: 8px;
+}
+.home-chip__text {
+    font-size: 13px;
+    color: var(--bone);
+}
+.home-chip__text--coin {
+    color: var(--jade);
+}
+
+/* ---------- hero / progression ---------- */
+.home-hero {
+    flex-grow: 1;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+}
+.home-hero__card {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    max-width: 980px;
+    align-self: center;
+    background-color: rgba(18, 22, 27, 0.7);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 18px;
+    padding: 34px;
+}
+/* session progress ring (focal), stands in for the SVG ring in the reference */
+.home-ring {
+    width: 168px;
+    height: 168px;
+    border-radius: 84px;
+    border-width: 10px;
+    border-color: rgba(237, 230, 216, 0.14);
+    border-top-color: var(--ember);
+    align-items: center;
+    justify-content: center;
+    margin-right: 36px;
+    flex-shrink: 0;
+}
+.home-ring__value {
+    font-size: 48px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.home-ring__label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+}
+.home-hero__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-direction: column;
+}
+.home-hero__kicker {
+    letter-spacing: 3px;
+}
+.home-hero__title {
+    font-size: 34px;
+}
+.home-hero__lead {
+    margin-top: 4px;
+    max-width: 520px;
+}
+.home-hero__cta {
+    max-width: 280px;
+    margin-top: 20px;
+}
+
+/* power ribbon — STR / SPD / AGI / END mock attributes */
+.home-power {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 22px;
+}
+.home-power__cell {
+    align-items: center;
+    min-width: 88px;
+    padding: 11px 18px;
+    margin: 5px;
+    background-color: rgba(11, 14, 17, 0.45);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+}
+.home-power__key {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+}
+.home-power__val {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+
+/* ---------- persistent bottom navigation dock ---------- */
+.home-dock {
+    flex-direction: row;
+    width: 100%;
+    max-width: 1100px;
+    align-self: center;
+    justify-content: center;
+    margin-top: 16px;
+}
+.home-tab {
+    flex-grow: 1;
+    flex-basis: 0;
+    max-width: 240px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    margin: 0 6px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: rgba(11, 14, 17, 0.5);
+}
+.home-tab__glyph {
+    font-size: 26px;
+    color: rgba(237, 230, 216, 0.5);
+}
+.home-tab__label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    color: rgba(237, 230, 216, 0.55);
+    margin-top: 3px;
+}
+.home-tab__badge {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--base);
+    background-color: var(--muted);
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-top: 4px;
+}
+
+/* active tab — unmistakable current state (ember accent, top rule) */
+.home-tab--active {
+    border-color: var(--ember);
+    background-color: rgba(255, 90, 31, 0.12);
+    border-top-width: 3px;
+    border-top-color: var(--ember);
+}
+.home-tab--active .home-tab__glyph {
+    color: var(--ember);
+}
+.home-tab--active .home-tab__label {
+    color: var(--bone);
+}
+
+/* locked / "coming soon" tabs — deliberately dimmed, never look interactive */
+.home-tab--locked {
+    opacity: 0.45;
+}
+
+/* ---------- reusable touch-target kit (Home-scoped) ----------
+   The project's minimum touch-target class for this screen: >= 48x48 logical,
+   flex-shrink:0 so flex never collapses a control below a tappable size
+   (keeps the bottom dock clickable at phone-landscape sizes), centered
+   content, and a real pressed-state scale so controls never feel dead. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}

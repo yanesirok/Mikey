@@ -244,104 +244,12 @@
     margin-top: 14px;
 }
 
-/* ---------- main menu ---------- */
-.topbar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-}
-.belt {
-    flex-direction: row;
-    align-items: center;
-}
-.swatch {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    background-color: var(--base-3);
-    border-width: 1px;
-    border-color: var(--line);
-    margin-right: 9px;
-}
-.belt-rank {
-    font-size: 13px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-.belt-level {
-    font-size: 10px;
-    color: var(--muted);
-}
-.coin {
-    font-size: 12px;
-    color: var(--jade);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 20px;
-    padding: 5px 10px;
-}
-.levels {
-    flex-direction: column;
-}
-.level-node {
-    flex-direction: row;
-    align-items: center;
-    background-color: var(--base-2);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 10px;
-}
-.level-node .ic {
-    width: 40px;
-    height: 40px;
-    border-radius: 11px;
-    background-color: var(--base-3);
-    color: var(--bone);
-    align-items: center;
-    justify-content: center;
-    margin-right: 14px;
-}
-.level-node.active {
-    border-color: var(--ember);
-}
-.level-node.active .ic {
-    background-color: rgba(255, 90, 31, 0.15);
-    color: var(--ember);
-}
-.level-node.locked {
-    opacity: 0.5;
-}
-.ln-title {
-    font-size: 14px;
-    color: var(--bone);
-}
-.ln-sub {
-    font-size: 11px;
-    color: var(--muted);
-}
-.bottomnav {
-    flex-direction: row;
-    margin-top: 14px;
-}
-.navbtn {
-    flex-grow: 1;
-    background-color: var(--base-2);
-    border-width: 1px;
-    border-color: var(--line);
-    color: var(--muted);
-    border-radius: 12px;
-    padding: 16px 8px;
-    font-size: 13px;
-    -unity-font-style: bold;
-    margin: 0 5px 0 5px;
-}
-.navbtn:hover {
-    color: var(--bone);
-    border-color: var(--bone);
-}
+/* ---------- main menu / Home hub ----------
+   The Home hub ("menu" screen) is styled by its own modular stylesheet,
+   Home/Home.uss (linked from the screen in MikeyApp.uxml), mirroring how the
+   Combine slice owns Combine/Combine.uss. The previous portrait-column menu
+   styles (.topbar/.belt/.level-node/.bottomnav/.navbtn …) were removed with
+   that markup; no other screen referenced them. */
 
 /* ---------- stat list (Combine intro + results) ---------- */
 .statlist {
