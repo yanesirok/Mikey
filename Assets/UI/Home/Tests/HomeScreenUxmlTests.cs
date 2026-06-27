@@ -125,19 +125,86 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void InteractiveControls_UseReusableTouchTargetClass()
+        public void CombineCta_UsesReusableTouchTargetClass()
         {
             var screen = HomeScreen(BuildTree());
-            // The Combine CTA plus all four dock tabs must use the reusable
-            // touch-target class (>= 48x48 logical, no flex-shrink) so the dock
-            // never collapses below a tappable size on phone-landscape sizes.
-            foreach (var name in new[] { "go-combineIntro", "nav-home", "nav-map", "nav-techniques", "nav-profile" })
+            var cta = screen.Q<VisualElement>("go-combineIntro");
+            Assert.IsNotNull(cta, "Expected the Combine CTA 'go-combineIntro'.");
+            Assert.IsTrue(cta.ClassListContains("tap-target"),
+                "The Combine CTA must use the reusable '.tap-target' (>= 48x48) class.");
+        }
+
+        [Test]
+        public void Dock_UsesLargerTouchTargetClass()
+        {
+            var screen = HomeScreen(BuildTree());
+            // Dock tabs must use the larger touch-target class (>= 56x56 logical,
+            // no flex-shrink) so the dock never collapses below a tappable size
+            // on phone-landscape resolutions.
+            foreach (var name in new[] { "nav-home", "nav-map", "nav-techniques", "nav-profile" })
             {
-                var el = screen.Q<VisualElement>(name);
-                Assert.IsNotNull(el, $"Expected an interactive control named '{name}'.");
-                Assert.IsTrue(el.ClassListContains("tap-target"),
-                    $"'{name}' must use the reusable '.tap-target' touch-target class.");
+                var tab = screen.Q<VisualElement>(name);
+                Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
+                Assert.IsTrue(tab.ClassListContains("tap-target-lg"),
+                    $"Dock tab '{name}' must use the larger '.tap-target-lg' touch-target class.");
             }
+        }
+
+        [Test]
+        public void DockIcons_UseLargerReusableIconClass()
+        {
+            var screen = HomeScreen(BuildTree());
+            // Each dock tab's visible glyph must use the larger reusable nav-icon
+            // size class (and the non-shrinking .home-icon base).
+            foreach (var name in new[] { "nav-home", "nav-map", "nav-techniques", "nav-profile" })
+            {
+                var tab = screen.Q<VisualElement>(name);
+                Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
+                var glyph = tab.Q<VisualElement>(className: "home-tab__glyph");
+                Assert.IsNotNull(glyph, $"Dock tab '{name}' must contain a .home-tab__glyph icon.");
+                Assert.IsTrue(glyph.ClassListContains("home-icon"),
+                    $"Dock icon in '{name}' must use the non-shrinking '.home-icon' base class.");
+                Assert.IsTrue(glyph.ClassListContains("home-icon--nav"),
+                    $"Dock icon in '{name}' must use the larger '.home-icon--nav' size class.");
+            }
+        }
+
+        [Test]
+        public void RibbonIcons_UseRibbonVisibleSizeClass()
+        {
+            var screen = HomeScreen(BuildTree());
+            var glyphs = screen.Query<VisualElement>(className: "home-chip__glyph").ToList();
+            Assert.AreEqual(2, glyphs.Count, "Expected two ribbon chip icons (streak + balance).");
+            foreach (var glyph in glyphs)
+            {
+                Assert.IsTrue(glyph.ClassListContains("home-icon"),
+                    "Ribbon icons must use the non-shrinking '.home-icon' base class.");
+                Assert.IsTrue(glyph.ClassListContains("home-icon--ribbon"),
+                    "Ribbon icons must use the '.home-icon--ribbon' visible-size class.");
+            }
+        }
+
+        [Test]
+        public void CtaArrow_UsesCtaVisibleSizeClass()
+        {
+            var screen = HomeScreen(BuildTree());
+            var cta = screen.Q<VisualElement>("go-combineIntro");
+            Assert.IsNotNull(cta, "Expected the Combine CTA 'go-combineIntro'.");
+            var arrow = cta.Q<VisualElement>(className: "home-icon--cta");
+            Assert.IsNotNull(arrow, "The CTA must contain an arrow icon using '.home-icon--cta'.");
+            Assert.IsTrue(arrow.ClassListContains("home-icon"),
+                "The CTA arrow must use the non-shrinking '.home-icon' base class.");
+        }
+
+        [Test]
+        public void AllVisibleIcons_UseNonShrinkingBaseClass()
+        {
+            var screen = HomeScreen(BuildTree());
+            // Every visible icon on Home carries the .home-icon base (flex-shrink:0,
+            // centered) so flex layout can never collapse the artwork.
+            var icons = screen.Query<VisualElement>(className: "home-icon").ToList();
+            Assert.GreaterOrEqual(icons.Count, 7,
+                "Expected at least 7 .home-icon elements (4 dock + 2 ribbon + 1 CTA arrow).");
         }
 
         [Test]

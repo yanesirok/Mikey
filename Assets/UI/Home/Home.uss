@@ -44,6 +44,60 @@
     align-items: center;
 }
 
+/* ---------- reusable visible-icon kit (Home-scoped) ----------
+   Sizes the ICON ARTWORK itself (the rendered glyph), independently of the
+   button hit area. Every icon is non-shrinking and centered so flex never
+   collapses the artwork, and the glyph stays large/recognizable even at
+   phone-landscape sizes. Used alongside the per-context colour classes
+   (.home-tab__glyph / .home-chip__glyph) which now only carry colour. */
+.home-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+}
+.home-icon--nav {
+    /* bottom-nav visible icons: 40–44px target */
+    font-size: 42px;
+}
+.home-icon--ribbon {
+    /* top ribbon icons/glyphs: 30–36px target */
+    font-size: 34px;
+}
+.home-icon--cta {
+    /* primary CTA arrow: 30–36px target */
+    font-size: 34px;
+}
+
+/* ---------- touch-target kit (Home-scoped) ----------
+   .tap-target  — generic interactive control: >= 48x48 logical.
+   .tap-target-lg — bottom-nav dock tabs: >= 56x56 logical.
+   Both set flex-shrink:0 so flex never collapses a control below a tappable
+   size (keeps the dock clickable at phone-landscape sizes), centre content,
+   and add a real pressed-state scale so controls never feel dead. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+.tap-target-lg {
+    min-width: 56px;
+    min-height: 56px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target-lg:active {
+    scale: 0.97;
+}
+
 /* ---------- top profile / stat ribbon ---------- */
 .home-ribbon {
     flex-direction: row;
@@ -57,14 +111,16 @@
     flex-direction: row;
     align-items: center;
 }
+/* belt/rank visual — at least 36px in its main dimension, non-shrinking */
 .home-belt__swatch {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 9px;
     background-color: var(--bone);
     border-width: 1px;
     border-color: var(--line);
-    margin-right: 11px;
+    margin-right: 12px;
 }
 .home-belt__rank {
     font-size: 15px;
@@ -86,14 +142,14 @@
     background-color: rgba(11, 14, 17, 0.45);
     border-width: 1px;
     border-color: var(--line);
-    border-radius: 20px;
-    padding: 7px 14px;
+    border-radius: 22px;
+    padding: 8px 16px;
     margin-left: 10px;
 }
+/* colour only — size comes from .home-icon--ribbon */
 .home-chip__glyph {
-    font-size: 16px;
     color: var(--ember);
-    margin-right: 8px;
+    margin-right: 10px;
 }
 .home-chip__text {
     font-size: 13px;
@@ -160,9 +216,22 @@
     margin-top: 4px;
     max-width: 520px;
 }
+/* CTA = text label + a separately-sized arrow icon, laid out in a row */
 .home-hero__cta {
-    max-width: 280px;
+    max-width: 300px;
     margin-top: 20px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.home-cta__text {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: #1A0A03;
+}
+.home-cta__arrow {
+    color: #1A0A03;
+    margin-left: 12px;
 }
 
 /* power ribbon — STR / SPD / AGI / END mock attributes */
@@ -209,23 +278,23 @@
     max-width: 240px;
     align-items: center;
     justify-content: center;
-    padding: 8px;
+    padding: 10px 8px;
     margin: 0 6px;
     border-radius: 14px;
     border-width: 1px;
     border-color: var(--line);
     background-color: rgba(11, 14, 17, 0.5);
 }
+/* colour only — size comes from .home-icon--nav */
 .home-tab__glyph {
-    font-size: 26px;
-    color: rgba(237, 230, 216, 0.5);
+    color: rgba(237, 230, 216, 0.6);
 }
 .home-tab__label {
     font-size: 13px;
     -unity-font-style: bold;
     letter-spacing: 1px;
-    color: rgba(237, 230, 216, 0.55);
-    margin-top: 3px;
+    color: rgba(237, 230, 216, 0.6);
+    margin-top: 4px;
 }
 .home-tab__badge {
     font-size: 9px;
@@ -251,24 +320,8 @@
     color: var(--bone);
 }
 
-/* locked / "coming soon" tabs — deliberately dimmed, never look interactive */
+/* locked / "coming soon" tabs — clearly disabled but the icon stays readable
+   (kept distinctly dimmer than the ember active tab, not near-invisible). */
 .home-tab--locked {
-    opacity: 0.45;
-}
-
-/* ---------- reusable touch-target kit (Home-scoped) ----------
-   The project's minimum touch-target class for this screen: >= 48x48 logical,
-   flex-shrink:0 so flex never collapses a control below a tappable size
-   (keeps the bottom dock clickable at phone-landscape sizes), centered
-   content, and a real pressed-state scale so controls never feel dead. */
-.tap-target {
-    min-width: 48px;
-    min-height: 48px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
-}
-.tap-target:active {
-    scale: 0.97;
+    opacity: 0.6;
 }

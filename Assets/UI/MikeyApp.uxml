@@ -66,11 +66,11 @@
                     </ui:VisualElement>
                     <ui:VisualElement class="home-stats">
                         <ui:VisualElement class="home-chip">
-                            <ui:Label text="火" class="home-chip__glyph" />
+                            <ui:Label text="火" class="home-chip__glyph home-icon home-icon--ribbon" />
                             <ui:Label text="1-day streak" class="home-chip__text" />
                         </ui:VisualElement>
                         <ui:VisualElement class="home-chip">
-                            <ui:Label text="金" class="home-chip__glyph" />
+                            <ui:Label text="金" class="home-chip__glyph home-icon home-icon--ribbon" />
                             <ui:Label text="$10.00" class="home-chip__text home-chip__text--coin" />
                         </ui:VisualElement>
                     </ui:VisualElement>
@@ -87,7 +87,10 @@
                             <ui:Label text="稽古 · TODAY'S TRAINING" class="kicker home-hero__kicker" />
                             <ui:Label text="Earn your day" class="title home-hero__title" />
                             <ui:Label text="One real session keeps your fighter sharp. Begin the Combine to measure your baseline." class="lead home-hero__lead" />
-                            <ui:Button name="go-combineIntro" text="Begin the Combine ›" class="btn primary tap-target home-hero__cta" />
+                            <ui:Button name="go-combineIntro" class="btn primary tap-target home-hero__cta">
+                                <ui:Label text="Begin the Combine" class="home-cta__text" picking-mode="Ignore" />
+                                <ui:Label text="›" class="home-icon home-icon--cta home-cta__arrow" picking-mode="Ignore" />
+                            </ui:Button>
                         </ui:VisualElement>
                     </ui:VisualElement>
 
@@ -114,22 +117,22 @@
 
                 <!-- persistent landscape bottom navigation dock -->
                 <ui:VisualElement class="home-dock">
-                    <ui:VisualElement name="nav-home" class="home-tab home-tab--active tap-target">
-                        <ui:Label text="家" class="home-tab__glyph" />
+                    <ui:VisualElement name="nav-home" class="home-tab home-tab--active tap-target-lg">
+                        <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Home" class="home-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-map" class="home-tab home-tab--locked tap-target">
-                        <ui:Label text="地" class="home-tab__glyph" />
+                    <ui:VisualElement name="nav-map" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Map" class="home-tab__label" />
                         <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-techniques" class="home-tab home-tab--locked tap-target">
-                        <ui:Label text="技" class="home-tab__glyph" />
+                    <ui:VisualElement name="nav-techniques" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Techniques" class="home-tab__label" />
                         <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-profile" class="home-tab home-tab--locked tap-target">
-                        <ui:Label text="人" class="home-tab__glyph" />
+                    <ui:VisualElement name="nav-profile" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Profile" class="home-tab__label" />
                         <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
