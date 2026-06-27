@@ -97,5 +97,41 @@ namespace Mikey.UI.Combine.Tests
                 Assert.IsNotNull(screen.Q<Button>(name), $"Expected a Button named '{name}'.");
             }
         }
+
+        [Test]
+        public void InteractiveIconControls_UseReusableTouchTargetClass()
+        {
+            var screen = CombineScreen(BuildTree());
+            // Every interactive control on the screen must carry the reusable
+            // .icon-btn touch-target class (>= 48x48 logical, centered, no-shrink).
+            foreach (var name in new[]
+            {
+                "combine-dev-loading", "combine-dev-empty", "combine-dev-ready",
+                "combine-dev-error", "combine-dev-cycle", "combine-retry",
+            })
+            {
+                var button = screen.Q<Button>(name);
+                Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
+                Assert.IsTrue(button.ClassListContains("icon-btn"),
+                    $"'{name}' must use the reusable .icon-btn class.");
+            }
+        }
+
+        [Test]
+        public void DevSwitcherButtons_UseReusableVisibleIconSize()
+        {
+            var screen = CombineScreen(BuildTree());
+            foreach (var name in new[]
+            {
+                "combine-dev-loading", "combine-dev-empty", "combine-dev-ready",
+                "combine-dev-error", "combine-dev-cycle",
+            })
+            {
+                var button = screen.Q<Button>(name);
+                Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
+                Assert.IsTrue(button.ClassListContains("icon-24"),
+                    $"'{name}' must use the reusable .icon-24 visible-icon size variant.");
+            }
+        }
     }
 }

@@ -237,18 +237,18 @@
                     <ui:VisualElement name="combine-error" class="combine-state">
                         <ui:Label text="Couldn't load your baseline" class="combine-state-title combine-error-title" />
                         <ui:Label text="Something went wrong. Please try again." class="lead combine-msg" />
-                        <ui:Button name="combine-retry" text="Retry" class="btn combine-retry" />
+                        <ui:Button name="combine-retry" text="Retry" class="btn combine-retry icon-btn" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
                 <!-- development-only state switcher (hidden outside Editor / dev build) -->
                 <ui:VisualElement name="combine-devbar" class="combine-devbar">
                     <ui:Label text="DEV · STATE" class="combine-devbar__label" />
-                    <ui:Button name="combine-dev-loading" text="Loading" class="combine-devbtn" />
-                    <ui:Button name="combine-dev-empty" text="Empty" class="combine-devbtn" />
-                    <ui:Button name="combine-dev-ready" text="Ready" class="combine-devbtn" />
-                    <ui:Button name="combine-dev-error" text="Error" class="combine-devbtn" />
-                    <ui:Button name="combine-dev-cycle" text="Cycle ▸" class="combine-devbtn" />
+                    <ui:Button name="combine-dev-loading" text="Loading" class="combine-devbtn icon-btn icon-24" />
+                    <ui:Button name="combine-dev-empty" text="Empty" class="combine-devbtn icon-btn icon-24" />
+                    <ui:Button name="combine-dev-ready" text="Ready" class="combine-devbtn icon-btn icon-24" />
+                    <ui:Button name="combine-dev-error" text="Error" class="combine-devbtn icon-btn icon-24" />
+                    <ui:Button name="combine-dev-cycle" text="Cycle ▸" class="combine-devbtn icon-btn icon-24" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

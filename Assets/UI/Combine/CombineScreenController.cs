@@ -164,6 +164,7 @@ namespace Mikey.UI.Combine
 
             var glyph = new Label(item.Glyph);
             glyph.AddToClassList("combine-card__glyph");
+            glyph.AddToClassList("icon-32"); // reusable visible-icon size
             card.Add(glyph);
 
             var value = new Label(item.Value);
