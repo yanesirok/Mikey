@@ -464,7 +464,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 099c2a521482f3e49a6f0690ce75186e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScreenManager
-  startScreen: combine
+  startScreen: splash
 --- !u!114 &1720403618
 MonoBehaviour:
   m_ObjectHideFlags: 0
