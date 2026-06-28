@@ -134,6 +134,13 @@
     margin-top: 16px;
 }
 
+/* Ready-state production exit ("Return Home"): width-capped like retry so the
+   primary CTA stays consistent with the Combine layout, not edge-to-edge. */
+.combine-home {
+    max-width: 240px;
+    margin-top: 18px;
+}
+
 /* ---------- development-only state switcher ----------
    Hidden by the controller outside the Editor / a Development Build. */
 .combine-devbar {

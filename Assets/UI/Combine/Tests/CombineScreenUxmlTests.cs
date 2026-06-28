@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -132,6 +133,41 @@ namespace Mikey.UI.Combine.Tests
                 Assert.IsTrue(button.ClassListContains("icon-24"),
                     $"'{name}' must use the reusable .icon-24 visible-icon size variant.");
             }
+        }
+
+        [Test]
+        public void ReadyState_HasProductionReturnHomeButton()
+        {
+            var screen = CombineScreen(BuildTree());
+            var ready = screen.Q<VisualElement>("combine-ready");
+            Assert.IsNotNull(ready, "Expected the 'combine-ready' success state.");
+
+            // The production exit lives inside the ready state (only reachable on success).
+            var home = ready.Q<Button>("go-menu");
+            Assert.IsNotNull(home, "Ready state must contain a production 'go-menu' button.");
+            Assert.IsNotNull(NearestSafeAreaAncestor(home),
+                "'go-menu' must be inside .safe-area-content.");
+
+            // Honest label: Level 1 is not implemented, so it must not claim to unlock it.
+            StringAssert.DoesNotContain("Unlock Level 1", home.text,
+                "Return-Home button must not be labelled 'Unlock Level 1'.");
+
+            // Reusable >=48px touch target, consistent with the Combine icon-button kit.
+            Assert.IsTrue(home.ClassListContains("icon-btn"),
+                "'go-menu' must use the reusable .icon-btn touch-target class.");
+        }
+
+        [Test]
+        public void DevControls_AreGatedToEditorOrDevelopmentBuild_InController()
+        {
+            // The dev switcher must remain present in markup but enabled only in the
+            // Editor or a Development Build. Guard the controller's compile-time gate
+            // so a refactor can't silently ship the switcher to production players.
+            const string ControllerPath = "Assets/UI/Combine/CombineScreenController.cs";
+            Assert.IsTrue(File.Exists(ControllerPath), $"Expected controller at {ControllerPath}.");
+            string source = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("#if UNITY_EDITOR || DEVELOPMENT_BUILD", source,
+                "CombineScreenController must gate dev controls behind UNITY_EDITOR || DEVELOPMENT_BUILD.");
         }
     }
 }
