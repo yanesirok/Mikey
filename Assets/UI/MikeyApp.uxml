@@ -167,10 +167,12 @@
                         <ui:Label text="Map" class="home-tab__label" />
                         <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-techniques" class="home-tab home-tab--locked tap-target-lg">
+                    <!-- Techniques is now a working production navigator (go-techniques -> techniques).
+                         Looks available (no SOON badge, no locked dimming), keeps the large visible
+                         nav icon and the >=56px dock touch target. -->
+                    <ui:VisualElement name="go-techniques" class="home-tab tap-target-lg">
                         <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Techniques" class="home-tab__label" />
-                        <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
                     <ui:VisualElement name="nav-profile" class="home-tab home-tab--locked tap-target-lg">
                         <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
@@ -382,6 +384,189 @@
                     <ui:Button name="combine-dev-error" text="Error" class="combine-devbtn icon-btn icon-24" />
                     <ui:Button name="combine-dev-cycle" text="Cycle ▸" class="combine-devbtn icon-btn icon-24" />
                 </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 7 - TECHNIQUES / LESSONS (landscape lesson hub) -->
+        <ui:VisualElement name="techniques" class="screen techniques-screen">
+            <Style src="Techniques/Techniques.uss" />
+            <!-- full-bleed lesson-hub background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="tq-bg" picking-mode="Ignore">
+                <ui:VisualElement class="tq-glow" picking-mode="Ignore" />
+                <ui:VisualElement class="tq-kanji-wash" picking-mode="Ignore" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="tq-layout">
+
+                <!-- LEFT BAND: Techniques/Lessons hierarchy + rank/progress + Home/Back -->
+                <ui:VisualElement class="tq-hub">
+                    <ui:VisualElement class="tq-headline">
+                        <ui:Label text="技" class="tq-icon tq-icon--hub tq-headline__mark" picking-mode="Ignore" />
+                        <ui:VisualElement class="tq-headline__text">
+                            <ui:Label text="KARATE · LESSONS" class="kicker tq-kicker" />
+                            <ui:Label text="Techniques" class="title tq-title" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:Label text="Choose an element. Mikey demonstrates, then watches you attempt it. Earn the first form to open the path." class="lead tq-lead" />
+
+                    <!-- rank / progress summary (mock local data) -->
+                    <ui:VisualElement class="tq-progress">
+                        <ui:VisualElement class="tq-belt">
+                            <ui:VisualElement class="tq-belt__swatch" picking-mode="Ignore" />
+                            <ui:VisualElement class="tq-belt__text">
+                                <ui:Label text="White Belt" class="tq-belt__rank" />
+                                <ui:Label text="HEIAN · DAY 1" class="tq-belt__sub" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="tq-progress__bar">
+                            <ui:VisualElement class="tq-progress__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="1 / 4 ELEMENTS" class="tq-progress__count" />
+                    </ui:VisualElement>
+
+                    <!-- Home / Back action (semantic name go-menu) -->
+                    <ui:VisualElement class="tq-actionbar tq-actionbar--hub">
+                        <ui:Button name="go-menu" class="tq-btn tq-btn--ghost tap-target-lg">
+                            <ui:Label text="‹" class="tq-icon tq-icon--action tq-btn__icon tq-btn__icon--lead" picking-mode="Ignore" />
+                            <ui:Label text="Home" class="tq-btn__text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- RIGHT BAND: responsive lesson list -->
+                <ui:VisualElement class="tq-lessons">
+                    <!-- 1 · AVAILABLE — the first reference lesson (Front Stance / Zenkutsu-dachi).
+                         A real first-lesson navigator (go-practice), visually distinct as available. -->
+                    <ui:Button name="go-practice" class="tq-lesson tq-lesson--available tap-target-lg">
+                        <ui:Label text="前" class="tq-icon tq-icon--lesson tq-lesson__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="tq-lesson__body">
+                            <ui:Label text="1 · Front Stance" class="tq-lesson__name" picking-mode="Ignore" />
+                            <ui:Label text="Zenkutsu-dachi · 前屈" class="tq-lesson__romaji" picking-mode="Ignore" />
+                            <ui:Label text="FOUNDATION FORM · NOT YET ATTEMPTED" class="tq-lesson__meta" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="tq-icon tq-icon--action tq-lesson__go" picking-mode="Ignore" />
+                    </ui:Button>
+
+                    <!-- 2-4 · LOCKED — honest coming-soon state, NOT a navigator (no go- name),
+                         non-interactive (picking ignored), but readable with a clear lock state. -->
+                    <ui:VisualElement class="tq-lesson tq-lesson--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="tq-icon tq-icon--lesson tq-lesson__glyph tq-lesson__glyph--locked" />
+                        <ui:VisualElement class="tq-lesson__body">
+                            <ui:Label text="2 · Low Block" class="tq-lesson__name" />
+                            <ui:Label text="Gedan-barai · 下段" class="tq-lesson__romaji" />
+                            <ui:Label text="DEFENSIVE ELEMENT · COMING SOON" class="tq-lesson__meta tq-lesson__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="tq-lesson__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="tq-lesson tq-lesson--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="tq-icon tq-icon--lesson tq-lesson__glyph tq-lesson__glyph--locked" />
+                        <ui:VisualElement class="tq-lesson__body">
+                            <ui:Label text="3 · Front Kick" class="tq-lesson__name" />
+                            <ui:Label text="Mae-geri · 前蹴" class="tq-lesson__romaji" />
+                            <ui:Label text="STRIKING ELEMENT · COMING SOON" class="tq-lesson__meta tq-lesson__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="tq-lesson__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="tq-lesson tq-lesson--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="tq-icon tq-icon--lesson tq-lesson__glyph tq-lesson__glyph--locked" />
+                        <ui:VisualElement class="tq-lesson__body">
+                            <ui:Label text="4 · Heian Shodan" class="tq-lesson__name" />
+                            <ui:Label text="First Kata · 平安" class="tq-lesson__romaji" />
+                            <ui:Label text="SEQUENCE · TEMPO · COMING SOON" class="tq-lesson__meta tq-lesson__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="tq-lesson__badge" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 8 - PRACTICE (frontend-only mock training slice for the first lesson) -->
+        <ui:VisualElement name="practice" class="screen practice-screen">
+            <Style src="Practice/Practice.uss" />
+            <!-- full-bleed mock training feed, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="pr-feed" picking-mode="Ignore">
+                <ui:VisualElement class="pr-feed__glow" picking-mode="Ignore" />
+                <ui:VisualElement class="pr-feed__vignette" picking-mode="Ignore" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="pr-hud">
+
+                <!-- top bar: mock live marker (left) + lesson name & objective (right) -->
+                <ui:VisualElement class="pr-topbar">
+                    <ui:VisualElement class="pr-live">
+                        <ui:VisualElement class="pr-live__dot pr-icon" picking-mode="Ignore" />
+                        <ui:Label text="LIVE · MOCK POSE" class="pr-live__text" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="pr-titlewrap">
+                        <ui:Label text="KARATE · ELEMENT 1 / 4" class="kicker pr-kicker" />
+                        <ui:Label text="Zenkutsu-dachi · 前屈" class="title pr-title" />
+                        <ui:Label text="Front Stance — sink low, hips square, spine tall." class="pr-objective" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- center stage: large readable pose focal graphic + score / cue readout -->
+                <ui:VisualElement class="pr-stage">
+                    <ui:VisualElement class="pr-pose">
+                        <ui:VisualElement class="pr-pose__bracket pr-pose__bracket--tl" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pose__bracket pr-pose__bracket--tr" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pose__bracket pr-pose__bracket--bl" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pose__bracket pr-pose__bracket--br" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-figure" picking-mode="Ignore">
+                            <ui:VisualElement class="pr-figure__head" picking-mode="Ignore" />
+                            <ui:VisualElement class="pr-figure__body" picking-mode="Ignore" />
+                            <ui:VisualElement class="pr-figure__stance" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="MOCK CAMERA · FRONT-STANCE PLACEHOLDER" class="pr-pose__note" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="pr-readout">
+                        <ui:VisualElement class="pr-counter">
+                            <ui:Label name="practice-score" text="41" class="pr-score" />
+                            <ui:Label text="FORM" class="pr-score__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="practice-cue-pill" class="pr-cue pr-cue--ready">
+                            <ui:Label name="practice-cue-glyph" text="構" class="pr-cue__glyph pr-icon pr-icon--hud" picking-mode="Ignore" />
+                            <ui:Label name="practice-cue-text" text="Press Begin to start." class="pr-cue__text" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- progress indicator: kata keyframe pips, driven by the mock controller -->
+                <ui:VisualElement class="pr-progress">
+                    <ui:Label text="KATA" class="pr-progress__label" picking-mode="Ignore" />
+                    <ui:VisualElement name="practice-progress" class="pr-progress__pips">
+                        <ui:VisualElement class="pr-pip" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pip" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pip" picking-mode="Ignore" />
+                        <ui:VisualElement class="pr-pip" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- responsive bottom action bar: width-capped, centered, wraps on narrow widths -->
+                <ui:VisualElement class="pr-actionbar">
+                    <!-- exit / back to the Lessons hub -->
+                    <ui:Button name="go-techniques" class="pr-btn pr-btn--ghost tap-target-lg">
+                        <ui:Label text="‹" class="pr-icon pr-icon--action pr-btn__icon pr-btn__icon--lead" picking-mode="Ignore" />
+                        <ui:Label text="Lessons" class="pr-btn__text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- local mock action (NOT a go- navigator); controller-bound name -->
+                    <ui:Button name="practice-action" class="pr-btn pr-btn--primary tap-target-lg">
+                        <ui:Label text="Begin" class="pr-btn__text" picking-mode="Ignore" />
+                        <ui:Label text="▸" class="pr-icon pr-icon--action pr-btn__icon" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- completion route → Lessons. Controller enables this only at completion. -->
+                    <ui:Button name="practice-complete" class="pr-btn pr-btn--complete tap-target-lg">
+                        <ui:Label text="Complete" class="pr-btn__text" picking-mode="Ignore" />
+                        <ui:Label text="✓" class="pr-icon pr-icon--action pr-btn__icon" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+
+            </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

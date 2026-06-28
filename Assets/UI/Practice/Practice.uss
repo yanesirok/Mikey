@@ -1,0 +1,367 @@
+/* ============================================================
+   Practice — landscape "practice" mock training-HUD styles.
+   Palette custom properties (--ember, --jade, --bone, --base, …) cascade in
+   from .mikey-app in theme.uss; this file only adds Practice-specific
+   structure so the screen stays modular (same pattern as CameraTest.uss).
+
+   Frontend / mock-only: no real camera, pose detection or ML — the focal
+   "pose" is an honest placeholder graphic. Trains the first reference lesson,
+   Front Stance (Zenkutsu-dachi). Translated from
+   design-pull/assets/screens-practice.jsx (PracticeHUD) + theme.css.
+   ============================================================ */
+
+/* ---------- full-bleed mock training feed (OUTSIDE .safe-area-content) ---------- */
+.pr-feed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0B0E11;
+    align-items: center;
+    justify-content: center;
+}
+.pr-feed__glow {
+    position: absolute;
+    top: -120px;
+    width: 900px;
+    height: 760px;
+    border-radius: 380px;
+    background-color: rgba(35, 42, 44, 0.5);
+}
+.pr-feed__vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.28);
+}
+
+/* ---------- reusable visible-icon kit (Practice-scoped) ---------- */
+.pr-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+}
+.pr-icon--hud {
+    /* HUD / status icons: 30–40px target */
+    font-size: 34px;
+}
+.pr-icon--action {
+    /* primary action icons: 32–40px target */
+    font-size: 34px;
+}
+
+/* ---------- touch-target kit (Practice-scoped) ---------- */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+.tap-target-lg {
+    min-width: 56px;
+    min-height: 56px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+.tap-target-lg:active {
+    scale: 0.97;
+}
+
+/* ---------- HUD foreground ---------- */
+.pr-hud {
+    flex-grow: 1;
+    width: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* top bar: live marker + lesson title/objective */
+.pr-topbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.pr-live {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: rgba(11, 14, 17, 0.55);
+    border-radius: 22px;
+    padding: 8px 16px;
+}
+.pr-live__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: var(--seal);
+    margin-right: 10px;
+}
+.pr-live__text {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--bone);
+}
+.pr-titlewrap {
+    flex-direction: column;
+    flex-shrink: 1;
+    min-width: 0;
+    align-items: flex-end;
+    -unity-text-align: middle-right;
+}
+.pr-kicker {
+    letter-spacing: 2px;
+}
+.pr-title {
+    font-size: 30px;
+}
+.pr-objective {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: normal;
+    max-width: 520px;
+}
+
+/* center stage: large pose focal graphic + readout */
+.pr-stage {
+    flex-grow: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+}
+
+/* the large readable technique/pose focal graphic — substantially larger
+   than HUD/action icons, framed by corner brackets (mock pose placeholder). */
+.pr-pose {
+    width: 340px;
+    height: 360px;
+    max-width: 90%;
+    flex-shrink: 1;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 28px;
+    border-radius: 18px;
+    background-color: rgba(11, 14, 17, 0.35);
+}
+.pr-pose__bracket {
+    position: absolute;
+    width: 46px;
+    height: 46px;
+    border-color: rgba(255, 90, 31, 0.7);
+}
+.pr-pose__bracket--tl {
+    top: 14px;
+    left: 14px;
+    border-left-width: 3px;
+    border-top-width: 3px;
+}
+.pr-pose__bracket--tr {
+    top: 14px;
+    right: 14px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+}
+.pr-pose__bracket--bl {
+    bottom: 14px;
+    left: 14px;
+    border-left-width: 3px;
+    border-bottom-width: 3px;
+}
+.pr-pose__bracket--br {
+    bottom: 14px;
+    right: 14px;
+    border-right-width: 3px;
+    border-bottom-width: 3px;
+}
+/* honest stick-figure stand-in sunk into a front stance */
+.pr-figure {
+    width: 180px;
+    height: 240px;
+    align-items: center;
+}
+.pr-figure__head {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background-color: rgba(237, 230, 216, 0.85);
+}
+.pr-figure__body {
+    width: 26px;
+    height: 110px;
+    margin-top: 6px;
+    border-radius: 13px;
+    background-color: rgba(237, 230, 216, 0.7);
+}
+.pr-figure__stance {
+    width: 150px;
+    height: 22px;
+    margin-top: 6px;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+    background-color: rgba(43, 217, 168, 0.55);
+}
+.pr-pose__note {
+    position: absolute;
+    bottom: 18px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+}
+
+/* readout: big form score + a deterministic cue pill */
+.pr-readout {
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 12px 20px;
+}
+.pr-counter {
+    align-items: center;
+}
+.pr-score {
+    font-size: 72px;
+    -unity-font-style: bold;
+    color: var(--jade);
+}
+.pr-score__label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+}
+.pr-cue {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 16px;
+    padding: 12px 22px;
+    border-radius: 28px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: rgba(11, 14, 17, 0.6);
+}
+.pr-cue__glyph {
+    margin-right: 12px;
+    color: var(--bone);
+}
+.pr-cue__text {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    white-space: normal;
+}
+/* state modifiers toggled by PracticeController */
+.pr-cue--ready {
+    border-color: var(--line);
+}
+.pr-cue--adjust {
+    border-color: var(--seal);
+}
+.pr-cue--good {
+    border-color: var(--jade);
+}
+
+/* progress indicator: kata keyframe pips */
+.pr-progress {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+}
+.pr-progress__label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-right: 14px;
+}
+.pr-progress__pips {
+    flex-direction: row;
+    align-items: center;
+}
+.pr-pip {
+    width: 30px;
+    height: 6px;
+    border-radius: 3px;
+    margin: 0 5px;
+    background-color: rgba(237, 230, 216, 0.22);
+}
+/* a filled keyframe (controller adds this class as progress advances) */
+.pr-pip--on {
+    background-color: var(--ember);
+}
+
+/* ---------- responsive bottom action bar (wraps; no width:100% siblings) ---------- */
+.pr-actionbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+}
+.pr-btn {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0 26px;
+    margin: 6px 8px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+}
+.pr-btn--ghost {
+    background-color: rgba(11, 14, 17, 0.55);
+}
+.pr-btn--ghost:hover {
+    border-color: var(--bone);
+}
+.pr-btn--primary {
+    background-color: var(--ember);
+    border-color: var(--ember);
+}
+.pr-btn--primary .pr-btn__text {
+    color: #1A0A03;
+}
+.pr-btn--primary .pr-btn__icon {
+    color: #1A0A03;
+}
+.pr-btn--complete {
+    background-color: var(--jade);
+    border-color: var(--jade);
+}
+.pr-btn--complete .pr-btn__text {
+    color: #04211A;
+}
+.pr-btn--complete .pr-btn__icon {
+    color: #04211A;
+}
+/* disabled look — the controller toggles this on practice-complete until the
+   session reaches its Complete state (and on practice-action at completion). */
+.pr-btn--disabled {
+    opacity: 0.4;
+}
+.pr-btn__text {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.pr-btn__icon {
+    color: var(--bone);
+    margin-left: 10px;
+}
+.pr-btn__icon--lead {
+    margin-left: 0;
+    margin-right: 10px;
+}

@@ -92,7 +92,7 @@ namespace Mikey.UI.Home.Tests
         public void Dock_ExposesHomeMapTechniquesProfile()
         {
             var screen = HomeScreen(BuildTree());
-            foreach (var name in new[] { "nav-home", "nav-map", "nav-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "nav-map", "go-techniques", "nav-profile" })
             {
                 Assert.IsNotNull(screen.Q<VisualElement>(name),
                     $"Bottom dock must expose a tab named '{name}'.");
@@ -113,7 +113,9 @@ namespace Mikey.UI.Home.Tests
         public void UnavailableTabs_HaveExplicitLockedClass()
         {
             var screen = HomeScreen(BuildTree());
-            foreach (var name in new[] { "nav-map", "nav-techniques", "nav-profile" })
+            // Map and Profile remain explicitly locked; Techniques is now a working
+            // navigator (asserted separately) and must no longer be locked.
+            foreach (var name in new[] { "nav-map", "nav-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a '{name}' tab.");
@@ -122,6 +124,47 @@ namespace Mikey.UI.Home.Tests
                 Assert.IsFalse(tab.ClassListContains("home-tab--active"),
                     $"Unavailable tab '{name}' must not also be active.");
             }
+        }
+
+        // 7 + 8 — Home exposes a working go-techniques navigator to the techniques screen.
+        [Test]
+        public void TechniquesTab_IsWorkingNavigator_ToTechniquesScreen()
+        {
+            var root = BuildTree();
+            var screen = HomeScreen(root);
+
+            var tab = screen.Q<VisualElement>("go-techniques");
+            Assert.IsNotNull(tab, "Home must expose the Techniques tab as a 'go-techniques' navigator.");
+
+            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
+            string target = tab.name.Substring(NavPrefix.Length);
+            Assert.AreEqual("techniques", target, "go-techniques must target the 'techniques' screen.");
+            var targetScreen = root.Q<VisualElement>(target);
+            Assert.IsNotNull(targetScreen, "The 'techniques' target screen must exist.");
+            Assert.IsTrue(targetScreen.ClassListContains("screen"), "'techniques' target must be a .screen.");
+        }
+
+        // 9 — the Techniques tab is no longer marked locked, and reads as available.
+        [Test]
+        public void TechniquesTab_IsNotLocked()
+        {
+            var screen = HomeScreen(BuildTree());
+            var tab = screen.Q<VisualElement>("go-techniques");
+            Assert.IsNotNull(tab, "Expected the 'go-techniques' tab.");
+            Assert.IsFalse(tab.ClassListContains("home-tab--locked"),
+                "The Techniques tab must no longer carry 'home-tab--locked'.");
+            Assert.IsNull(tab.Q<VisualElement>(className: "home-tab__badge"),
+                "The Techniques tab must not show a 'SOON' badge anymore.");
+        }
+
+        // The Combine CTA stays a working navigator (Techniques change must not affect it).
+        [Test]
+        public void CombineCta_StillTargetsCombineIntro()
+        {
+            var root = BuildTree();
+            var cta = HomeScreen(root).Q<VisualElement>("go-combineIntro");
+            Assert.IsNotNull(cta, "Home must keep its 'go-combineIntro' Combine CTA.");
+            Assert.IsNotNull(root.Q<VisualElement>("combineIntro"), "'go-combineIntro' must target 'combineIntro'.");
         }
 
         [Test]
@@ -141,7 +184,7 @@ namespace Mikey.UI.Home.Tests
             // Dock tabs must use the larger touch-target class (>= 56x56 logical,
             // no flex-shrink) so the dock never collapses below a tappable size
             // on phone-landscape resolutions.
-            foreach (var name in new[] { "nav-home", "nav-map", "nav-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "nav-map", "go-techniques", "nav-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
@@ -156,7 +199,7 @@ namespace Mikey.UI.Home.Tests
             var screen = HomeScreen(BuildTree());
             // Each dock tab's visible glyph must use the larger reusable nav-icon
             // size class (and the non-shrinking .home-icon base).
-            foreach (var name in new[] { "nav-home", "nav-map", "nav-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "nav-map", "go-techniques", "nav-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");

@@ -8,9 +8,9 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Verifies the MikeyApp.uxml structural contract after the entry-flow
-    /// consolidation: exactly six production screens (Splash removed, Title is the
-    /// single entry screen), one dedicated ".safe-area-content" per screen,
+    /// Verifies the MikeyApp.uxml structural contract: exactly eight production
+    /// screens (the six post-consolidation entry/Combine screens plus the
+    /// Techniques hub and Practice slice), one dedicated ".safe-area-content" per screen,
     /// full-bleed elements outside the wrappers, the mapped foreground elements
     /// inside them, the Title CTA route to Intro, and the untouched Home → Combine
     /// flow.
@@ -39,21 +39,21 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The six production screens that survive the entry-flow consolidation
-        // (Splash retired into the redesigned Title entry screen).
+        // The eight production screens: the six post-consolidation entry/Combine
+        // screens plus the Techniques lesson hub and the Practice training slice.
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice" };
 
         // 1
         [Test]
-        public void HasExactlySixScreens()
+        public void HasExactlyEightScreens()
         {
-            Assert.AreEqual(6, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(8, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheSixProductionScreens()
+        public void ScreenIds_AreExactlyTheEightProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);
@@ -221,7 +221,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg" })
+            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -237,7 +237,8 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content" })
+            foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
+                "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -247,6 +248,27 @@ namespace Mikey.UI.SafeArea.Tests
                         $".{className} must be a descendant of .safe-area-content.");
                 }
             }
+        }
+
+        // 30 — existing Title → Intro → Home entry route remains unchanged.
+        [Test]
+        public void TitleToIntroToHomeRoute_RemainsUnchanged()
+        {
+            var root = BuildTree();
+
+            // title → intro (go-intro lives on the Title screen, targets the intro screen)
+            var title = root.Q<VisualElement>("title");
+            Assert.IsNotNull(title, "Expected a 'title' screen.");
+            Assert.IsNotNull(title.Q<Button>("go-intro"), "Title must keep its 'go-intro' CTA.");
+            Assert.IsNotNull(root.Q<VisualElement>("intro"), "'go-intro' must target an existing 'intro' screen.");
+
+            // intro → menu (Enter the Dojo / Skip both navigate Home)
+            var intro = root.Q<VisualElement>("intro");
+            Assert.IsNotEmpty(intro.Query<VisualElement>(name: "go-menu").ToList(),
+                "Intro must keep a 'go-menu' route to Home.");
+            var menu = root.Q<VisualElement>("menu");
+            Assert.IsNotNull(menu, "'go-menu' must target an existing 'menu' (Home) screen.");
+            Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
         }
     }
 }

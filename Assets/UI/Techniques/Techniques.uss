@@ -1,0 +1,327 @@
+/* ============================================================
+   Techniques / Lessons hub — landscape "techniques" screen styles.
+   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
+   in from .mikey-app in theme.uss; this file only adds Techniques-specific
+   structure so the hub stays modular (same pattern as Home/Home.uss,
+   CombineIntro/CombineIntro.uss and CameraTest/CameraTest.uss).
+
+   Landscape-first: a width-capped two-band composition (lesson hub + lesson
+   list) that fills 16:9 and wider phone-landscape ratios. Translated from
+   design-pull/assets/screens-menu.jsx (LessonSelect) + theme.css.
+   ============================================================ */
+
+/* ---------- full-bleed background ----------
+   Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
+   .home-bg / .cam-feed / .combine-bg on the other screens. */
+.tq-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base);
+    align-items: center;
+}
+.tq-glow {
+    position: absolute;
+    top: -160px;
+    width: 760px;
+    height: 760px;
+    border-radius: 380px;
+    background-color: rgba(255, 90, 31, 0.06);
+}
+.tq-kanji-wash {
+    position: absolute;
+    bottom: -120px;
+    right: -60px;
+    width: 520px;
+    height: 520px;
+    border-radius: 260px;
+    background-color: rgba(43, 217, 168, 0.04);
+}
+
+/* ---------- reusable visible-icon kit (Techniques-scoped) ----------
+   Sizes the rendered glyph itself, independently of the button hit area.
+   Every icon is non-shrinking and centered so flex never collapses the
+   artwork, even at phone-landscape sizes. Mirrors Home's .home-icon kit. */
+.tq-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+}
+.tq-icon--hub {
+    /* hub header mark: large */
+    font-size: 52px;
+    color: var(--ember);
+}
+.tq-icon--lesson {
+    /* lesson-card glyphs: 36–48px target */
+    font-size: 44px;
+}
+.tq-icon--action {
+    /* primary/secondary action icons: 32–40px target */
+    font-size: 34px;
+}
+
+/* ---------- touch-target kit (Techniques-scoped) ----------
+   >= 48x48 generic / >= 56x56 large; flex-shrink:0 so flex never collapses a
+   control below a tappable size; real pressed-state scale so nothing reads dead. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+.tap-target-lg {
+    min-width: 56px;
+    min-height: 56px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+.tap-target-lg:active {
+    scale: 0.97;
+}
+
+/* ---------- foreground two-band layout ----------
+   Row on wide displays, wraps to a stacked column on narrow landscape.
+   min-width:0 + flex shrinking keep both bands readable without overflow. */
+.tq-layout {
+    flex-grow: 1;
+    width: 100%;
+    max-width: 1500px;
+    align-self: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+}
+
+/* LEFT BAND — lesson hub: hierarchy, mock rank/progress, Home/Back */
+.tq-hub {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 420px;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 28px 16px 8px;
+}
+.tq-headline {
+    flex-direction: row;
+    align-items: center;
+}
+.tq-headline__mark {
+    margin-right: 16px;
+}
+.tq-headline__text {
+    flex-direction: column;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.tq-kicker {
+    letter-spacing: 3px;
+}
+.tq-title {
+    font-size: 40px;
+}
+.tq-lead {
+    margin-top: 12px;
+    max-width: 520px;
+}
+
+/* mock rank / progress summary */
+.tq-progress {
+    margin-top: 22px;
+    max-width: 520px;
+    flex-direction: column;
+}
+.tq-belt {
+    flex-direction: row;
+    align-items: center;
+}
+.tq-belt__swatch {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background-color: var(--bone);
+    border-width: 1px;
+    border-color: var(--line);
+    margin-right: 12px;
+}
+.tq-belt__text {
+    flex-direction: column;
+}
+.tq-belt__rank {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.tq-belt__sub {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--muted);
+}
+.tq-progress__bar {
+    height: 10px;
+    border-radius: 5px;
+    margin-top: 14px;
+    background-color: rgba(43, 217, 168, 0.14);
+    border-width: 1px;
+    border-color: var(--line);
+    overflow: hidden;
+}
+.tq-progress__fill {
+    height: 100%;
+    width: 25%;
+    border-radius: 5px;
+    background-color: var(--jade);
+}
+.tq-progress__count {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-top: 8px;
+}
+
+/* ---------- responsive action bar (wraps; no width:100% siblings) ---------- */
+.tq-actionbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 26px;
+}
+.tq-actionbar--hub {
+    justify-content: flex-start;
+}
+
+/* Action buttons size to content (NOT the width:100% global .btn), so two
+   siblings never overflow a narrow landscape row. */
+.tq-btn {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0 24px;
+    margin: 6px 12px 6px 0;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+}
+.tq-btn--ghost {
+    background-color: rgba(11, 14, 17, 0.5);
+}
+.tq-btn--ghost:hover {
+    border-color: var(--bone);
+}
+.tq-btn__text {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.tq-btn__icon {
+    color: var(--bone);
+    margin-left: 10px;
+}
+.tq-btn__icon--lead {
+    margin-left: 0;
+    margin-right: 10px;
+}
+
+/* RIGHT BAND — responsive lesson list */
+.tq-lessons {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 520px;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 8px;
+}
+
+/* one lesson card: row of glyph + body + trailing marker */
+.tq-lesson {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 18px 22px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: rgba(18, 22, 27, 0.7);
+}
+.tq-lesson__glyph {
+    color: var(--bone);
+    margin-right: 18px;
+}
+.tq-lesson__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    flex-direction: column;
+}
+.tq-lesson__name {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    white-space: normal;
+}
+.tq-lesson__romaji {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: normal;
+}
+.tq-lesson__meta {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--jade);
+    margin-top: 8px;
+    white-space: normal;
+}
+.tq-lesson__go {
+    color: var(--ember);
+    margin-left: 14px;
+}
+
+/* available (the first lesson) — visually distinct: ember accent, lifted */
+.tq-lesson--available {
+    border-color: var(--ember);
+    background-color: rgba(255, 90, 31, 0.1);
+}
+.tq-lesson--available:hover {
+    border-color: var(--ember);
+    background-color: rgba(255, 90, 31, 0.16);
+}
+
+/* locked — clearly disabled but readable; the glyph stays recognizable. */
+.tq-lesson--locked {
+    opacity: 0.6;
+    border-color: var(--line);
+    background-color: rgba(11, 14, 17, 0.4);
+}
+.tq-lesson__glyph--locked {
+    color: var(--muted);
+}
+.tq-lesson__meta--locked {
+    color: var(--muted);
+}
+.tq-lesson__badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--base);
+    background-color: var(--muted);
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-left: 14px;
+    -unity-text-align: middle-center;
+}

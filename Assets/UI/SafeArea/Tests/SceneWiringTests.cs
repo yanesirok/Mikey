@@ -74,6 +74,17 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
+        public void UiGameObject_HasPracticeController()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            // PracticeController lives in Mikey.UI.Practice, which this test asm does
+            // not reference: look it up by name (same approach as ScreenManager).
+            Assert.IsNotNull(ui.GetComponent("PracticeController"),
+                "UI GameObject must have a PracticeController (Practice vertical-slice wiring).");
+        }
+
+        [Test]
         public void ScreenManager_StartScreen_IsTitle()
         {
             GameObject ui = OpenSceneAndFindUi();
