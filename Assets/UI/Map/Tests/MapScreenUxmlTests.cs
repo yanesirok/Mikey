@@ -158,9 +158,9 @@ namespace Mikey.UI.Map.Tests
         }
 
         // 13 + 14 + 15 + 16 — the dock exposes the canonical 4-tab model with real
-        // actions on Home/Techniques, the Map tab active, and Profile explicitly locked.
+        // actions on Home/Techniques/Profile, and the Map tab active.
         [Test]
-        public void Dock_HasActiveMap_RealHomeAndTechniques_AndLockedProfile()
+        public void Dock_HasActiveMap_AndRealHomeTechniquesProfileActions()
         {
             var root = BuildTree();
             var dock = MapScreen(root).Q<VisualElement>(className: "map-dock");
@@ -174,7 +174,7 @@ namespace Mikey.UI.Map.Tests
             Assert.IsFalse(mapTab.ClassListContains("map-tab--locked"),
                 "The active Map tab must not also be locked.");
 
-            // Home + Techniques are real navigators (15)
+            // Home + Techniques + Profile are real navigators (15)
             var home = dock.Q<VisualElement>("go-menu");
             Assert.IsNotNull(home, "Dock Home tab must be a 'go-menu' navigator.");
             Assert.IsTrue(root.Q<VisualElement>("menu").ClassListContains("screen"),
@@ -185,13 +185,14 @@ namespace Mikey.UI.Map.Tests
             Assert.IsTrue(root.Q<VisualElement>("techniques").ClassListContains("screen"),
                 "Dock 'go-techniques' must target the existing 'techniques' screen.");
 
-            // Profile explicitly locked (16)
-            var profile = dock.Q<VisualElement>("nav-profile");
-            Assert.IsNotNull(profile, "Dock must contain a 'nav-profile' tab.");
-            Assert.IsTrue(profile.ClassListContains("map-tab--locked"),
-                "The Profile tab must carry the explicit 'map-tab--locked' class.");
+            var profile = dock.Q<VisualElement>("go-profile");
+            Assert.IsNotNull(profile, "Dock Profile tab must be a 'go-profile' navigator.");
+            Assert.IsTrue(root.Q<VisualElement>("profile").ClassListContains("screen"),
+                "Dock 'go-profile' must target the existing 'profile' screen.");
+            Assert.IsFalse(profile.ClassListContains("map-tab--locked"),
+                "The Profile tab must no longer carry the explicit 'map-tab--locked' class.");
             Assert.IsFalse(profile.ClassListContains("map-tab--active"),
-                "The locked Profile tab must not also be active.");
+                "The Profile tab must not be active on Map.");
         }
 
         // 17 — no active-looking tab/control lacks an action: every Button is a
@@ -228,7 +229,7 @@ namespace Mikey.UI.Map.Tests
         {
             var screen = MapScreen(BuildTree());
             // The Home navigator and the dock tabs.
-            foreach (var name in new[] { "go-menu", "nav-map", "nav-profile" })
+            foreach (var name in new[] { "go-menu", "nav-map", "go-profile" })
             {
                 var ctrl = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(ctrl, $"Expected control '{name}'.");
@@ -278,7 +279,7 @@ namespace Mikey.UI.Map.Tests
             // hub action, once as a dock tab); within the dock each name is unique.
             var dock = screen.Q<VisualElement>(className: "map-dock");
             Assert.IsNotNull(dock, "Expected a '.map-dock' container.");
-            foreach (var name in new[] { "go-menu", "nav-map", "go-techniques", "nav-profile" })
+            foreach (var name in new[] { "go-menu", "nav-map", "go-techniques", "go-profile" })
             {
                 var tab = dock.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Dock must contain a tab named '{name}'.");

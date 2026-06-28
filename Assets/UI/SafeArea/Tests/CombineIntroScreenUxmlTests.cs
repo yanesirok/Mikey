@@ -12,7 +12,7 @@ namespace Mikey.UI.SafeArea.Tests
     /// background outside it and all briefing/test content inside, the preserved
     /// production route (go-menu → menu, go-camTest → camTest), explicit
     /// touch-target + visible-icon sizing classes, a responsive (non
-    /// width:100%) action bar, and no regression of the surrounding nine-screen
+    /// width:100%) action bar, and no regression of the surrounding ten-screen
     /// flow or the retired combineResults screen.
     /// </summary>
     public class CombineIntroScreenUxmlTests
@@ -241,12 +241,12 @@ namespace Mikey.UI.SafeArea.Tests
                 "The .ci-btn rule must size via flex, not width:100% that overflows the sibling action.");
         }
 
-        // 15 — production screen count is nine (Techniques + Practice + Map added).
+        // 15 — production screen count is ten (Profile added).
         [Test]
-        public void ProductionScreenCount_IsNine()
+        public void ProductionScreenCount_IsTen()
         {
-            Assert.AreEqual(9, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
-                "There must be exactly nine production screens.");
+            Assert.AreEqual(10, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
+                "There must be exactly ten production screens.");
         }
 
         // 16 — Title → Intro → Home remains unchanged.

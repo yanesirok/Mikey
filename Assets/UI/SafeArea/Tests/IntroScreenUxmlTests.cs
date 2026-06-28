@@ -157,12 +157,12 @@ namespace Mikey.UI.SafeArea.Tests
                 "Legacy .videobox-label placeholder must be removed from the Intro screen.");
         }
 
-        // 10 (suite-level) — production screen count is nine (Techniques + Practice + Map added).
+        // 10 (suite-level) — production screen count is ten (Profile added).
         [Test]
-        public void ProductionScreenCount_IsNine()
+        public void ProductionScreenCount_IsTen()
         {
-            Assert.AreEqual(9, ByClass(BuildTree(), "screen").Count,
-                "The application must keep exactly nine production screens.");
+            Assert.AreEqual(10, ByClass(BuildTree(), "screen").Count,
+                "The application must keep exactly ten production screens.");
         }
 
         // 11 (suite-level) — unrelated screen ids and forward routes are intact.
@@ -170,9 +170,9 @@ namespace Mikey.UI.SafeArea.Tests
         public void NoUnrelatedScreenIdsOrRoutes_Changed()
         {
             var root = BuildTree();
-            var expected = new[] { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map" };
+            var expected = new[] { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "profile" };
             var ids = ByClass(root, "screen").Select(s => s.name).ToList();
-            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the nine production screens.");
+            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the ten production screens.");
 
             // Key forward navigators must still be present (routes intact).
             foreach (var nav in new[] { "go-intro", "go-menu", "go-camTest", "go-combine" })

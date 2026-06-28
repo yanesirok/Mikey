@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Verifies the MikeyApp.uxml structural contract: exactly nine production
+    /// Verifies the MikeyApp.uxml structural contract: exactly ten production
     /// screens (the six post-consolidation entry/Combine screens plus the
     /// Techniques hub, Practice slice and Map progression screen), one dedicated
     /// ".safe-area-content" per screen, full-bleed elements outside the wrappers,
@@ -39,22 +39,22 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The nine production screens: the six post-consolidation entry/Combine
+        // The ten production screens: the six post-consolidation entry/Combine
         // screens plus the Techniques lesson hub, the Practice training slice and
         // the Map progression screen.
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "profile" };
 
         // 1
         [Test]
-        public void HasExactlyNineScreens()
+        public void HasExactlyTenScreens()
         {
-            Assert.AreEqual(9, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(10, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheNineProductionScreens()
+        public void ScreenIds_AreExactlyTheTenProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);
@@ -222,7 +222,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed", "map-bg" })
+            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed", "map-bg", "profile-bg" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -240,7 +240,7 @@ namespace Mikey.UI.SafeArea.Tests
             var root = BuildTree();
             foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
-                "map-layout", "map-route", "map-dock" })
+                "map-layout", "map-route", "map-dock", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
