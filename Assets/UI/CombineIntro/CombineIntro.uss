@@ -1,0 +1,311 @@
+/* ============================================================
+   Combine Intro — landscape "combineIntro" LVL0 briefing styles.
+   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
+   in from .mikey-app in theme.uss; this file only adds Combine-Intro-
+   specific structure so the briefing screen stays modular (same pattern
+   as Home/Home.uss, CameraTest/CameraTest.uss and Combine/Combine.uss).
+
+   Landscape-first: a wide, width-capped two-band composition (briefing on
+   the left, test list on the right) that fills 16:9 and wider ratios and
+   deliberately wraps to a stacked layout on narrow phone-landscape widths —
+   never a portrait-style narrow central column. Translated from the
+   authoritative design-pull Combine (LVL0) treatment in
+   design-pull/assets/screens-flow.jsx + theme.css.
+   ============================================================ */
+
+/* Drop the shared .screen 22px padding so the decorative background is truly
+   edge-to-edge (same approach as .camera); the layout re-adds breathing room
+   inside the safe area. */
+.combine-intro {
+    padding: 0;
+    background-color: var(--base);
+}
+
+/* ---------- full-bleed background (outside .safe-area-content) ----------
+   Solid base + a soft ember glow and a faint kanji wash stand in for painted
+   art (which lands later), matching the reference's radial dojo wash. Bleeds
+   under device insets like .home-bg / .cam-feed / .combine-bg. */
+.ci-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base);
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.ci-glow {
+    position: absolute;
+    top: -220px;
+    left: -160px;
+    width: 900px;
+    height: 900px;
+    border-radius: 450px;
+    background-color: rgba(255, 90, 31, 0.07);
+}
+.ci-kanji-wash {
+    position: absolute;
+    bottom: -120px;
+    right: -60px;
+    width: 620px;
+    height: 620px;
+    border-radius: 310px;
+    background-color: rgba(43, 217, 168, 0.04);
+}
+
+/* ---------- foreground layout ----------
+   One responsive band inside the safe area. Row on wide displays, wrapping to
+   a stacked column on narrow landscape. Width-capped + centered so it never
+   becomes a portrait column on ultra-wide displays. */
+.ci-layout {
+    flex-grow: 1;
+    width: 100%;
+    max-width: 1400px;
+    align-self: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 32px;
+}
+
+/* ---------- reusable visible-icon kit (Combine-Intro-scoped) ----------
+   Sizes the ICON ARTWORK (the rendered glyph/arrow) itself, independently of
+   any hit area. Every icon is non-shrinking and centered so flex never
+   collapses the artwork, and the glyph stays large/recognizable down to
+   phone-landscape sizes. Used alongside per-context colour classes. */
+.ci-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+}
+/* big baseline-test mark next to the LVL0 title (~64px) */
+.ci-icon--mark {
+    font-size: 64px;
+    color: var(--seal);
+}
+/* visible action arrows on the primary/secondary CTAs (~36px, within 32–40) */
+.ci-icon--action {
+    font-size: 36px;
+}
+/* test-list glyphs (~44px, within 36–48) */
+.ci-icon--test {
+    font-size: 44px;
+    color: var(--ember);
+}
+
+/* ---------- touch-target kit (Combine-Intro-scoped) ----------
+   .ci-tap-target    — generic interactive control: >= 48x48 logical.
+   .ci-tap-target-lg — primary/secondary briefing actions: >= 56 high.
+   Both set flex-shrink:0 so flex never collapses a control below a tappable
+   size, centre their content, and add a real pressed-state scale so controls
+   never feel dead. */
+.ci-tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.ci-tap-target:active {
+    scale: 0.97;
+}
+.ci-tap-target-lg {
+    min-width: 56px;
+    min-height: 60px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.ci-tap-target-lg:active {
+    scale: 0.97;
+}
+
+/* ---------- left briefing band ----------
+   min-width:0 lets the band shrink safely before the row wraps. */
+.ci-brief {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 460px;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px 36px 12px 12px;
+}
+
+.ci-headline {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.ci-headline__text {
+    flex-direction: column;
+    flex-shrink: 1;
+    min-width: 0;
+    margin-left: 16px;
+}
+.ci-kicker {
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+.ci-title {
+    font-size: 34px;
+    margin-top: 4px;
+}
+.ci-lead {
+    font-size: 14px;
+    white-space: normal;
+    max-width: 560px;
+    margin-bottom: 18px;
+}
+
+/* ---------- preparation / status area ---------- */
+.ci-status {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 22px;
+    max-width: 560px;
+}
+.ci-status__dot {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background-color: var(--jade);
+    margin-right: 12px;
+}
+.ci-status__text {
+    flex-direction: column;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.ci-status__head {
+    font-size: 12px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    color: var(--jade);
+}
+.ci-status__sub {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: normal;
+    margin-top: 2px;
+}
+
+/* ---------- responsive action bar ----------
+   Row that wraps on narrow widths; capped so the two actions never overflow
+   a sibling. Buttons are flex-sized (NOT width:100%) so they sit side-by-side
+   without fighting each other, then wrap+stretch when stacked. */
+.ci-actionbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    max-width: 560px;
+}
+
+/* shared button shell — flex-sized, padded, never width:100% */
+.ci-btn {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 1;
+    min-width: 0;
+    padding: 0 22px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+    color: var(--bone);
+    font-size: 17px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 12px;
+    margin-right: 12px;
+}
+.ci-btn:hover {
+    border-color: var(--bone);
+}
+/* primary is visually dominant: ember fill + more horizontal weight */
+.ci-btn--primary {
+    flex-grow: 1.6;
+    flex-basis: 240px;
+    background-color: var(--ember);
+    color: #1A0A03;
+    border-color: var(--ember);
+    font-size: 19px;
+}
+/* secondary stays clearly visible: outline, lighter weight, smaller share */
+.ci-btn--ghost {
+    flex-grow: 1;
+    flex-basis: 170px;
+    background-color: rgba(18, 22, 27, 0.6);
+    color: var(--bone);
+}
+.ci-btn__text {
+    flex-shrink: 1;
+    min-width: 0;
+    -unity-text-align: middle-center;
+}
+.ci-btn__icon {
+    margin-left: 10px;
+}
+.ci-btn__icon--lead {
+    margin-left: 0;
+    margin-right: 10px;
+}
+
+/* ---------- right test-list band ----------
+   Column of four glyph cards. min-width:0 + flex-basis lets it shrink and
+   wrap under the briefing on narrow landscape instead of overflowing. */
+.ci-tests {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 380px;
+    min-width: 0;
+    max-width: 520px;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px;
+}
+.ci-test {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--base-2);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+}
+.ci-test__glyph {
+    width: 56px;
+    margin-right: 16px;
+}
+.ci-test__body {
+    flex-direction: column;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.ci-test__name {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    white-space: normal;
+}
+.ci-test__meta {
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-top: 2px;
+}

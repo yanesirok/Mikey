@@ -183,41 +183,86 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 4 - COMBINE INTRO -->
-        <ui:VisualElement name="combineIntro" class="screen">
+        <!-- 4 - COMBINE INTRO (landscape LVL0 briefing) -->
+        <ui:VisualElement name="combineIntro" class="screen combine-intro">
+            <Style src="CombineIntro/CombineIntro.uss" />
+            <!-- full-bleed briefing background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="ci-bg" picking-mode="Ignore">
+                <ui:VisualElement class="ci-glow" picking-mode="Ignore" />
+                <ui:VisualElement class="ci-kanji-wash" picking-mode="Ignore" />
+            </ui:VisualElement>
+
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="content">
-                <ui:Label text="LEVEL 0 · THE COMBINE" class="kicker" />
-                <ui:Label text="Measure your baseline" class="title" />
-                <ui:Label text="Four tests, camera on. We score your body so your fighter starts honest. No technique yet — that's earned next." class="lead" />
-                <ui:VisualElement class="statlist">
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="1 · Push-ups" class="sh-name" />
-                            <ui:Label text="Power · upper" class="sh-meta" />
+            <ui:VisualElement class="ci-layout">
+
+                <!-- LEFT BAND: LVL0 / baseline hierarchy, explanation, status, actions -->
+                <ui:VisualElement class="ci-brief">
+                    <ui:VisualElement class="ci-headline">
+                        <ui:Label text="測" class="ci-icon ci-icon--mark" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-headline__text">
+                            <ui:Label text="LEVEL 0 · THE COMBINE" class="kicker ci-kicker" />
+                            <ui:Label text="Measure your baseline" class="title ci-title" />
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="2 · Squats" class="sh-name" />
-                            <ui:Label text="Power · lower" class="sh-meta" />
+
+                    <ui:Label text="The Combine scores your real body so your fighter starts honest — upper-body power, core, control and endurance. No technique yet; that's earned next." class="lead ci-lead" />
+
+                    <!-- preparation / status area (honest about the mock camera flow) -->
+                    <ui:VisualElement class="ci-status">
+                        <ui:VisualElement class="ci-status__dot" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-status__text">
+                            <ui:Label text="READY · 4 TESTS · CAMERA ON" class="ci-status__head" picking-mode="Ignore" />
+                            <ui:Label text="Frontend mock — the camera and pose tracking are simulated for now." class="ci-status__sub" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="3 · Wall-sit" class="sh-name" />
-                            <ui:Label text="Endurance" class="sh-meta" />
+
+                    <!-- responsive action bar: width-capped, wraps on narrow landscape -->
+                    <ui:VisualElement class="ci-actionbar">
+                        <!-- primary (dominant) → existing Camera Test screen -->
+                        <ui:Button name="go-camTest" class="ci-btn ci-btn--primary ci-tap-target-lg">
+                            <ui:Label text="Begin Camera Test" class="ci-btn__text" picking-mode="Ignore" />
+                            <ui:Label text="›" class="ci-icon ci-icon--action ci-btn__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- secondary → existing Home hub -->
+                        <ui:Button name="go-menu" class="ci-btn ci-btn--ghost ci-tap-target-lg">
+                            <ui:Label text="‹" class="ci-icon ci-icon--action ci-btn__icon ci-btn__icon--lead" picking-mode="Ignore" />
+                            <ui:Label text="Return Home" class="ci-btn__text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- RIGHT BAND: the four-test list with large readable glyphs -->
+                <ui:VisualElement class="ci-tests">
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="腕" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="1 · Push-ups" class="ci-test__name" />
+                            <ui:Label text="Power · upper" class="ci-test__meta" />
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="4 · Yoko-geri ladder" class="sh-name" />
-                            <ui:Label text="Control" class="sh-meta" />
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="腹" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="2 · Sit-ups" class="ci-test__name" />
+                            <ui:Label text="Core" class="ci-test__meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="柔" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="3 · Flexibility &amp; Control" class="ci-test__name" />
+                            <ui:Label text="Control" class="ci-test__meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="耐" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="4 · Durability" class="ci-test__name" />
+                            <ui:Label text="Endurance" class="ci-test__meta" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement class="spacer" />
-                <ui:Button name="go-camTest" text="Begin · camera on" class="btn primary" />
+
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
