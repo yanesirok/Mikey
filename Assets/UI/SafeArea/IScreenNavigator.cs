@@ -24,5 +24,13 @@ namespace Mikey.UI.SafeArea
 
         /// <summary>The id of the screen currently shown (null before the first show).</summary>
         string CurrentScreen { get; }
+
+        /// <summary>
+        /// Shows the screen with the given id (hiding all others). Lets a screen
+        /// controller drive a navigation as the result of a local state change —
+        /// e.g. the Practice completion action returning to the Techniques hub —
+        /// without depending on the concrete ScreenManager in Assembly-CSharp.
+        /// </summary>
+        void Show(string screenId);
     }
 }
