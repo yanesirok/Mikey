@@ -176,10 +176,9 @@
                         <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Techniques" class="home-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-profile" class="home-tab home-tab--locked tap-target-lg">
+                    <ui:VisualElement name="go-profile" class="home-tab tap-target-lg">
                         <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Profile" class="home-tab__label" />
-                        <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -720,11 +719,168 @@
                         <ui:Label text="技" class="map-tab__glyph map-icon map-icon--nav" />
                         <ui:Label text="Techniques" class="map-tab__label" />
                     </ui:VisualElement>
-                    <!-- Profile remains explicitly locked -->
-                    <ui:VisualElement name="nav-profile" class="map-tab map-tab--locked tap-target-lg">
+                    <!-- Profile routes to the read-only player dashboard -->
+                    <ui:VisualElement name="go-profile" class="map-tab tap-target-lg">
                         <ui:Label text="人" class="map-tab__glyph map-icon map-icon--nav" />
                         <ui:Label text="Profile" class="map-tab__label" />
-                        <ui:Label text="SOON" class="map-tab__badge" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 10 - PROFILE / PLAYER DASHBOARD (landscape, read-only frontend data) -->
+        <ui:VisualElement name="profile" class="screen profile-screen">
+            <Style src="Profile/Profile.uss" />
+            <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="profile-bg" picking-mode="Ignore">
+                <ui:VisualElement class="profile-glow" picking-mode="Ignore" />
+                <ui:VisualElement class="profile-enso" picking-mode="Ignore" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="profile-dashboard">
+
+                <!-- identity / current standing from the reference Profile hub -->
+                <ui:VisualElement class="profile-identity profile-card">
+                    <ui:Label text="人" class="profile-identity__mark profile-icon profile-icon--avatar" picking-mode="Ignore" />
+                    <ui:VisualElement class="profile-identity__body">
+                        <ui:Label text="Your dojo" class="profile-title" />
+                        <ui:Label text="1-DAY STREAK · LEVEL 1 · $10.00 BANKED" class="profile-meta" />
+                        <ui:Label text="White belt. Restoring the Heian base form and the foundation lifts." class="profile-copy" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- rank / belt / discipline summary -->
+                <ui:VisualElement class="profile-rank profile-card">
+                    <ui:VisualElement class="profile-section-head">
+                        <ui:Label text="白" class="profile-icon profile-icon--rank profile-section-head__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="profile-section-head__body">
+                            <ui:Label text="White Belt" class="profile-card__title" />
+                            <ui:Label text="LADDER RUNG 1 · DOJO" class="profile-card__sub" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-meter">
+                        <ui:VisualElement class="profile-meter__fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-rank__grid">
+                        <ui:VisualElement class="profile-rank__item">
+                            <ui:Label text="DISCIPLINE" class="profile-mini-label" />
+                            <ui:Label text="Japan · Karate" class="profile-mini-value" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-rank__item">
+                            <ui:Label text="FORM" class="profile-mini-label" />
+                            <ui:Label text="Heian — form restored 10%" class="profile-mini-value" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- training statistics from the local stat model reference -->
+                <ui:VisualElement class="profile-stats profile-card">
+                    <ui:Label text="Stats" class="profile-card__title" />
+                    <ui:Label text="Your fighter's attributes" class="profile-card__sub" />
+                    <ui:VisualElement class="profile-stat-grid">
+                        <ui:VisualElement class="profile-stat">
+                            <ui:Label text="力" class="profile-icon profile-icon--stat profile-stat__glyph" />
+                            <ui:VisualElement class="profile-stat__body">
+                                <ui:Label text="Strength" class="profile-stat__label" />
+                                <ui:Label text="12" class="profile-stat__value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-stat">
+                            <ui:Label text="速" class="profile-icon profile-icon--stat profile-stat__glyph" />
+                            <ui:VisualElement class="profile-stat__body">
+                                <ui:Label text="Speed" class="profile-stat__label" />
+                                <ui:Label text="9" class="profile-stat__value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-stat">
+                            <ui:Label text="疾" class="profile-icon profile-icon--stat profile-stat__glyph" />
+                            <ui:VisualElement class="profile-stat__body">
+                                <ui:Label text="Agility" class="profile-stat__label" />
+                                <ui:Label text="11" class="profile-stat__value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-stat">
+                            <ui:Label text="耐" class="profile-icon profile-icon--stat profile-stat__glyph" />
+                            <ui:VisualElement class="profile-stat__body">
+                                <ui:Label text="Endurance" class="profile-stat__label" />
+                                <ui:Label text="8" class="profile-stat__value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- achievements / badges use the reference Profile launcher labels as read-only status -->
+                <ui:VisualElement class="profile-achievements profile-card">
+                    <ui:Label text="Badges" class="profile-card__title" />
+                    <ui:VisualElement class="profile-badge-row">
+                        <ui:VisualElement class="profile-badge">
+                            <ui:Label text="録" class="profile-icon profile-icon--badge profile-badge__glyph" />
+                            <ui:Label text="Stats" class="profile-badge__title" />
+                            <ui:Label text="Your fighter's attributes" class="profile-badge__sub" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-badge">
+                            <ui:Label text="誓" class="profile-icon profile-icon--badge profile-badge__glyph profile-badge__glyph--seal" />
+                            <ui:Label text="The Vow" class="profile-badge__title" />
+                            <ui:Label text="Your daily commitment" class="profile-badge__sub" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-badge profile-badge--disabled">
+                            <ui:Label text="金" class="profile-icon profile-icon--badge profile-badge__glyph" />
+                            <ui:Label text="Plans" class="profile-badge__title" />
+                            <ui:Label text="Membership &amp; pricing" class="profile-badge__sub" />
+                            <ui:Label text="COMING SOON" class="profile-disabled-label" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- recent progress/activity from the reference progression/session summary -->
+                <ui:VisualElement class="profile-activity profile-card">
+                    <ui:Label text="Recent progress" class="profile-card__title" />
+                    <ui:VisualElement class="profile-activity-list">
+                        <ui:VisualElement class="profile-activity-item">
+                            <ui:Label text="道" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
+                            <ui:VisualElement class="profile-activity-item__body">
+                                <ui:Label text="Dojo" class="profile-activity-item__title" />
+                                <ui:Label text="White belt" class="profile-activity-item__sub" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-activity-item">
+                            <ui:Label text="前" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
+                            <ui:VisualElement class="profile-activity-item__body">
+                                <ui:Label text="Front Stance" class="profile-activity-item__title" />
+                                <ui:Label text="restored" class="profile-activity-item__sub" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-activity-item profile-activity-item--current">
+                            <ui:Label text="今" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
+                            <ui:VisualElement class="profile-activity-item__body">
+                                <ui:Label text="You are here" class="profile-activity-item__title" />
+                                <ui:Label text="Heian — day 1" class="profile-activity-item__sub" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Label text="A fragment restored · 3 squats: 1 no-rep, 2 clean" class="profile-activity-note" />
+                </ui:VisualElement>
+
+                <!-- canonical four-tab bottom navigation dock -->
+                <ui:VisualElement class="profile-dock">
+                    <ui:VisualElement name="go-menu" class="profile-tab tap-target-lg">
+                        <ui:Label text="家" class="profile-tab__glyph profile-icon profile-icon--nav" />
+                        <ui:Label text="Home" class="profile-tab__label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="go-map" class="profile-tab tap-target-lg">
+                        <ui:Label text="地" class="profile-tab__glyph profile-icon profile-icon--nav" />
+                        <ui:Label text="Map" class="profile-tab__label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="go-techniques" class="profile-tab tap-target-lg">
+                        <ui:Label text="技" class="profile-tab__glyph profile-icon profile-icon--nav" />
+                        <ui:Label text="Techniques" class="profile-tab__label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="nav-profile" class="profile-tab profile-tab--active tap-target-lg">
+                        <ui:Label text="人" class="profile-tab__glyph profile-icon profile-icon--nav" />
+                        <ui:Label text="Profile" class="profile-tab__label" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
