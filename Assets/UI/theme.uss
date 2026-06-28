@@ -48,7 +48,7 @@
 /* ---------- safe-area foreground wrapper ----------
    One per screen. Fills the screen's usable area and receives device
    safe-area insets (as padding) from SafeAreaController. Full-bleed siblings
-   (.cam-feed, .got-sun) stay outside it. The alignment modifiers reproduce the
+   (.cam-feed, .title-bg) stay outside it. The alignment modifiers reproduce the
    per-screen alignment that otherwise lives on the .screen element. */
 .safe-area-content {
     flex-grow: 1;
@@ -135,38 +135,10 @@
     -unity-font-style: normal;
 }
 
-/* ---------- splash ---------- */
-.splash {
-    align-items: center;
-    justify-content: center;
-}
-.logo-mark {
-    width: 96px;
-    height: 96px;
-    border-radius: 24px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: var(--base-2);
-    align-items: center;
-    justify-content: center;
-}
-.logo-glyph {
-    font-size: 46px;
-    color: var(--bone);
-}
-.splash-title {
-    font-size: 34px;
-    letter-spacing: 6px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    margin-top: 22px;
-}
-.splash-tag {
-    font-size: 12px;
-    letter-spacing: 3px;
-    color: var(--muted);
-    margin-top: 8px;
-}
+/* The Splash screen was retired: its single polished replacement is the Title
+   entry screen (see Title/Title.uss). The old .splash / .logo-mark / .logo-glyph
+   / .splash-title / .splash-tag styles were removed with that markup; no other
+   screen referenced them. */
 
 /* The Intro ("intro") screen is styled by its own modular stylesheet,
    Intro/Intro.uss (linked from the screen in MikeyApp.uxml), mirroring how the
@@ -175,62 +147,12 @@
    portrait-origin markup; no other screen referenced them. The base .skip pill
    below is still shared by the Intro skip control. */
 
-/* ---------- title / entrance ---------- */
-.title-screen {
-    padding: 0;
-    align-items: center;
-    justify-content: flex-end;
-    background-color: #15100C;
-}
-.got-sun {
-    position: absolute;
-    top: 16%;
-    left: 50%;
-    translate: -100px 0;
-    width: 200px;
-    height: 200px;
-    border-radius: 100px;
-    background-color: var(--ember);
-}
-.title-block {
-    width: 100%;
-    align-items: center;
-    padding: 0 28px 42px 28px;
-}
-.title-kanji {
-    font-size: 30px;
-    letter-spacing: 14px;
-    color: var(--bone);
-    margin-bottom: 2px;
-}
-.title-name {
-    font-size: 40px;
-    -unity-font-style: bold;
-    letter-spacing: 10px;
-    color: var(--bone);
-}
-.title-rule {
-    width: 54px;
-    height: 2px;
-    background-color: var(--seal);
-    margin-top: 14px;
-    margin-bottom: 14px;
-}
-.title-tag {
-    font-size: 11px;
-    letter-spacing: 4px;
-    color: var(--muted);
-    margin-bottom: 26px;
-}
-.begin-btn {
-    max-width: 240px;
-}
-.tap-begin {
-    font-size: 12px;
-    letter-spacing: 3px;
-    color: var(--bone);
-    margin-top: 14px;
-}
+/* The Title ("title") entrance screen is styled by its own modular stylesheet,
+   Title/Title.uss (linked from the screen in MikeyApp.uxml), mirroring how the
+   Intro cold-open, Home hub and Combine slice own their stylesheets. The
+   previous inline .title-screen / .got-sun / .title-block / .title-kanji /
+   .title-name / .title-rule / .title-tag / .begin-btn / .tap-begin styles moved
+   there with the redesign; no other screen referenced them. */
 
 /* ---------- main menu / Home hub ----------
    The Home hub ("menu" screen) is styled by its own modular stylesheet,

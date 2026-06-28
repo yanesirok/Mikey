@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 ///
 /// Convention (mirrors the mockup's data-go pattern):
 ///   - A screen is any element with the USS class "screen"; its element name
-///     is the screen id (e.g. "splash", "menu").
+///     is the screen id (e.g. "title", "menu").
 ///   - A navigator is any element named "go-&lt;screenId&gt;". Clicking it shows
 ///     that screen. Buttons and plain elements (e.g. "tap to begin") both work.
 ///
@@ -19,7 +19,7 @@ using UnityEngine.UIElements;
 public class ScreenManager : MonoBehaviour
 {
     [Tooltip("Screen shown first when the app starts.")]
-    [SerializeField] private string startScreen = "splash";
+    [SerializeField] private string startScreen = "title";
 
     private const string NavPrefix = "go-";
 

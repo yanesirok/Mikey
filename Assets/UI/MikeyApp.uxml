@@ -2,15 +2,28 @@
     <ui:VisualElement name="app" class="mikey-app">
         <Style src="theme.uss" />
 
-        <!-- 1 - SPLASH -->
-        <ui:VisualElement name="splash" class="screen splash">
-            <ui:VisualElement class="safe-area-content sa-center">
-            <ui:VisualElement class="logo-mark">
-                <ui:Label text="忍" class="logo-glyph" />
+        <!-- 1 - TITLE / ENTRANCE (single production entry screen) -->
+        <ui:VisualElement name="title" class="screen title-screen">
+            <Style src="Title/Title.uss" />
+            <!-- full-bleed ink/dojo art, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="title-bg">
+                <ui:VisualElement class="title-glow" picking-mode="Ignore" />
+                <ui:VisualElement class="title-sun" picking-mode="Ignore" />
+                <ui:VisualElement class="title-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
-            <ui:Label text="SHINOBU" class="splash-title" />
-            <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="splash-tag" />
-            <ui:Label name="go-intro" text="tap to continue" class="tap-begin" />
+
+            <ui:VisualElement class="safe-area-content sa-bottom-center">
+            <ui:VisualElement class="title-block">
+                <ui:Label text="忍" class="title-kanji" />
+                <ui:Label text="SHINOBU" class="title-name" />
+                <ui:VisualElement class="title-rule" />
+                <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="title-tag" />
+                <!-- one obvious primary CTA → intro (semantic name go-intro) -->
+                <ui:Button name="go-intro" class="btn primary title-cta tap-target">
+                    <ui:Label text="Begin your path" class="title-cta__text" picking-mode="Ignore" />
+                    <ui:Label text="›" class="title-icon title-icon--cta" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -25,8 +38,8 @@
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="intro-layout">
 
-                <!-- Skip → title (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
-                <ui:Button name="go-title" class="skip intro-skip tap-target">
+                <!-- Skip → Home (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
+                <ui:Button name="go-menu" class="skip intro-skip tap-target">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
                 </ui:Button>
@@ -62,27 +75,12 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- primary CTA → title (semantic class intro-primary) -->
-                <ui:Button name="go-title" class="btn primary intro-primary intro-cta tap-target">
+                <!-- primary CTA → Home (semantic class intro-primary) -->
+                <ui:Button name="go-menu" class="btn primary intro-primary intro-cta tap-target">
                     <ui:Label text="Enter the Dojo" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
                 </ui:Button>
 
-            </ui:VisualElement>
-            </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- 2b - TITLE / ENTRANCE -->
-        <ui:VisualElement name="title" class="screen title-screen">
-            <ui:VisualElement class="got-sun" />
-            <ui:VisualElement class="safe-area-content sa-bottom-center">
-            <ui:VisualElement class="title-block">
-                <ui:Label text="忍" class="title-kanji" />
-                <ui:Label text="SHINOBU" class="title-name" />
-                <ui:VisualElement class="title-rule" />
-                <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="title-tag" />
-                <ui:Button name="go-menu" text="Begin your path" class="btn primary begin-btn" />
-                <ui:Label name="go-menu" text="tap to begin" class="tap-begin" />
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

@@ -7,7 +7,7 @@
    ============================================================ */
 
 /* Full-bleed background layer. Lives OUTSIDE .safe-area-content so it
-   bleeds under device insets, like .cam-feed / .got-sun on other screens. */
+   bleeds under device insets, like .cam-feed / .title-bg on other screens. */
 .combine-bg {
     position: absolute;
     top: 0;

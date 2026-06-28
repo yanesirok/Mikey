@@ -1,0 +1,163 @@
+/* ============================================================
+   Title / Entrance — production application entry screen ("title").
+   The single polished landscape opening screen (Splash was retired into
+   this redesign). Palette custom properties (--ember, --seal, --bone,
+   --base, --muted, --line …) cascade in from .mikey-app in theme.uss; this
+   file only adds Title-specific structure so the screen stays modular —
+   same pattern as Home/Home.uss, Combine/Combine.uss and Intro/Intro.uss.
+   Linked from the title screen in MikeyApp.uxml.
+
+   Visual direction: Japanese ink / dojo. Solid warm-dark base, an ember
+   rising-sun disc and a soft glow, plus a bottom legibility scrim — an
+   honest UI Toolkit composition (USS has no radial-gradient / no painted
+   asset exists), echoing the design-pull TitleScreen's dusk-and-sun mood.
+   ============================================================ */
+
+/* The title screen itself: full-bleed art bleeds to the edges, brand block
+   anchored toward the bottom. Alignment lives on the .safe-area-content
+   wrapper (sa-bottom-center), like the other screens. */
+.title-screen {
+    padding: 0;
+    background-color: #15100C;
+}
+
+/* ---------- full-bleed background ----------
+   Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
+   .intro-bg / .home-bg / .combine-bg / .cam-feed on the other screens. */
+.title-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0D0A08;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+/* ember rising sun — the focal ink-dojo motif (a soft warm disc up high) */
+.title-sun {
+    position: absolute;
+    top: 14%;
+    width: 240px;
+    height: 240px;
+    border-radius: 120px;
+    background-color: var(--ember);
+    opacity: 0.85;
+}
+
+/* a wider, fainter halo behind the sun to soften its edge (no radial-gradient
+   in USS, so a larger translucent disc approximates the bloom) */
+.title-glow {
+    position: absolute;
+    top: 2%;
+    width: 620px;
+    height: 620px;
+    border-radius: 310px;
+    background-color: rgba(255, 90, 31, 0.10);
+}
+
+/* bottom legibility scrim so the brand block reads over the art */
+.title-scrim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 55%;
+    background-color: rgba(11, 14, 17, 0.55);
+}
+
+/* ---------- brand block (inside the safe area) ----------
+   Centered column anchored toward the bottom by sa-bottom-center on the
+   wrapper. Width is left full so the centered content stays centered on
+   ultra-wide displays without a narrow portrait column. */
+.title-block {
+    width: 100%;
+    align-items: center;
+    padding: 0 28px 48px 28px;
+}
+.title-kanji {
+    font-size: 34px;
+    letter-spacing: 14px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+    margin-bottom: 4px;
+}
+.title-name {
+    font-size: 46px;
+    -unity-font-style: bold;
+    letter-spacing: 10px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+}
+.title-rule {
+    width: 54px;
+    height: 2px;
+    background-color: var(--seal);
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+.title-tag {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+    margin-bottom: 30px;
+}
+
+/* ---------- primary CTA ----------
+   One obvious entry action → intro. Width-capped ember pill, icon + label in
+   a centered row. The arrow is a separately-sized, non-shrinking glyph. */
+
+/* Shared minimum touch target: >= 48x48 logical, never shrinks below
+   tappable. Same definition/intent as the Intro/Home/Combine touch-target
+   kits, scoped to this screen's stylesheet. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+}
+
+.title-cta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 260px;
+    max-width: 360px;
+    margin-top: 0;
+    padding: 16px 28px;
+}
+.title-cta__text {
+    -unity-font-style: bold;
+    font-size: 18px;
+}
+
+/* Visible action icon (arrow). Sizes the rendered glyph independently of the
+   button hit area; flex-shrink:0 stops flex collapsing the artwork; centered
+   so it stays large/recognizable at phone-landscape scale. */
+.title-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+}
+.title-icon--cta {
+    font-size: 30px;
+    margin-left: 10px;
+}
+
+/* ---------- intentional interaction states ---------- */
+.title-cta:hover {
+    border-color: var(--bone);
+}
+.title-cta:active {
+    scale: 0.98 0.98;
+}
+.title-cta:focus {
+    border-color: var(--ember);
+}
+.title-cta:disabled {
+    opacity: 0.4;
+}

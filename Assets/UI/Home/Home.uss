@@ -11,7 +11,7 @@
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .got-sun / .combine-bg on the other screens. Solid base + a
+   .cam-feed / .title-bg / .combine-bg on the other screens. Solid base + a
    soft ember glow stands in for painted art (which lands later), matching
    the reference's radial-gradient hero wash. */
 .home-bg {
