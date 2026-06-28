@@ -44,51 +44,100 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 3 - MAIN MENU -->
-        <ui:VisualElement name="menu" class="screen">
+        <!-- 3 - HOME HUB (landscape) -->
+        <ui:VisualElement name="menu" class="screen home">
+            <Style src="Home/Home.uss" />
+            <!-- full-bleed Home background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="home-bg">
+                <ui:VisualElement class="home-glow" />
+            </ui:VisualElement>
+
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="content">
-            <ui:VisualElement class="topbar">
-                <ui:VisualElement class="belt">
-                    <ui:VisualElement class="swatch" />
-                    <ui:VisualElement>
-                        <ui:Label text="White Belt" class="belt-rank" />
-                        <ui:Label text="Level 0" class="belt-level" />
+            <ui:VisualElement class="home-layout">
+
+                <!-- top profile / stat ribbon (mock values) -->
+                <ui:VisualElement class="home-ribbon">
+                    <ui:VisualElement class="home-belt">
+                        <ui:VisualElement class="home-belt__swatch" />
+                        <ui:VisualElement>
+                            <ui:Label text="White Belt" class="home-belt__rank" />
+                            <ui:Label text="LEVEL 1" class="home-belt__level" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="home-stats">
+                        <ui:VisualElement class="home-chip">
+                            <ui:Label text="火" class="home-chip__glyph home-icon home-icon--ribbon" />
+                            <ui:Label text="1-day streak" class="home-chip__text" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="home-chip">
+                            <ui:Label text="金" class="home-chip__glyph home-icon home-icon--ribbon" />
+                            <ui:Label text="$10.00" class="home-chip__text home-chip__text--coin" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:Label text="$0.00" class="coin" />
-            </ui:VisualElement>
 
-            <ui:Label text="YOUR PATH" class="kicker" />
-            <ui:VisualElement class="levels">
-                <ui:VisualElement name="go-combineIntro" class="level-node active">
-                    <ui:VisualElement class="ic">
-                        <ui:Label text="0" />
+                <!-- hero / current journey -->
+                <ui:VisualElement class="home-hero">
+                    <ui:VisualElement class="home-hero__card">
+                        <ui:VisualElement class="home-ring">
+                            <ui:Label text="0" class="home-ring__value" />
+                            <ui:Label text="/1 SESSION" class="home-ring__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="home-hero__body">
+                            <ui:Label text="稽古 · TODAY'S TRAINING" class="kicker home-hero__kicker" />
+                            <ui:Label text="Earn your day" class="title home-hero__title" />
+                            <ui:Label text="One real session keeps your fighter sharp. Begin the Combine to measure your baseline." class="lead home-hero__lead" />
+                            <ui:Button name="go-combineIntro" class="btn primary tap-target home-hero__cta">
+                                <ui:Label text="Begin the Combine" class="home-cta__text" picking-mode="Ignore" />
+                                <ui:Label text="›" class="home-icon home-icon--cta home-cta__arrow" picking-mode="Ignore" />
+                            </ui:Button>
+                        </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement>
-                        <ui:Label text="The Combine" class="ln-title" />
-                        <ui:Label text="Measure your baseline" class="ln-sub" />
+
+                    <!-- power ribbon (mock attributes) -->
+                    <ui:VisualElement class="home-power">
+                        <ui:VisualElement class="home-power__cell">
+                            <ui:Label text="STR" class="home-power__key" />
+                            <ui:Label text="12" class="home-power__val" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="home-power__cell">
+                            <ui:Label text="SPD" class="home-power__key" />
+                            <ui:Label text="9" class="home-power__val" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="home-power__cell">
+                            <ui:Label text="AGI" class="home-power__key" />
+                            <ui:Label text="11" class="home-power__val" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="home-power__cell">
+                            <ui:Label text="END" class="home-power__key" />
+                            <ui:Label text="8" class="home-power__val" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement class="level-node locked">
-                    <ui:VisualElement class="ic">
-                        <ui:Label text="1" />
+
+                <!-- persistent landscape bottom navigation dock -->
+                <ui:VisualElement class="home-dock">
+                    <ui:VisualElement name="nav-home" class="home-tab home-tab--active tap-target-lg">
+                        <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
+                        <ui:Label text="Home" class="home-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement>
-                        <ui:Label text="Lesson 1" class="ln-title" />
-                        <ui:Label text="Locked" class="ln-sub" />
+                    <ui:VisualElement name="nav-map" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
+                        <ui:Label text="Map" class="home-tab__label" />
+                        <ui:Label text="SOON" class="home-tab__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="nav-techniques" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
+                        <ui:Label text="Techniques" class="home-tab__label" />
+                        <ui:Label text="SOON" class="home-tab__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="nav-profile" class="home-tab home-tab--locked tap-target-lg">
+                        <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
+                        <ui:Label text="Profile" class="home-tab__label" />
+                        <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-            </ui:VisualElement>
 
-            <ui:VisualElement class="spacer" />
-
-            <ui:VisualElement class="bottomnav">
-                <ui:Button text="Stats" class="navbtn" />
-                <ui:Button text="Collection" class="navbtn" />
-                <ui:Button text="Game" class="navbtn" />
-                <ui:Button text="Support" class="navbtn" />
-            </ui:VisualElement>
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
