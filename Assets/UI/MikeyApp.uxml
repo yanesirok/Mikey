@@ -222,26 +222,70 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 5 - CAMERA TEST (live feed, no painted background) -->
+        <!-- 5 - CAMERA TEST (landscape mock camera HUD; no real camera/pose/ML) -->
         <ui:VisualElement name="camTest" class="screen camera">
-            <ui:VisualElement class="cam-feed" />
-            <ui:VisualElement class="safe-area-content sa-top-center">
-            <ui:VisualElement class="live">
-                <ui:VisualElement class="dot" />
-                <ui:Label text="LIVE · pose detection" />
+            <Style src="CameraTest/CameraTest.uss" />
+            <!-- full-bleed mock camera feed, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="cam-feed" picking-mode="Ignore">
+                <ui:VisualElement class="cam-feed__glow" picking-mode="Ignore" />
+                <ui:VisualElement class="cam-feed__vignette" picking-mode="Ignore" />
             </ui:VisualElement>
-            <ui:Label text="Push-ups" class="testname" />
-            <ui:VisualElement class="counter">
-                <ui:Label text="0" class="big" />
-                <ui:Label text="REPS" class="lbl" />
-            </ui:VisualElement>
-            <ui:Label text="Good form" class="callout good" />
-            <ui:VisualElement class="pose-box" />
-            <ui:Label text="Live camera feed — no painted background here" class="cam-note" />
-            <ui:VisualElement class="spacer" />
-            <ui:VisualElement class="cam-actions">
-                <ui:Button text="+ simulate reps" class="btn sm" />
-                <ui:Button name="go-combine" text="Done ▸" class="btn sm primary" />
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="cam-hud">
+
+                <!-- top bar: live/mock detection badge (left) + exercise title (right) -->
+                <ui:VisualElement class="cam-topbar">
+                    <ui:VisualElement class="cam-live">
+                        <ui:VisualElement class="cam-live__dot cam-icon" picking-mode="Ignore" />
+                        <ui:Label text="LIVE · MOCK POSE" class="cam-live__text" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="cam-titlewrap">
+                        <ui:Label text="THE COMBINE · 1 / 4" class="kicker cam-kicker" />
+                        <ui:Label text="Push-ups" class="testname cam-title" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- center stage: large pose focal region + big rep readout -->
+                <ui:VisualElement class="cam-stage">
+                    <ui:VisualElement class="cam-pose">
+                        <ui:VisualElement class="cam-pose__bracket cam-pose__bracket--tl" picking-mode="Ignore" />
+                        <ui:VisualElement class="cam-pose__bracket cam-pose__bracket--tr" picking-mode="Ignore" />
+                        <ui:VisualElement class="cam-pose__bracket cam-pose__bracket--bl" picking-mode="Ignore" />
+                        <ui:VisualElement class="cam-pose__bracket cam-pose__bracket--br" picking-mode="Ignore" />
+                        <ui:VisualElement class="cam-figure" picking-mode="Ignore">
+                            <ui:VisualElement class="cam-figure__head" picking-mode="Ignore" />
+                            <ui:VisualElement class="cam-figure__body" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="MOCK CAMERA · POSE PLACEHOLDER" class="cam-pose__note" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="cam-readout">
+                        <ui:VisualElement class="cam-counter">
+                            <ui:Label name="camera-rep-count" text="0" class="cam-count" />
+                            <ui:Label text="REPS" class="cam-count__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="camera-form-pill" class="cam-status cam-status--ready">
+                            <ui:Label name="camera-form-glyph" text="構" class="cam-status__glyph cam-icon cam-icon-36" picking-mode="Ignore" />
+                            <ui:Label name="camera-form-status" text="Align in frame" class="cam-status__text" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- responsive bottom action bar: width-capped, centered, wraps on narrow widths -->
+                <ui:VisualElement class="cam-actionbar">
+                    <!-- local mock action (NOT a go- navigator); controller-bound name -->
+                    <ui:Button name="camera-simulate-rep" class="cam-btn cam-btn--ghost tap-target-lg">
+                        <ui:Label text="＋" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
+                        <ui:Label text="Simulate reps" class="cam-btn__text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- production completion route → modern Combine screen -->
+                    <ui:Button name="go-combine" class="cam-btn cam-btn--primary tap-target-lg">
+                        <ui:Label text="Done" class="cam-btn__text" picking-mode="Ignore" />
+                        <ui:Label text="▸" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

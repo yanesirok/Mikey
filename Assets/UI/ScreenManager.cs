@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -16,7 +18,7 @@ using UnityEngine.UIElements;
 /// Inspector wiring needed.
 /// </summary>
 [RequireComponent(typeof(UIDocument))]
-public class ScreenManager : MonoBehaviour
+public class ScreenManager : MonoBehaviour, IScreenNavigator
 {
     [Tooltip("Screen shown first when the app starts.")]
     [SerializeField] private string startScreen = "title";
@@ -24,6 +26,16 @@ public class ScreenManager : MonoBehaviour
     private const string NavPrefix = "go-";
 
     private readonly List<VisualElement> _screens = new List<VisualElement>();
+
+    /// <summary>
+    /// Raised when <see cref="Show"/> actually changes the shown screen, carrying the
+    /// new screen id. Fired only on a genuine change, so a re-request of the current
+    /// screen does not re-notify (and controllers don't reset while already active).
+    /// </summary>
+    public event Action<string> ScreenChanged;
+
+    /// <summary>The id of the screen currently shown (null before the first show).</summary>
+    public string CurrentScreen { get; private set; }
 
     private void OnEnable()
     {
@@ -50,10 +62,20 @@ public class ScreenManager : MonoBehaviour
         Show(startScreen);
     }
 
-    /// <summary>Shows the screen with the given id and hides all others.</summary>
+    /// <summary>
+    /// Shows the screen with the given id and hides all others. Raises
+    /// <see cref="ScreenChanged"/> only when the shown screen actually changes, so
+    /// listeners get exactly one entry signal per genuine navigation.
+    /// </summary>
     public void Show(string screenId)
     {
         foreach (VisualElement screen in _screens)
             screen.style.display = screen.name == screenId ? DisplayStyle.Flex : DisplayStyle.None;
+
+        if (CurrentScreen == screenId)
+            return;
+
+        CurrentScreen = screenId;
+        ScreenChanged?.Invoke(screenId);
     }
 }

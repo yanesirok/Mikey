@@ -237,7 +237,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-block", "title-name", "content", "cam-actions", "live", "skip", "combine-content" })
+            foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");

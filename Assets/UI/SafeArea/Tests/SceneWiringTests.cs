@@ -63,6 +63,17 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
+        public void UiGameObject_HasCameraTestController()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            // CameraTestController lives in Mikey.UI.CameraTest, which this test asm
+            // does not reference: look it up by name (same approach as ScreenManager).
+            Assert.IsNotNull(ui.GetComponent("CameraTestController"),
+                "UI GameObject must have a CameraTestController (Camera Test landscape wiring).");
+        }
+
+        [Test]
         public void ScreenManager_StartScreen_IsTitle()
         {
             GameObject ui = OpenSceneAndFindUi();
