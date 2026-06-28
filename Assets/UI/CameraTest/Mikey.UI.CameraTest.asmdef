@@ -1,0 +1,14 @@
+{
+    "name": "Mikey.UI.CameraTest",
+    "rootNamespace": "Mikey.UI.CameraTest",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
