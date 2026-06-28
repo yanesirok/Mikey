@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -32,6 +33,7 @@ namespace Mikey.UI.Combine
         // Cached elements from the combine screen subtree.
         private readonly Dictionary<CombineState, VisualElement> _stateViews =
             new Dictionary<CombineState, VisualElement>();
+        private readonly List<ButtonBinding> _buttonBindings = new List<ButtonBinding>();
         private VisualElement _itemsContainer;
         private VisualElement _devBar;
 
@@ -54,7 +56,10 @@ namespace Mikey.UI.Combine
             }
 
             if (_bound)
+            {
                 _viewModel.Changed -= Render;
+                UnbindButtons();
+            }
 
             _stateViews.Clear();
             _itemsContainer = null;
@@ -131,11 +136,21 @@ namespace Mikey.UI.Combine
             BindButton(root, "combine-dev-cycle", () => _viewModel.CycleState());
         }
 
-        private static void BindButton(VisualElement root, string name, System.Action onClick)
+        private void BindButton(VisualElement root, string name, Action onClick)
         {
             var button = root.Q<Button>(name);
-            if (button != null)
-                button.clicked += onClick;
+            if (button == null)
+                return;
+
+            button.clicked += onClick;
+            _buttonBindings.Add(new ButtonBinding(button, onClick));
+        }
+
+        private void UnbindButtons()
+        {
+            for (int i = 0; i < _buttonBindings.Count; i++)
+                _buttonBindings[i].Unbind();
+            _buttonBindings.Clear();
         }
 
         private void Render()
@@ -184,6 +199,24 @@ namespace Mikey.UI.Combine
             card.Add(stat);
 
             return card;
+        }
+
+        private readonly struct ButtonBinding
+        {
+            private readonly Button _button;
+            private readonly Action _callback;
+
+            public ButtonBinding(Button button, Action callback)
+            {
+                _button = button;
+                _callback = callback;
+            }
+
+            public void Unbind()
+            {
+                if (_button != null && _callback != null)
+                    _button.clicked -= _callback;
+            }
         }
     }
 }

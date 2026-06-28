@@ -36,6 +36,7 @@ namespace Mikey.UI.CameraTest
         private Label _statusText;
         private Label _statusGlyph;
         private VisualElement _statusPill;
+        private Button _simulate;
 
         private IScreenNavigator _navigator;
 
@@ -58,7 +59,12 @@ namespace Mikey.UI.CameraTest
             }
 
             if (_bound)
+            {
                 _model.Changed -= Render;
+
+                if (_simulate != null)
+                    _simulate.clicked -= _model.SimulateRep;
+            }
 
             // Unsubscribe from the navigator so re-enabling never stacks a second
             // handler (no duplicate-subscription leak across enable/disable cycles).
@@ -72,6 +78,7 @@ namespace Mikey.UI.CameraTest
             _statusText = null;
             _statusGlyph = null;
             _statusPill = null;
+            _simulate = null;
             _bound = false;
         }
 
@@ -107,9 +114,9 @@ namespace Mikey.UI.CameraTest
 
             // Local mock action only. Deliberately NOT a "go-" navigator: ScreenManager
             // must not treat it as a screen jump.
-            var simulate = root.Q<Button>("camera-simulate-rep");
-            if (simulate != null)
-                simulate.clicked += _model.SimulateRep;
+            _simulate = root.Q<Button>("camera-simulate-rep");
+            if (_simulate != null)
+                _simulate.clicked += _model.SimulateRep;
 
             _model.Changed += Render;
 
