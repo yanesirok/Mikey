@@ -381,4 +381,5 @@
 .cam-actions .btn {
     flex-grow: 1;
     margin: 0 5px 0 5px;
+    min-height: 48px; /* keep the camera actions reliably tappable */
 }
