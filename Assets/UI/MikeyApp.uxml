@@ -162,10 +162,12 @@
                         <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Home" class="home-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-map" class="home-tab home-tab--locked tap-target-lg">
+                    <!-- Map is now a working production navigator (go-map -> map).
+                         Looks available (no SOON badge, no locked dimming), keeps the
+                         large visible nav icon and the >=56px dock touch target. -->
+                    <ui:VisualElement name="go-map" class="home-tab tap-target-lg">
                         <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Map" class="home-tab__label" />
-                        <ui:Label text="SOON" class="home-tab__badge" />
                     </ui:VisualElement>
                     <!-- Techniques is now a working production navigator (go-techniques -> techniques).
                          Looks available (no SOON badge, no locked dimming), keeps the large visible
@@ -564,6 +566,166 @@
                         <ui:Label text="Complete" class="pr-btn__text" picking-mode="Ignore" />
                         <ui:Label text="✓" class="pr-icon pr-icon--action pr-btn__icon" picking-mode="Ignore" />
                     </ui:Button>
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 9 - MAP / PROGRESSION (landscape campaign roadmap; first node opens Techniques) -->
+        <ui:VisualElement name="map" class="screen map-screen">
+            <Style src="Map/Map.uss" />
+            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="map-bg" picking-mode="Ignore">
+                <ui:VisualElement class="map-glow" picking-mode="Ignore" />
+                <ui:VisualElement class="map-ink-wash" picking-mode="Ignore" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="map-layout">
+
+                <!-- LEFT BAND: campaign hub — world/Japan hierarchy, mock rank/progress,
+                     locked future chapters, Home action -->
+                <ui:VisualElement class="map-hub">
+                    <ui:VisualElement class="map-headline">
+                        <ui:Label text="地" class="map-icon map-icon--hub map-headline__mark" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-headline__text">
+                            <ui:Label text="日本 · CHAPTER I" class="kicker map-kicker" />
+                            <ui:Label text="Japan · Karate" class="title map-title" />
+                            <!-- location hierarchy: World (Asia) › Japan › current city -->
+                            <ui:VisualElement class="map-breadcrumb">
+                                <ui:Label text="Asia" class="map-breadcrumb__crumb map-breadcrumb__crumb--muted" picking-mode="Ignore" />
+                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
+                                <ui:Label text="Japan" class="map-breadcrumb__crumb" picking-mode="Ignore" />
+                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
+                                <ui:Label text="Okinawa" class="map-breadcrumb__crumb" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:Label text="The Japan map is your road. Clear a city to turn it red and open the next. Start at Okinawa — train its karate before you fight." class="lead map-lead" />
+
+                    <!-- mock rank / progress summary (local frontend data) -->
+                    <ui:VisualElement class="map-progress">
+                        <ui:VisualElement class="map-belt">
+                            <ui:VisualElement class="map-belt__swatch" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-belt__text">
+                                <ui:Label text="White Belt · Level 1" class="map-belt__rank" />
+                                <ui:Label text="JAPAN · KARATE" class="map-belt__sub" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-progress__bar">
+                            <ui:VisualElement class="map-progress__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="0 / 10 CITIES CLEARED" class="map-progress__count" />
+                    </ui:VisualElement>
+
+                    <!-- locked future chapters (World-map regions), honestly not yet playable -->
+                    <ui:VisualElement class="map-chapters">
+                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
+                            <ui:Label text="中" class="map-icon map-icon--status map-chapter__glyph" />
+                            <ui:Label text="CHINA · KUNG FU · SOON" class="map-chapter__text" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
+                            <ui:Label text="韓" class="map-icon map-icon--status map-chapter__glyph" />
+                            <ui:Label text="KOREA · TAEKWONDO · SOON" class="map-chapter__text" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
+                            <ui:Label text="泰" class="map-icon map-icon--status map-chapter__glyph" />
+                            <ui:Label text="THAILAND · MUAY THAI · SOON" class="map-chapter__text" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <!-- Home / Back action (semantic name go-menu) -->
+                    <ui:VisualElement class="map-actionbar map-actionbar--hub">
+                        <ui:Button name="go-menu" class="map-btn map-btn--ghost tap-target-lg">
+                            <ui:Label text="‹" class="map-icon map-icon--action map-btn__icon map-btn__icon--lead" picking-mode="Ignore" />
+                            <ui:Label text="Home" class="map-btn__text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- RIGHT BAND: responsive progression route / node path -->
+                <ui:VisualElement class="map-route">
+                    <ui:Label text="ROADMAP · JAPAN" class="map-route__label" picking-mode="Ignore" />
+
+                    <!-- 1 · AVAILABLE — Okinawa (Level 1 · Karate, the reference's "current"
+                         city). A real navigator whose Train action opens the Lessons hub
+                         (go-techniques), exactly as the reference current-city Train -> lessons.
+                         Visually distinct as the actionable node; primary node >= 64x64. -->
+                    <ui:Button name="go-techniques" class="map-node map-node--available tap-target-lg">
+                        <ui:Label text="空" class="map-icon map-icon--node map-node__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-node__body">
+                            <ui:Label text="1 · Okinawa" class="map-node__name" picking-mode="Ignore" />
+                            <ui:Label text="Karate · 沖縄 · Level 1" class="map-node__romaji" picking-mode="Ignore" />
+                            <ui:Label text="FIGHT NOW · TRAIN TO BEGIN" class="map-node__meta" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="map-icon map-icon--action map-node__go" picking-mode="Ignore" />
+                    </ui:Button>
+
+                    <!-- 2-6 · LOCKED — honest coming-soon roadmap, NOT navigators (no go- name),
+                         non-interactive (picking ignored), readable with a clear lock state. -->
+                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
+                        <ui:VisualElement class="map-node__body">
+                            <ui:Label text="2 · Kagoshima" class="map-node__name" />
+                            <ui:Label text="Harbor Ronin · 薩 · Level 2" class="map-node__romaji" />
+                            <ui:Label text="LOCKED · CLEAR OKINAWA FIRST" class="map-node__meta map-node__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="map-node__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
+                        <ui:VisualElement class="map-node__body">
+                            <ui:Label text="3 · Miyazaki" class="map-node__name" />
+                            <ui:Label text="Coast Brawler · 宮 · Level 3" class="map-node__romaji" />
+                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="map-node__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
+                        <ui:VisualElement class="map-node__body">
+                            <ui:Label text="4 · Hiroshima" class="map-node__name" />
+                            <ui:Label text="Mountain Hermit · 広 · Level 4" class="map-node__romaji" />
+                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="map-node__badge" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
+                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
+                        <ui:VisualElement class="map-node__body">
+                            <ui:Label text="6 · Kyoto" class="map-node__name" />
+                            <ui:Label text="New Art · Aikido · 京 · Level 6" class="map-node__romaji" />
+                            <ui:Label text="NEW ART · COMING SOON" class="map-node__meta map-node__meta--locked" />
+                        </ui:VisualElement>
+                        <ui:Label text="SOON" class="map-node__badge" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- persistent landscape bottom navigation dock (canonical 4-tab model) -->
+                <ui:VisualElement class="map-dock">
+                    <!-- Home routes to the menu hub -->
+                    <ui:VisualElement name="go-menu" class="map-tab tap-target-lg">
+                        <ui:Label text="家" class="map-tab__glyph map-icon map-icon--nav" />
+                        <ui:Label text="Home" class="map-tab__label" />
+                    </ui:VisualElement>
+                    <!-- Map is the active screen here -->
+                    <ui:VisualElement name="nav-map" class="map-tab map-tab--active tap-target-lg">
+                        <ui:Label text="地" class="map-tab__glyph map-icon map-icon--nav" />
+                        <ui:Label text="Map" class="map-tab__label" />
+                    </ui:VisualElement>
+                    <!-- Techniques routes to the lessons hub -->
+                    <ui:VisualElement name="go-techniques" class="map-tab tap-target-lg">
+                        <ui:Label text="技" class="map-tab__glyph map-icon map-icon--nav" />
+                        <ui:Label text="Techniques" class="map-tab__label" />
+                    </ui:VisualElement>
+                    <!-- Profile remains explicitly locked -->
+                    <ui:VisualElement name="nav-profile" class="map-tab map-tab--locked tap-target-lg">
+                        <ui:Label text="人" class="map-tab__glyph map-icon map-icon--nav" />
+                        <ui:Label text="Profile" class="map-tab__label" />
+                        <ui:Label text="SOON" class="map-tab__badge" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
             </ui:VisualElement>
