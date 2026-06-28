@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -19,21 +20,22 @@ namespace Mikey.UI.SafeArea.Tests
         private GameObject _go;
         private object _screenManager;
         private MethodInfo _show;
+        private Type _screenManagerType;
 
         [SetUp]
         public void SetUp()
         {
-            var smType = Type.GetType("ScreenManager, Assembly-CSharp");
-            Assert.IsNotNull(smType, "ScreenManager type must resolve in Assembly-CSharp.");
+            _screenManagerType = Type.GetType("ScreenManager, Assembly-CSharp");
+            Assert.IsNotNull(_screenManagerType, "ScreenManager type must resolve in Assembly-CSharp.");
 
             // Inactive so OnEnable (which needs a live UIDocument root) does not run;
             // we drive Show() directly to exercise the pure event logic.
             _go = new GameObject("nav-test");
             _go.SetActive(false);
             _go.AddComponent<UIDocument>();
-            _screenManager = _go.AddComponent(smType);
+            _screenManager = _go.AddComponent(_screenManagerType);
 
-            _show = smType.GetMethod("Show", new[] { typeof(string) });
+            _show = _screenManagerType.GetMethod("Show", new[] { typeof(string) });
             Assert.IsNotNull(_show, "ScreenManager must expose Show(string).");
         }
 
@@ -121,6 +123,24 @@ namespace Mikey.UI.SafeArea.Tests
             Show("camTest");
 
             Assert.AreEqual(1, count, "No callbacks may fire after unsubscribing (no leak).");
+        }
+
+        [Test]
+        public void NavigatorBindings_AreUnregisteredOnDisable()
+        {
+            string source = File.ReadAllText("Assets/UI/ScreenManager.cs");
+            StringAssert.Contains("_navigatorBindings", source,
+                "ScreenManager must retain navigator callback bindings for teardown.");
+            StringAssert.Contains("private void OnDisable()", source,
+                "ScreenManager must implement OnDisable to remove navigator callbacks.");
+            StringAssert.Contains("_navigatorBindings[i].Unbind();", source,
+                "ScreenManager.OnDisable must unregister each navigator callback.");
+            StringAssert.Contains("_navigatorBindings.Clear();", source,
+                "ScreenManager.OnDisable must clear callback binding storage.");
+            StringAssert.Contains("button.clicked -= _buttonCallback", source,
+                "Button navigators must remove their previously-added clicked callback.");
+            StringAssert.Contains("UnregisterCallback(_elementCallback)", source,
+                "VisualElement navigators must remove their previously-registered ClickEvent callback.");
         }
     }
 }

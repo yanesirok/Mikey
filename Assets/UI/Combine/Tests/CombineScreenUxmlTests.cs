@@ -169,5 +169,20 @@ namespace Mikey.UI.Combine.Tests
             StringAssert.Contains("#if UNITY_EDITOR || DEVELOPMENT_BUILD", source,
                 "CombineScreenController must gate dev controls behind UNITY_EDITOR || DEVELOPMENT_BUILD.");
         }
+
+        [Test]
+        public void Controller_UnbindsLocalButtonCallbacksOnDisable()
+        {
+            const string ControllerPath = "Assets/UI/Combine/CombineScreenController.cs";
+            Assert.IsTrue(File.Exists(ControllerPath), $"Expected controller at {ControllerPath}.");
+            string source = File.ReadAllText(ControllerPath);
+
+            StringAssert.Contains("_buttonBindings", source,
+                "CombineScreenController must retain local button bindings for teardown.");
+            StringAssert.Contains("UnbindButtons();", source,
+                "CombineScreenController must unregister local button callbacks on disable.");
+            StringAssert.Contains("button.clicked -= _callback", source,
+                "CombineScreenController must remove each previously-added clicked callback.");
+        }
     }
 }

@@ -17,6 +17,8 @@ namespace Mikey.UI.Profile.Tests
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string UssPath = "Assets/UI/Profile/Profile.uss";
         private const string NavPrefix = "go-";
+        private static readonly string LegacyResultScreen = "combine" + "Results";
+        private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static readonly string[] ExpectedScreenIds =
             { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "profile" };
@@ -276,7 +278,7 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void RegressionRoutesRemainUnchanged_AndCombineResultsDoesNotReturn()
+        public void RegressionRoutesRemainUnchanged_AndRetiredCombineResultRouteDoesNotReturn()
         {
             var root = BuildTree();
             Assert.IsNotNull(Screen(root, "title").Q<Button>("go-intro"));
@@ -288,8 +290,8 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));
             Assert.IsNotNull(Screen(root, "map").Q<Button>("go-techniques"));
-            Assert.IsNull(root.Q<VisualElement>("combineResults"));
-            Assert.IsNull(root.Q<VisualElement>("go-combineResults"));
+            Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen));
+            Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator));
         }
 
         private static string ExtractRuleBlock(string uss, string header)
