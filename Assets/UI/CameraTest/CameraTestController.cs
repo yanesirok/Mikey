@@ -1,4 +1,5 @@
 using System.Collections;
+using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -21,6 +22,9 @@ namespace Mikey.UI.CameraTest
     {
         private const int MaxRootResolveFrames = 30;
 
+        /// <summary>The screen id this controller owns; entering it resets the mock counter.</summary>
+        public const string ScreenId = "camTest";
+
         // Status modifier classes toggled on the form pill (defined in CameraTest.uss).
         private const string StatusReadyClass = "cam-status--ready";
         private const string StatusAdjustClass = "cam-status--adjust";
@@ -32,6 +36,8 @@ namespace Mikey.UI.CameraTest
         private Label _statusText;
         private Label _statusGlyph;
         private VisualElement _statusPill;
+
+        private IScreenNavigator _navigator;
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -53,6 +59,14 @@ namespace Mikey.UI.CameraTest
 
             if (_bound)
                 _model.Changed -= Render;
+
+            // Unsubscribe from the navigator so re-enabling never stacks a second
+            // handler (no duplicate-subscription leak across enable/disable cycles).
+            if (_navigator != null)
+            {
+                _navigator.ScreenChanged -= OnScreenEntered;
+                _navigator = null;
+            }
 
             _repCount = null;
             _statusText = null;
@@ -98,12 +112,40 @@ namespace Mikey.UI.CameraTest
                 simulate.clicked += _model.SimulateRep;
 
             _model.Changed += Render;
+
+            // Subscribe to the navigation entry signal. OnEnable is not a reliable
+            // screen-entry hook here: the shared UI GameObject stays enabled while
+            // ScreenManager only toggles the visibility of individual screens, so the
+            // reset must be driven by a genuine "entered camTest" navigation event.
+            _navigator = GetComponent<IScreenNavigator>();
+            if (_navigator != null)
+                _navigator.ScreenChanged += OnScreenEntered;
+
             _bound = true;
             _bindRoutine = null;
 
-            // Predictable start: the HUD always opens at 0 reps / "Align in frame".
-            _model.Reset();
+            // Establish the initial view. If camTest is already the shown screen at
+            // bind time, treat it as an entry and reset; otherwise just render the
+            // current (fresh, 0-rep) state so the HUD reads 0 / "Align in frame".
+            if (_navigator != null && IsCamTestEntry(_navigator.CurrentScreen))
+                _model.Reset();
+            else
+                Render();
         }
+
+        /// <summary>
+        /// Navigation entry handler: resets the mock counter (and re-renders) only when
+        /// the entered screen is exactly camTest. ScreenManager raises this once per
+        /// genuine entry — not while the user remains on camTest, and not on Simulate.
+        /// </summary>
+        private void OnScreenEntered(string screenId)
+        {
+            if (IsCamTestEntry(screenId))
+                _model.Reset();
+        }
+
+        /// <summary>Pure entry predicate: true only for an exact camTest entry. Unit-tested.</summary>
+        public static bool IsCamTestEntry(string screenId) => screenId == ScreenId;
 
         private void Render()
         {
