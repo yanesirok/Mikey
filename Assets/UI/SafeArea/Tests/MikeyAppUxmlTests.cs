@@ -123,7 +123,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "got-sun", "cam-feed", "combine-bg" })
+            foreach (var className in new[] { "got-sun", "cam-feed", "combine-bg", "intro-bg" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
