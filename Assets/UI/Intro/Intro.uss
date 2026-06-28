@@ -1,0 +1,253 @@
+/* ============================================================
+   Intro — landscape cold-open ("intro" screen) styles.
+   Palette custom properties (--ember, --jade, --bone, --base, --muted, --line …)
+   cascade in from .mikey-app in theme.uss; this file only adds Intro-specific
+   structure so the screen stays modular (same pattern as Home/Home.uss and
+   Combine/Combine.uss). Linked from the intro screen in MikeyApp.uxml.
+
+   Landscape-first: a wide, width-capped cinematic stage that fills 16:9 and
+   wider phone-landscape ratios — deliberately NOT the old narrow portrait
+   column. Translated from design-pull/assets/screens-flow.jsx (IntroVideo) +
+   theme.css. No real video asset exists, so the "film" is an honest decorative
+   placeholder (silhouettes + glow + static timeline), not faked playback.
+   ============================================================ */
+
+/* ---------- full-bleed background ----------
+   Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
+   .cam-feed / .got-sun / .combine-bg / .home-bg on the other screens. Solid
+   warm-dark base + a soft centered glow approximates the reference's
+   radial-gradient cold-open wash (USS has no radial-gradient). */
+.intro-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #08090B;
+    align-items: center;
+    justify-content: center;
+}
+.intro-glow {
+    position: absolute;
+    top: -120px;
+    width: 900px;
+    height: 760px;
+    border-radius: 380px;
+    background-color: rgba(255, 90, 31, 0.05);
+}
+
+/* ---------- foreground layout ----------
+   One full-height column inside the safe area: skip pinned top-right, the
+   cinematic stage filling the middle, the CTA + caption anchored toward the
+   bottom. align-items:center keeps the capped-width bands centered on
+   ultra-wide displays without a narrow portrait column. */
+.intro-layout {
+    flex-grow: 1;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- cinematic stage ----------
+   Width-capped so the focal composition reads on 16:9 and wide-phone
+   landscape without stretching edge-to-edge. */
+.intro-stage {
+    width: 100%;
+    max-width: 920px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* row of silhouettes "stepping into frame" (honest decorative placeholder) */
+.intro-cast {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: center;
+    margin-bottom: 26px;
+}
+.intro-figure {
+    width: 84px;
+    align-items: center;
+    margin: 0 20px;
+    flex-shrink: 0;
+}
+.intro-figure--lead {
+    /* centre figure is the focal silhouette: slightly taller / brighter edge */
+    scale: 1.15 1.15;
+}
+.intro-figure__head {
+    width: 34px;
+    height: 34px;
+    border-radius: 17px;
+    background-color: #0B0E11;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.4);
+}
+.intro-figure__body {
+    width: 56px;
+    height: 96px;
+    margin-top: 6px;
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: #0B0E11;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.4);
+}
+
+/* ---------- copy + hierarchy ---------- */
+.intro-kicker {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--ember);
+    -unity-text-align: middle-center;
+}
+.intro-kanji {
+    font-size: 24px;
+    letter-spacing: 10px;
+    color: rgba(237, 230, 216, 0.7);
+    -unity-text-align: middle-center;
+    margin-top: 12px;
+}
+.intro-headline {
+    font-size: 32px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 8px;
+    max-width: 760px;
+}
+.intro-sub {
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 10px;
+    max-width: 620px;
+}
+
+/* ---------- subtle progress / timeline ----------
+   Static, honest placeholder (no faked playback): a thin track with a partial
+   ember sweep + a "placeholder" caption matching the reference's
+   "~6s ANIMATED INTRO · PLACEHOLDER" footer. Class names avoid the legacy
+   "bar"/"fill" selectors guarded by the structural tests. */
+.intro-timeline {
+    width: 100%;
+    max-width: 360px;
+    margin-top: 26px;
+    align-items: center;
+}
+.intro-timeline__track {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--base-3);
+    overflow: hidden;
+}
+.intro-timeline__progress {
+    width: 38%;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--ember);
+}
+.intro-caption {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+}
+
+/* ---------- actions ---------- */
+/* Shared minimum touch target: >= 48x48 logical, never shrinks below tappable.
+   Scoped to this screen's stylesheet (same definition/intent as the Home and
+   Combine touch-target kits). */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+}
+
+/* Visible action icon (arrow). Sizes the rendered glyph independently of the
+   button hit area; flex-shrink:0 stops flex collapsing the artwork; centered
+   so it stays large/recognizable at phone-landscape scale. */
+.intro-icon {
+    flex-shrink: 0;
+    align-self: center;
+    -unity-text-align: middle-center;
+    -unity-font-style: normal;
+    color: inherit;
+}
+.intro-icon--cta {
+    font-size: 30px;
+    margin-left: 10px;
+}
+.intro-icon--skip {
+    font-size: 22px;
+    margin-left: 8px;
+}
+
+/* primary CTA: width-capped, ember, icon + label in a centered row */
+.intro-cta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 260px;
+    max-width: 360px;
+    margin-top: 30px;
+    padding: 16px 28px;
+}
+.intro-cta__text {
+    -unity-font-style: bold;
+    font-size: 18px;
+    color: inherit;
+}
+
+/* skip pill, top-right. Builds on the base .skip (theme.uss) but enlarges it to
+   a real tappable control and lays out the label + arrow in a row. */
+.intro-skip {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    top: 14px;
+    right: 14px;
+    padding: 0 18px;
+    border-radius: 24px;
+    border-color: rgba(237, 230, 216, 0.35);
+    background-color: rgba(11, 14, 17, 0.5);
+    color: var(--bone);
+    font-size: 15px;
+    -unity-font-style: normal;
+}
+.intro-skip__text {
+    font-size: 15px;
+    color: inherit;
+}
+
+/* ---------- intentional interaction states ---------- */
+.intro-cta:hover {
+    border-color: var(--bone);
+}
+.intro-cta:active {
+    scale: 0.98 0.98;
+}
+.intro-skip:hover {
+    border-color: var(--bone);
+    color: var(--bone);
+}
+.intro-skip:active {
+    scale: 0.96 0.96;
+}
+.intro-cta:disabled,
+.intro-skip:disabled {
+    opacity: 0.4;
+}
+.intro-cta:focus,
+.intro-skip:focus {
+    border-color: var(--ember);
+}

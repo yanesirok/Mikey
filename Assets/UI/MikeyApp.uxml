@@ -14,17 +14,60 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 2 - INTRO VIDEO -->
-        <ui:VisualElement name="intro" class="screen">
+        <!-- 2 - INTRO (landscape cold-open) -->
+        <ui:VisualElement name="intro" class="screen intro-screen">
+            <Style src="Intro/Intro.uss" />
+            <!-- full-bleed cold-open wash, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="intro-bg">
+                <ui:VisualElement class="intro-glow" />
+            </ui:VisualElement>
+
             <ui:VisualElement class="safe-area-content">
-            <ui:Button name="go-title" text="Skip" class="skip" />
-            <ui:VisualElement class="content">
-                <ui:Label text="COLD OPEN" class="kicker" />
-                <ui:Label text="Intro" class="title" />
-                <ui:VisualElement class="videobox">
-                    <ui:Label text="~6s animated intro&#10;(silhouettes step into frame)" class="videobox-label" />
+            <ui:VisualElement class="intro-layout">
+
+                <!-- Skip → title (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
+                <ui:Button name="go-title" class="skip intro-skip tap-target">
+                    <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
+                    <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
+                </ui:Button>
+
+                <!-- cinematic stage: silhouettes stepping into frame (honest placeholder) -->
+                <ui:VisualElement class="intro-stage">
+                    <ui:VisualElement class="intro-cast" picking-mode="Ignore">
+                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
+                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
+                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="intro-figure intro-figure--lead" picking-mode="Ignore">
+                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
+                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
+                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
+                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:Label text="COLD OPEN" class="intro-kicker" />
+                    <ui:Label text="稽古" class="intro-kanji" />
+                    <ui:Label text="The form was lost. You will restore it." class="intro-headline" />
+                    <ui:Label text="Step into the dojo and begin your path." class="intro-sub" />
+
+                    <!-- subtle progress / timeline (static, honest placeholder) -->
+                    <ui:VisualElement class="intro-timeline">
+                        <ui:VisualElement class="intro-timeline__track">
+                            <ui:VisualElement class="intro-timeline__progress" />
+                        </ui:VisualElement>
+                        <ui:Label text="ANIMATED INTRO · PLACEHOLDER" class="intro-caption" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:Button name="go-title" text="Enter the Dojo" class="btn primary" />
+
+                <!-- primary CTA → title (semantic class intro-primary) -->
+                <ui:Button name="go-title" class="btn primary intro-primary intro-cta tap-target">
+                    <ui:Label text="Enter the Dojo" class="intro-cta__text" picking-mode="Ignore" />
+                    <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
+                </ui:Button>
+
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

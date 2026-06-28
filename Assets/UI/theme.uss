@@ -168,24 +168,12 @@
     margin-top: 8px;
 }
 
-/* ---------- intro / video placeholder ---------- */
-.videobox {
-    flex-grow: 1;
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 14px;
-    background-color: #0D1117;
-    align-items: center;
-    justify-content: center;
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-.videobox-label {
-    color: var(--muted);
-    font-size: 13px;
-    -unity-text-align: middle-center;
-    white-space: normal;
-}
+/* The Intro ("intro") screen is styled by its own modular stylesheet,
+   Intro/Intro.uss (linked from the screen in MikeyApp.uxml), mirroring how the
+   Home hub and Combine slice own their stylesheets. The previous inline
+   .videobox / .videobox-label placeholder styles were removed with that
+   portrait-origin markup; no other screen referenced them. The base .skip pill
+   below is still shared by the Intro skip control. */
 
 /* ---------- title / entrance ---------- */
 .title-screen {
