@@ -1,0 +1,358 @@
+/* ============================================================
+   Camera Test screen — landscape mock-camera HUD styles.
+   Palette custom properties (--ember, --jade, --bone, …) cascade in
+   from .mikey-app in theme.uss; this file only adds camera-specific
+   structure so the slice stays modular (mirrors Combine/Combine.uss).
+
+   Honest placeholder: there is no real camera, pose detection, or ML.
+   The feed is a painted gradient and the "pose" is a silhouette so the
+   screen can be demonstrated and laid out without a live device feed.
+   ============================================================ */
+
+/* The camera screen drops the shared .screen 22px padding so the mock feed
+   is truly edge-to-edge; the HUD re-adds its own padding inside the safe area. */
+.camera {
+    padding: 0;
+    background-color: #05070A;
+}
+
+/* ---------- full-bleed mock camera feed (outside .safe-area-content) ----------
+   Solid dim base + a large soft centered "light pool" blob approximates the
+   reference's radial dojo wash (USS has no radial-gradient — same approach as
+   .intro-glow / .home-glow). overflow:hidden clips the oversized blob. */
+.cam-feed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0A0D11;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+/* dim dojo "camera" wash — soft light pooling toward the subject. */
+.cam-feed__glow {
+    width: 1300px;
+    height: 1100px;
+    margin-top: -240px;
+    border-radius: 560px;
+    background-color: rgba(36, 44, 46, 0.55);
+}
+/* faint unifying overlay so the HUD chrome reads against the feed. */
+.cam-feed__vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(5, 7, 10, 0.18);
+}
+
+/* ---------- reusable touch-target kit (scoped to this screen's stylesheet) ----------
+   .tap-target / .tap-target-lg mirror the Home/Intro/Title definitions so the
+   camera controls get the same guaranteed minimum size; flex-shrink:0 keeps a
+   button from collapsing below a tappable size in the wrapping action bar. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+.tap-target-lg {
+    min-height: 56px;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target-lg:active {
+    scale: 0.97;
+}
+
+/* ---------- reusable visible-icon size kit ----------
+   Every visible glyph/icon carries .cam-icon (no-shrink + centered) plus an
+   explicit size variant, so sizes live in one place and flex never shrinks
+   the artwork down to nothing (the old HUD's core defect). */
+.cam-icon {
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.cam-icon-32 {
+    font-size: 32px;
+}
+.cam-icon-36 {
+    font-size: 36px;
+}
+.cam-icon-40 {
+    font-size: 40px;
+}
+
+/* ---------- HUD column (inside .safe-area-content) ---------- */
+.cam-hud {
+    flex-grow: 1;
+    width: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+    /* safe horizontal + vertical padding; the feed already bleeds underneath. */
+    padding: 20px 26px;
+}
+
+/* ---------- top bar: live badge + exercise title ---------- */
+.cam-topbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.cam-live {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: rgba(11, 14, 17, 0.62);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 22px;
+    padding: 10px 16px;
+}
+.cam-live__dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background-color: var(--seal);
+    margin-right: 10px;
+}
+.cam-live__text {
+    font-size: 15px;
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.cam-titlewrap {
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.cam-kicker {
+    font-size: 13px;
+    letter-spacing: 2px;
+    -unity-text-align: upper-right;
+}
+.cam-title {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-top: 2px;
+    -unity-text-align: upper-right;
+}
+
+/* ---------- center stage: pose focal region + big rep readout ---------- */
+.cam-stage {
+    flex-grow: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Major camera/pose focal graphic — deliberately large and centered. */
+.cam-pose {
+    width: 260px;
+    height: 340px;
+    margin: 12px 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background-color: rgba(11, 14, 17, 0.28);
+}
+/* corner framing brackets (jade) — the "detection frame". */
+.cam-pose__bracket {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-color: var(--jade);
+}
+.cam-pose__bracket--tl {
+    top: 0;
+    left: 0;
+    border-top-width: 3px;
+    border-left-width: 3px;
+    border-top-left-radius: 16px;
+}
+.cam-pose__bracket--tr {
+    top: 0;
+    right: 0;
+    border-top-width: 3px;
+    border-right-width: 3px;
+    border-top-right-radius: 16px;
+}
+.cam-pose__bracket--bl {
+    bottom: 0;
+    left: 0;
+    border-bottom-width: 3px;
+    border-left-width: 3px;
+    border-bottom-left-radius: 16px;
+}
+.cam-pose__bracket--br {
+    bottom: 0;
+    right: 0;
+    border-bottom-width: 3px;
+    border-right-width: 3px;
+    border-bottom-right-radius: 16px;
+}
+/* mock pose silhouette (honest placeholder for a detected body). */
+.cam-figure {
+    align-items: center;
+}
+.cam-figure__head {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background-color: rgba(237, 230, 216, 0.85);
+}
+.cam-figure__body {
+    width: 120px;
+    height: 150px;
+    border-top-left-radius: 60px;
+    border-top-right-radius: 60px;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+    background-color: rgba(237, 230, 216, 0.85);
+    margin-top: 12px;
+}
+.cam-pose__note {
+    position: absolute;
+    bottom: 14px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
+}
+
+/* rep readout: big number + form/status pill. */
+.cam-readout {
+    align-items: center;
+    justify-content: center;
+    margin: 12px 28px;
+}
+.cam-counter {
+    align-items: center;
+}
+.cam-count {
+    font-size: 96px;
+    -unity-font-style: bold;
+    color: var(--jade);
+}
+.cam-count__label {
+    font-size: 15px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    margin-top: -6px;
+}
+
+/* form/status indicator pill — colour shifts with the mock detection state. */
+.cam-status {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 18px;
+    padding: 12px 20px;
+    border-radius: 30px;
+    border-width: 1px;
+    background-color: rgba(11, 14, 17, 0.66);
+    border-color: var(--line);
+}
+.cam-status__glyph {
+    margin-right: 12px;
+    color: var(--bone);
+}
+.cam-status__text {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+/* state variants (toggled by CameraTestController). */
+.cam-status--ready {
+    border-color: var(--muted);
+}
+.cam-status--ready .cam-status__glyph {
+    color: var(--muted);
+}
+.cam-status--adjust {
+    border-color: var(--ember);
+    background-color: rgba(255, 90, 31, 0.16);
+}
+.cam-status--adjust .cam-status__glyph {
+    color: var(--ember);
+}
+.cam-status--good {
+    border-color: var(--jade);
+    background-color: rgba(43, 217, 168, 0.16);
+}
+.cam-status--good .cam-status__glyph {
+    color: var(--jade);
+}
+
+/* ---------- responsive bottom action bar ----------
+   The Done-overflow fix lives here. Children use a flex-basis + min-width:0
+   instead of the old `.btn { width:100% }` (which gave each button a 100%
+   basis and pushed the row past the viewport). The bar is width-capped and
+   centered, uses a gap via child margins (no negative margins, no clipping),
+   and wraps to a vertical stack on narrow landscape widths. */
+.cam-actionbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 760px;
+    align-self: center;
+    align-items: stretch;
+    justify-content: center;
+}
+.cam-btn {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 260px;
+    min-width: 0;
+    margin: 6px;
+    padding: 0 22px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+    color: var(--bone);
+    -unity-font-style: bold;
+}
+.cam-btn:hover {
+    border-color: var(--bone);
+}
+.cam-btn--ghost {
+    background-color: rgba(11, 14, 17, 0.55);
+    color: var(--bone);
+}
+.cam-btn--primary {
+    background-color: var(--ember);
+    border-color: var(--ember);
+    color: #1A0A03;
+}
+.cam-btn__text {
+    font-size: 19px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-left: 8px;
+    margin-right: 8px;
+}
+.cam-btn--ghost .cam-btn__icon {
+    color: var(--jade);
+}
+.cam-btn--primary .cam-btn__icon {
+    color: #1A0A03;
+}
