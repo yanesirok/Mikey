@@ -93,7 +93,7 @@ namespace Mikey.UI.Home.Tests
         {
             var screen = HomeScreen(BuildTree());
             // Map is now a working 'go-map' navigator (was the locked 'nav-map').
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
             {
                 Assert.IsNotNull(screen.Q<VisualElement>(name),
                     $"Bottom dock must expose a tab named '{name}'.");
@@ -142,20 +142,31 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void UnavailableTabs_HaveExplicitLockedClass()
+        public void ProfileTab_IsWorkingNavigator_ToProfileScreen()
+        {
+            var root = BuildTree();
+            var screen = HomeScreen(root);
+
+            var tab = screen.Q<VisualElement>("go-profile");
+            Assert.IsNotNull(tab, "Home must expose the Profile tab as a 'go-profile' navigator.");
+
+            string target = tab.name.Substring(NavPrefix.Length);
+            Assert.AreEqual("profile", target, "go-profile must target the 'profile' screen.");
+            var targetScreen = root.Q<VisualElement>(target);
+            Assert.IsNotNull(targetScreen, "The 'profile' target screen must exist.");
+            Assert.IsTrue(targetScreen.ClassListContains("screen"), "'profile' target must be a .screen.");
+        }
+
+        [Test]
+        public void ProfileTab_IsNotLocked()
         {
             var screen = HomeScreen(BuildTree());
-            // Profile remains explicitly locked; Map and Techniques are now working
-            // navigators (asserted separately) and must no longer be locked.
-            foreach (var name in new[] { "nav-profile" })
-            {
-                var tab = screen.Q<VisualElement>(name);
-                Assert.IsNotNull(tab, $"Expected a '{name}' tab.");
-                Assert.IsTrue(tab.ClassListContains("home-tab--locked"),
-                    $"Unavailable tab '{name}' must carry the explicit 'home-tab--locked' class.");
-                Assert.IsFalse(tab.ClassListContains("home-tab--active"),
-                    $"Unavailable tab '{name}' must not also be active.");
-            }
+            var tab = screen.Q<VisualElement>("go-profile");
+            Assert.IsNotNull(tab, "Expected the 'go-profile' tab.");
+            Assert.IsFalse(tab.ClassListContains("home-tab--locked"),
+                "The Profile tab must no longer carry 'home-tab--locked'.");
+            Assert.IsNull(tab.Q<VisualElement>(className: "home-tab__badge"),
+                "The Profile tab must not show a 'SOON' badge anymore.");
         }
 
         // 7 + 8 — Home exposes a working go-techniques navigator to the techniques screen.
@@ -216,7 +227,7 @@ namespace Mikey.UI.Home.Tests
             // Dock tabs must use the larger touch-target class (>= 56x56 logical,
             // no flex-shrink) so the dock never collapses below a tappable size
             // on phone-landscape resolutions.
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
@@ -231,7 +242,7 @@ namespace Mikey.UI.Home.Tests
             var screen = HomeScreen(BuildTree());
             // Each dock tab's visible glyph must use the larger reusable nav-icon
             // size class (and the non-shrinking .home-icon base).
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "nav-profile" })
+            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
