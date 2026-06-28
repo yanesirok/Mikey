@@ -8,12 +8,12 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Verifies the MikeyApp.uxml structural contract: exactly eight production
+    /// Verifies the MikeyApp.uxml structural contract: exactly nine production
     /// screens (the six post-consolidation entry/Combine screens plus the
-    /// Techniques hub and Practice slice), one dedicated ".safe-area-content" per screen,
-    /// full-bleed elements outside the wrappers, the mapped foreground elements
-    /// inside them, the Title CTA route to Intro, and the untouched Home → Combine
-    /// flow.
+    /// Techniques hub, Practice slice and Map progression screen), one dedicated
+    /// ".safe-area-content" per screen, full-bleed elements outside the wrappers,
+    /// the mapped foreground elements inside them, the Title CTA route to Intro,
+    /// and the untouched Home → Combine flow.
     /// </summary>
     public class MikeyAppUxmlTests
     {
@@ -39,21 +39,22 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The eight production screens: the six post-consolidation entry/Combine
-        // screens plus the Techniques lesson hub and the Practice training slice.
+        // The nine production screens: the six post-consolidation entry/Combine
+        // screens plus the Techniques lesson hub, the Practice training slice and
+        // the Map progression screen.
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map" };
 
         // 1
         [Test]
-        public void HasExactlyEightScreens()
+        public void HasExactlyNineScreens()
         {
-            Assert.AreEqual(8, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(9, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheEightProductionScreens()
+        public void ScreenIds_AreExactlyTheNineProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);
@@ -221,7 +222,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed" })
+            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed", "map-bg" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -238,7 +239,8 @@ namespace Mikey.UI.SafeArea.Tests
         {
             var root = BuildTree();
             foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
-                "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage" })
+                "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
+                "map-layout", "map-route", "map-dock" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
