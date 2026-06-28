@@ -11,8 +11,8 @@ namespace Mikey.UI.SafeArea.Tests
     /// Validates that SampleScene wires SafeAreaController onto the UI GameObject
     /// alongside the existing UIDocument and ScreenManager, with no missing scripts,
     /// and that the Combine vertical slice is wired in: CombineScreenController is
-    /// attached to the same UI GameObject, while ScreenManager keeps the production
-    /// start screen ("splash"). This is the automated guard for the scene wiring.
+    /// attached to the same UI GameObject, while ScreenManager uses the production
+    /// start screen ("title"). This is the automated guard for the scene wiring.
     /// </summary>
     public class SceneWiringTests
     {
@@ -63,7 +63,7 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
-        public void ScreenManager_StartScreen_IsSplash()
+        public void ScreenManager_StartScreen_IsTitle()
         {
             GameObject ui = OpenSceneAndFindUi();
 
@@ -73,8 +73,8 @@ namespace Mikey.UI.SafeArea.Tests
             var serialized = new SerializedObject(screenManager);
             SerializedProperty startScreen = serialized.FindProperty("startScreen");
             Assert.IsNotNull(startScreen, "ScreenManager must expose a serialized 'startScreen'.");
-            Assert.AreEqual("splash", startScreen.stringValue,
-                "Production start screen must be 'splash' (the combine direct-start was test-only).");
+            Assert.AreEqual("title", startScreen.stringValue,
+                "Production start screen must be 'title' (the consolidated entry screen; Splash was removed).");
         }
     }
 }

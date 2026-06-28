@@ -14,7 +14,7 @@
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .got-sun / .combine-bg / .home-bg on the other screens. Solid
+   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Solid
    warm-dark base + a soft centered glow approximates the reference's
    radial-gradient cold-open wash (USS has no radial-gradient). */
 .intro-bg {
@@ -180,7 +180,6 @@
     align-self: center;
     -unity-text-align: middle-center;
     -unity-font-style: normal;
-    color: inherit;
 }
 .intro-icon--cta {
     font-size: 30px;
@@ -205,7 +204,6 @@
 .intro-cta__text {
     -unity-font-style: bold;
     font-size: 18px;
-    color: inherit;
 }
 
 /* skip pill, top-right. Builds on the base .skip (theme.uss) but enlarges it to
@@ -226,7 +224,6 @@
 }
 .intro-skip__text {
     font-size: 15px;
-    color: inherit;
 }
 
 /* ---------- intentional interaction states ---------- */
