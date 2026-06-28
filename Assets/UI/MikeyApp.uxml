@@ -205,56 +205,7 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 6 - COMBINE RESULTS -->
-        <ui:VisualElement name="combineResults" class="screen">
-            <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="content">
-                <ui:Label text="COMBINE COMPLETE" class="kicker" />
-                <ui:Label text="Your baseline" class="title" />
-                <ui:VisualElement class="statlist">
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="Power · upper" class="sh-name" />
-                            <ui:Label text="Push-ups · 24" class="sh-meta" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 62%;" /></ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="Power · lower" class="sh-name" />
-                            <ui:Label text="Squats · 31" class="sh-meta" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 70%;" /></ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="Endurance" class="sh-name" />
-                            <ui:Label text="Wall-sit · 0:48" class="sh-meta" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="bar jade"><ui:VisualElement class="fill" style="width: 55%;" /></ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="Control" class="sh-name" />
-                            <ui:Label text="Yoko-geri · 7.5" class="sh-meta" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="bar jade"><ui:VisualElement class="fill" style="width: 48%;" /></ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="stat">
-                        <ui:VisualElement class="sh">
-                            <ui:Label text="Technique" class="sh-name" />
-                            <ui:Label text="Locked · learn in Level 1" class="sh-meta" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="bar"><ui:VisualElement class="fill" style="width: 0%;" /></ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="spacer" />
-                <ui:Button name="go-menu" text="Unlock Level 1 ▸" class="btn primary" />
-            </ui:VisualElement>
-            </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- 7 - COMBINE (vertical slice: mock loading / empty / ready / error) -->
+        <!-- 6 - COMBINE (vertical slice: mock loading / empty / ready / error) -->
         <ui:VisualElement name="combine" class="screen">
             <Style src="Combine/Combine.uss" />
             <!-- full-bleed background, outside the safe-area wrapper -->
