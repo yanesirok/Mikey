@@ -210,5 +210,17 @@ namespace Mikey.UI.CameraTest.Tests
                     $"CameraTestController must stay mock-only (found '{banned}').");
             }
         }
+
+        [Test]
+        public void Controller_UnbindsSimulateButtonOnDisable()
+        {
+            string src = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("private Button _simulate", src,
+                "CameraTestController must retain the simulate button reference for teardown.");
+            StringAssert.Contains("_simulate.clicked -= _model.SimulateRep", src,
+                "CameraTestController must remove the simulate callback on disable.");
+            StringAssert.Contains("_simulate.clicked += _model.SimulateRep", src,
+                "CameraTestController must bind the simulate callback explicitly once during setup.");
+        }
     }
 }

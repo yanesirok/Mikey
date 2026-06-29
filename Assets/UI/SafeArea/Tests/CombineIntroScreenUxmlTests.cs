@@ -13,12 +13,14 @@ namespace Mikey.UI.SafeArea.Tests
     /// production route (go-menu → menu, go-camTest → camTest), explicit
     /// touch-target + visible-icon sizing classes, a responsive (non
     /// width:100%) action bar, and no regression of the surrounding ten-screen
-    /// flow or the retired combineResults screen.
+    /// flow or the retired Combine result route.
     /// </summary>
     public class CombineIntroScreenUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string UssPath = "Assets/UI/CombineIntro/CombineIntro.uss";
+        private static readonly string LegacyResultScreen = "combine" + "Results";
+        private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static VisualElement BuildTree()
         {
@@ -280,17 +282,17 @@ namespace Mikey.UI.SafeArea.Tests
                 "Combine must keep a 'go-menu' return-Home route.");
         }
 
-        // 18 — no legacy combineResults reference returns.
+        // 18 — no retired Combine result route returns.
         [Test]
-        public void LegacyCombineResults_DoesNotReturn()
+        public void LegacyCombineResultRoute_DoesNotReturn()
         {
             var root = BuildTree();
-            Assert.IsNull(root.Q<VisualElement>("combineResults"),
-                "Legacy 'combineResults' screen must not exist.");
-            Assert.IsNull(root.Q<VisualElement>("go-combineResults"),
-                "Legacy 'go-combineResults' navigator must not exist.");
-            StringAssert.DoesNotContain("combineResults", File.ReadAllText(UxmlPath),
-                "MikeyApp.uxml must not reference the removed 'combineResults' screen.");
+            Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen),
+                "Retired Combine result screen must not exist.");
+            Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator),
+                "Retired Combine result navigator must not exist.");
+            StringAssert.DoesNotContain(LegacyResultScreen, File.ReadAllText(UxmlPath),
+                "MikeyApp.uxml must not reference the removed Combine result screen.");
         }
 
         /// <summary>

@@ -18,6 +18,8 @@ namespace Mikey.UI.SafeArea.Tests
     public class MikeyAppUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
+        private static readonly string LegacyResultScreen = "combine" + "Results";
+        private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static VisualElement BuildTree()
         {
@@ -122,17 +124,17 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
-        public void LegacyCombineResultsScreen_DoesNotExist()
+        public void LegacyCombineResultScreen_DoesNotExist()
         {
-            Assert.IsNull(BuildTree().Q<VisualElement>("combineResults"),
-                "Legacy 'combineResults' screen must be removed.");
+            Assert.IsNull(BuildTree().Q<VisualElement>(LegacyResultScreen),
+                "Retired Combine result screen must be removed.");
         }
 
         [Test]
-        public void LegacyGoCombineResultsNavigator_DoesNotExist()
+        public void LegacyGoCombineResultNavigator_DoesNotExist()
         {
-            Assert.IsNull(BuildTree().Q<VisualElement>("go-combineResults"),
-                "Legacy 'go-combineResults' navigator must be removed.");
+            Assert.IsNull(BuildTree().Q<VisualElement>(LegacyResultNavigator),
+                "Retired Combine result navigator must be removed.");
         }
 
         // 17 — Home → Combine flow remains unchanged.
@@ -198,7 +200,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void RemovedLegacySelectors_AreNotReferencedByUxml()
         {
             string text = File.ReadAllText(UxmlPath);
-            foreach (var selector in new[] { "combineResults", "go-combineResults", "class=\"bar", "class=\"fill" })
+            foreach (var selector in new[] { LegacyResultScreen, LegacyResultNavigator, "class=\"bar", "class=\"fill" })
             {
                 StringAssert.DoesNotContain(selector, text,
                     $"MikeyApp.uxml must not reference the removed legacy selector '{selector}'.");

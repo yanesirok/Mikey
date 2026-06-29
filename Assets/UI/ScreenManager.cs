@@ -26,6 +26,7 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
     private const string NavPrefix = "go-";
 
     private readonly List<VisualElement> _screens = new List<VisualElement>();
+    private readonly List<NavigatorBinding> _navigatorBindings = new List<NavigatorBinding>();
 
     /// <summary>
     /// Raised when <see cref="Show"/> actually changes the shown screen, carrying the
@@ -54,12 +55,29 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
             string target = element.name.Substring(NavPrefix.Length);
 
             if (element is Button button)
-                button.clicked += () => Show(target);
+            {
+                Action callback = () => Show(target);
+                button.clicked += callback;
+                _navigatorBindings.Add(NavigatorBinding.ForButton(button, callback));
+            }
             else
-                element.RegisterCallback<ClickEvent>(_ => Show(target));
+            {
+                EventCallback<ClickEvent> callback = _ => Show(target);
+                element.RegisterCallback(callback);
+                _navigatorBindings.Add(NavigatorBinding.ForElement(element, callback));
+            }
         });
 
         Show(startScreen);
+    }
+
+    private void OnDisable()
+    {
+        for (int i = 0; i < _navigatorBindings.Count; i++)
+            _navigatorBindings[i].Unbind();
+
+        _navigatorBindings.Clear();
+        _screens.Clear();
     }
 
     /// <summary>
@@ -77,5 +95,39 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
 
         CurrentScreen = screenId;
         ScreenChanged?.Invoke(screenId);
+    }
+
+    private readonly struct NavigatorBinding
+    {
+        private readonly Button _button;
+        private readonly Action _buttonCallback;
+        private readonly VisualElement _element;
+        private readonly EventCallback<ClickEvent> _elementCallback;
+
+        private NavigatorBinding(
+            Button button,
+            Action buttonCallback,
+            VisualElement element,
+            EventCallback<ClickEvent> elementCallback)
+        {
+            _button = button;
+            _buttonCallback = buttonCallback;
+            _element = element;
+            _elementCallback = elementCallback;
+        }
+
+        public static NavigatorBinding ForButton(Button button, Action callback) =>
+            new NavigatorBinding(button, callback, null, null);
+
+        public static NavigatorBinding ForElement(VisualElement element, EventCallback<ClickEvent> callback) =>
+            new NavigatorBinding(null, null, element, callback);
+
+        public void Unbind()
+        {
+            if (_button != null && _buttonCallback != null)
+                _button.clicked -= _buttonCallback;
+            if (_element != null && _elementCallback != null)
+                _element.UnregisterCallback(_elementCallback);
+        }
     }
 }
