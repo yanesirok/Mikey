@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Mikey.UI.SafeArea;
 using UnityEngine;
@@ -24,9 +25,13 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
     [SerializeField] private string startScreen = "title";
 
     private const string NavPrefix = "go-";
+    private const int MaxRootResolveFrames = 30;
 
     private readonly List<VisualElement> _screens = new List<VisualElement>();
     private readonly List<NavigatorBinding> _navigatorBindings = new List<NavigatorBinding>();
+
+    private Coroutine _initRoutine;
+    private bool _initialized;
 
     /// <summary>
     /// Raised when <see cref="Show"/> actually changes the shown screen, carrying the
@@ -40,7 +45,28 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
 
     private void OnEnable()
     {
-        VisualElement root = GetComponent<UIDocument>().rootVisualElement;
+        if (_initialized)
+            return;
+        _initRoutine = StartCoroutine(InitializeWhenReady());
+    }
+
+    private IEnumerator InitializeWhenReady()
+    {
+        UIDocument doc = GetComponent<UIDocument>();
+
+        int frames = 0;
+        while (doc.rootVisualElement == null)
+        {
+            if (++frames > MaxRootResolveFrames)
+            {
+                Debug.LogError("[ScreenManager] UIDocument root unavailable; screens cannot be wired.", this);
+                _initRoutine = null;
+                yield break;
+            }
+            yield return null;
+        }
+
+        VisualElement root = doc.rootVisualElement;
 
         // Collect every screen (root-level panels carry the "screen" class).
         _screens.Clear();
@@ -68,16 +94,25 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
             }
         });
 
+        _initialized = true;
+        _initRoutine = null;
         Show(startScreen);
     }
 
     private void OnDisable()
     {
+        if (_initRoutine != null)
+        {
+            StopCoroutine(_initRoutine);
+            _initRoutine = null;
+        }
+
         for (int i = 0; i < _navigatorBindings.Count; i++)
             _navigatorBindings[i].Unbind();
 
         _navigatorBindings.Clear();
         _screens.Clear();
+        _initialized = false;
     }
 
     /// <summary>
