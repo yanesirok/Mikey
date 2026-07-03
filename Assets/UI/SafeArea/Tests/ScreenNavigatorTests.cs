@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using Mikey.UI.Navigation;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -48,6 +49,63 @@ namespace Mikey.UI.SafeArea.Tests
 
         private IScreenNavigator Nav => (IScreenNavigator)_screenManager;
         private void Show(string id) => _show.Invoke(_screenManager, new object[] { id });
+
+        private sealed class FakeSceneLoader : ISceneLoader
+        {
+            public string CurrentHeavyScene { get; private set; }
+            public int ShowSceneCalls;
+            public int ShowNoneCalls;
+            public string LastSceneName;
+
+            public void ShowScene(string sceneName)
+            {
+                ShowSceneCalls++;
+                LastSceneName = sceneName;
+                CurrentHeavyScene = sceneName;
+            }
+
+            public void ShowNoScene()
+            {
+                ShowNoneCalls++;
+                CurrentHeavyScene = null;
+            }
+        }
+
+        private void ConfigureRouting(ScreenRouteTable routes, ISceneLoader loader)
+        {
+            MethodInfo configure = _screenManagerType.GetMethod("ConfigureRouting");
+            Assert.IsNotNull(configure, "ScreenManager must expose ConfigureRouting(ScreenRouteTable, ISceneLoader).");
+            configure.Invoke(_screenManager, new object[] { routes, loader });
+        }
+
+        [Test]
+        public void Show_SceneScreen_DrivesSceneLoader()
+        {
+            var routes = new ScreenRouteTable();
+            routes.RegisterScene("practice", "Practice");
+            var loader = new FakeSceneLoader();
+            ConfigureRouting(routes, loader);
+
+            Show("practice");
+
+            Assert.AreEqual(1, loader.ShowSceneCalls, "Entering a scene screen must load its scene once.");
+            Assert.AreEqual("Practice", loader.LastSceneName);
+        }
+
+        [Test]
+        public void Show_PanelScreen_AfterScene_UnloadsHeavyScene()
+        {
+            var routes = new ScreenRouteTable();
+            routes.RegisterScene("practice", "Practice");
+            var loader = new FakeSceneLoader();
+            ConfigureRouting(routes, loader);
+
+            Show("practice");   // scene
+            Show("techniques"); // panel
+
+            Assert.AreEqual(1, loader.ShowNoneCalls, "Leaving a scene for a panel must unload the heavy scene.");
+            Assert.IsNull(loader.CurrentHeavyScene);
+        }
 
         [Test]
         public void ScreenManager_ImplementsIScreenNavigator()

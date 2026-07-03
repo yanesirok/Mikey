@@ -2,7 +2,8 @@
     "name": "Mikey.UI.CameraTest",
     "rootNamespace": "Mikey.UI.CameraTest",
     "references": [
-        "Mikey.UI.SafeArea"
+        "Mikey.UI.SafeArea",
+        "Mikey.Pose"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

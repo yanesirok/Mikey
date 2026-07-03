@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Mikey.UI.Navigation;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -32,6 +33,9 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
 
     private Coroutine _initRoutine;
     private bool _initialized;
+
+    private ScreenRouteTable _routes;
+    private ISceneLoader _sceneLoader;
 
     /// <summary>
     /// Raised when <see cref="Show"/> actually changes the shown screen, carrying the
@@ -94,6 +98,12 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
             }
         });
 
+        // Resolve routing defaults unless a test already configured them.
+        if (_routes == null)
+            _routes = MikeyScreens.BuildDefault();
+        if (_sceneLoader == null)
+            _sceneLoader = GetComponent<SceneLoader>();
+
         _initialized = true;
         _initRoutine = null;
         Show(startScreen);
@@ -113,6 +123,18 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
         _navigatorBindings.Clear();
         _screens.Clear();
         _initialized = false;
+        _routes = null;
+        _sceneLoader = null;
+    }
+
+    /// <summary>
+    /// Inject the route table and scene loader. Called automatically at startup with the
+    /// canonical table; exposed so tests can supply a custom table and a fake loader.
+    /// </summary>
+    public void ConfigureRouting(ScreenRouteTable routes, ISceneLoader loader)
+    {
+        _routes = routes;
+        _sceneLoader = loader;
     }
 
     /// <summary>
@@ -127,6 +149,16 @@ public class ScreenManager : MonoBehaviour, IScreenNavigator
 
         if (CurrentScreen == screenId)
             return;
+
+        // Drive the heavy-scene slot: load the target's scene, or unload to none for panels.
+        // Null routes/loader (e.g. before init, or in pure-panel unit tests) keep legacy behavior.
+        if (_sceneLoader != null)
+        {
+            if (_routes != null && _routes.IsScene(screenId))
+                _sceneLoader.ShowScene(_routes.SceneNameOf(screenId));
+            else
+                _sceneLoader.ShowNoScene();
+        }
 
         CurrentScreen = screenId;
         ScreenChanged?.Invoke(screenId);

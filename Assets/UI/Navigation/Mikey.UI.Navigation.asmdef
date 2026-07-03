@@ -1,0 +1,14 @@
+{
+    "name": "Mikey.UI.Navigation",
+    "rootNamespace": "Mikey.UI.Navigation",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

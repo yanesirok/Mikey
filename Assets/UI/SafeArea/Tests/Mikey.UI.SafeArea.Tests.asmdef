@@ -3,6 +3,7 @@
     "rootNamespace": "Mikey.UI.SafeArea.Tests",
     "references": [
         "Mikey.UI.SafeArea",
+        "Mikey.UI.Navigation",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

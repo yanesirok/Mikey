@@ -1,0 +1,19 @@
+{
+    "name": "Mikey.Pose.DevSandbox.Editor",
+    "rootNamespace": "Mikey.Pose.DevSandbox.Editor",
+    "references": [
+        "Mikey.Pose",
+        "Mikey.Pose.DevSandbox"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
