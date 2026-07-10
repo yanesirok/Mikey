@@ -1,4 +1,16 @@
 ﻿<Solution>
+  <Project Path="Mikey.UI.SafeArea.csproj" />
+  <Project Path="Mikey.UI.SafeArea.Tests.csproj" />
+  <Project Path="Mikey.UI.Profile.Tests.csproj" />
+  <Project Path="Mikey.UI.Home.Tests.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Mikey.UI.Combine.csproj" />
+  <Project Path="Mikey.UI.Practice.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Mikey.UI.CameraTest.Tests.csproj" />
+  <Project Path="Mikey.UI.CameraTest.csproj" />
+  <Project Path="Mikey.UI.Map.Tests.csproj" />
+  <Project Path="Mikey.UI.Techniques.Tests.csproj" />
+  <Project Path="Mikey.UI.Practice.Tests.csproj" />
+  <Project Path="Mikey.UI.Combine.Tests.csproj" />
 </Solution>
