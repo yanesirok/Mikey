@@ -28,6 +28,7 @@ ExportedObj/
 *.sln
 *.slnx
 .vscode/
+.planning/
 *.suo
 *.tmp
 *.user
