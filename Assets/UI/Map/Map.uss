@@ -8,29 +8,37 @@
 
    Baseline composition is 1280x720: the map fills the left ~61.7% (x
    0-790) and the Okinawa cinematic panel is docked flush against the
-   right ~38.3% (x 790-1280), both full height. MVP: the left map's whole
-   route/checkpoint composition is one flattened static image
-   (japan_route_map_mvp@2x.png) rather than separately-rendered dots/
-   labels/route segments, held inside an aspect-ratio-locked ".map-artboard"
-   (790:720) so it's never stretched or re-cropped; a single transparent
-   Button hotspot sits over Okinawa's position INSIDE that same artboard,
-   so it stays aligned with the visible artwork even when the artboard
-   pillarboxes within a wider stage (e.g. ultrawide 2400x1080). The right
-   panel is ONE full-height preview video with layered dark overlays over
-   its lower portion; title/description/stats/CTA sit directly on top of
-   the video, not in a separate solid content panel below it.
-   Percentage-based layout scales the composition at 1920x1080 /
-   2400x1080; font sizes stay fixed px (UI Toolkit has no fluid/
-   viewport-relative typography), sized to the 1280x720 baseline.
+   right ~38.3% (x 790-1280), both full height. MVP: Okinawa is the only
+   playable destination, so the panel is ALWAYS visible for the whole Map
+   visit (no hidden/collapsed-stage state) — MapLevelPreviewController
+   auto-selects Okinawa and starts its preview the moment the "map" screen
+   is entered, no click required. The left map's whole route/checkpoint
+   composition is one flattened static image (japan_route_map_mvp@2x.png,
+   the ONLY visible map image — the legacy full-screen asia_map background
+   is disabled here, see "#map-bg-media" below) rather than
+   separately-rendered dots/labels/route segments, held inside an
+   aspect-ratio-locked ".map-artboard" (790:720) so it's never stretched or
+   re-cropped; a single transparent Button hotspot sits over Okinawa's
+   position INSIDE that same artboard (kept for re-selection, not required
+   to open the panel), so it stays aligned with the visible artwork even
+   when the artboard pillarboxes within a wider stage (e.g. ultrawide
+   2400x1080). The right panel is ONE full-height preview video with
+   layered dark overlays over its lower portion; title/description/stats/
+   CTA sit directly on top of the video, not in a separate solid content
+   panel below it; there is no close action for this MVP — Home/back is
+   the only way to leave Map. Percentage-based layout scales the
+   composition at 1920x1080 / 2400x1080; font sizes stay fixed px (UI
+   Toolkit has no fluid/viewport-relative typography), sized to the
+   1280x720 baseline.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .home-bg / .tq-bg / .cam-feed on the other screens. Untouched asset,
-   driven by BackgroundMediaController; only a dark/fog legibility scrim
-   sits over it now — the old translucent red/green "territory shape"
-   glows were removed (they never matched the approved reference's dark
-   monochrome ink-map treatment). */
+   .home-bg / .tq-bg / .cam-feed on the other screens. .map-bg's own solid
+   --base color (plus .map-scrim below) is the neutral dark/fog backdrop
+   behind the fitted artboard's letterbox gaps — the old translucent
+   red/green "territory shape" glows were removed earlier (they never
+   matched the approved reference's dark monochrome ink-map treatment). */
 .map-bg {
     position: absolute;
     top: 0;
@@ -39,6 +47,17 @@
     bottom: 0;
     background-color: var(--base);
     align-items: center;
+}
+
+/* The legacy full-screen asia_map image (assigned here by
+   BackgroundMediaController) is disabled for the Map screen: the flattened
+   MVP map artwork (.map-art) is now the ONLY visible map image, so there
+   must never be a second map rendered behind it. The element and its
+   BackgroundMediaController binding are left in place (so Title/Home/
+   Combine's shared background-media wiring stays untouched) — only its
+   visibility here is turned off. */
+#map-bg-media {
+    display: none;
 }
 
 /* Dark/fog legibility overlay behind the map artboard, matching the
@@ -189,24 +208,23 @@
 }
 
 /* ---------- Okinawa cinematic preview panel (docked right side) ----------
-   Opens when the Okinawa hotspot is selected (MapLevelPreviewController
-   toggles ".map-detail--open"); hidden by default so the stage fills the
-   full viewport until a checkpoint is chosen. Docked flush against the
+   MVP: Okinawa is the only playable destination, so this panel is ALWAYS
+   visible for the whole Map screen visit — the 61.7/38.3 split is a
+   structural constant, never collapsing to a full-width stage regardless
+   of controller/selection timing. MapLevelPreviewController still toggles
+   ".map-detail--open" (kept for the "selected" contract / re-selection),
+   but panel visibility no longer depends on it. Docked flush against the
    top, right and bottom edges (no outer margin, square edges). ONE
    full-height video with layered dark overlays over its lower portion —
    there is no separate solid-black content container below it; the
    title/description/stats/CTA sit directly on top of the video. */
 .map-detail {
-    display: none;
     position: relative;
     flex-shrink: 0;
     width: 38.3%;
     min-width: 440px;
     background-color: var(--base);
     overflow: hidden;
-}
-.map-detail--open {
-    display: flex;
 }
 
 /* full-height, full-width preview video (never a banner) */
@@ -263,24 +281,6 @@
 }
 .map-detail__video-fallback--visible {
     display: flex;
-}
-
-/* minimal, unobtrusive close action: plain text, no button pill/circle
-   behind it, so it never reads as a large control over the video. */
-.map-detail__close {
-    position: absolute;
-    top: 14px;
-    right: 16px;
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 0;
-    padding: 2px 6px;
-}
-.map-detail__close-icon {
-    font-size: 16px;
-    color: rgba(237, 230, 216, 0.6);
-}
-.map-detail__close:hover .map-detail__close-icon {
-    color: var(--bone);
 }
 
 /* title / subtitle / description / stats / CTA — real UI Toolkit elements

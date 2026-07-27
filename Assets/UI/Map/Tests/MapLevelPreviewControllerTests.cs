@@ -69,8 +69,26 @@ namespace Mikey.UI.Map.Tests
         public void LeavingMapScreen_PausesActivePreview()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("if (screenId != ScreenId)", source);
-            StringAssert.Contains("PausePlayback()", source);
+            StringAssert.Contains("private void OnScreenChanged(string screenId)", source);
+            StringAssert.Contains("else", source);
+            StringAssert.Contains("PausePlayback();", source);
+        }
+
+        // MVP: Okinawa is the only playable destination, so entering the Map
+        // screen automatically selects the default (first) checkpoint binding —
+        // opening the panel and starting its preview without requiring a click —
+        // both on first entry and on every return visit.
+        [Test]
+        public void EnteringMapScreen_AutoSelectsDefaultCheckpoint()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("if (screenId == ScreenId)", source,
+                "OnScreenChanged must react to entering the Map screen, not only leaving it.");
+            StringAssert.Contains("SelectDefaultCheckpoint()", source);
+            StringAssert.Contains("checkpoints[0].nodeElementName", source,
+                "The default checkpoint must be the first checkpoints[] binding (Okinawa).");
+            StringAssert.Contains("if (_navigator.CurrentScreen == ScreenId)", source,
+                "Binding must also auto-select if Map is already the active screen when the controller finishes binding.");
         }
 
         // Closing the panel also pauses playback and deselects the checkpoint, so

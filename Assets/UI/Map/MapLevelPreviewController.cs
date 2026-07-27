@@ -9,16 +9,20 @@ using UnityEngine.Video;
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Drives the Map screen's right-side Okinawa level-detail panel: selecting a
-    /// checkpoint node opens the panel and starts its inline looping preview video,
-    /// "START LESSON" routes through the existing <see cref="IScreenNavigator"/> to
-    /// the Techniques hub, and leaving the Map screen pauses playback so no inline
-    /// preview keeps running off-screen. Deliberately separate from
-    /// BackgroundMediaController — that drives full-bleed screen backgrounds (the
-    /// Map's own background stays the static Asia/Japan image); this only owns the
-    /// small in-panel preview, never a full-screen video. Coexists with
-    /// ScreenManager and BackgroundMediaController on the shared UI GameObject,
-    /// mirroring PracticeController's bind/entry/unsubscribe pattern.
+    /// Drives the Map screen's right-side Okinawa level-detail panel. MVP: Okinawa
+    /// is the only playable destination, so entering the "map" screen automatically
+    /// selects it (opens the panel, marks it selected, starts its inline looping
+    /// preview video) without requiring a click — the transparent hotspot remains
+    /// for re-selection but isn't required. "START LESSON" routes through the
+    /// existing <see cref="IScreenNavigator"/> to the Techniques hub, and leaving
+    /// the Map screen pauses playback so no inline preview keeps running
+    /// off-screen. Deliberately separate from BackgroundMediaController — that
+    /// drives full-bleed screen backgrounds (the Map screen's own full-bleed
+    /// background media is disabled in Map.uss now that the flattened map artwork
+    /// is the only visible map image); this only owns the small in-panel preview,
+    /// never a full-screen video. Coexists with ScreenManager and
+    /// BackgroundMediaController on the shared UI GameObject, mirroring
+    /// PracticeController's bind/entry/unsubscribe pattern.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class MapLevelPreviewController : MonoBehaviour
@@ -185,7 +189,14 @@ namespace Mikey.UI.Map
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
+            {
                 _navigator.ScreenChanged += OnScreenChanged;
+                // If Map is already the active screen when binding finishes,
+                // treat it as an entry so Okinawa is selected immediately
+                // (mirrors BackgroundMediaController's same defensive check).
+                if (_navigator.CurrentScreen == ScreenId)
+                    SelectDefaultCheckpoint();
+            }
 
             _bound = true;
             _bindRoutine = null;
@@ -248,14 +259,30 @@ namespace Mikey.UI.Map
         public void StartLesson() => _navigator?.Show(StartLessonTarget);
 
         /// <summary>
-        /// Leaving the Map screen pauses the active inline preview so no hidden video
-        /// keeps playing behind another screen; the panel's open/selected state is
-        /// left as-is so re-selecting Okinawa resumes (or restarts) predictably.
+        /// Entering the Map screen auto-selects the default checkpoint (Okinawa)
+        /// so the approved 61.7/38.3 selected-level layout is shown immediately,
+        /// on first entry and on every return visit. Leaving the Map screen pauses
+        /// the active inline preview so no hidden video keeps playing behind
+        /// another screen.
         /// </summary>
         private void OnScreenChanged(string screenId)
         {
-            if (screenId != ScreenId)
+            if (screenId == ScreenId)
+                SelectDefaultCheckpoint();
+            else
                 PausePlayback();
+        }
+
+        /// <summary>
+        /// MVP: Okinawa is the only playable destination, so it's also the default
+        /// (first) checkpoint binding — selecting it opens the panel and starts its
+        /// preview without requiring the user to click the transparent hotspot.
+        /// </summary>
+        private void SelectDefaultCheckpoint()
+        {
+            if (checkpoints.Length == 0)
+                return;
+            SelectCheckpoint(checkpoints[0].nodeElementName);
         }
 
         private void PausePlayback()

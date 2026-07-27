@@ -8,18 +8,21 @@ namespace Mikey.UI.Map.Tests
 {
     /// <summary>
     /// Structural contract for the full-viewport cinematic Map screen in
-    /// MikeyApp.uxml — MVP composition: the approved reference's left-side
-    /// route/checkpoint art (map_okinawa_approved_reference.jpg, cropped to
-    /// Assets/UI/Media/Images/japan_route_map_mvp.png) is one flattened static
-    /// image rather than separately-rendered dots/labels/route segments, held
+    /// MikeyApp.uxml — MVP composition: Okinawa is the only playable
+    /// destination, so its docked cinematic panel (right, ~38.3%) is a
+    /// structural constant (never hidden/collapsed) and MapLevelPreviewController
+    /// auto-selects it the moment the screen is entered — the user never sees a
+    /// bare full-width Map state first. The left map (~61.7%) shows the approved
+    /// reference's route/checkpoint art (map_okinawa_approved_reference.jpg,
+    /// cropped to Assets/UI/Media/Images/japan_route_map_mvp.png) as ONE
+    /// flattened static image — the legacy full-screen asia_map background is
+    /// disabled for this screen so there is never a second map behind it — held
     /// inside an aspect-ratio-locked ".map-artboard" (790:720) so it never
     /// stretches or re-crops, with a single transparent Button hotspot over
-    /// Okinawa's position INSIDE that same artboard — this is what keeps the
-    /// hotspot aligned with the visible dot even when the artboard pillarboxes
-    /// within a wider stage (e.g. ultrawide 2400x1080). The docked cinematic
-    /// preview panel (right, ~38.3%) — one full-height video with layered dark
-    /// overlays, title/description/stats/CTA laid directly on top of it — is
-    /// unchanged from the prior correction.
+    /// Okinawa's position INSIDE that same artboard (kept for re-selection, not
+    /// required) that stays aligned with the visible dot even when the artboard
+    /// pillarboxes within a wider stage (e.g. ultrawide 2400x1080). There is no
+    /// panel close action for this MVP — Home/back is the only way to leave Map.
     /// </summary>
     public class MapScreenUxmlTests
     {
@@ -301,7 +304,8 @@ namespace Mikey.UI.Map.Tests
                 "map-node--available", "map-node--locked",
                 "map-pin", "map-pin__marker", "map-pin__dot", "map-pin__glow", "map-pin__label", "map-pin__badge", "map-pin__glyph",
                 "map-route-seg", "map-stage__art",
-                "map-detail__preview", "map-detail__body", "map-detail__video-scrim"
+                "map-detail__preview", "map-detail__body", "map-detail__video-scrim",
+                "map-detail__close", "map-detail__close-icon"
             })
             {
                 Assert.IsEmpty(screen.Query<VisualElement>(className: legacyClass).ToList(),
@@ -342,21 +346,31 @@ namespace Mikey.UI.Map.Tests
             }
         }
 
-        // The Okinawa hotspot, the panel close action and the panel's Start
-        // Lesson action are local, controller-bound actions — NOT go-
-        // navigators (mirrors Practice's practice-action/practice-complete
-        // convention).
+        // The Okinawa hotspot and the panel's Start Lesson action are local,
+        // controller-bound actions — NOT go- navigators (mirrors Practice's
+        // practice-action/practice-complete convention).
         [Test]
         public void LocalPanelActions_AreNotNavigators()
         {
             var screen = MapScreen(BuildTree());
-            foreach (var name in new[] { "map-node-okinawa", "map-detail-close", "map-detail-start" })
+            foreach (var name in new[] { "map-node-okinawa", "map-detail-start" })
             {
                 var ctrl = screen.Q<Button>(name);
                 Assert.IsNotNull(ctrl, $"Expected the local action '{name}'.");
                 Assert.IsFalse(ctrl.name.StartsWith(NavPrefix),
                     $"Local state-changing action '{name}' must not use a 'go-' navigator name.");
             }
+        }
+
+        // For this MVP, the panel has no close action: Home/back is the only
+        // way to leave Map, and the panel must never collapse back into the
+        // broken full-width stage state.
+        [Test]
+        public void PanelCloseAction_IsAbsent()
+        {
+            var screen = MapScreen(BuildTree());
+            Assert.IsNull(screen.Q<Button>("map-detail-close"), "The panel close action must be removed for this MVP.");
+            Assert.IsNull(screen.Q<VisualElement>(className: "map-detail__close"), "No close-button element/styling may remain.");
         }
 
         // The full-height preview video (and its fallback) live directly inside
@@ -458,23 +472,78 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("width: 200px", block, "Start Lesson must use the approved ~200px baseline width.");
         }
 
-        // The panel starts hidden (Map.uss ".map-detail" is display:none by
-        // default; MapLevelPreviewController is the only thing that adds the
-        // "--open" modifier).
+        // MVP: Okinawa is the only playable destination, so the panel is a
+        // structural constant — Map.uss must never hide ".map-detail" (no
+        // display:none / conditional "--open" gate), so the Map screen can
+        // never collapse into the broken full-width-stage state regardless of
+        // controller/selection timing.
         [Test]
-        public void DetailPanel_StartsWithoutOpenModifier()
+        public void DetailPanel_IsStructurallyAlwaysVisible_NeverCollapsesStage()
         {
             var screen = MapScreen(BuildTree());
-            var panel = screen.Q<VisualElement>("map-detail");
-            Assert.IsNotNull(panel);
-            Assert.IsFalse(panel.ClassListContains("map-detail--open"),
-                "Detail panel must not carry the open modifier by default.");
+            Assert.IsNotNull(screen.Q<VisualElement>("map-detail"));
+
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string detailBlock = ExtractRuleBlock(uss, ".map-detail {");
+            Assert.IsNotNull(detailBlock, "Expected a '.map-detail' rule in Map.uss.");
+            StringAssert.DoesNotContain("display: none", detailBlock,
+                "'.map-detail' must never be display:none — the panel must remain visible for the whole Map screen visit.");
+        }
+
+        // Entering the Map screen automatically selects Okinawa (opens the
+        // panel, starts its preview) — the user must never see a bare,
+        // full-width Map state first. Verified at the controller level in
+        // MapLevelPreviewControllerTests (EnteringMapScreen_AutoSelectsDefaultCheckpoint)
+        // and here structurally: the scene's single checkpoint binding is
+        // Okinawa, so it is unambiguously "the default".
+        [Test]
+        public void OkinawaIsTheOnlyCheckpointBinding_SoItIsUnambiguouslyDefault()
+        {
+            var screen = MapScreen(BuildTree());
+            var hotspots = screen.Query<Button>(className: "tap-target").ToList()
+                .Where(b => b.name == "map-node-okinawa").ToList();
+            Assert.AreEqual(1, hotspots.Count, "Expected exactly one Okinawa hotspot to serve as the default checkpoint.");
+        }
+
+        // The legacy full-screen asia_map image must not be visible behind the
+        // flattened MVP map artwork: Map.uss disables map-bg-media (the
+        // BackgroundMediaController target element) specifically for this
+        // screen, without touching the shared background-media wiring itself.
+        [Test]
+        public void LegacyAsiaMapBackground_IsDisabled_ForMapScreenOnly()
+        {
+            var screen = MapScreen(BuildTree());
+            // The element (and BackgroundMediaController's binding) must still
+            // exist — only its visibility is turned off — so Title/Home/Combine's
+            // shared wiring is provably untouched.
+            Assert.IsNotNull(screen.Q<VisualElement>("map-bg-media"),
+                "'map-bg-media' element must still exist (BackgroundMediaController wiring untouched); only its visibility is disabled.");
+
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, "#map-bg-media {");
+            Assert.IsNotNull(block, "Expected a '#map-bg-media' rule in Map.uss disabling the legacy background.");
+            StringAssert.Contains("display: none", block, "'#map-bg-media' must be display:none so no second map renders behind the flattened artwork.");
+        }
+
+        // Only the flattened MVP artwork supplies the visible left map: no
+        // other background-image rule targets the map stage/background layer.
+        [Test]
+        public void OnlyMvpArtwork_SuppliesTheVisibleLeftMap()
+        {
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string mapBgBlock = ExtractRuleBlock(uss, ".map-bg {");
+            Assert.IsNotNull(mapBgBlock, "Expected a '.map-bg' rule in Map.uss.");
+            StringAssert.DoesNotContain("background-image", mapBgBlock,
+                "'.map-bg' must not itself carry a background-image — the only visible map image is '.map-art' (japan_route_map_mvp@2x.png).");
         }
 
         // No active-looking control lacks an action: every Button on Map is
         // either a go- navigator or a known local controller-bound action.
         private static readonly string[] LocalControllerActions =
-            { "map-node-okinawa", "map-detail-close", "map-detail-start" };
+            { "map-node-okinawa", "map-detail-start" };
 
         [Test]
         public void NoActiveLookingControl_LacksAnAction()
@@ -496,7 +565,7 @@ namespace Mikey.UI.Map.Tests
         public void InteractiveControls_KeepMinimumTouchTargetSize()
         {
             var screen = MapScreen(BuildTree());
-            foreach (var name in new[] { "go-menu", "map-node-okinawa", "map-detail-close", "map-detail-start" })
+            foreach (var name in new[] { "go-menu", "map-node-okinawa", "map-detail-start" })
             {
                 var ctrl = screen.Q<Button>(name);
                 Assert.IsNotNull(ctrl, $"Expected control '{name}'.");

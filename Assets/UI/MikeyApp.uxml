@@ -578,16 +578,25 @@
         </ui:VisualElement>
 
         <!-- 9 - MAP (full-viewport cinematic Map presentation rebuilt from the
-             approved reference: checkpoints + route drawn directly over the map;
-             Okinawa opens a docked, full-height right-side cinematic preview panel
-             with title/description/stats/CTA laid over the video itself) -->
+             approved reference: checkpoints drawn directly over the map; Okinawa
+             is the only playable destination for this MVP, so its docked,
+             full-height right-side cinematic preview panel is already open and
+             its preview already selected the moment the screen is entered —
+             title/description/stats/CTA laid directly over the video itself) -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
             <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper.
-                 Only the static image + legibility scrim remain: the old
-                 translucent red/green "territory shape" glows were removed —
-                 they never matched the approved reference's dark, monochrome
-                 fog-over-ink-map treatment. -->
+                 map-bg-media is disabled for this screen (see Map.uss
+                 "#map-bg-media") — the flattened MVP map artwork (.map-art)
+                 is now the only visible map image; the old full-screen
+                 asia_map background must not show a second map behind it.
+                 The element (and BackgroundMediaController's binding) is kept
+                 so the shared background-media system stays untouched for
+                 Title/Home/Combine; only its visibility on Map is disabled.
+                 Only the (now-invisible) static image + legibility scrim
+                 remain: the old translucent red/green "territory shape"
+                 glows were removed earlier — they never matched the approved
+                 reference's dark, monochrome fog treatment. -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
                 <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
@@ -649,12 +658,18 @@
                      with layered dark overlays over its lower portion — title,
                      description, stats and the CTA sit directly on top of the video
                      (there is no separate solid-black content panel below it).
-                     Hidden by default (Map.uss ".map-detail" has display:none);
-                     MapLevelPreviewController shows it (adds the "open" modifier)
-                     when the Okinawa checkpoint pin above is selected, and drives the
-                     inline video's lifecycle independently of the map background
-                     (see Media/BackgroundMediaController.cs for the separate
-                     full-bleed system that stays untouched here). -->
+                     MVP: Okinawa is the only playable destination, so this panel
+                     stays visible for the whole Map screen visit (Map.uss ".map-detail"
+                     has no display:none) — the 61.7/38.3 split is always structurally
+                     present, never collapsing to a full-width stage. On entering the
+                     "map" screen, MapLevelPreviewController automatically selects
+                     Okinawa and starts its inline preview (no click required); the
+                     transparent hotspot on the map stage remains for re-selection, but
+                     is not required to open this panel. No close action: Home/back is
+                     the only way to leave Map for this MVP. Drives the inline video's
+                     lifecycle independently of the map background (see
+                     Media/BackgroundMediaController.cs for the separate full-bleed
+                     system that stays untouched here). -->
                 <ui:VisualElement name="map-detail" class="map-detail">
                     <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
 
@@ -669,13 +684,6 @@
 
                     <!-- safe static fallback: shown instead of the video if it cannot load -->
                     <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
-
-                    <!-- minimal, unobtrusive close action: plain text, no button
-                         pill/circle behind it, so it never reads as a large control
-                         over the video. -->
-                    <ui:Button name="map-detail-close" class="map-detail__close tap-target">
-                        <ui:Label text="✕" class="map-detail__close-icon" picking-mode="Ignore" />
-                    </ui:Button>
 
                     <!-- title / subtitle / description / stats / CTA — real UI
                          Toolkit elements laid directly over the video + overlays,
