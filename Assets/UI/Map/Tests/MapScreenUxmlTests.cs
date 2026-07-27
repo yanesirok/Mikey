@@ -8,23 +8,21 @@ namespace Mikey.UI.Map.Tests
 {
     /// <summary>
     /// Structural contract for the full-viewport cinematic Map screen in
-    /// MikeyApp.uxml, rebuilt from the approved reference
-    /// (map_okinawa_approved_reference.jpg): a map stage (left, ~61.7%) with
-    /// checkpoint dots and a route line drawn directly over the map (no cards,
-    /// no badges, no "SOON" capsules, no legacy territory-shape overlays), and
-    /// a docked cinematic preview panel (right, ~38.3%) — one full-height video
-    /// with layered dark overlays, never a separate solid content panel below
-    /// it — showing Okinawa's title/description/stats/CTA laid directly on top
-    /// of the video.
+    /// MikeyApp.uxml — MVP composition: the approved reference's left-side
+    /// route/checkpoint art (map_okinawa_approved_reference.jpg, cropped to
+    /// Assets/UI/Media/Images/japan_route_map_mvp.png) is one flattened static
+    /// image rather than separately-rendered dots/labels/route segments, with
+    /// a single transparent Button hotspot over Okinawa's position. The docked
+    /// cinematic preview panel (right, ~38.3%) — one full-height video with
+    /// layered dark overlays, title/description/stats/CTA laid directly on
+    /// top of it — is unchanged from the prior correction.
     /// </summary>
     public class MapScreenUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string UssPath = "Assets/UI/Map/Map.uss";
+        private const string MapArtPath = "Assets/UI/Media/Images/japan_route_map_mvp.png";
         private const string NavPrefix = "go-";
-
-        private static readonly string[] LockedCheckpointClasses =
-            { "map-pin--tonokku", "map-pin--kanto", "map-pin--future" };
 
         private static VisualElement BuildTree()
         {
@@ -102,17 +100,27 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNull(NearestSafeAreaAncestor(bg), ".map-bg must not be inside .safe-area-content.");
         }
 
-        // No legacy translucent red/green "territory shape" overlays remain over
-        // the map background — the approved reference is a plain dark/fog treatment.
+        // The MVP flattened map artboard asset exists on disk and is referenced
+        // by Map.uss.
         [Test]
-        public void NoLegacyTerritoryOverlays_RemainOnMapBackground()
+        public void MvpMapArtAsset_Exists_AndIsReferencedByMapUss()
         {
-            var bg = MapScreen(BuildTree()).Q<VisualElement>(className: "map-bg");
-            Assert.IsEmpty(bg.Query<VisualElement>(className: "map-glow").ToList(), "'.map-glow' territory shape must not remain.");
-            Assert.IsEmpty(bg.Query<VisualElement>(className: "map-ink-wash").ToList(), "'.map-ink-wash' territory shape must not remain.");
+            Assert.IsTrue(File.Exists(MapArtPath), $"Expected the cropped MVP map artboard at {MapArtPath}.");
+
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, ".map-stage__art {");
+            Assert.IsNotNull(block, "Expected a '.map-stage__art' rule in Map.uss.");
+            StringAssert.Contains("japan_route_map_mvp.png", block,
+                "'.map-stage__art' must reference the cropped japan_route_map_mvp.png artboard.");
+            StringAssert.DoesNotContain("scale-and-crop", block,
+                "The flattened map artboard must use scale-to-fit, not scale-and-crop (never re-cropped).");
+            StringAssert.Contains("scale-to-fit", block,
+                "The flattened map artboard must use scale-to-fit to preserve its exact aspect ratio.");
         }
 
-        // Map's foreground (stage + docked panel) lives inside the safe-area wrapper.
+        // The map stage's foreground (artboard + hotspot) lives inside the
+        // safe-area wrapper, alongside the docked panel.
         [Test]
         public void ForegroundLayout_IsInsideSafeArea()
         {
@@ -130,8 +138,8 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNotNull(NearestSafeAreaAncestor(panel), "'map-detail' must be inside .safe-area-content.");
         }
 
-        // The docked panel is structurally separate from (a sibling of, not nested
-        // inside) the left map area — the two regions of the approved split.
+        // The docked panel is structurally separate from (a sibling of, not
+        // nested inside) the left map stage.
         [Test]
         public void DetailPanel_IsStructurallySeparate_FromMapStage()
         {
@@ -163,8 +171,8 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("width: 38.3%", detailBlock, "'.map-detail' must be approximately 38.3% wide, per the approved reference.");
         }
 
-        // Map contains go-menu, and it targets the existing 'menu' screen — the one
-        // minimal way back to Home for this cinematic presentation.
+        // Map contains go-menu, and it targets the existing 'menu' screen — the
+        // one minimal way back to Home.
         [Test]
         public void Map_HasGoMenuHomeAction_TargetingMenu()
         {
@@ -178,32 +186,55 @@ namespace Mikey.UI.Map.Tests
                 "The 'menu' target screen must exist.");
         }
 
-        // Okinawa is a simple dot + label — a real, clickable Button, but NOT
-        // wrapped in a rectangular card, and NOT a "go-" navigator (MapLevelPreviewController
-        // opens the level-detail panel instead of jumping straight to Techniques).
+        // The Okinawa hotspot exists as a real, clickable Button, positioned
+        // over the flattened artboard, but is NOT a "go-" navigator
+        // (MapLevelPreviewController opens the level-detail panel instead of
+        // jumping straight to Techniques), and has no visible button/card
+        // styling of its own — no background, no border, no label.
         [Test]
-        public void OkinawaCheckpoint_IsSimpleDot_NotACard_AndClickableButNotAGoNavigator()
+        public void OkinawaHotspot_IsTransparentAndClickable_ButNotAGoNavigator()
         {
             var root = BuildTree();
-            var node = MapScreen(root).Q<Button>("map-node-okinawa");
-            Assert.IsNotNull(node, "Map must expose the Okinawa checkpoint as a real Button named 'map-node-okinawa'.");
-            Assert.IsTrue(node.ClassListContains("map-pin--current"), "Okinawa must carry the '.map-pin--current' (available/red) state class.");
-            Assert.IsFalse(node.name.StartsWith(NavPrefix),
-                "Selecting the Okinawa checkpoint must open the detail panel, not navigate directly.");
+            var hotspot = MapScreen(root).Q<Button>("map-node-okinawa");
+            Assert.IsNotNull(hotspot, "Map must expose the Okinawa hotspot as a real Button named 'map-node-okinawa'.");
+            Assert.IsFalse(hotspot.name.StartsWith(NavPrefix),
+                "Selecting the Okinawa hotspot must open the detail panel, not navigate directly.");
 
-            // Exactly a marker (dot + glow) and a label -- no extra rectangular
-            // "card" wrapper or background box.
-            var directChildren = node.Children().ToList();
-            Assert.AreEqual(2, directChildren.Count, "Okinawa's pin must contain exactly a marker and a label, no extra card wrapper.");
-            Assert.IsNotNull(node.Q<VisualElement>(className: "map-pin__marker"), "Expected the dot/glow marker.");
-            Assert.IsNotNull(node.Q<Label>(className: "map-pin__label"), "Expected the plain text label.");
-            Assert.IsNull(node.Q<VisualElement>(className: "map-pin__glyph"), "Legacy kanji-badge glyph must not remain.");
+            // No visible button chrome: no child label/glyph, no card wrapper.
+            Assert.AreEqual(0, hotspot.childCount, "The Okinawa hotspot must have no child elements (no Unity-generated label, no card/glyph).");
+            Assert.IsFalse(hotspot.ClassListContains("btn"), "The hotspot must not use the global '.btn' styled-button class.");
+
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, ".map-node-okinawa {");
+            Assert.IsNotNull(block, "Expected a '.map-node-okinawa' rule in Map.uss.");
+            StringAssert.Contains("border-width: 0", block, "The hotspot must have no visible border.");
+            StringAssert.IsMatch(@"background-color:\s*rgba\(\s*0,\s*0,\s*0,\s*0\s*\)", block,
+                "The hotspot must have a fully transparent background (no visible button/card).");
         }
 
-        // No legacy roadmap dashboard, city-card list, dock, or "SOON" capsule
-        // remains on the approved cinematic Map layout.
+        // The Okinawa hotspot's clickable area is intentionally larger than a
+        // typical visible dot, for usability, and positioned within the
+        // artboard's coordinate space (not hardcoded pixel values that would
+        // drift at other resolutions).
         [Test]
-        public void NoLegacyDashboardOrBadgeElements_RemainOnMap()
+        public void OkinawaHotspot_HasGenerousTapArea_PositionedByPercentage()
+        {
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, ".map-node-okinawa {");
+            Assert.IsNotNull(block);
+            StringAssert.Contains("left:", block);
+            StringAssert.Contains("top:", block);
+            StringAssert.Contains("%", block, "Hotspot position must be percentage-based so it stays aligned when the stage scales.");
+        }
+
+        // No legacy roadmap dashboard, city-card list, dock, "SOON" capsule, or
+        // the previous dynamic dot/route-segment rendering remains on the
+        // approved MVP Map layout — the whole composition is now the flattened
+        // artboard plus the transparent hotspot.
+        [Test]
+        public void NoLegacyDynamicMapElements_Remain()
         {
             var screen = MapScreen(BuildTree());
             foreach (var legacyClass in new[]
@@ -211,23 +242,26 @@ namespace Mikey.UI.Map.Tests
                 "map-hub", "map-route", "map-dock", "map-tab", "map-chapter",
                 "map-belt", "map-progress", "map-breadcrumb", "map-btn",
                 "map-node--available", "map-node--locked",
-                "map-pin__badge", "map-pin__glyph",
+                "map-pin", "map-pin__marker", "map-pin__dot", "map-pin__glow", "map-pin__label", "map-pin__badge", "map-pin__glyph",
+                "map-route-seg",
                 "map-detail__preview", "map-detail__body", "map-detail__video-scrim"
             })
             {
                 Assert.IsEmpty(screen.Query<VisualElement>(className: legacyClass).ToList(),
-                    $"Legacy class '.{legacyClass}' must not remain on the approved Map layout.");
+                    $"Legacy class '.{legacyClass}' must not remain on the approved MVP Map layout.");
             }
             Assert.IsNull(screen.Q<VisualElement>("nav-map"), "The old dock's 'nav-map' active-tab indicator must not remain.");
 
-            string text = string.Join(" ", screen.Query<Label>().ToList().Select(l => l.text));
-            StringAssert.DoesNotContain("SOON", text, "No 'SOON' capsule/label text may remain in checkpoint UI.");
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+            foreach (var legacySelector in new[] { ".map-pin ", ".map-pin{", ".map-route-seg" })
+                StringAssert.DoesNotContain(legacySelector, uss, $"Map.uss must not retain dead '{legacySelector}' rules.");
         }
 
         // Detail panel's own Start Lesson action still routes to the existing
-        // 'techniques' screen; "go-techniques" remains a real navigator elsewhere
-        // (Home/Techniques/Profile docks, Practice's back action), so no
-        // navigation id required elsewhere is removed by dropping Map's own dock.
+        // 'techniques' screen; "go-techniques" remains a real navigator
+        // elsewhere (Home/Techniques/Profile docks, Practice's back action), so
+        // no navigation regression was introduced by the MVP map correction.
         [Test]
         public void MapDetailStart_TargetsExistingTechniquesScreen_AndElsewhereUnaffected()
         {
@@ -251,9 +285,10 @@ namespace Mikey.UI.Map.Tests
             }
         }
 
-        // The Okinawa checkpoint, the panel close action and the panel's Start
-        // Lesson action are local, controller-bound actions — NOT go- navigators
-        // (mirrors Practice's practice-action/practice-complete convention).
+        // The Okinawa hotspot, the panel close action and the panel's Start
+        // Lesson action are local, controller-bound actions — NOT go-
+        // navigators (mirrors Practice's practice-action/practice-complete
+        // convention).
         [Test]
         public void LocalPanelActions_AreNotNavigators()
         {
@@ -268,7 +303,8 @@ namespace Mikey.UI.Map.Tests
         }
 
         // The full-height preview video (and its fallback) live directly inside
-        // map-detail — not nested inside a separate, shorter "preview" sub-container.
+        // map-detail — the video lifecycle target names MapLevelPreviewController
+        // queries are unchanged by the MVP map correction.
         [Test]
         public void PreviewVideo_IsFullHeight_DirectChildOfMapDetail()
         {
@@ -309,8 +345,9 @@ namespace Mikey.UI.Map.Tests
                 "'.map-detail__content' must not paint its own solid background — it sits directly over the video + overlays.");
         }
 
-        // Layered dark overlays exist to keep the lower information area readable
-        // while scenery stays visible behind the upper portion of the video.
+        // Layered dark overlays exist to keep the lower information area
+        // readable while scenery stays visible behind the upper portion of the
+        // video.
         [Test]
         public void DarkOverlays_ExistOverVideo_ForLegibility()
         {
@@ -364,9 +401,9 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("width: 200px", block, "Start Lesson must use the approved ~200px baseline width.");
         }
 
-        // The panel starts hidden (Map.uss ".map-detail" is display:none by default;
-        // MapLevelPreviewController is the only thing that adds the "--open" modifier),
-        // and Okinawa starts un-selected (not yet the brightened/selected glow).
+        // The panel starts hidden (Map.uss ".map-detail" is display:none by
+        // default; MapLevelPreviewController is the only thing that adds the
+        // "--open" modifier).
         [Test]
         public void DetailPanel_StartsWithoutOpenModifier()
         {
@@ -375,92 +412,10 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNotNull(panel);
             Assert.IsFalse(panel.ClassListContains("map-detail--open"),
                 "Detail panel must not carry the open modifier by default.");
-
-            var okinawa = screen.Q<Button>("map-node-okinawa");
-            Assert.IsNotNull(okinawa);
-            Assert.IsFalse(okinawa.ClassListContains("map-node--selected"),
-                "Okinawa must not start as the selected (brightened-glow) checkpoint.");
         }
 
-        // Tonokku, Kanto and the future checkpoint remain honestly non-interactive:
-        // never a Button, never picked, so they structurally cannot ever open
-        // Okinawa or start a lesson. Required labels exist (TONOKKU / KANTO); the
-        // future checkpoint intentionally has none (cropped in the reference).
-        [Test]
-        public void LockedCheckpoints_CannotOpenOkinawaOrStartALesson_AndHaveExpectedLabels()
-        {
-            var screen = MapScreen(BuildTree());
-            foreach (var className in LockedCheckpointClasses)
-            {
-                var nodes = screen.Query<VisualElement>(className: className).ToList();
-                Assert.AreEqual(1, nodes.Count, $"Expected exactly one '.{className}' checkpoint.");
-                var node = nodes[0];
-
-                Assert.IsFalse(node is Button, $"Locked checkpoint '.{className}' must not be an active Button.");
-                Assert.AreEqual(PickingMode.Ignore, node.pickingMode,
-                    $"Locked checkpoint '.{className}' must not be pickable (cannot be clicked at all).");
-                Assert.IsTrue(string.IsNullOrEmpty(node.name) || !node.name.StartsWith(NavPrefix),
-                    $"Locked checkpoint '.{className}' must not be a 'go-' navigator.");
-                Assert.IsTrue(node.ClassListContains("map-pin--locked"),
-                    $"Locked checkpoint '.{className}' must carry the '.map-pin--locked' state class.");
-            }
-
-            var tonokku = screen.Q<VisualElement>(className: "map-pin--tonokku");
-            Assert.IsNotNull(tonokku.Q<Label>(className: "map-pin__label"));
-            Assert.AreEqual("TONOKKU", tonokku.Q<Label>(className: "map-pin__label").text);
-
-            var kanto = screen.Q<VisualElement>(className: "map-pin--kanto");
-            Assert.IsNotNull(kanto.Q<Label>(className: "map-pin__label"));
-            Assert.AreEqual("KANTO", kanto.Q<Label>(className: "map-pin__label").text);
-
-            var future = screen.Q<VisualElement>(className: "map-pin--future");
-            Assert.IsNull(future.Q<Label>(className: "map-pin__label"),
-                "The future/northern checkpoint intentionally has no label (cropped in the approved reference).");
-        }
-
-        // Available (Okinawa) and locked (Tonokku/Kanto/future) checkpoint state
-        // classes are distinct — no pin is both.
-        [Test]
-        public void AvailableAndLockedCheckpointClasses_AreDistinct()
-        {
-            var screen = MapScreen(BuildTree());
-            foreach (var pin in screen.Query<VisualElement>(className: "map-pin").ToList())
-            {
-                bool isCurrent = pin.ClassListContains("map-pin--current");
-                bool isLocked = pin.ClassListContains("map-pin--locked");
-                Assert.IsFalse(isCurrent && isLocked,
-                    $"Checkpoint '{pin.name}' must not carry both the current/available and locked state classes.");
-            }
-        }
-
-        // Route line: several short segments approximating a curved trail
-        // directly over the map, never baked into the background image.
-        [Test]
-        public void RouteLine_ExistsAsMultiSegmentOverlay()
-        {
-            var stage = MapScreen(BuildTree()).Q<VisualElement>(className: "map-stage");
-            var segments = stage.Query<VisualElement>(className: "map-route-seg").ToList();
-            Assert.GreaterOrEqual(segments.Count, 5, "Expected several short segments (not 3 giant diagonals) approximating a curved trail.");
-        }
-
-        // Checkpoint coordinates are real, per-checkpoint USS selectors (easy to
-        // retune later), not hardcoded in C# and not baked into the map image.
-        [Test]
-        public void CheckpointPositions_AreDefinedInUss_PerCheckpoint()
-        {
-            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
-            string uss = File.ReadAllText(UssPath);
-            foreach (var selector in new[] { ".map-pin--okinawa {", ".map-pin--tonokku {", ".map-pin--kanto {", ".map-pin--future {" })
-            {
-                string block = ExtractRuleBlock(uss, selector);
-                Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
-                StringAssert.Contains("left:", block, $"'{selector}' must define its horizontal position.");
-                StringAssert.Contains("top:", block, $"'{selector}' must define its vertical position.");
-            }
-        }
-
-        // No active-looking control lacks an action: every Button on Map is either
-        // a go- navigator or a known local controller-bound action.
+        // No active-looking control lacks an action: every Button on Map is
+        // either a go- navigator or a known local controller-bound action.
         private static readonly string[] LocalControllerActions =
             { "map-node-okinawa", "map-detail-close", "map-detail-start" };
 
@@ -478,8 +433,8 @@ namespace Mikey.UI.Map.Tests
         }
 
         // Interactive controls keep a real (if invisible) minimum touch-target
-        // size even where they're styled as small/unobtrusive plain-text
-        // controls (no visible pill/box) — accessibility without visual bulk.
+        // size even where they're styled as small/unobtrusive or fully
+        // transparent controls — accessibility without visual bulk.
         [Test]
         public void InteractiveControls_KeepMinimumTouchTargetSize()
         {

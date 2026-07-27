@@ -596,11 +596,16 @@
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-layout">
 
-                <!-- LEFT: the map stage (~61.7%) — a clean cinematic map: no
-                     dashboard chrome, no city cards, no badges. Checkpoints are
-                     simple dots + plain labels; the route is a multi-segment line,
-                     both drawn directly over the map, never baked into the image. -->
+                <!-- LEFT: the map stage (~61.7%) — MVP: the approved reference's
+                     route/checkpoint composition is a single flattened static
+                     image (Assets/UI/Media/Images/japan_route_map_mvp.png), not
+                     separately-rendered dots/labels/route segments. Scaled to
+                     fit without altering its internal 790x720 crop or aspect
+                     ratio (never stretched, never cropped differently at
+                     different viewport sizes). -->
                 <ui:VisualElement class="map-stage">
+
+                    <ui:VisualElement class="map-stage__art" picking-mode="Ignore" />
 
                     <!-- one minimal, unobtrusive way back to Home: plain text, no
                          pill/box styling, so it never competes with the map. -->
@@ -608,57 +613,22 @@
                         <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
                     </ui:Button>
 
-                    <!-- route line: several short rotated segments approximating the
-                         reference's curved trail (Okinawa -> Tonokku -> Kanto ->
-                         future checkpoint), never baked into the map background. -->
-                    <ui:VisualElement class="map-route-seg map-route-seg--1" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-route-seg map-route-seg--2" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-route-seg map-route-seg--3" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-route-seg map-route-seg--4" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-route-seg map-route-seg--5" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-route-seg map-route-seg--6" picking-mode="Ignore" />
-
-                    <!-- Okinawa — a simple solid red dot with a subtle glow (no card,
-                         no square backing, no kanji badge) and a plain text label.
-                         Local checkpoint-select action (NOT a "go-" navigator):
-                         MapLevelPreviewController opens the docked cinematic panel
-                         and starts the inline preview; the panel's own "START LESSON"
-                         action is what routes to the Techniques hub. The glow
-                         brightens via the runtime-only "selected" modifier once
-                         chosen. -->
-                    <ui:Button name="map-node-okinawa" class="map-pin map-pin--okinawa map-pin--current tap-target">
-                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
-                            <ui:VisualElement class="map-pin__glow" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-pin__dot" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="OKINAWA" class="map-pin__label" picking-mode="Ignore" />
-                    </ui:Button>
-
-                    <!-- Tonokku / Kanto — simple muted/white dots with plain labels,
-                         honestly locked (no "SOON" capsule, no badge), NOT navigators
-                         (no go- name), non-interactive (picking ignored), so they can
-                         never open Okinawa or start a lesson. -->
-                    <ui:VisualElement class="map-pin map-pin--tonokku map-pin--locked" picking-mode="Ignore">
-                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
-                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="TONOKKU" class="map-pin__label" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-pin map-pin--kanto map-pin--locked" picking-mode="Ignore">
-                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
-                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="KANTO" class="map-pin__label" picking-mode="Ignore" />
-                    </ui:VisualElement>
-
-                    <!-- future/northern checkpoint — a muted point only; no label
-                         (matches the approved reference, where this point sits at
-                         the map's edge and its label is cropped). -->
-                    <ui:VisualElement class="map-pin map-pin--future map-pin--locked" picking-mode="Ignore">
-                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
-                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
+                    <!-- transparent Okinawa interaction hotspot: no visible
+                         background, border or label of its own — the visible red
+                         Okinawa marker is baked into japan_route_map_mvp.png; this
+                         is purely a click target, positioned at the marker's
+                         normalized coordinate within the map artboard (see
+                         Map.uss ".map-node-okinawa"), with a larger invisible tap
+                         area than the visible dot for usability. Local
+                         checkpoint-select action (NOT a "go-" navigator):
+                         MapLevelPreviewController opens the docked cinematic
+                         panel and starts the inline preview; the panel's own
+                         "START LESSON" action is what routes to the Techniques
+                         hub. Locked points (Tonokku / Kanto / future) have no
+                         separate interactive element for this MVP — they are
+                         part of the flattened artwork and simply cannot be
+                         clicked. -->
+                    <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
                 </ui:VisualElement>
 
                 <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush

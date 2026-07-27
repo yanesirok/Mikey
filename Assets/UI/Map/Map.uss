@@ -8,15 +8,17 @@
 
    Baseline composition is 1280x720: the map fills the left ~61.7% (x
    0-790) and the Okinawa cinematic panel is docked flush against the
-   right ~38.3% (x 790-1280), both full height. Checkpoints and the route
-   line sit directly over the map (never baked into the background image)
-   as simple dots + plain labels — no cards, no badges, no "SOON" pills.
-   The right panel is ONE full-height preview video with layered dark
-   overlays over its lower portion; title/description/stats/CTA sit
-   directly on top of the video, not in a separate solid content panel
-   below it. Percentage-based layout scales the composition at
-   1920x1080 / 2400x1080; font sizes stay fixed px (UI Toolkit has no
-   fluid/viewport-relative typography), sized to the 1280x720 baseline.
+   right ~38.3% (x 790-1280), both full height. MVP: the left map's whole
+   route/checkpoint composition is one flattened static image
+   (japan_route_map_mvp.png) rather than separately-rendered dots/labels/
+   route segments; a single transparent Button hotspot sits over Okinawa's
+   position for interaction. The right panel is ONE full-height preview
+   video with layered dark overlays over its lower portion;
+   title/description/stats/CTA sit directly on top of the video, not in a
+   separate solid content panel below it. Percentage-based layout scales
+   the composition at 1920x1080 / 2400x1080; font sizes stay fixed px (UI
+   Toolkit has no fluid/viewport-relative typography), sized to the
+   1280x720 baseline.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
@@ -36,8 +38,8 @@
     align-items: center;
 }
 
-/* Dark/fog legibility overlay over the map so checkpoint dots, labels and
-   the route line keep contrast against the painted art. */
+/* Dark/fog legibility overlay behind the map artboard, matching the
+   approved reference's dark, moody tone. */
 .map-scrim {
     position: absolute;
     top: 0;
@@ -85,10 +87,10 @@
     align-items: stretch;
 }
 
-/* LEFT (~61.7%) — the map stage: checkpoints and the route line are drawn
-   directly over the full-bleed map background (never baked into the
-   image), plus one small, unobtrusive way back to Home. Fills all
-   remaining width once the docked panel (fixed %) takes its share. */
+/* LEFT (~61.7%) — the map stage: the flattened MVP map artboard, the
+   transparent Okinawa hotspot, and one small, unobtrusive way back to
+   Home. Fills all remaining width once the docked panel (fixed %) takes
+   its share. */
 .map-stage {
     position: relative;
     flex-grow: 1;
@@ -117,138 +119,50 @@
     color: var(--bone);
 }
 
-/* ---------- route line ----------
-   Several short rotated segments approximating the reference's curved
-   trail (straight segments only — UI Toolkit has no curve primitive),
-   positioned as a percentage of the map stage (starting positions only,
-   easy to retune alongside the .map-pin-- coordinates below). Never
-   baked into the map background. Thin, plain white line — no glow. */
-.map-route-seg {
+/* ---------- MVP flattened map artboard ----------
+   The approved reference's whole route/checkpoint composition (map art,
+   route line, Tonokku/Kanto/future points + labels, Okinawa point + label)
+   is ONE static image (Assets/UI/Media/Images/japan_route_map_mvp.png,
+   cropped losslessly from the approved 1280x720 reference at x:0-790,
+   y:0-720 — a 790x720 source). Fills the stage without stretching or
+   re-cropping: scale-to-fit preserves the exact aspect ratio, so at a
+   wider-than-790:720 stage (e.g. 2400x1080) it pillarboxes rather than
+   distorting or cropping differently — the dark map/scrim behind it
+   shows through that gap, which reads as a continuation of the same
+   dark ink-map treatment rather than a hard edge. */
+.map-stage__art {
     position: absolute;
-    height: 2px;
-    background-color: rgba(237, 230, 216, 0.85);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("/Assets/UI/Media/Images/japan_route_map_mvp.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ---------- Okinawa interaction hotspot ----------
+   Transparent — no visible background, border or label; the visible red
+   Okinawa marker is baked into the map artboard above. Positioned at the
+   marker's normalized coordinate within the 790x720 artboard (measured
+   centre: x=222, y=489 -> 222/790=28.1%, 489/720=67.9%), centered via
+   translate(-50%,-50%), with a generous invisible tap area (see
+   .tap-target) larger than the visible dot for usability. Locked points
+   (Tonokku / Kanto / future) have no separate interactive element for
+   this MVP — they are part of the flattened artwork and simply cannot be
+   clicked. */
+.map-node-okinawa {
+    position: absolute;
+    left: 28.1%;
+    top: 67.9%;
     translate: -50% -50%;
-}
-/* Okinawa -> waypoint (steep initial rise) */
-.map-route-seg--1 {
-    left: 30.5%;
-    top: 61.5%;
-    width: 14%;
-    rotate: -69deg;
-}
-/* waypoint -> Tonokku (levels off) */
-.map-route-seg--2 {
-    left: 40%;
-    top: 50.5%;
-    width: 17%;
-    rotate: -33deg;
-}
-/* Tonokku -> waypoint (gentle rise) */
-.map-route-seg--3 {
-    left: 53.5%;
-    top: 45%;
-    width: 13%;
-    rotate: -9deg;
-}
-/* waypoint -> Kanto */
-.map-route-seg--4 {
-    left: 67.5%;
-    top: 41%;
-    width: 16%;
-    rotate: -22deg;
-}
-/* Kanto -> waypoint (steeper) */
-.map-route-seg--5 {
-    left: 79.5%;
-    top: 32.5%;
-    width: 14%;
-    rotate: -51deg;
-}
-/* waypoint -> future checkpoint */
-.map-route-seg--6 {
-    left: 88.5%;
-    top: 20.5%;
-    width: 16%;
-    rotate: -55deg;
-}
-
-/* ---------- checkpoints (simple dots + plain labels) ----------
-   Coordinates are percentages of the map stage box, centered on the pin
-   via translate(-50%,-50%) — starting positions only, kept in USS (not
-   baked into the background image or hardcoded in C#) so they stay easy
-   to retune. No cards, no square backing, no "SOON" capsules. */
-.map-pin {
-    position: absolute;
-    translate: -50% -50%;
-    flex-direction: row;
-    align-items: center;
-}
-.map-pin--okinawa {
-    left: 28%;
-    top: 68%;
-}
-.map-pin--tonokku {
-    left: 47%;
-    top: 46%;
-}
-.map-pin--kanto {
-    left: 75%;
-    top: 38%;
-}
-.map-pin--future {
-    left: 93%;
-    top: 14%;
-}
-
-/* the dot + its optional glow live in a small fixed-size marker so the
-   glow can be centered behind the dot without disturbing label layout */
-.map-pin__marker {
-    position: relative;
-    width: 18px;
-    height: 18px;
-    align-items: center;
-    justify-content: center;
-}
-.map-pin__dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 6px;
-}
-.map-pin__label {
-    margin-left: 10px;
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    -unity-text-align: middle-left;
-}
-
-/* current/available (Okinawa) — a solid red dot with a subtle glow;
-   brightens when actively selected (panel open). */
-.map-pin--current .map-pin__dot {
-    background-color: var(--seal);
-}
-.map-pin__glow {
-    position: absolute;
-    width: 26px;
-    height: 26px;
-    border-radius: 13px;
-    background-color: rgba(200, 71, 46, 0.32);
-}
-.map-node--selected .map-pin__glow {
-    width: 32px;
-    height: 32px;
-    border-radius: 16px;
-    background-color: rgba(200, 71, 46, 0.55);
-}
-
-/* locked (Tonokku / Kanto / future) — small muted/white dots, never
-   interactive, never a card or badge. */
-.map-pin__dot--locked {
-    background-color: rgba(237, 230, 216, 0.75);
+    width: 72px;
+    height: 72px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
 }
 
 /* ---------- Okinawa cinematic preview panel (docked right side) ----------
-   Opens when the Okinawa checkpoint pin is selected (MapLevelPreviewController
+   Opens when the Okinawa hotspot is selected (MapLevelPreviewController
    toggles ".map-detail--open"); hidden by default so the stage fills the
    full viewport until a checkpoint is chosen. Docked flush against the
    top, right and bottom edges (no outer margin, square edges). ONE
