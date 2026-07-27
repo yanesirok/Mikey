@@ -1,25 +1,44 @@
 /* ============================================================
-   Map / Progression — landscape "map" screen styles.
-   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
-   in from .mikey-app in theme.uss; this file only adds Map-specific
-   structure so the screen stays modular (same pattern as Home/Home.uss,
+   Map — full-viewport cinematic Map presentation, rebuilt from the
+   approved reference (map_okinawa_approved_reference.jpg). Palette custom
+   properties (--ember, --seal, --bone, --base, …) cascade in from
+   .mikey-app in theme.uss; this file only adds Map-specific structure so
+   the screen stays modular (same pattern as Home/Home.uss,
    Techniques/Techniques.uss, CombineIntro/CombineIntro.uss).
 
-   Landscape-first: a width-capped two-band composition (campaign hub +
-   progression route) that fills 16:9 and wider phone-landscape ratios.
-   Translated from design-pull/assets/screens-world.jsx (WorldMap COUNTRIES
-   + JapanMap CITIES roadmap) + theme.css. The reference's fullscreen
-   drag-to-pan ink map is adapted into an honest, overflow-free node path:
-   Okinawa (Level 1 · Karate, the "current" city) is the first available
-   node and its Train action opens the Lessons/Techniques hub, exactly as
-   the reference's current-city "Train" button calls nav("lessons").
+   Baseline composition is 1280x720: the map fills the left ~61.7% (x
+   0-790) and the Okinawa cinematic panel is docked flush against the
+   right ~38.3% (x 790-1280), both full height. MVP: Okinawa is the only
+   playable destination, so the panel is ALWAYS visible for the whole Map
+   visit (no hidden/collapsed-stage state) — MapLevelPreviewController
+   auto-selects Okinawa and starts its preview the moment the "map" screen
+   is entered, no click required. The left map's whole route/checkpoint
+   composition is one flattened static image (japan_route_map_mvp@2x.png,
+   the ONLY visible map image — the legacy full-screen asia_map background
+   is disabled here, see "#map-bg-media" below) rather than
+   separately-rendered dots/labels/route segments, held inside an
+   aspect-ratio-locked ".map-artboard" (790:720) so it's never stretched or
+   re-cropped; a single transparent Button hotspot sits over Okinawa's
+   position INSIDE that same artboard (kept for re-selection, not required
+   to open the panel), so it stays aligned with the visible artwork even
+   when the artboard pillarboxes within a wider stage (e.g. ultrawide
+   2400x1080). The right panel is ONE full-height preview video with
+   layered dark overlays over its lower portion; title/description/stats/
+   CTA sit directly on top of the video, not in a separate solid content
+   panel below it; there is no close action for this MVP — Home/back is
+   the only way to leave Map. Percentage-based layout scales the
+   composition at 1920x1080 / 2400x1080; font sizes stay fixed px (UI
+   Toolkit has no fluid/viewport-relative typography), sized to the
+   1280x720 baseline.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .home-bg / .tq-bg / .cam-feed on the other screens. Solid base + a soft
-   ink wash stands in for the painted Asia/Japan map art (which lands later),
-   mirroring the reference's radial-gradient ink map. */
+   .home-bg / .tq-bg / .cam-feed on the other screens. .map-bg's own solid
+   --base color (plus .map-scrim below) is the neutral dark/fog backdrop
+   behind the fitted artboard's letterbox gaps — the old translucent
+   red/green "territory shape" glows were removed earlier (they never
+   matched the approved reference's dark monochrome ink-map treatment). */
 .map-bg {
     position: absolute;
     top: 0;
@@ -29,70 +48,27 @@
     background-color: var(--base);
     align-items: center;
 }
-.map-glow {
-    position: absolute;
-    top: -160px;
-    width: 760px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.06);
-}
-.map-ink-wash {
-    position: absolute;
-    bottom: -140px;
-    left: -80px;
-    width: 560px;
-    height: 560px;
-    border-radius: 280px;
-    background-color: rgba(43, 217, 168, 0.04);
+
+/* The legacy full-screen asia_map image (assigned here by
+   BackgroundMediaController) is disabled for the Map screen: the flattened
+   MVP map artwork (.map-art) is now the ONLY visible map image, so there
+   must never be a second map rendered behind it. The element and its
+   BackgroundMediaController binding are left in place (so Title/Home/
+   Combine's shared background-media wiring stays untouched) — only its
+   visibility here is turned off. */
+#map-bg-media {
+    display: none;
 }
 
-/* Legibility scrim over the static map image so the hub headline/lead text
-   keep contrast; the node chips already carry their own backing. */
+/* Dark/fog legibility overlay behind the map artboard, matching the
+   approved reference's dark, moody tone. */
 .map-scrim {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(11, 14, 17, 0.3);
-}
-
-/* ---------- reusable visible-icon kit (Map-scoped) ----------
-   Sizes the rendered glyph itself, independently of the button hit area.
-   Every icon is non-shrinking and centered so flex never collapses the
-   artwork, even at phone-landscape sizes. Mirrors Home's .home-icon and
-   Techniques' .tq-icon kits. */
-.map-icon {
-    flex-shrink: 0;
-    align-self: center;
-    -unity-text-align: middle-center;
-    -unity-font-style: normal;
-}
-.map-icon--hub {
-    /* hub header mark: large */
-    font-size: 52px;
-    color: var(--ember);
-}
-.map-icon--node {
-    /* major available map-node glyph: 48–64px target */
-    font-size: 56px;
-}
-.map-icon--node-locked {
-    /* locked-node glyph: 36–48px target */
-    font-size: 40px;
-}
-.map-icon--status {
-    /* status / rank icons: 30–40px target */
-    font-size: 34px;
-}
-.map-icon--action {
-    /* action arrows / icons: 32–40px target */
-    font-size: 34px;
-}
-.map-icon--nav {
-    /* bottom-nav visible icons: 40–44px target */
-    font-size: 42px;
+    background-color: rgba(11, 14, 17, 0.32);
 }
 
 /* ---------- touch-target kit (Map-scoped) ----------
@@ -121,367 +97,266 @@
     scale: 0.97;
 }
 
-/* ---------- foreground two-band layout ----------
-   Row on wide displays, wraps to a stacked column on narrow landscape.
-   min-width:0 + flex shrinking keep both bands readable without overflow. */
+/* ---------- full-viewport two-region layout ----------
+   No centered/max-width container, no outer side margins: the map stage
+   grows to fill whatever width the docked detail panel doesn't take, so
+   the ~61.7/38.3 split (per the approved reference) holds at any
+   viewport width (1280x720, 1920x1080, 2400x1080, …). */
 .map-layout {
     flex-grow: 1;
     width: 100%;
-    max-width: 1500px;
-    align-self: center;
     flex-direction: row;
-    flex-wrap: wrap;
     align-items: stretch;
-    justify-content: center;
 }
 
-/* LEFT BAND — campaign hub: world/Japan hierarchy, mock rank/progress,
-   locked future chapters, Home action. */
-.map-hub {
+/* LEFT (~61.7%) — the map stage: hosts the aspect-locked .map-artboard
+   (map art + Okinawa hotspot), centered, plus one small, unobtrusive way
+   back to Home. Fills all remaining width once the docked panel (fixed %)
+   takes its share. */
+.map-stage {
+    position: relative;
     flex-grow: 1;
     flex-shrink: 1;
-    flex-basis: 420px;
+    flex-basis: 0;
     min-width: 0;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     justify-content: center;
-    padding: 16px 28px 16px 8px;
-}
-.map-headline {
-    flex-direction: row;
-    align-items: center;
-}
-.map-headline__mark {
-    margin-right: 16px;
-}
-.map-headline__text {
-    flex-direction: column;
-    flex-shrink: 1;
-    min-width: 0;
-}
-.map-kicker {
-    letter-spacing: 3px;
-}
-.map-title {
-    font-size: 40px;
-}
-/* location hierarchy: World (Asia) › Japan › current chapter */
-.map-breadcrumb {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 8px;
-}
-.map-breadcrumb__crumb {
-    font-size: 13px;
-    letter-spacing: 1px;
-    color: var(--bone);
-}
-.map-breadcrumb__sep {
-    font-size: 13px;
-    color: var(--muted);
-    margin: 0 8px;
-    flex-shrink: 0;
-}
-.map-breadcrumb__crumb--muted {
-    color: var(--muted);
-}
-.map-lead {
-    margin-top: 12px;
-    max-width: 520px;
 }
 
-/* mock rank / progress summary (local frontend data only) */
-.map-progress {
-    margin-top: 22px;
-    max-width: 520px;
-    flex-direction: column;
+/* Small, unobtrusive Home affordance: plain text, no pill/box background,
+   so it never competes with the cinematic map. */
+.map-home {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 4px 6px;
 }
-.map-belt {
-    flex-direction: row;
-    align-items: center;
-}
-.map-belt__swatch {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 9px;
-    background-color: var(--bone);
-    border-width: 1px;
-    border-color: var(--line);
-    margin-right: 12px;
-}
-.map-belt__text {
-    flex-direction: column;
-}
-.map-belt__rank {
-    font-size: 16px;
+.map-home__icon {
+    color: rgba(237, 230, 216, 0.7);
+    font-size: 15px;
     -unity-font-style: bold;
+    letter-spacing: 1px;
+}
+.map-home:hover .map-home__icon {
     color: var(--bone);
 }
-.map-belt__sub {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--muted);
+
+/* ---------- MVP flattened map artboard ----------
+   .map-artboard is the maximum box that fits inside .map-stage while
+   preserving the approved reference's exact 790:720 aspect ratio (never
+   stretched, never cropped differently at different sizes). At every
+   validated resolution (1280x720, 1920x1080, 2400x1080) the stage is
+   proportionally wider than 790:720 (the docked side panel eats
+   relatively more width as the viewport widens), so a definite
+   height:100% + aspect-ratio computes the correct, narrower width, and
+   .map-stage's justify-content:center centers the result horizontally —
+   this is the fix for the hotspot misalignment bug: both the map artwork
+   (.map-art) AND the Okinawa hotspot are children of THIS box, so
+   percentage positions inside it always match the actual displayed
+   artwork, even while it pillarboxes at wider aspect ratios. */
+.map-artboard {
+    position: relative;
+    height: 100%;
+    aspect-ratio: 1.0972;
 }
-.map-progress__bar {
-    height: 10px;
-    border-radius: 5px;
-    margin-top: 14px;
-    background-color: rgba(255, 90, 31, 0.14);
-    border-width: 1px;
-    border-color: var(--line);
+
+/* The flattened route/checkpoint composition (map art, route line,
+   Tonokku/Kanto/future points + labels, Okinawa point + label) is ONE
+   static image, losslessly cropped from the approved 1280x720 reference
+   at x:0-790, y:0-720 (a 790x720 source, same aspect ratio as
+   .map-artboard above). Uses the high-resolution 2x export
+   (japan_route_map_mvp@2x.png, 1580x1440 — same composition and aspect
+   ratio, just higher pixel density) for on-screen quality. Fills the
+   artboard exactly (their aspect ratios already match); scale-to-fit is
+   kept as a safety margin against any sub-pixel rounding, never
+   stretching or re-cropping. */
+.map-art {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("/Assets/UI/Media/Images/japan_route_map_mvp@2x.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ---------- Okinawa interaction hotspot ----------
+   Transparent — no visible background, border or label; the visible red
+   Okinawa marker is baked into the map artwork above. Positioned at the
+   marker's normalized coordinate RELATIVE TO THE ARTBOARD (measured
+   centre in the 790x720 source: x=222, y=489 -> 222/790=28.1%,
+   489/720=67.9%), NOT the wider .map-stage — this is what keeps the
+   hotspot aligned with the visible dot at every validated resolution,
+   including ultrawide 2400x1080 where the artboard pillarboxes within
+   the stage. Centered via translate(-50%,-50%), with a generous
+   invisible tap area (see .tap-target) larger than the visible dot for
+   usability. Locked points (Tonokku / Kanto / future) have no separate
+   interactive element for this MVP — they are part of the flattened
+   artwork and simply cannot be clicked. */
+.map-node-okinawa {
+    position: absolute;
+    left: 28.1%;
+    top: 67.9%;
+    translate: -50% -50%;
+    width: 72px;
+    height: 72px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+}
+
+/* ---------- Okinawa cinematic preview panel (docked right side) ----------
+   MVP: Okinawa is the only playable destination, so this panel is ALWAYS
+   visible for the whole Map screen visit — the 61.7/38.3 split is a
+   structural constant, never collapsing to a full-width stage regardless
+   of controller/selection timing. MapLevelPreviewController still toggles
+   ".map-detail--open" (kept for the "selected" contract / re-selection),
+   but panel visibility no longer depends on it. Docked flush against the
+   top, right and bottom edges (no outer margin, square edges). ONE
+   full-height video with layered dark overlays over its lower portion —
+   there is no separate solid-black content container below it; the
+   title/description/stats/CTA sit directly on top of the video. */
+.map-detail {
+    position: relative;
+    flex-shrink: 0;
+    width: 38.3%;
+    min-width: 440px;
+    background-color: var(--base);
     overflow: hidden;
 }
-.map-progress__fill {
-    height: 100%;
-    width: 10%;
-    border-radius: 5px;
-    background-color: var(--ember);
-}
-.map-progress__count {
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    margin-top: 8px;
+
+/* full-height, full-width preview video (never a banner) */
+.map-detail__video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base-2);
+    -unity-background-scale-mode: scale-and-crop;
 }
 
-/* locked future chapters (World-map regions: China / Korea / Thailand) —
-   honest "coming soon" chips, non-interactive, readable but dimmed. */
-.map-chapters {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 20px;
-    max-width: 520px;
+/* Layered dark overlays approximating the reference's gradient (USS has
+   no linear-gradient support): a subtle overall tint so the whole frame
+   reads a little darker/moodier, plus two stronger bands anchored to the
+   bottom covering roughly the lower 55-65% of the panel, so scenery stays
+   visible behind the upper portion of the video while the information
+   area at the bottom stays readable. */
+.map-detail__overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
-.map-chapter {
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-    margin: 0 10px 10px 0;
-    padding: 8px 14px;
-    border-radius: 12px;
-    border-width: 1px;
-    border-color: var(--line);
+.map-detail__overlay--1 {
+    top: 0;
+    background-color: rgba(11, 14, 17, 0.18);
+}
+.map-detail__overlay--2 {
+    height: 65%;
     background-color: rgba(11, 14, 17, 0.4);
-    opacity: 0.6;
 }
-.map-chapter__glyph {
-    color: var(--muted);
-    margin-right: 8px;
+.map-detail__overlay--3 {
+    height: 38%;
+    background-color: rgba(11, 14, 17, 0.72);
 }
-.map-chapter__text {
+
+/* safe static fallback: shown instead of the video if it cannot load */
+.map-detail__video-fallback {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
     font-size: 12px;
     letter-spacing: 1px;
     color: var(--muted);
+    background-color: var(--base-2);
+}
+.map-detail__video-fallback--visible {
+    display: flex;
 }
 
-/* ---------- responsive action bar (wraps; no width:100% siblings) ---------- */
-.map-actionbar {
+/* title / subtitle / description / stats / CTA — real UI Toolkit elements
+   laid directly over the video + overlays (no background of its own),
+   anchored to the lower portion of the panel via flex + padding rather
+   than absolute pixel coordinates, so it stays in the "middle/lower
+   section" at both the 720 and 1080 baseline heights. */
+.map-detail__content {
+    position: relative;
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 40px 60px 58px;
+}
+.map-detail__title {
+    font-size: 46px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: var(--seal);
+}
+.map-detail__subtitle {
+    font-size: 15px;
+    color: var(--bone);
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+.map-detail__desc {
+    font-size: 14px;
+    color: rgba(237, 230, 216, 0.8);
+    white-space: normal;
+    max-width: 380px;
+    margin-top: 14px;
+}
+.map-detail__stats {
+    flex-direction: column;
+    margin-top: 20px;
+}
+.map-detail__stat {
     flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 26px;
+    align-items: baseline;
+    margin-bottom: 6px;
 }
-.map-actionbar--hub {
-    justify-content: flex-start;
+.map-detail__stat-label {
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: rgba(237, 230, 216, 0.65);
 }
-
-/* Action buttons size to content (NOT the width:100% global .btn), so two
-   siblings never overflow a narrow landscape row. */
-.map-btn {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    padding: 0 24px;
-    margin: 6px 12px 6px 0;
-    border-radius: 12px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: var(--base-3);
-}
-.map-btn--ghost {
-    background-color: rgba(11, 14, 17, 0.5);
-}
-.map-btn--ghost:hover {
-    border-color: var(--bone);
-}
-.map-btn__text {
+.map-detail__stat-value {
     font-size: 18px;
     -unity-font-style: bold;
     color: var(--bone);
-}
-.map-btn__icon {
-    color: var(--bone);
-    margin-left: 10px;
-}
-.map-btn__icon--lead {
-    margin-left: 0;
-    margin-right: 10px;
+    margin-left: 16px;
 }
 
-/* RIGHT BAND — responsive progression route / node path. Nodes wrap
-   intentionally on narrow widths; min-width:0 keeps text from overflowing. */
-.map-route {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 520px;
-    min-width: 0;
-    flex-direction: column;
-    justify-content: center;
-    padding: 16px 8px;
-}
-.map-route__label {
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    margin-bottom: 12px;
-    margin-left: 4px;
-}
-
-/* one node on the route: row of glyph + body + trailing marker */
-.map-node {
+/* Start Lesson: fixed baseline size (~200x60 at 1280x720), left-aligned,
+   dark-red/vermilion treatment, never full-width. */
+.map-detail__cta {
+    align-self: flex-start;
     flex-direction: row;
     align-items: center;
-    width: 100%;
-    margin-bottom: 14px;
-    padding: 18px 22px;
-    border-radius: 16px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(18, 22, 27, 0.7);
-}
-.map-node__glyph {
-    color: var(--bone);
-    margin-right: 18px;
-}
-.map-node__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-    flex-direction: column;
-}
-.map-node__name {
-    font-size: 22px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    white-space: normal;
-}
-.map-node__romaji {
-    font-size: 14px;
-    color: var(--muted);
-    margin-top: 2px;
-    white-space: normal;
-}
-.map-node__meta {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--ember);
-    margin-top: 8px;
-    white-space: normal;
-}
-.map-node__go {
-    color: var(--ember);
-    margin-left: 14px;
-}
-
-/* available (the first city, Okinawa) — visually distinct: ember accent,
-   lifted; clearly the actionable node. Primary node >= 64x64. */
-.map-node--available {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.1);
-    min-height: 96px;
-}
-.map-node--available:hover {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.16);
-}
-
-/* locked — clearly disabled but readable; the glyph stays recognizable. */
-.map-node--locked {
-    opacity: 0.6;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.4);
-}
-.map-node__glyph--locked {
-    color: var(--muted);
-}
-.map-node__meta--locked {
-    color: var(--muted);
-}
-.map-node__badge {
-    flex-shrink: 0;
-    font-size: 10px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
+    justify-content: center;
+    width: 200px;
+    height: 60px;
+    margin-top: 24px;
+    padding: 0 18px;
     border-radius: 6px;
-    padding: 2px 8px;
-    margin-left: 14px;
-    -unity-text-align: middle-center;
-}
-
-/* ---------- persistent bottom navigation dock (canonical 4-tab model) ----------
-   Same Home / Map / Techniques / Profile model as the Home dock, with the
-   Map tab in its active state here. Map-scoped class names keep the styling
-   self-contained (Home.uss is only linked on the menu screen). */
-.map-dock {
-    flex-direction: row;
-    width: 100%;
-    max-width: 1100px;
-    align-self: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-.map-tab {
-    flex-grow: 1;
-    flex-basis: 0;
-    max-width: 240px;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 8px;
-    margin: 0 6px;
-    border-radius: 14px;
     border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.5);
+    border-color: var(--seal);
+    background-color: var(--seal);
 }
-.map-tab__glyph {
-    color: rgba(237, 230, 216, 0.6);
+.map-detail__cta:hover {
+    background-color: #D95A3C;
 }
-.map-tab__label {
-    font-size: 13px;
+.map-detail__cta-text {
+    font-size: 15px;
     -unity-font-style: bold;
     letter-spacing: 1px;
-    color: rgba(237, 230, 216, 0.6);
-    margin-top: 4px;
-}
-.map-tab__badge {
-    font-size: 9px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
-    border-radius: 6px;
-    padding: 1px 6px;
-    margin-top: 4px;
-}
-
-/* active tab — unmistakable current state (ember accent, top rule) */
-.map-tab--active {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.12);
-    border-top-width: 3px;
-    border-top-color: var(--ember);
-}
-.map-tab--active .map-tab__glyph {
-    color: var(--ember);
-}
-.map-tab--active .map-tab__label {
     color: var(--bone);
-}
-
-/* locked / "coming soon" tabs — clearly disabled but the icon stays readable. */
-.map-tab--locked {
-    opacity: 0.6;
 }

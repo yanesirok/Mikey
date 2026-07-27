@@ -577,160 +577,142 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 9 - MAP / PROGRESSION (landscape campaign roadmap; first node opens Techniques) -->
+        <!-- 9 - MAP (full-viewport cinematic Map presentation rebuilt from the
+             approved reference: checkpoints drawn directly over the map; Okinawa
+             is the only playable destination for this MVP, so its docked,
+             full-height right-side cinematic preview panel is already open and
+             its preview already selected the moment the screen is entered —
+             title/description/stats/CTA laid directly over the video itself) -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
-            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper.
+                 map-bg-media is disabled for this screen (see Map.uss
+                 "#map-bg-media") — the flattened MVP map artwork (.map-art)
+                 is now the only visible map image; the old full-screen
+                 asia_map background must not show a second map behind it.
+                 The element (and BackgroundMediaController's binding) is kept
+                 so the shared background-media system stays untouched for
+                 Title/Home/Combine; only its visibility on Map is disabled.
+                 Only the (now-invisible) static image + legibility scrim
+                 remain: the old translucent red/green "territory shape"
+                 glows were removed earlier — they never matched the approved
+                 reference's dark, monochrome fog treatment. -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
                 <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
-                <ui:VisualElement class="map-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="map-ink-wash" picking-mode="Ignore" />
                 <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-layout">
 
-                <!-- LEFT BAND: campaign hub — world/Japan hierarchy, mock rank/progress,
-                     locked future chapters, Home action -->
-                <ui:VisualElement class="map-hub">
-                    <ui:VisualElement class="map-headline">
-                        <ui:Label text="地" class="map-icon map-icon--hub map-headline__mark" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-headline__text">
-                            <ui:Label text="日本 · CHAPTER I" class="kicker map-kicker" />
-                            <ui:Label text="Japan · Karate" class="title map-title" />
-                            <!-- location hierarchy: World (Asia) › Japan › current city -->
-                            <ui:VisualElement class="map-breadcrumb">
-                                <ui:Label text="Asia" class="map-breadcrumb__crumb map-breadcrumb__crumb--muted" picking-mode="Ignore" />
-                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
-                                <ui:Label text="Japan" class="map-breadcrumb__crumb" picking-mode="Ignore" />
-                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
-                                <ui:Label text="Okinawa" class="map-breadcrumb__crumb" picking-mode="Ignore" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
+                <!-- LEFT: the map stage (~61.7%) — MVP: the approved reference's
+                     route/checkpoint composition is a single flattened static
+                     image (Assets/UI/Media/Images/japan_route_map_mvp.png), not
+                     separately-rendered dots/labels/route segments. Scaled to
+                     fit without altering its internal 790x720 crop or aspect
+                     ratio (never stretched, never cropped differently at
+                     different viewport sizes). -->
+                <ui:VisualElement class="map-stage">
+
+                    <!-- map-artboard: preserves the approved reference's exact
+                         790:720 aspect ratio, sized to the maximum that fits
+                         inside the map stage and centered — never stretched,
+                         never cropped. The map artwork AND the Okinawa hotspot
+                         are both children of this SAME box, so the hotspot's
+                         percentage position stays aligned with the visible
+                         artwork even when the stage itself pillarboxes at a
+                         wider-than-790:720 aspect ratio (e.g. 2400x1080). -->
+                    <ui:VisualElement class="map-artboard">
+                        <ui:VisualElement class="map-art" picking-mode="Ignore" />
+
+                        <!-- transparent Okinawa interaction hotspot: no visible
+                             background, border or label of its own — the visible
+                             red Okinawa marker is baked into the map artwork;
+                             this is purely a click target, positioned at the
+                             marker's normalized coordinate WITHIN THE ARTBOARD
+                             (see Map.uss ".map-node-okinawa"), with a larger
+                             invisible tap area than the visible dot for
+                             usability. Local checkpoint-select action (NOT a
+                             "go-" navigator): MapLevelPreviewController opens
+                             the docked cinematic panel and starts the inline
+                             preview; the panel's own "START LESSON" action is
+                             what routes to the Techniques hub. Locked points
+                             (Tonokku / Kanto / future) have no separate
+                             interactive element for this MVP — they are part
+                             of the flattened artwork and simply cannot be
+                             clicked. -->
+                        <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
                     </ui:VisualElement>
 
-                    <ui:Label text="The Japan map is your road. Clear a city to turn it red and open the next. Start at Okinawa — train its karate before you fight." class="lead map-lead" />
-
-                    <!-- mock rank / progress summary (local frontend data) -->
-                    <ui:VisualElement class="map-progress">
-                        <ui:VisualElement class="map-belt">
-                            <ui:VisualElement class="map-belt__swatch" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-belt__text">
-                                <ui:Label text="White Belt · Level 1" class="map-belt__rank" />
-                                <ui:Label text="JAPAN · KARATE" class="map-belt__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-progress__bar">
-                            <ui:VisualElement class="map-progress__fill" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="0 / 10 CITIES CLEARED" class="map-progress__count" />
-                    </ui:VisualElement>
-
-                    <!-- locked future chapters (World-map regions), honestly not yet playable -->
-                    <ui:VisualElement class="map-chapters">
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="中" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="CHINA · KUNG FU · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="韓" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="KOREA · TAEKWONDO · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="泰" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="THAILAND · MUAY THAI · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-
-                    <!-- Home / Back action (semantic name go-menu) -->
-                    <ui:VisualElement class="map-actionbar map-actionbar--hub">
-                        <ui:Button name="go-menu" class="map-btn map-btn--ghost tap-target-lg">
-                            <ui:Label text="‹" class="map-icon map-icon--action map-btn__icon map-btn__icon--lead" picking-mode="Ignore" />
-                            <ui:Label text="Home" class="map-btn__text" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- RIGHT BAND: responsive progression route / node path -->
-                <ui:VisualElement class="map-route">
-                    <ui:Label text="ROADMAP · JAPAN" class="map-route__label" picking-mode="Ignore" />
-
-                    <!-- 1 · AVAILABLE — Okinawa (Level 1 · Karate, the reference's "current"
-                         city). A real navigator whose Train action opens the Lessons hub
-                         (go-techniques), exactly as the reference current-city Train -> lessons.
-                         Visually distinct as the actionable node; primary node >= 64x64. -->
-                    <ui:Button name="go-techniques" class="map-node map-node--available tap-target-lg">
-                        <ui:Label text="空" class="map-icon map-icon--node map-node__glyph" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="1 · Okinawa" class="map-node__name" picking-mode="Ignore" />
-                            <ui:Label text="Karate · 沖縄 · Level 1" class="map-node__romaji" picking-mode="Ignore" />
-                            <ui:Label text="FIGHT NOW · TRAIN TO BEGIN" class="map-node__meta" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="map-icon map-icon--action map-node__go" picking-mode="Ignore" />
+                    <!-- one minimal, unobtrusive way back to Home: plain text, no
+                         pill/box styling, so it never competes with the map.
+                         Fixed to the stage's own corner (not the artboard), so
+                         it stays put regardless of any pillarboxing. -->
+                    <ui:Button name="go-menu" class="map-home tap-target">
+                        <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
                     </ui:Button>
-
-                    <!-- 2-6 · LOCKED — honest coming-soon roadmap, NOT navigators (no go- name),
-                         non-interactive (picking ignored), readable with a clear lock state. -->
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="2 · Kagoshima" class="map-node__name" />
-                            <ui:Label text="Harbor Ronin · 薩 · Level 2" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · CLEAR OKINAWA FIRST" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="3 · Miyazaki" class="map-node__name" />
-                            <ui:Label text="Coast Brawler · 宮 · Level 3" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="4 · Hiroshima" class="map-node__name" />
-                            <ui:Label text="Mountain Hermit · 広 · Level 4" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="6 · Kyoto" class="map-node__name" />
-                            <ui:Label text="New Art · Aikido · 京 · Level 6" class="map-node__romaji" />
-                            <ui:Label text="NEW ART · COMING SOON" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- persistent landscape bottom navigation dock (canonical 4-tab model) -->
-                <ui:VisualElement class="map-dock">
-                    <!-- Home routes to the menu hub -->
-                    <ui:VisualElement name="go-menu" class="map-tab tap-target-lg">
-                        <ui:Label text="家" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Home" class="map-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Map is the active screen here -->
-                    <ui:VisualElement name="nav-map" class="map-tab map-tab--active tap-target-lg">
-                        <ui:Label text="地" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Map" class="map-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Techniques routes to the lessons hub -->
-                    <ui:VisualElement name="go-techniques" class="map-tab tap-target-lg">
-                        <ui:Label text="技" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Techniques" class="map-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Profile routes to the read-only player dashboard -->
-                    <ui:VisualElement name="go-profile" class="map-tab tap-target-lg">
-                        <ui:Label text="人" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Profile" class="map-tab__label" />
+                <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush
+                     against the top, right and bottom edges. One full-height video
+                     with layered dark overlays over its lower portion — title,
+                     description, stats and the CTA sit directly on top of the video
+                     (there is no separate solid-black content panel below it).
+                     MVP: Okinawa is the only playable destination, so this panel
+                     stays visible for the whole Map screen visit (Map.uss ".map-detail"
+                     has no display:none) — the 61.7/38.3 split is always structurally
+                     present, never collapsing to a full-width stage. On entering the
+                     "map" screen, MapLevelPreviewController automatically selects
+                     Okinawa and starts its inline preview (no click required); the
+                     transparent hotspot on the map stage remains for re-selection, but
+                     is not required to open this panel. No close action: Home/back is
+                     the only way to leave Map for this MVP. Drives the inline video's
+                     lifecycle independently of the map background (see
+                     Media/BackgroundMediaController.cs for the separate full-bleed
+                     system that stays untouched here). -->
+                <ui:VisualElement name="map-detail" class="map-detail">
+                    <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
+
+                    <!-- layered dark overlays approximating the reference's gradient
+                         (USS has no linear-gradient support): a subtle overall tint
+                         plus two stronger bands anchored to the bottom, so scenery
+                         stays visible behind the upper portion of the video while the
+                         lower information area stays readable. -->
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--1" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--2" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--3" picking-mode="Ignore" />
+
+                    <!-- safe static fallback: shown instead of the video if it cannot load -->
+                    <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
+
+                    <!-- title / subtitle / description / stats / CTA — real UI
+                         Toolkit elements laid directly over the video + overlays,
+                         anchored to the lower portion of the panel. -->
+                    <ui:VisualElement class="map-detail__content">
+                        <ui:Label text="OKINAWA" class="map-detail__title" />
+                        <ui:Label text="Where it all began" class="map-detail__subtitle" />
+                        <ui:Label text="Here you will master stance, breathing, and the first strike." class="map-detail__desc" />
+
+                        <ui:VisualElement class="map-detail__stats">
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="LESSONS" class="map-detail__stat-label" />
+                                <ui:Label text="4" class="map-detail__stat-value" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
+                                <ui:Label text="3" class="map-detail__stat-value" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="2 / 4 COMPLETED" class="map-detail__stat-value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <!-- local controller-bound action (NOT a "go-" navigator):
+                             MapLevelPreviewController routes this through the existing
+                             IScreenNavigator to the 'techniques' screen. -->
+                        <ui:Button name="map-detail-start" class="map-detail__cta tap-target-lg">
+                            <ui:Label text="START LESSON" class="map-detail__cta-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 

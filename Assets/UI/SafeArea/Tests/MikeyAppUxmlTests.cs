@@ -242,7 +242,7 @@ namespace Mikey.UI.SafeArea.Tests
             var root = BuildTree();
             foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
-                "map-layout", "map-route", "map-dock", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
+                "map-layout", "map-stage", "map-detail", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
