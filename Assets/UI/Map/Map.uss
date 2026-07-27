@@ -10,15 +10,18 @@
    0-790) and the Okinawa cinematic panel is docked flush against the
    right ~38.3% (x 790-1280), both full height. MVP: the left map's whole
    route/checkpoint composition is one flattened static image
-   (japan_route_map_mvp.png) rather than separately-rendered dots/labels/
-   route segments; a single transparent Button hotspot sits over Okinawa's
-   position for interaction. The right panel is ONE full-height preview
-   video with layered dark overlays over its lower portion;
-   title/description/stats/CTA sit directly on top of the video, not in a
-   separate solid content panel below it. Percentage-based layout scales
-   the composition at 1920x1080 / 2400x1080; font sizes stay fixed px (UI
-   Toolkit has no fluid/viewport-relative typography), sized to the
-   1280x720 baseline.
+   (japan_route_map_mvp@2x.png) rather than separately-rendered dots/
+   labels/route segments, held inside an aspect-ratio-locked ".map-artboard"
+   (790:720) so it's never stretched or re-cropped; a single transparent
+   Button hotspot sits over Okinawa's position INSIDE that same artboard,
+   so it stays aligned with the visible artwork even when the artboard
+   pillarboxes within a wider stage (e.g. ultrawide 2400x1080). The right
+   panel is ONE full-height preview video with layered dark overlays over
+   its lower portion; title/description/stats/CTA sit directly on top of
+   the video, not in a separate solid content panel below it.
+   Percentage-based layout scales the composition at 1920x1080 /
+   2400x1080; font sizes stay fixed px (UI Toolkit has no fluid/
+   viewport-relative typography), sized to the 1280x720 baseline.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
@@ -87,16 +90,19 @@
     align-items: stretch;
 }
 
-/* LEFT (~61.7%) — the map stage: the flattened MVP map artboard, the
-   transparent Okinawa hotspot, and one small, unobtrusive way back to
-   Home. Fills all remaining width once the docked panel (fixed %) takes
-   its share. */
+/* LEFT (~61.7%) — the map stage: hosts the aspect-locked .map-artboard
+   (map art + Okinawa hotspot), centered, plus one small, unobtrusive way
+   back to Home. Fills all remaining width once the docked panel (fixed %)
+   takes its share. */
 .map-stage {
     position: relative;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: 0;
     min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Small, unobtrusive Home affordance: plain text, no pill/box background,
@@ -120,36 +126,57 @@
 }
 
 /* ---------- MVP flattened map artboard ----------
-   The approved reference's whole route/checkpoint composition (map art,
-   route line, Tonokku/Kanto/future points + labels, Okinawa point + label)
-   is ONE static image (Assets/UI/Media/Images/japan_route_map_mvp.png,
-   cropped losslessly from the approved 1280x720 reference at x:0-790,
-   y:0-720 — a 790x720 source). Fills the stage without stretching or
-   re-cropping: scale-to-fit preserves the exact aspect ratio, so at a
-   wider-than-790:720 stage (e.g. 2400x1080) it pillarboxes rather than
-   distorting or cropping differently — the dark map/scrim behind it
-   shows through that gap, which reads as a continuation of the same
-   dark ink-map treatment rather than a hard edge. */
-.map-stage__art {
+   .map-artboard is the maximum box that fits inside .map-stage while
+   preserving the approved reference's exact 790:720 aspect ratio (never
+   stretched, never cropped differently at different sizes). At every
+   validated resolution (1280x720, 1920x1080, 2400x1080) the stage is
+   proportionally wider than 790:720 (the docked side panel eats
+   relatively more width as the viewport widens), so a definite
+   height:100% + aspect-ratio computes the correct, narrower width, and
+   .map-stage's justify-content:center centers the result horizontally —
+   this is the fix for the hotspot misalignment bug: both the map artwork
+   (.map-art) AND the Okinawa hotspot are children of THIS box, so
+   percentage positions inside it always match the actual displayed
+   artwork, even while it pillarboxes at wider aspect ratios. */
+.map-artboard {
+    position: relative;
+    height: 100%;
+    aspect-ratio: 1.0972;
+}
+
+/* The flattened route/checkpoint composition (map art, route line,
+   Tonokku/Kanto/future points + labels, Okinawa point + label) is ONE
+   static image, losslessly cropped from the approved 1280x720 reference
+   at x:0-790, y:0-720 (a 790x720 source, same aspect ratio as
+   .map-artboard above). Uses the high-resolution 2x export
+   (japan_route_map_mvp@2x.png, 1580x1440 — same composition and aspect
+   ratio, just higher pixel density) for on-screen quality. Fills the
+   artboard exactly (their aspect ratios already match); scale-to-fit is
+   kept as a safety margin against any sub-pixel rounding, never
+   stretching or re-cropping. */
+.map-art {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url("/Assets/UI/Media/Images/japan_route_map_mvp.png");
+    background-image: url("/Assets/UI/Media/Images/japan_route_map_mvp@2x.png");
     -unity-background-scale-mode: scale-to-fit;
 }
 
 /* ---------- Okinawa interaction hotspot ----------
    Transparent — no visible background, border or label; the visible red
-   Okinawa marker is baked into the map artboard above. Positioned at the
-   marker's normalized coordinate within the 790x720 artboard (measured
-   centre: x=222, y=489 -> 222/790=28.1%, 489/720=67.9%), centered via
-   translate(-50%,-50%), with a generous invisible tap area (see
-   .tap-target) larger than the visible dot for usability. Locked points
-   (Tonokku / Kanto / future) have no separate interactive element for
-   this MVP — they are part of the flattened artwork and simply cannot be
-   clicked. */
+   Okinawa marker is baked into the map artwork above. Positioned at the
+   marker's normalized coordinate RELATIVE TO THE ARTBOARD (measured
+   centre in the 790x720 source: x=222, y=489 -> 222/790=28.1%,
+   489/720=67.9%), NOT the wider .map-stage — this is what keeps the
+   hotspot aligned with the visible dot at every validated resolution,
+   including ultrawide 2400x1080 where the artboard pillarboxes within
+   the stage. Centered via translate(-50%,-50%), with a generous
+   invisible tap area (see .tap-target) larger than the visible dot for
+   usability. Locked points (Tonokku / Kanto / future) have no separate
+   interactive element for this MVP — they are part of the flattened
+   artwork and simply cannot be clicked. */
 .map-node-okinawa {
     position: absolute;
     left: 28.1%;

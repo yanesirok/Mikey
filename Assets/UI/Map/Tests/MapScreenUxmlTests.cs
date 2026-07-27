@@ -11,17 +11,22 @@ namespace Mikey.UI.Map.Tests
     /// MikeyApp.uxml — MVP composition: the approved reference's left-side
     /// route/checkpoint art (map_okinawa_approved_reference.jpg, cropped to
     /// Assets/UI/Media/Images/japan_route_map_mvp.png) is one flattened static
-    /// image rather than separately-rendered dots/labels/route segments, with
-    /// a single transparent Button hotspot over Okinawa's position. The docked
-    /// cinematic preview panel (right, ~38.3%) — one full-height video with
-    /// layered dark overlays, title/description/stats/CTA laid directly on
-    /// top of it — is unchanged from the prior correction.
+    /// image rather than separately-rendered dots/labels/route segments, held
+    /// inside an aspect-ratio-locked ".map-artboard" (790:720) so it never
+    /// stretches or re-crops, with a single transparent Button hotspot over
+    /// Okinawa's position INSIDE that same artboard — this is what keeps the
+    /// hotspot aligned with the visible dot even when the artboard pillarboxes
+    /// within a wider stage (e.g. ultrawide 2400x1080). The docked cinematic
+    /// preview panel (right, ~38.3%) — one full-height video with layered dark
+    /// overlays, title/description/stats/CTA laid directly on top of it — is
+    /// unchanged from the prior correction.
     /// </summary>
     public class MapScreenUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string UssPath = "Assets/UI/Map/Map.uss";
         private const string MapArtPath = "Assets/UI/Media/Images/japan_route_map_mvp.png";
+        private const string MapArt2xPath = "Assets/UI/Media/Images/japan_route_map_mvp@2x.png";
         private const string NavPrefix = "go-";
 
         private static VisualElement BuildTree()
@@ -100,23 +105,51 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNull(NearestSafeAreaAncestor(bg), ".map-bg must not be inside .safe-area-content.");
         }
 
-        // The MVP flattened map artboard asset exists on disk and is referenced
-        // by Map.uss.
+        // Both the 1x (source-of-truth crop) and 2x (actually displayed,
+        // higher-quality) MVP map art assets exist on disk.
         [Test]
-        public void MvpMapArtAsset_Exists_AndIsReferencedByMapUss()
+        public void MvpMapArtAssets_ExistOnDisk()
         {
             Assert.IsTrue(File.Exists(MapArtPath), $"Expected the cropped MVP map artboard at {MapArtPath}.");
+            Assert.IsTrue(File.Exists(MapArt2xPath), $"Expected the high-resolution MVP map artboard at {MapArt2xPath}.");
+        }
 
+        // The runtime map art rule (".map-art") references the high-resolution
+        // 2x asset (not the 1x file) and uses scale-to-fit, never scale-and-crop.
+        [Test]
+        public void MapArt_ReferencesHighResolutionAsset_WithScaleToFit()
+        {
             Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
             string uss = File.ReadAllText(UssPath);
-            string block = ExtractRuleBlock(uss, ".map-stage__art {");
-            Assert.IsNotNull(block, "Expected a '.map-stage__art' rule in Map.uss.");
-            StringAssert.Contains("japan_route_map_mvp.png", block,
-                "'.map-stage__art' must reference the cropped japan_route_map_mvp.png artboard.");
+            string block = ExtractRuleBlock(uss, ".map-art {");
+            Assert.IsNotNull(block, "Expected a '.map-art' rule in Map.uss.");
+            StringAssert.Contains("japan_route_map_mvp@2x.png", block,
+                "'.map-art' must reference the high-resolution japan_route_map_mvp@2x.png asset.");
             StringAssert.DoesNotContain("scale-and-crop", block,
-                "The flattened map artboard must use scale-to-fit, not scale-and-crop (never re-cropped).");
+                "The flattened map artwork must use scale-to-fit, not scale-and-crop (never re-cropped).");
             StringAssert.Contains("scale-to-fit", block,
-                "The flattened map artboard must use scale-to-fit to preserve its exact aspect ratio.");
+                "The flattened map artwork must use scale-to-fit to preserve its exact aspect ratio.");
+        }
+
+        // .map-artboard preserves the approved reference's exact 790:720 aspect
+        // ratio and is sized to the maximum that fits inside .map-stage
+        // (definite height + aspect-ratio, centered by .map-stage), never
+        // stretched.
+        [Test]
+        public void MapArtboard_PreservesApproved790x720AspectRatio()
+        {
+            Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
+            string uss = File.ReadAllText(UssPath);
+
+            string artboardBlock = ExtractRuleBlock(uss, ".map-artboard {");
+            Assert.IsNotNull(artboardBlock, "Expected a '.map-artboard' rule in Map.uss.");
+            StringAssert.Contains("aspect-ratio:", artboardBlock, "'.map-artboard' must declare an explicit aspect-ratio (790:720).");
+            StringAssert.Contains("height: 100%", artboardBlock, "'.map-artboard' must fill the stage height so aspect-ratio computes a fitted (non-stretched) width.");
+            StringAssert.DoesNotContain("width:", artboardBlock, "'.map-artboard' must not hardcode a width — it must be computed from height + aspect-ratio.");
+
+            string stageBlock = ExtractRuleBlock(uss, ".map-stage {");
+            Assert.IsNotNull(stageBlock, "Expected a '.map-stage' rule in Map.uss.");
+            StringAssert.Contains("justify-content: center", stageBlock, "'.map-stage' must horizontally center the (possibly narrower) artboard.");
         }
 
         // The map stage's foreground (artboard + hotspot) lives inside the
@@ -186,6 +219,30 @@ namespace Mikey.UI.Map.Tests
                 "The 'menu' target screen must exist.");
         }
 
+        // Structural fix for the hotspot-misalignment bug: the map art and the
+        // Okinawa hotspot must share the SAME .map-artboard parent (not the
+        // wider .map-stage), so the hotspot's percentage position always
+        // matches the actual displayed (possibly pillarboxed) artwork.
+        [Test]
+        public void MapArtAndOkinawaHotspot_ShareTheSameArtboardParent()
+        {
+            var screen = MapScreen(BuildTree());
+            var artboard = screen.Q<VisualElement>(className: "map-artboard");
+            Assert.IsNotNull(artboard, "Expected a '.map-artboard' container.");
+
+            var art = screen.Q<VisualElement>(className: "map-art");
+            Assert.IsNotNull(art, "Expected a '.map-art' element for the flattened map artwork.");
+            Assert.AreSame(artboard, art.parent, "'.map-art' must be a direct child of '.map-artboard'.");
+
+            var hotspot = screen.Q<Button>("map-node-okinawa");
+            Assert.IsNotNull(hotspot, "Expected the Okinawa hotspot.");
+            Assert.AreSame(artboard, hotspot.parent,
+                "The Okinawa hotspot must be a direct child of '.map-artboard' (the SAME parent as '.map-art'), not '.map-stage' directly — this is what keeps it aligned with the visible artwork when the artboard pillarboxes.");
+
+            var stage = screen.Q<VisualElement>(className: "map-stage");
+            Assert.AreSame(stage, artboard.parent, "'.map-artboard' must be a direct child of '.map-stage'.");
+        }
+
         // The Okinawa hotspot exists as a real, clickable Button, positioned
         // over the flattened artboard, but is NOT a "go-" navigator
         // (MapLevelPreviewController opens the level-detail panel instead of
@@ -243,7 +300,7 @@ namespace Mikey.UI.Map.Tests
                 "map-belt", "map-progress", "map-breadcrumb", "map-btn",
                 "map-node--available", "map-node--locked",
                 "map-pin", "map-pin__marker", "map-pin__dot", "map-pin__glow", "map-pin__label", "map-pin__badge", "map-pin__glyph",
-                "map-route-seg",
+                "map-route-seg", "map-stage__art",
                 "map-detail__preview", "map-detail__body", "map-detail__video-scrim"
             })
             {

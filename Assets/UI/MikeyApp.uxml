@@ -605,30 +605,43 @@
                      different viewport sizes). -->
                 <ui:VisualElement class="map-stage">
 
-                    <ui:VisualElement class="map-stage__art" picking-mode="Ignore" />
+                    <!-- map-artboard: preserves the approved reference's exact
+                         790:720 aspect ratio, sized to the maximum that fits
+                         inside the map stage and centered — never stretched,
+                         never cropped. The map artwork AND the Okinawa hotspot
+                         are both children of this SAME box, so the hotspot's
+                         percentage position stays aligned with the visible
+                         artwork even when the stage itself pillarboxes at a
+                         wider-than-790:720 aspect ratio (e.g. 2400x1080). -->
+                    <ui:VisualElement class="map-artboard">
+                        <ui:VisualElement class="map-art" picking-mode="Ignore" />
+
+                        <!-- transparent Okinawa interaction hotspot: no visible
+                             background, border or label of its own — the visible
+                             red Okinawa marker is baked into the map artwork;
+                             this is purely a click target, positioned at the
+                             marker's normalized coordinate WITHIN THE ARTBOARD
+                             (see Map.uss ".map-node-okinawa"), with a larger
+                             invisible tap area than the visible dot for
+                             usability. Local checkpoint-select action (NOT a
+                             "go-" navigator): MapLevelPreviewController opens
+                             the docked cinematic panel and starts the inline
+                             preview; the panel's own "START LESSON" action is
+                             what routes to the Techniques hub. Locked points
+                             (Tonokku / Kanto / future) have no separate
+                             interactive element for this MVP — they are part
+                             of the flattened artwork and simply cannot be
+                             clicked. -->
+                        <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
+                    </ui:VisualElement>
 
                     <!-- one minimal, unobtrusive way back to Home: plain text, no
-                         pill/box styling, so it never competes with the map. -->
+                         pill/box styling, so it never competes with the map.
+                         Fixed to the stage's own corner (not the artboard), so
+                         it stays put regardless of any pillarboxing. -->
                     <ui:Button name="go-menu" class="map-home tap-target">
                         <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
                     </ui:Button>
-
-                    <!-- transparent Okinawa interaction hotspot: no visible
-                         background, border or label of its own — the visible red
-                         Okinawa marker is baked into japan_route_map_mvp.png; this
-                         is purely a click target, positioned at the marker's
-                         normalized coordinate within the map artboard (see
-                         Map.uss ".map-node-okinawa"), with a larger invisible tap
-                         area than the visible dot for usability. Local
-                         checkpoint-select action (NOT a "go-" navigator):
-                         MapLevelPreviewController opens the docked cinematic
-                         panel and starts the inline preview; the panel's own
-                         "START LESSON" action is what routes to the Techniques
-                         hub. Locked points (Tonokku / Kanto / future) have no
-                         separate interactive element for this MVP — they are
-                         part of the flattened artwork and simply cannot be
-                         clicked. -->
-                    <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
                 </ui:VisualElement>
 
                 <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush
