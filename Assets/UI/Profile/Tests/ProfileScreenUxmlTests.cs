@@ -120,7 +120,7 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void HomeAndMap_ProfileTabs_AreWorkingNavigators_NotLocked()
+        public void Home_ProfileTab_IsWorkingNavigator_NotLocked()
         {
             var root = BuildTree();
 
@@ -130,14 +130,13 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsFalse(homeProfile.ClassListContains("home-tab--locked"), "Home Profile tab must not be locked.");
             Assert.IsNull(homeProfile.Q<VisualElement>(className: "home-tab__badge"), "Home Profile must not show SOON.");
 
-            var mapDock = Screen(root, "map").Q<VisualElement>(className: "map-dock");
-            var mapProfile = mapDock.Q<VisualElement>("go-profile");
-            Assert.IsNotNull(mapProfile, "Map must expose go-profile.");
-            Assert.IsFalse(mapProfile.ClassListContains("map-tab--locked"), "Map Profile tab must not be locked.");
-            Assert.IsNull(mapProfile.Q<VisualElement>(className: "map-tab__badge"), "Map Profile must not show SOON.");
-
             Assert.IsTrue(Screen(root, homeProfile.name.Substring(NavPrefix.Length)).ClassListContains("screen"));
-            Assert.IsTrue(Screen(root, mapProfile.name.Substring(NavPrefix.Length)).ClassListContains("screen"));
+
+            // Map's selected-level presentation intentionally has no large 4-tab dock
+            // (see approved design correction): it exposes only a minimal Home action,
+            // not a go-profile tab.
+            Assert.IsNull(Screen(root, "map").Q<VisualElement>("go-profile"),
+                "Map's full-viewport selected-level view must not reintroduce a dock go-profile tab.");
         }
 
         [Test]
@@ -150,16 +149,15 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(home.Q<VisualElement>("go-techniques"));
             Assert.IsNotNull(home.Q<Button>("go-combineIntro"));
 
+            // Map's full-viewport selected-level presentation replaces the old 4-tab
+            // dock with one minimal Home action; Okinawa no longer routes directly to
+            // Techniques: selecting it opens the docked level-detail panel
+            // (map-node-okinawa), whose own "START LESSON" action (map-detail-start)
+            // is what routes to Techniques.
             var map = Screen(root, "map");
-            Assert.IsTrue(map.Q<VisualElement>("nav-map").ClassListContains("map-tab--active"));
             Assert.IsNotNull(map.Q<Button>("go-menu"));
-            // Okinawa no longer routes directly to Techniques: selecting it opens the
-            // level-detail panel (map-node-okinawa), whose own "START LESSON" action
-            // (map-detail-start) is what routes to Techniques. The dock tab still
-            // provides a direct "go-techniques" route.
             Assert.IsNotNull(map.Q<Button>("map-node-okinawa"), "Okinawa must exist as a checkpoint action.");
             Assert.IsNotNull(map.Q<Button>("map-detail-start"), "Okinawa's level-detail panel must route to Techniques.");
-            Assert.IsNotNull(map.Q<VisualElement>(className: "map-dock").Q<VisualElement>("go-techniques"));
         }
 
         [Test]
