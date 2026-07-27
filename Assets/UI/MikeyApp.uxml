@@ -7,6 +7,7 @@
             <Style src="Title/Title.uss" />
             <!-- full-bleed ink/dojo art, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="title-bg">
+                <ui:VisualElement name="title-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="title-glow" picking-mode="Ignore" />
                 <ui:VisualElement class="title-sun" picking-mode="Ignore" />
                 <ui:VisualElement class="title-scrim" picking-mode="Ignore" />
@@ -90,7 +91,9 @@
             <Style src="Home/Home.uss" />
             <!-- full-bleed Home background, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="home-bg">
+                <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="home-glow" />
+                <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
@@ -342,7 +345,10 @@
         <ui:VisualElement name="combine" class="screen">
             <Style src="Combine/Combine.uss" />
             <!-- full-bleed background, outside the safe-area wrapper -->
-            <ui:VisualElement class="combine-bg" />
+            <ui:VisualElement class="combine-bg">
+                <ui:VisualElement name="combine-bg-media" picking-mode="Ignore" class="bg-media" />
+                <ui:VisualElement class="combine-scrim" picking-mode="Ignore" />
+            </ui:VisualElement>
             <ui:VisualElement class="safe-area-content sa-center">
                 <ui:VisualElement class="content combine-content">
                     <ui:Label text="測定 · THE COMBINE" class="kicker combine-kicker" />
@@ -576,8 +582,10 @@
             <Style src="Map/Map.uss" />
             <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
+                <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="map-glow" picking-mode="Ignore" />
                 <ui:VisualElement class="map-ink-wash" picking-mode="Ignore" />
+                <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
