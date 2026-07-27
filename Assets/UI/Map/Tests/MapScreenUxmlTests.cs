@@ -9,12 +9,13 @@ namespace Mikey.UI.Map.Tests
     /// Structural contract for the landscape Map / progression hub (the "map"
     /// screen) in MikeyApp.uxml: exactly one screen with one safe-area wrapper,
     /// a full-bleed background outside that wrapper, a working Home (go-menu)
-    /// action, the first reference-supported node (Okinawa) exposed as a real
-    /// go-techniques navigator that is visually distinct from honestly-locked
-    /// later cities, a canonical 4-tab dock with the Map tab active and the
-    /// Profile tab explicitly locked, and reusable touch-target / visible-icon /
-    /// responsive-wrapping classes so nothing collapses or overflows on
-    /// phone-landscape sizes. Mirrors TechniquesScreenUxmlTests.
+    /// action, the first reference-supported node (Okinawa) exposed as a local
+    /// checkpoint-select action (visually distinct from honestly-locked later
+    /// cities) that opens the right-side Okinawa level-detail panel instead of
+    /// navigating directly, a canonical 4-tab dock with the Map tab active and
+    /// the Profile tab explicitly locked, and reusable touch-target /
+    /// visible-icon / responsive-wrapping classes so nothing collapses or
+    /// overflows on phone-landscape sizes. Mirrors TechniquesScreenUxmlTests.
     /// </summary>
     public class MapScreenUxmlTests
     {
@@ -100,21 +101,121 @@ namespace Mikey.UI.Map.Tests
                 "The 'menu' target screen must exist.");
         }
 
-        // 12 + 13 + 18 — the first progression node is a real go-techniques navigator
-        // to the existing techniques screen, and is the visually-distinct available node.
+        // 12 + 18 — the first progression node (Okinawa) is the visually-distinct
+        // available node, but is a LOCAL checkpoint-select action (NOT a "go-"
+        // navigator): MapLevelPreviewController opens the level-detail panel
+        // instead of jumping straight to Techniques. "go-techniques" itself still
+        // exists elsewhere (dock tab + the panel's own Start Lesson action).
         [Test]
-        public void FirstNode_IsGoTechniquesNavigator_ToTechniquesScreen()
+        public void FirstNode_IsOkinawaCheckpoint_NotAGoNavigator()
         {
             var root = BuildTree();
             var node = MapScreen(root).Q<Button>(className: "map-node--available");
             Assert.IsNotNull(node, "Map must expose the first available node as a Button with '.map-node--available'.");
-            Assert.AreEqual("go-techniques", node.name,
-                "The first available node must be a 'go-techniques' navigator.");
+            Assert.AreEqual("map-node-okinawa", node.name,
+                "The first available node must be the local 'map-node-okinawa' checkpoint action.");
+            Assert.IsFalse(node.name.StartsWith(NavPrefix),
+                "Selecting the Okinawa checkpoint must open the detail panel, not navigate directly.");
+        }
 
-            string target = node.name.Substring(NavPrefix.Length);
-            Assert.AreEqual("techniques", target, "go-techniques must target the 'techniques' screen.");
-            Assert.IsTrue(root.Q<VisualElement>(target).ClassListContains("screen"),
-                "The 'techniques' target screen must exist.");
+        // Detail panel's own Start Lesson action still routes to the existing
+        // 'techniques' screen, and "go-techniques" remains available elsewhere
+        // (dock tab), so no existing navigation id is actually removed.
+        [Test]
+        public void GoTechniques_StillExists_OnDockTab_TargetingTechniquesScreen()
+        {
+            var root = BuildTree();
+            var dockTech = MapScreen(root).Q<VisualElement>(className: "map-dock").Q<VisualElement>("go-techniques");
+            Assert.IsNotNull(dockTech, "Map dock must still expose a 'go-techniques' tab.");
+            Assert.IsTrue(root.Q<VisualElement>("techniques").ClassListContains("screen"),
+                "'go-techniques' must target the existing 'techniques' screen.");
+        }
+
+        // The Okinawa checkpoint, the panel close action and the panel's Start
+        // Lesson action are local, controller-bound actions — NOT go- navigators
+        // (mirrors Practice's practice-action/practice-complete convention).
+        [Test]
+        public void LocalPanelActions_AreNotNavigators()
+        {
+            var screen = MapScreen(BuildTree());
+            foreach (var name in new[] { "map-node-okinawa", "map-detail-close", "map-detail-start" })
+            {
+                var ctrl = screen.Q<Button>(name);
+                Assert.IsNotNull(ctrl, $"Expected the local action '{name}'.");
+                Assert.IsFalse(ctrl.name.StartsWith(NavPrefix),
+                    $"Local state-changing action '{name}' must not use a 'go-' navigator name.");
+            }
+        }
+
+        // The Okinawa level-detail panel exists, contains an inline preview video
+        // target (a real UI Toolkit element, not baked into the video), a static
+        // fallback, title/subtitle/description, Lessons/Techniques/Progress stats,
+        // and a Start Lesson CTA — all real UI Toolkit elements.
+        [Test]
+        public void DetailPanel_Exists_WithPreviewAndCopyAndStats()
+        {
+            var screen = MapScreen(BuildTree());
+            var panel = screen.Q<VisualElement>("map-detail");
+            Assert.IsNotNull(panel, "Map must expose a 'map-detail' level-detail panel.");
+
+            Assert.IsNotNull(panel.Q<VisualElement>("map-detail-video"),
+                "Detail panel must expose a 'map-detail-video' inline preview target.");
+            Assert.IsNotNull(panel.Q<VisualElement>("map-detail-video-fallback"),
+                "Detail panel must expose a safe static fallback element for a failed preview load.");
+            Assert.IsNotNull(panel.Q<Button>("map-detail-close"),
+                "Detail panel must expose a close action.");
+
+            var title = panel.Q<Label>(className: "map-detail__title");
+            Assert.IsNotNull(title, "Detail panel must expose a title label.");
+            Assert.AreEqual("OKINAWA", title.text);
+
+            var subtitle = panel.Q<Label>(className: "map-detail__subtitle");
+            Assert.IsNotNull(subtitle, "Detail panel must expose a subtitle label.");
+            Assert.AreEqual("Where it all began", subtitle.text);
+
+            Assert.IsNotNull(panel.Q<Label>(className: "map-detail__desc"),
+                "Detail panel must expose a description label.");
+
+            var stats = panel.Query<VisualElement>(className: "map-detail__stat").ToList();
+            Assert.AreEqual(3, stats.Count, "Expected exactly three stats (Lessons, Techniques, Progress).");
+
+            var start = panel.Q<Button>("map-detail-start");
+            Assert.IsNotNull(start, "Detail panel must expose a Start Lesson CTA.");
+            Assert.IsFalse(start.ClassListContains("btn"),
+                "Start Lesson CTA must not use the width:100% global '.btn' class.");
+        }
+
+        // The panel starts hidden (Map.uss ".map-detail" is display:none by default;
+        // MapLevelPreviewController is the only thing that adds the "--open" modifier),
+        // and Okinawa starts un-selected (not yet the active red checkpoint).
+        [Test]
+        public void DetailPanel_StartsWithoutOpenModifier()
+        {
+            var screen = MapScreen(BuildTree());
+            var panel = screen.Q<VisualElement>("map-detail");
+            Assert.IsNotNull(panel);
+            Assert.IsFalse(panel.ClassListContains("map-detail--open"),
+                "Detail panel must not carry the open modifier by default.");
+
+            var okinawa = screen.Q<Button>("map-node-okinawa");
+            Assert.IsNotNull(okinawa);
+            Assert.IsFalse(okinawa.ClassListContains("map-node--selected"),
+                "Okinawa must not start as the selected (active red) checkpoint.");
+        }
+
+        // Locked checkpoints remain honestly non-interactive: never a Button, never
+        // picked, so they structurally cannot ever trigger Okinawa's (or any) lesson.
+        [Test]
+        public void LockedNodes_CannotStartAnyLesson()
+        {
+            var locked = MapScreen(BuildTree()).Query<VisualElement>(className: "map-node--locked").ToList();
+            Assert.GreaterOrEqual(locked.Count, 3);
+            foreach (var node in locked)
+            {
+                Assert.IsFalse(node is Button, "A locked node must not be an active Button.");
+                Assert.AreEqual(PickingMode.Ignore, node.pickingMode,
+                    "A locked node must not be pickable (cannot be clicked at all).");
+            }
         }
 
         // 19 — locked map nodes are explicitly styled and are NOT active navigators.
@@ -195,8 +296,14 @@ namespace Mikey.UI.Map.Tests
                 "The Profile tab must not be active on Map.");
         }
 
+        // Local, controller-bound actions (Okinawa checkpoint select + panel
+        // close/start) are legitimately interactive without being "go-" navigators.
+        private static readonly string[] LocalControllerActions =
+            { "map-node-okinawa", "map-detail-close", "map-detail-start" };
+
         // 17 — no active-looking tab/control lacks an action: every Button is a
-        // navigator, and every non-locked dock tab is either active or a go- navigator.
+        // navigator or a known local controller-bound action, and every non-locked
+        // dock tab is either active or a go- navigator.
         [Test]
         public void NoActiveLookingControl_LacksAnAction()
         {
@@ -205,12 +312,13 @@ namespace Mikey.UI.Map.Tests
             foreach (var button in screen.Query<Button>().ToList())
             {
                 bool isNavigator = !string.IsNullOrEmpty(button.name) && button.name.StartsWith(NavPrefix);
+                bool isLocalAction = !string.IsNullOrEmpty(button.name) && LocalControllerActions.Contains(button.name);
                 bool isLockedOrDisabled =
                     button.ClassListContains("map-node--locked") ||
                     button.ClassListContains("map-tab--locked") ||
                     !button.enabledSelf;
-                Assert.IsTrue(isNavigator || isLockedOrDisabled,
-                    $"Button '{button.name}' (text '{button.text}') must be a go- navigator or explicitly locked/disabled.");
+                Assert.IsTrue(isNavigator || isLocalAction || isLockedOrDisabled,
+                    $"Button '{button.name}' (text '{button.text}') must be a go- navigator, a known local action, or explicitly locked/disabled.");
             }
 
             foreach (var tab in screen.Query<VisualElement>(className: "map-tab").ToList())
@@ -237,11 +345,22 @@ namespace Mikey.UI.Map.Tests
                     $"Control '{name}' must use the '.tap-target-lg' (>=56x56) touch-target class.");
             }
 
-            // The available node Button (go-techniques) is the primary actionable control.
+            // The available node Button (the Okinawa checkpoint) is the primary actionable control.
             var node = screen.Q<Button>(className: "map-node--available");
             Assert.IsNotNull(node, "Expected the available node Button.");
             Assert.IsTrue(node.ClassListContains("tap-target-lg"),
                 "The available node must use the '.tap-target-lg' touch-target class.");
+
+            // The panel's Start Lesson CTA and close action are also real touch targets.
+            var start = screen.Q<Button>("map-detail-start");
+            Assert.IsNotNull(start, "Expected the panel's Start Lesson action.");
+            Assert.IsTrue(start.ClassListContains("tap-target-lg"),
+                "Start Lesson must use the '.tap-target-lg' touch-target class.");
+
+            var close = screen.Q<Button>("map-detail-close");
+            Assert.IsNotNull(close, "Expected the panel's close action.");
+            Assert.IsTrue(close.ClassListContains("tap-target"),
+                "The panel close action must use the '.tap-target' touch-target class.");
         }
 
         // 21 + 22 — visible icons use explicit reusable size classes on the non-shrinking base.

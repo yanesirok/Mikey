@@ -153,7 +153,12 @@ namespace Mikey.UI.Profile.Tests
             var map = Screen(root, "map");
             Assert.IsTrue(map.Q<VisualElement>("nav-map").ClassListContains("map-tab--active"));
             Assert.IsNotNull(map.Q<Button>("go-menu"));
-            Assert.IsNotNull(map.Q<Button>("go-techniques"), "Okinawa must still route to Techniques.");
+            // Okinawa no longer routes directly to Techniques: selecting it opens the
+            // level-detail panel (map-node-okinawa), whose own "START LESSON" action
+            // (map-detail-start) is what routes to Techniques. The dock tab still
+            // provides a direct "go-techniques" route.
+            Assert.IsNotNull(map.Q<Button>("map-node-okinawa"), "Okinawa must exist as a checkpoint action.");
+            Assert.IsNotNull(map.Q<Button>("map-detail-start"), "Okinawa's level-detail panel must route to Techniques.");
             Assert.IsNotNull(map.Q<VisualElement>(className: "map-dock").Q<VisualElement>("go-techniques"));
         }
 
@@ -289,7 +294,10 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));
-            Assert.IsNotNull(Screen(root, "map").Q<Button>("go-techniques"));
+            // Map's Okinawa checkpoint routes to Techniques indirectly via its
+            // level-detail panel's Start Lesson action (see
+            // HomeAndMap_ExistingNavigationStatesRemainIntact for the direct check).
+            Assert.IsNotNull(Screen(root, "map").Q<Button>("map-detail-start"));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator));
         }

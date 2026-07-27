@@ -448,6 +448,7 @@ GameObject:
   - component: {fileID: 1720403622}
   - component: {fileID: 1720403623}
   - component: {fileID: 1720403624}
+  - component: {fileID: 1720403625}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -585,6 +586,21 @@ MonoBehaviour:
     targetElementName: map-bg-media
     clip: {fileID: 0}
     staticImage: {fileID: 2800000, guid: 508aafca3ea2f0a43a8b8eda518fce40, type: 3}
+--- !u!114 &1720403625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5f9609e2e3a4017b30c5d4e86795869, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapLevelPreviewController
+  checkpoints:
+  - nodeElementName: map-node-okinawa
+    previewClip: {fileID: 32900000, guid: 3dfc5e1dfbad4f27a408c0b32699fdfd, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

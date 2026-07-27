@@ -657,15 +657,18 @@
                     <ui:Label text="ROADMAP · JAPAN" class="map-route__label" picking-mode="Ignore" />
 
                     <!-- 1 · AVAILABLE — Okinawa (Level 1 · Karate, the reference's "current"
-                         city). A real navigator whose Train action opens the Lessons hub
-                         (go-techniques), exactly as the reference current-city Train -> lessons.
-                         Visually distinct as the actionable node; primary node >= 64x64. -->
-                    <ui:Button name="go-techniques" class="map-node map-node--available tap-target-lg">
+                         city). Local checkpoint-select action (NOT a "go-" navigator):
+                         MapLevelPreviewController opens the right-side level-detail panel
+                         and starts the inline preview; the panel's own "START LESSON"
+                         action is what routes to the Techniques hub. Visually distinct as
+                         the actionable node; primary node >= 64x64; turns to the active red
+                         checkpoint state (the "map-node" "selected" modifier) once chosen. -->
+                    <ui:Button name="map-node-okinawa" class="map-node map-node--available tap-target-lg">
                         <ui:Label text="空" class="map-icon map-icon--node map-node__glyph" picking-mode="Ignore" />
                         <ui:VisualElement class="map-node__body">
                             <ui:Label text="1 · Okinawa" class="map-node__name" picking-mode="Ignore" />
                             <ui:Label text="Karate · 沖縄 · Level 1" class="map-node__romaji" picking-mode="Ignore" />
-                            <ui:Label text="FIGHT NOW · TRAIN TO BEGIN" class="map-node__meta" picking-mode="Ignore" />
+                            <ui:Label text="CURRENT CITY · SELECT TO VIEW" class="map-node__meta" picking-mode="Ignore" />
                         </ui:VisualElement>
                         <ui:Label text="›" class="map-icon map-icon--action map-node__go" picking-mode="Ignore" />
                     </ui:Button>
@@ -707,6 +710,54 @@
                             <ui:Label text="NEW ART · COMING SOON" class="map-node__meta map-node__meta--locked" />
                         </ui:VisualElement>
                         <ui:Label text="SOON" class="map-node__badge" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- RIGHT BAND: Okinawa level-detail panel (an inline preview, NOT a
+                     full-screen background — see Media/BackgroundMediaController.cs for
+                     the separate full-bleed video system that stays untouched here).
+                     Hidden by default (Map.uss ".map-detail" has display:none);
+                     MapLevelPreviewController shows it (adds the "open" modifier) when
+                     the Okinawa checkpoint node above is selected, and drives the
+                     inline video's lifecycle independently of the map background. -->
+                <ui:VisualElement name="map-detail" class="map-detail">
+                    <ui:VisualElement class="map-detail__preview">
+                        <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
+                        <ui:VisualElement class="map-detail__video-scrim" picking-mode="Ignore" />
+                        <!-- safe static fallback: shown instead of the video if it cannot load -->
+                        <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
+                        <ui:Button name="map-detail-close" class="map-detail__close tap-target">
+                            <ui:Label text="✕" class="map-detail__close-icon" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="map-detail__body">
+                        <ui:Label text="OKINAWA" class="map-detail__title" />
+                        <ui:Label text="Where it all began" class="map-detail__subtitle" />
+                        <ui:Label text="Here you will master stance, breathing, and the first strike." class="map-detail__desc" />
+
+                        <ui:VisualElement class="map-detail__stats">
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="4" class="map-detail__stat-value" />
+                                <ui:Label text="LESSONS" class="map-detail__stat-label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="3" class="map-detail__stat-value" />
+                                <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="map-detail__stat">
+                                <ui:Label text="2 / 4" class="map-detail__stat-value" />
+                                <ui:Label text="COMPLETED" class="map-detail__stat-label" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <!-- local controller-bound action (NOT a "go-" navigator):
+                             MapLevelPreviewController routes this through the existing
+                             IScreenNavigator to the 'techniques' screen. -->
+                        <ui:Button name="map-detail-start" class="map-detail__cta tap-target-lg">
+                            <ui:Label text="START LESSON" class="map-detail__cta-text" picking-mode="Ignore" />
+                            <ui:Label text="›" class="map-icon map-icon--action map-detail__cta-icon" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
