@@ -17,6 +17,17 @@
     background-color: #0D1117;
 }
 
+/* Legibility scrim over the background media (video or fallback) — the
+   Combine result text has no card backing of its own, unlike Home/Map. */
+.combine-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(13, 17, 23, 0.5);
+}
+
 /* Centered landscape content column for the Combine screen. */
 .combine-content {
     align-items: center;

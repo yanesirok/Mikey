@@ -45,6 +45,20 @@
     flex-direction: column;
 }
 
+/* ---------- reusable full-bleed background media ----------
+   Shared by every screen's full-bleed "<x>-bg" layer (title/home/combine/map).
+   A single VisualElement whose background-image is assigned at runtime by
+   BackgroundMediaController — either a looping video RenderTexture or a
+   static image (e.g. the Map). Cropped to cover without ever stretching. */
+.bg-media {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
 /* ---------- safe-area foreground wrapper ----------
    One per screen. Fills the screen's usable area and receives device
    safe-area insets (as padding) from SafeAreaController. Full-bleed siblings

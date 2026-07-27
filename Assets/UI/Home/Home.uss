@@ -32,6 +32,17 @@
     background-color: rgba(255, 90, 31, 0.06);
 }
 
+/* Legibility scrim over the background media (video or fallback) so the
+   ribbon/hero text keep contrast; same idiom as .title-scrim. */
+.home-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 14, 17, 0.35);
+}
+
 /* ---------- foreground layout ----------
    One full-height column inside the safe area: ribbon pinned top, hero
    filling the middle, dock pinned bottom. align-self centers the capped

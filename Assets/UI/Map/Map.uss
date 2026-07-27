@@ -47,6 +47,17 @@
     background-color: rgba(43, 217, 168, 0.04);
 }
 
+/* Legibility scrim over the static map image so the hub headline/lead text
+   keep contrast; the node chips already carry their own backing. */
+.map-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 14, 17, 0.3);
+}
+
 /* ---------- reusable visible-icon kit (Map-scoped) ----------
    Sizes the rendered glyph itself, independently of the button hit area.
    Every icon is non-shrinking and centered so flex never collapses the
