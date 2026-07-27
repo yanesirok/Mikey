@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -38,6 +39,7 @@ namespace Mikey.UI.Map
         private const string OpenClass = "map-detail--open";
         private const string SelectedNodeClass = "map-node--selected";
         private const string FallbackVisibleClass = "map-detail__video-fallback--visible";
+        private const string LockedCtaClass = "map-detail__cta--locked";
 
         [Serializable]
         public struct CheckpointPreviewBinding
@@ -64,6 +66,7 @@ namespace Mikey.UI.Map
         private readonly Dictionary<string, RenderTexture> _renderTextures = new Dictionary<string, RenderTexture>();
 
         private IScreenNavigator _navigator;
+        private ITutorialProgress _progress;
         private string _selectedNodeName;
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -102,6 +105,12 @@ namespace Mikey.UI.Map
             {
                 _navigator.ScreenChanged -= OnScreenChanged;
                 _navigator = null;
+            }
+
+            if (_progress != null)
+            {
+                _progress.Changed -= RefreshStartLessonLock;
+                _progress = null;
             }
 
             foreach (VideoPlayer player in _players.Values)
@@ -198,6 +207,11 @@ namespace Mikey.UI.Map
                     SelectDefaultCheckpoint();
             }
 
+            _progress = GetComponent<ITutorialProgress>();
+            if (_progress != null)
+                _progress.Changed += RefreshStartLessonLock;
+            RefreshStartLessonLock();
+
             _bound = true;
             _bindRoutine = null;
         }
@@ -255,8 +269,41 @@ namespace Mikey.UI.Map
             _selectedNodeName = null;
         }
 
-        /// <summary>Routes "START LESSON" through the existing screen navigator.</summary>
-        public void StartLesson() => _navigator?.Show(StartLessonTarget);
+        /// <summary>
+        /// Routes "START LESSON" through the existing screen navigator — unless
+        /// Level 1 hasn't unlocked yet (Combine not completed), in which case this
+        /// is a safe no-op: reached-via-developer-route Map visits before Level 1
+        /// unlocks must not let Okinawa's Start Lesson jump straight to Techniques.
+        /// </summary>
+        public void StartLesson()
+        {
+            if (_progress != null && !TutorialProgressPresenter.IsMapUnlocked(_progress.State))
+                return;
+
+            _navigator?.Show(StartLessonTarget);
+        }
+
+        /// <summary>
+        /// Reflects the Level-1-unlock gate on the Start Lesson CTA: disabled and
+        /// dimmed (".map-detail__cta--locked") before Level 1 unlocks, normal once
+        /// it has. Refreshed on bind, on entering the Map screen, and whenever
+        /// progression state changes (e.g. a developer control used while already
+        /// on Map) — no Map layout, composition, or asset change, only this
+        /// existing button's enabled/locked state.
+        /// </summary>
+        private void RefreshStartLessonLock()
+        {
+            if (_startButton == null)
+                return;
+
+            bool unlocked = _progress == null || TutorialProgressPresenter.IsMapUnlocked(_progress.State);
+            _startButton.SetEnabled(unlocked);
+
+            if (unlocked)
+                _startButton.RemoveFromClassList(LockedCtaClass);
+            else
+                _startButton.AddToClassList(LockedCtaClass);
+        }
 
         /// <summary>
         /// Entering the Map screen auto-selects the default checkpoint (Okinawa)
@@ -268,7 +315,10 @@ namespace Mikey.UI.Map
         private void OnScreenChanged(string screenId)
         {
             if (screenId == ScreenId)
+            {
                 SelectDefaultCheckpoint();
+                RefreshStartLessonLock();
+            }
             else
                 PausePlayback();
         }

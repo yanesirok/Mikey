@@ -1,7 +1,10 @@
 {
     "name": "Mikey.UI.Combine",
     "rootNamespace": "Mikey.UI.Combine",
-    "references": [],
+    "references": [
+        "Mikey.UI.SafeArea",
+        "Mikey.UI.Progression"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

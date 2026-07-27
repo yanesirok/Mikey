@@ -1,10 +1,7 @@
 {
-    "name": "Mikey.UI.Map",
-    "rootNamespace": "Mikey.UI.Map",
-    "references": [
-        "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression"
-    ],
+    "name": "Mikey.UI.Progression",
+    "rootNamespace": "Mikey.UI.Progression",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

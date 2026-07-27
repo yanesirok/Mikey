@@ -131,8 +131,13 @@
                             <ui:Label text="稽古 · TODAY'S TRAINING" class="kicker home-hero__kicker" />
                             <ui:Label text="Earn your day" class="title home-hero__title" />
                             <ui:Label text="One real session keeps your fighter sharp. Begin the Combine to measure your baseline." class="lead home-hero__lead" />
-                            <ui:Button name="go-combineIntro" class="btn primary tap-target home-hero__cta">
-                                <ui:Label text="Begin the Combine" class="home-cta__text" picking-mode="Ignore" />
+                            <!-- Dynamic primary CTA: label + destination change with tutorial
+                                 progression state (see HomeController / TutorialProgressPresenter).
+                                 Deliberately NOT a "go-" navigator — ScreenManager must not
+                                 statically wire it to a fixed screen. Markup default text
+                                 ("START LVL 0") matches the safe NewPlayer default state. -->
+                            <ui:Button name="home-cta" class="btn primary tap-target home-hero__cta">
+                                <ui:Label text="START LVL 0" class="home-cta__text" picking-mode="Ignore" />
                                 <ui:Label text="›" class="home-icon home-icon--cta home-cta__arrow" picking-mode="Ignore" />
                             </ui:Button>
                         </ui:VisualElement>
@@ -165,17 +170,22 @@
                         <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Home" class="home-tab__label" />
                     </ui:VisualElement>
-                    <!-- Map is now a working production navigator (go-map -> map).
-                         Looks available (no SOON badge, no locked dimming), keeps the
-                         large visible nav icon and the >=56px dock touch target. -->
-                    <ui:VisualElement name="go-map" class="home-tab tap-target-lg">
+                    <!-- Progression-gated (see HomeController): locked/dimmed with a
+                         "COMPLETE LVL 0" badge until Level 1 unlocks (Combine completed),
+                         then available. Deliberately NOT a "go-" navigator — ScreenManager
+                         must not statically wire it, since whether a click navigates depends
+                         on progression state. Markup default (locked) matches the safe
+                         NewPlayer state. Keeps the large visible nav icon and the >=56px
+                         dock touch target regardless of lock state. -->
+                    <ui:VisualElement name="home-nav-map" class="home-tab home-tab--locked tap-target-lg">
                         <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Map" class="home-tab__label" />
+                        <ui:Label text="COMPLETE LVL 0" class="home-tab__badge" />
                     </ui:VisualElement>
-                    <!-- Techniques is now a working production navigator (go-techniques -> techniques).
-                         Looks available (no SOON badge, no locked dimming), keeps the large visible
-                         nav icon and the >=56px dock touch target. -->
-                    <ui:VisualElement name="go-techniques" class="home-tab tap-target-lg">
+                    <!-- Progression-gated (see HomeController): locked/dimmed until Level 1
+                         unlocks (Combine completed), then available. Deliberately NOT a
+                         "go-" navigator, for the same reason as home-nav-map above. -->
+                    <ui:VisualElement name="home-nav-techniques" class="home-tab home-tab--locked tap-target-lg">
                         <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
                         <ui:Label text="Techniques" class="home-tab__label" />
                     </ui:VisualElement>
@@ -185,6 +195,20 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
 
+            </ui:VisualElement>
+
+            <!-- development-only tutorial-progression state switcher (hidden
+                 outside Editor / dev build; see HomeController.WireDevControls).
+                 No 30-day Vow simulation yet — only the currently reachable
+                 states. -->
+            <ui:VisualElement name="home-devbar" class="home-devbar">
+                <ui:Label text="DEV · PROGRESSION" class="home-devbar__label" />
+                <ui:Button name="home-dev-reset" text="Reset Progress" class="home-devbtn" />
+                <ui:Button name="home-dev-new-player" text="Set New Player" class="home-devbtn" />
+                <ui:Button name="home-dev-combine-started" text="Set Combine Started" class="home-devbtn" />
+                <ui:Button name="home-dev-level1-unlocked" text="Set Level 1 Unlocked" class="home-devbtn" />
+                <ui:Button name="home-dev-lesson-started" text="Set Lesson Started" class="home-devbtn" />
+                <ui:Button name="home-dev-lesson-completed" text="Set Lesson Completed" class="home-devbtn" />
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
@@ -370,8 +394,16 @@
                     <ui:VisualElement name="combine-ready" class="combine-state">
                         <ui:VisualElement name="combine-items" class="combine-items" />
                         <ui:Label text="Four honest numbers. Your fighter starts here." class="lead combine-msg" />
+                        <!-- Progression forward action (NOT a "go-" navigator):
+                             CombineScreenController marks CombineCompleted, unlocks
+                             Level1Unlocked, then routes to Map. -->
+                        <ui:Button name="combine-start-lvl1" text="START LVL 1" class="btn primary combine-home icon-btn" />
+                        <!-- Progression reset action (NOT a "go-" navigator): resets only
+                             the Combine (LVL0) portion of progress, then returns to the
+                             Combine briefing to redo it. -->
+                        <ui:Button name="combine-retry-assessment" text="Retry Assessment" class="btn combine-retry icon-btn" />
                         <!-- production exit: returns to the Home hub (ScreenManager wires go-menu -> menu) -->
-                        <ui:Button name="go-menu" text="Return Home" class="btn primary combine-home icon-btn" />
+                        <ui:Button name="go-menu" text="Return Home" class="btn combine-home icon-btn" />
                     </ui:VisualElement>
 
                     <!-- ERROR -->

@@ -9,14 +9,18 @@ namespace Mikey.UI.Home.Tests
     /// <summary>
     /// Structural contract for the landscape Home hub (the "menu" screen) in
     /// MikeyApp.uxml: exactly one screen with one safe-area wrapper, a full-bleed
-    /// background outside that wrapper, a working Combine entry, an explicit
-    /// 4-tab dock with active/locked states, reusable touch targets on every
-    /// interactive control, and none of the old unbound menu controls.
+    /// background outside that wrapper, a progression-driven dynamic primary CTA,
+    /// an explicit 4-tab dock whose Map/Techniques tabs default to locked (safe
+    /// NewPlayer state) and are driven by HomeController rather than a static
+    /// "go-" navigator, reusable touch targets on every interactive control, and
+    /// none of the old unbound menu controls.
     /// </summary>
     public class HomeScreenUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string NavPrefix = "go-";
+
+        private static readonly string[] LocalControllerActions = { "home-cta" };
 
         private static VisualElement BuildTree()
         {
@@ -71,64 +75,86 @@ namespace Mikey.UI.Home.Tests
                 ".home-bg must not be a descendant of .safe-area-content (it must bleed full-screen).");
         }
 
+        // The CTA is a dynamic, progression-driven control (HomeController), not a
+        // static "go-" navigator — its destination varies with tutorial state.
         [Test]
-        public void CombineEntry_Exists_AndTargetScreenExists()
+        public void HomeCta_Exists_IsNotAGoNavigator_AndCombineIntroScreenExists()
         {
             var root = BuildTree();
             var screen = HomeScreen(root);
 
-            var cta = screen.Q<VisualElement>("go-combineIntro");
-            Assert.IsNotNull(cta, "Home must expose the Combine entry named 'go-combineIntro'.");
+            var cta = screen.Q<Button>("home-cta");
+            Assert.IsNotNull(cta, "Home must expose the dynamic primary CTA named 'home-cta'.");
+            Assert.IsFalse(cta.name.StartsWith(NavPrefix),
+                "'home-cta' must not be a 'go-' navigator — HomeController drives its destination by progression state.");
 
-            // The navigator convention: name "go-<screenId>" must point at a real screen.
-            string target = cta.name.Substring(NavPrefix.Length);
-            var targetScreen = root.Q<VisualElement>(target);
-            Assert.IsNotNull(targetScreen, $"Combine entry target screen '{target}' must exist.");
-            Assert.IsTrue(targetScreen.ClassListContains("screen"),
-                $"Combine entry target '{target}' must be a .screen.");
+            // combineIntro is the NewPlayer/IntroCompleted-state destination and
+            // must exist as a real screen.
+            var combineIntro = root.Q<VisualElement>("combineIntro");
+            Assert.IsNotNull(combineIntro, "'combineIntro' screen must exist (the CTA's default-state destination).");
+            Assert.IsTrue(combineIntro.ClassListContains("screen"), "'combineIntro' must be a .screen.");
+        }
+
+        [Test]
+        public void HomeCta_MarkupDefault_MatchesSafeNewPlayerState()
+        {
+            var screen = HomeScreen(BuildTree());
+            var cta = screen.Q<Button>("home-cta");
+            Assert.IsNotNull(cta, "Expected the 'home-cta' CTA.");
+
+            var label = cta.Q<Label>(className: "home-cta__text");
+            Assert.IsNotNull(label, "Expected the CTA's '.home-cta__text' label.");
+            Assert.AreEqual("START LVL 0", label.text,
+                "The CTA's markup default text must match the safe NewPlayer state's label.");
         }
 
         [Test]
         public void Dock_ExposesHomeMapTechniquesProfile()
         {
             var screen = HomeScreen(BuildTree());
-            // Map is now a working 'go-map' navigator (was the locked 'nav-map').
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
+            // Map/Techniques are now progression-gated ('home-nav-map' /
+            // 'home-nav-techniques'), driven by HomeController rather than a
+            // static 'go-' navigator.
+            foreach (var name in new[] { "nav-home", "home-nav-map", "home-nav-techniques", "go-profile" })
             {
                 Assert.IsNotNull(screen.Q<VisualElement>(name),
                     $"Bottom dock must expose a tab named '{name}'.");
             }
         }
 
-        // 6 + 7 — Home exposes a working go-map navigator to the existing map screen.
+        // Map is progression-gated: not a static "go-" navigator (HomeController
+        // decides at click time whether to navigate), but its eventual "map"
+        // target screen must exist.
         [Test]
-        public void MapTab_IsWorkingNavigator_ToMapScreen()
+        public void MapTab_IsNotAGoNavigator_ButMapScreenExists()
         {
             var root = BuildTree();
             var screen = HomeScreen(root);
 
-            var tab = screen.Q<VisualElement>("go-map");
-            Assert.IsNotNull(tab, "Home must expose the Map tab as a 'go-map' navigator.");
+            var tab = screen.Q<VisualElement>("home-nav-map");
+            Assert.IsNotNull(tab, "Home must expose the Map tab as 'home-nav-map'.");
+            Assert.IsFalse(tab.name.StartsWith(NavPrefix),
+                "'home-nav-map' must not be a 'go-' navigator — HomeController gates navigation by progression state.");
 
-            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
-            string target = tab.name.Substring(NavPrefix.Length);
-            Assert.AreEqual("map", target, "go-map must target the 'map' screen.");
-            var targetScreen = root.Q<VisualElement>(target);
-            Assert.IsNotNull(targetScreen, "The 'map' target screen must exist.");
-            Assert.IsTrue(targetScreen.ClassListContains("screen"), "'map' target must be a .screen.");
+            var target = root.Q<VisualElement>("map");
+            Assert.IsNotNull(target, "The 'map' target screen must exist.");
+            Assert.IsTrue(target.ClassListContains("screen"), "'map' target must be a .screen.");
         }
 
-        // 8 — the Map tab is no longer marked locked, and reads as available.
+        // Safe default (NewPlayer): locked/dimmed with a "COMPLETE LVL 0" badge
+        // until HomeController unlocks it at Level1Unlocked.
         [Test]
-        public void MapTab_IsNotLocked()
+        public void MapTab_IsLockedByDefault_WithCompleteLvl0Badge()
         {
             var screen = HomeScreen(BuildTree());
-            var tab = screen.Q<VisualElement>("go-map");
-            Assert.IsNotNull(tab, "Expected the 'go-map' tab.");
-            Assert.IsFalse(tab.ClassListContains("home-tab--locked"),
-                "The Map tab must no longer carry 'home-tab--locked'.");
-            Assert.IsNull(tab.Q<VisualElement>(className: "home-tab__badge"),
-                "The Map tab must not show a 'SOON' badge anymore.");
+            var tab = screen.Q<VisualElement>("home-nav-map");
+            Assert.IsNotNull(tab, "Expected the 'home-nav-map' tab.");
+            Assert.IsTrue(tab.ClassListContains("home-tab--locked"),
+                "The Map tab's markup default must carry 'home-tab--locked' (safe NewPlayer state).");
+
+            var badge = tab.Q<Label>(className: "home-tab__badge");
+            Assert.IsNotNull(badge, "The locked Map tab must show a badge.");
+            Assert.AreEqual("COMPLETE LVL 0", badge.text, "The Map lock badge must read 'COMPLETE LVL 0'.");
         }
 
         [Test]
@@ -164,60 +190,50 @@ namespace Mikey.UI.Home.Tests
             var tab = screen.Q<VisualElement>("go-profile");
             Assert.IsNotNull(tab, "Expected the 'go-profile' tab.");
             Assert.IsFalse(tab.ClassListContains("home-tab--locked"),
-                "The Profile tab must no longer carry 'home-tab--locked'.");
+                "The Profile tab must never be locked — Profile is always available regardless of progression state.");
             Assert.IsNull(tab.Q<VisualElement>(className: "home-tab__badge"),
-                "The Profile tab must not show a 'SOON' badge anymore.");
+                "The Profile tab must not show a lock badge.");
         }
 
-        // 7 + 8 — Home exposes a working go-techniques navigator to the techniques screen.
+        // Techniques is progression-gated: not a static "go-" navigator, but its
+        // eventual "techniques" target screen must exist.
         [Test]
-        public void TechniquesTab_IsWorkingNavigator_ToTechniquesScreen()
+        public void TechniquesTab_IsNotAGoNavigator_ButTechniquesScreenExists()
         {
             var root = BuildTree();
             var screen = HomeScreen(root);
 
-            var tab = screen.Q<VisualElement>("go-techniques");
-            Assert.IsNotNull(tab, "Home must expose the Techniques tab as a 'go-techniques' navigator.");
+            var tab = screen.Q<VisualElement>("home-nav-techniques");
+            Assert.IsNotNull(tab, "Home must expose the Techniques tab as 'home-nav-techniques'.");
+            Assert.IsFalse(tab.name.StartsWith(NavPrefix),
+                "'home-nav-techniques' must not be a 'go-' navigator — HomeController gates navigation by progression state.");
 
-            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
-            string target = tab.name.Substring(NavPrefix.Length);
-            Assert.AreEqual("techniques", target, "go-techniques must target the 'techniques' screen.");
-            var targetScreen = root.Q<VisualElement>(target);
-            Assert.IsNotNull(targetScreen, "The 'techniques' target screen must exist.");
-            Assert.IsTrue(targetScreen.ClassListContains("screen"), "'techniques' target must be a .screen.");
+            var target = root.Q<VisualElement>("techniques");
+            Assert.IsNotNull(target, "The 'techniques' target screen must exist.");
+            Assert.IsTrue(target.ClassListContains("screen"), "'techniques' target must be a .screen.");
         }
 
-        // 9 — the Techniques tab is no longer marked locked, and reads as available.
+        // Safe default (NewPlayer): locked/dimmed until HomeController unlocks it
+        // at Level1Unlocked. No badge requirement for Techniques (Map alone gets
+        // the "COMPLETE LVL 0" badge).
         [Test]
-        public void TechniquesTab_IsNotLocked()
+        public void TechniquesTab_IsLockedByDefault()
         {
             var screen = HomeScreen(BuildTree());
-            var tab = screen.Q<VisualElement>("go-techniques");
-            Assert.IsNotNull(tab, "Expected the 'go-techniques' tab.");
-            Assert.IsFalse(tab.ClassListContains("home-tab--locked"),
-                "The Techniques tab must no longer carry 'home-tab--locked'.");
-            Assert.IsNull(tab.Q<VisualElement>(className: "home-tab__badge"),
-                "The Techniques tab must not show a 'SOON' badge anymore.");
-        }
-
-        // The Combine CTA stays a working navigator (Techniques change must not affect it).
-        [Test]
-        public void CombineCta_StillTargetsCombineIntro()
-        {
-            var root = BuildTree();
-            var cta = HomeScreen(root).Q<VisualElement>("go-combineIntro");
-            Assert.IsNotNull(cta, "Home must keep its 'go-combineIntro' Combine CTA.");
-            Assert.IsNotNull(root.Q<VisualElement>("combineIntro"), "'go-combineIntro' must target 'combineIntro'.");
+            var tab = screen.Q<VisualElement>("home-nav-techniques");
+            Assert.IsNotNull(tab, "Expected the 'home-nav-techniques' tab.");
+            Assert.IsTrue(tab.ClassListContains("home-tab--locked"),
+                "The Techniques tab's markup default must carry 'home-tab--locked' (safe NewPlayer state).");
         }
 
         [Test]
-        public void CombineCta_UsesReusableTouchTargetClass()
+        public void HomeCta_UsesReusableTouchTargetClass()
         {
             var screen = HomeScreen(BuildTree());
-            var cta = screen.Q<VisualElement>("go-combineIntro");
-            Assert.IsNotNull(cta, "Expected the Combine CTA 'go-combineIntro'.");
+            var cta = screen.Q<VisualElement>("home-cta");
+            Assert.IsNotNull(cta, "Expected the CTA 'home-cta'.");
             Assert.IsTrue(cta.ClassListContains("tap-target"),
-                "The Combine CTA must use the reusable '.tap-target' (>= 48x48) class.");
+                "The CTA must use the reusable '.tap-target' (>= 48x48) class.");
         }
 
         [Test]
@@ -226,8 +242,8 @@ namespace Mikey.UI.Home.Tests
             var screen = HomeScreen(BuildTree());
             // Dock tabs must use the larger touch-target class (>= 56x56 logical,
             // no flex-shrink) so the dock never collapses below a tappable size
-            // on phone-landscape resolutions.
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
+            // on phone-landscape resolutions, regardless of lock state.
+            foreach (var name in new[] { "nav-home", "home-nav-map", "home-nav-techniques", "go-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
@@ -241,8 +257,8 @@ namespace Mikey.UI.Home.Tests
         {
             var screen = HomeScreen(BuildTree());
             // Each dock tab's visible glyph must use the larger reusable nav-icon
-            // size class (and the non-shrinking .home-icon base).
-            foreach (var name in new[] { "nav-home", "go-map", "go-techniques", "go-profile" })
+            // size class (and the non-shrinking .home-icon base), regardless of lock state.
+            foreach (var name in new[] { "nav-home", "home-nav-map", "home-nav-techniques", "go-profile" })
             {
                 var tab = screen.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Expected a dock tab named '{name}'.");
@@ -274,8 +290,8 @@ namespace Mikey.UI.Home.Tests
         public void CtaArrow_UsesCtaVisibleSizeClass()
         {
             var screen = HomeScreen(BuildTree());
-            var cta = screen.Q<VisualElement>("go-combineIntro");
-            Assert.IsNotNull(cta, "Expected the Combine CTA 'go-combineIntro'.");
+            var cta = screen.Q<VisualElement>("home-cta");
+            Assert.IsNotNull(cta, "Expected the CTA 'home-cta'.");
             var arrow = cta.Q<VisualElement>(className: "home-icon--cta");
             Assert.IsNotNull(arrow, "The CTA must contain an arrow icon using '.home-icon--cta'.");
             Assert.IsTrue(arrow.ClassListContains("home-icon"),
@@ -314,20 +330,46 @@ namespace Mikey.UI.Home.Tests
         {
             var screen = HomeScreen(BuildTree());
             // Every production-looking active control (a Button) on Home must
-            // either be a navigator (name "go-…", wired by ScreenManager) or be
-            // explicitly locked/disabled — never a silently-dead button.
+            // either be a navigator (name "go-…", wired by ScreenManager), a known
+            // local controller-bound action (e.g. the dynamic 'home-cta', wired by
+            // HomeController), or be explicitly locked/disabled — never a
+            // silently-dead button. Dev-only controls (home-dev-*) are excluded:
+            // they're hidden outside the Editor/dev build and covered separately.
             foreach (var button in screen.Query<Button>().ToList())
             {
+                if (!string.IsNullOrEmpty(button.name) && button.name.StartsWith("home-dev-"))
+                    continue;
+
                 bool isNavigator = !string.IsNullOrEmpty(button.name) && button.name.StartsWith(NavPrefix);
+                bool isLocalAction = !string.IsNullOrEmpty(button.name) && LocalControllerActions.Contains(button.name);
                 bool isLockedOrDisabled =
                     button.ClassListContains("home-tab--locked") ||
                     button.ClassListContains("locked") ||
                     button.ClassListContains("disabled") ||
                     !button.enabledSelf;
 
-                Assert.IsTrue(isNavigator || isLockedOrDisabled,
+                Assert.IsTrue(isNavigator || isLocalAction || isLockedOrDisabled,
                     $"Button '{button.name}' (text '{button.text}') must have a defined action " +
-                    "(go- navigator) or an explicit disabled/locked state.");
+                    "(go- navigator or known local action) or an explicit disabled/locked state.");
+            }
+        }
+
+        // Compact, visually separate, dev-only tutorial-progression switcher
+        // (HomeController hides it outside the Editor/dev build).
+        [Test]
+        public void DevBar_ExposesAllProgressionStateButtons()
+        {
+            var screen = HomeScreen(BuildTree());
+            var devBar = screen.Q<VisualElement>("home-devbar");
+            Assert.IsNotNull(devBar, "Expected a 'home-devbar' dev-only progression switcher.");
+
+            foreach (var name in new[]
+            {
+                "home-dev-reset", "home-dev-new-player", "home-dev-combine-started",
+                "home-dev-level1-unlocked", "home-dev-lesson-started", "home-dev-lesson-completed",
+            })
+            {
+                Assert.IsNotNull(devBar.Q<Button>(name), $"Expected a dev-control Button named '{name}'.");
             }
         }
     }

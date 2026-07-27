@@ -143,11 +143,14 @@ namespace Mikey.UI.SafeArea.Tests
         {
             var root = BuildTree();
 
-            // menu → combineIntro
+            // menu → combineIntro (via the dynamic 'home-cta', whose NewPlayer/
+            // IntroCompleted-state destination is combineIntro; see HomeController
+            // / TutorialProgressPresenter and HomeScreenUxmlTests for the full
+            // per-state contract).
             var menu = root.Q<VisualElement>("menu");
             Assert.IsNotNull(menu, "Expected a 'menu' (Home) screen.");
-            Assert.IsNotNull(menu.Q<Button>("go-combineIntro"),
-                "Home must keep its 'go-combineIntro' CTA.");
+            Assert.IsNotNull(menu.Q<Button>("home-cta"),
+                "Home must keep its dynamic 'home-cta' CTA.");
 
             // combineIntro → camTest
             var combineIntro = root.Q<VisualElement>("combineIntro");
