@@ -145,9 +145,12 @@ namespace Mikey.UI.Profile.Tests
             var root = BuildTree();
             var home = Screen(root, "menu");
             Assert.IsTrue(home.Q<VisualElement>("nav-home").ClassListContains("home-tab--active"));
-            Assert.IsNotNull(home.Q<VisualElement>("go-map"));
-            Assert.IsNotNull(home.Q<VisualElement>("go-techniques"));
-            Assert.IsNotNull(home.Q<Button>("go-combineIntro"));
+            // Map/Techniques are progression-gated (HomeController), not static
+            // "go-" navigators; see HomeScreenUxmlTests for their full contract.
+            Assert.IsNotNull(home.Q<VisualElement>("home-nav-map"));
+            Assert.IsNotNull(home.Q<VisualElement>("home-nav-techniques"));
+            // The Home CTA is now a dynamic, progression-driven control.
+            Assert.IsNotNull(home.Q<Button>("home-cta"));
 
             // Map's full-viewport selected-level presentation replaces the old 4-tab
             // dock with one minimal Home action; Okinawa no longer routes directly to
@@ -286,7 +289,7 @@ namespace Mikey.UI.Profile.Tests
             var root = BuildTree();
             Assert.IsNotNull(Screen(root, "title").Q<Button>("go-intro"));
             Assert.IsNotEmpty(Screen(root, "intro").Query<VisualElement>(name: "go-menu").ToList());
-            Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-combineIntro"));
+            Assert.IsNotNull(Screen(root, "menu").Q<Button>("home-cta"));
             Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
             Assert.IsNotNull(Screen(root, "camTest").Q<Button>("go-combine"));
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());

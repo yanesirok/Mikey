@@ -1,6 +1,6 @@
 {
-    "name": "Mikey.UI.Map",
-    "rootNamespace": "Mikey.UI.Map",
+    "name": "Mikey.UI.Home",
+    "rootNamespace": "Mikey.UI.Home",
     "references": [
         "Mikey.UI.SafeArea",
         "Mikey.UI.Progression"

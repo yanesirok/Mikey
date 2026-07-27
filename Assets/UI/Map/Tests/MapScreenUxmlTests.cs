@@ -332,9 +332,15 @@ namespace Mikey.UI.Map.Tests
             Assert.IsTrue(root.Q<VisualElement>("techniques").ClassListContains("screen"),
                 "The 'techniques' screen Start Lesson routes to must exist.");
 
+            // "menu" is intentionally excluded here: Home's Techniques tab is now
+            // progression-gated as 'home-nav-techniques' (see HomeController /
+            // HomeScreenUxmlTests), not a static 'go-techniques' navigator. Profile
+            // and Practice's back action are unaffected, still real 'go-techniques'
+            // navigators (Profile's dock is the intentional "developer route" that
+            // can still reach Map/Techniques before Level 1 unlocks; see
+            // MapLevelPreviewController's Start Lesson lock for that case).
             foreach (var elsewhere in new (string screenId, string navName)[]
             {
-                ("menu", "go-techniques"),
                 ("profile", "go-techniques"),
                 ("practice", "go-techniques"),
             })

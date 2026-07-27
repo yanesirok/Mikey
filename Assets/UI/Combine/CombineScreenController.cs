@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using Mikey.UI.Progression;
+using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -37,6 +39,9 @@ namespace Mikey.UI.Combine
         private VisualElement _itemsContainer;
         private VisualElement _devBar;
 
+        private IScreenNavigator _navigator;
+        private ITutorialProgress _progress;
+
         private Coroutine _bindRoutine;
         private bool _bound;
 
@@ -64,6 +69,8 @@ namespace Mikey.UI.Combine
             _stateViews.Clear();
             _itemsContainer = null;
             _devBar = null;
+            _navigator = null;
+            _progress = null;
             _bound = false;
         }
 
@@ -108,6 +115,13 @@ namespace Mikey.UI.Combine
             // returns to loading). Independent of the dev-only switcher.
             BindButton(root, "combine-retry", () => _viewModel.SetState(CombineState.Loading));
 
+            _navigator = GetComponent<IScreenNavigator>();
+            _progress = GetComponent<ITutorialProgress>();
+
+            // Ready-state progression actions.
+            BindButton(root, "combine-start-lvl1", OnStartLevel1);
+            BindButton(root, "combine-retry-assessment", OnRetryAssessment);
+
             WireDevControls(root);
 
             _viewModel.Changed += Render;
@@ -115,6 +129,36 @@ namespace Mikey.UI.Combine
             _bindRoutine = null;
 
             _viewModel.SetState(_initialState);
+        }
+
+        /// <summary>
+        /// "START LVL 1": marks the Combine (LVL0) assessment completed, unlocks
+        /// Level 1, then opens the Map. Uses the forward-only Advance so this is
+        /// safe to invoke more than once (e.g. a stray extra click) without any
+        /// unexpected side effect.
+        /// </summary>
+        private void OnStartLevel1()
+        {
+            _progress?.Advance(TutorialProgressState.CombineCompleted);
+            _progress?.Advance(TutorialProgressState.Level1Unlocked);
+            _navigator?.Show("map");
+        }
+
+        /// <summary>
+        /// "Retry Assessment": resets only the Combine (LVL0) portion of progress
+        /// (back to IntroCompleted, i.e. "briefed but not yet re-attempted") and
+        /// returns to the Combine briefing to redo it. Only resets when progress
+        /// hasn't moved past Combine yet — if Level 1 (or anything beyond it) has
+        /// already unlocked, retrying the LVL0 baseline must not silently wipe
+        /// that real progress, so the state is left untouched in that case
+        /// (never wipes progress without explicit confirmation, which this MVP
+        /// has no dialog system to present).
+        /// </summary>
+        private void OnRetryAssessment()
+        {
+            if (_progress != null && _progress.State <= TutorialProgressState.CombineCompleted)
+                _progress.SetState(TutorialProgressState.IntroCompleted);
+            _navigator?.Show("combineIntro");
         }
 
         private void WireDevControls(VisualElement root)

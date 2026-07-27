@@ -336,3 +336,47 @@
 .home-tab--locked {
     opacity: 0.6;
 }
+
+/* ---------- development-only tutorial-progression switcher ----------
+   Hidden by HomeController outside the Editor / a Development Build.
+   Compact and visually separate from production UI: pinned to the top-right
+   corner (clear of the hero CTA and the bottom dock), wraps on narrow widths.
+   Mirrors Combine/Combine.uss's ".combine-devbar" pattern, scoped here since
+   Home.uss is its own modular stylesheet. */
+.home-devbar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    max-width: 320px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    background-color: rgba(0, 0, 0, 0.55);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 12px;
+    padding: 6px;
+}
+.home-devbar__label {
+    width: 100%;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ember);
+    margin: 0 4px 4px;
+    -unity-text-align: middle-right;
+}
+.home-devbtn {
+    margin: 3px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--line);
+    background-color: var(--base-3);
+    color: var(--bone);
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+.home-devbtn:hover {
+    border-color: var(--bone);
+}

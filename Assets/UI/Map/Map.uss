@@ -360,3 +360,10 @@
     letter-spacing: 1px;
     color: var(--bone);
 }
+
+/* Locked state (Level 1 not yet unlocked via Combine completion) for a
+   developer-route Map visit: dims the existing CTA in place. No layout,
+   composition, or asset change — same dimming idiom as .tq-lesson--locked. */
+.map-detail__cta--locked {
+    opacity: 0.5;
+}

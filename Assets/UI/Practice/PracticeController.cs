@@ -1,4 +1,5 @@
 using System.Collections;
+using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -51,6 +52,7 @@ namespace Mikey.UI.Practice
         private Button _complete;
 
         private IScreenNavigator _navigator;
+        private ITutorialProgress _progress;
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -87,6 +89,8 @@ namespace Mikey.UI.Practice
                 _navigator.ScreenChanged -= OnScreenEntered;
                 _navigator = null;
             }
+
+            _progress = null;
 
             _score = null;
             _cueText = null;
@@ -146,14 +150,17 @@ namespace Mikey.UI.Practice
             if (_navigator != null)
                 _navigator.ScreenChanged += OnScreenEntered;
 
+            _progress = GetComponent<ITutorialProgress>();
+
             _bound = true;
             _bindRoutine = null;
 
             // Establish the initial view. If practice is already the shown screen at
-            // bind time, treat it as an entry and reset; otherwise render the current
-            // (fresh, Ready) state so the HUD reads its starting baseline.
+            // bind time, treat it as an entry (reset + mark LessonStarted); otherwise
+            // render the current (fresh, Ready) state so the HUD reads its starting
+            // baseline.
             if (_navigator != null && IsPracticeEntry(_navigator.CurrentScreen))
-                _model.Reset();
+                OnScreenEntered(_navigator.CurrentScreen);
             else
                 Render();
         }
@@ -163,8 +170,11 @@ namespace Mikey.UI.Practice
         private void OnCompleteClicked()
         {
             // Completion is gated: only navigate once the session is actually complete.
-            if (_model.CanComplete)
-                _navigator?.Show(CompleteTarget);
+            if (!_model.CanComplete)
+                return;
+
+            _progress?.Advance(TutorialProgressState.LessonCompleted);
+            _navigator?.Show(CompleteTarget);
         }
 
         /// <summary>
@@ -174,8 +184,15 @@ namespace Mikey.UI.Practice
         /// </summary>
         private void OnScreenEntered(string screenId)
         {
-            if (IsPracticeEntry(screenId))
-                _model.Reset();
+            if (!IsPracticeEntry(screenId))
+                return;
+
+            _model.Reset();
+
+            // "Starting Front Stance" = entering the Practice screen. Advance is
+            // forward-only, so re-entering practice after already completing the
+            // lesson (e.g. to replay it) never regresses progress.
+            _progress?.Advance(TutorialProgressState.LessonStarted);
         }
 
         /// <summary>Pure entry predicate: true only for an exact practice entry. Unit-tested.</summary>

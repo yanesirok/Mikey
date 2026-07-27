@@ -1,4 +1,5 @@
 using System.Collections;
+using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -39,6 +40,7 @@ namespace Mikey.UI.CameraTest
         private Button _simulate;
 
         private IScreenNavigator _navigator;
+        private ITutorialProgress _progress;
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -73,6 +75,8 @@ namespace Mikey.UI.CameraTest
                 _navigator.ScreenChanged -= OnScreenEntered;
                 _navigator = null;
             }
+
+            _progress = null;
 
             _repCount = null;
             _statusText = null;
@@ -128,14 +132,17 @@ namespace Mikey.UI.CameraTest
             if (_navigator != null)
                 _navigator.ScreenChanged += OnScreenEntered;
 
+            _progress = GetComponent<ITutorialProgress>();
+
             _bound = true;
             _bindRoutine = null;
 
             // Establish the initial view. If camTest is already the shown screen at
-            // bind time, treat it as an entry and reset; otherwise just render the
-            // current (fresh, 0-rep) state so the HUD reads 0 / "Align in frame".
+            // bind time, treat it as an entry (reset + mark CombineStarted);
+            // otherwise just render the current (fresh, 0-rep) state so the HUD
+            // reads 0 / "Align in frame".
             if (_navigator != null && IsCamTestEntry(_navigator.CurrentScreen))
-                _model.Reset();
+                OnScreenEntered(_navigator.CurrentScreen);
             else
                 Render();
         }
@@ -147,8 +154,17 @@ namespace Mikey.UI.CameraTest
         /// </summary>
         private void OnScreenEntered(string screenId)
         {
-            if (IsCamTestEntry(screenId))
-                _model.Reset();
+            if (!IsCamTestEntry(screenId))
+                return;
+
+            _model.Reset();
+
+            // "Starting Combine" = arriving at the interactive Camera Test (the
+            // briefing screen is just a CTA). Advance is forward-only, so
+            // re-entering camTest after progress has already moved past this
+            // point (e.g. via Profile's dock or a developer control) never
+            // regresses it.
+            _progress?.Advance(TutorialProgressState.CombineStarted);
         }
 
         /// <summary>Pure entry predicate: true only for an exact camTest entry. Unit-tested.</summary>
