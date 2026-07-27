@@ -577,108 +577,142 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 9 - MAP (full-viewport landscape selected-level presentation: checkpoints
-             and route drawn directly over the map; Okinawa opens the docked
-             right-side level-detail panel) -->
+        <!-- 9 - MAP (full-viewport cinematic Map presentation rebuilt from the
+             approved reference: checkpoints + route drawn directly over the map;
+             Okinawa opens a docked, full-height right-side cinematic preview panel
+             with title/description/stats/CTA laid over the video itself) -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
-            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper.
+                 Only the static image + legibility scrim remain: the old
+                 translucent red/green "territory shape" glows were removed —
+                 they never matched the approved reference's dark, monochrome
+                 fog-over-ink-map treatment. -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
                 <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
-                <ui:VisualElement class="map-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="map-ink-wash" picking-mode="Ignore" />
                 <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-layout">
 
-                <!-- LEFT: the map stage — no dashboard chrome, no city-card list.
-                     Checkpoints + route line sit directly over the full-bleed map;
-                     fills all remaining width once the docked panel takes its ~37%. -->
+                <!-- LEFT: the map stage (~61.7%) — a clean cinematic map: no
+                     dashboard chrome, no city cards, no badges. Checkpoints are
+                     simple dots + plain labels; the route is a multi-segment line,
+                     both drawn directly over the map, never baked into the image. -->
                 <ui:VisualElement class="map-stage">
 
-                    <!-- one minimal, unobtrusive way back to Home (replaces the old
-                         large 4-tab dock for this selected-level presentation) -->
+                    <!-- one minimal, unobtrusive way back to Home: plain text, no
+                         pill/box styling, so it never competes with the map. -->
                     <ui:Button name="go-menu" class="map-home tap-target">
                         <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
                     </ui:Button>
 
-                    <!-- route line: simple segments connecting checkpoint centers,
-                         never baked into the map background -->
+                    <!-- route line: several short rotated segments approximating the
+                         reference's curved trail (Okinawa -> Tonokku -> Kanto ->
+                         future checkpoint), never baked into the map background. -->
                     <ui:VisualElement class="map-route-seg map-route-seg--1" picking-mode="Ignore" />
                     <ui:VisualElement class="map-route-seg map-route-seg--2" picking-mode="Ignore" />
                     <ui:VisualElement class="map-route-seg map-route-seg--3" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-route-seg map-route-seg--4" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-route-seg map-route-seg--5" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-route-seg map-route-seg--6" picking-mode="Ignore" />
 
-                    <!-- Okinawa — the red, available/selected checkpoint. Local
-                         checkpoint-select action (NOT a "go-" navigator):
-                         MapLevelPreviewController opens the docked level-detail panel
+                    <!-- Okinawa — a simple solid red dot with a subtle glow (no card,
+                         no square backing, no kanji badge) and a plain text label.
+                         Local checkpoint-select action (NOT a "go-" navigator):
+                         MapLevelPreviewController opens the docked cinematic panel
                          and starts the inline preview; the panel's own "START LESSON"
-                         action is what routes to the Techniques hub. Turns to the
-                         active-selected ring state (the runtime-only "selected"
-                         modifier on MapLevelPreviewController) once chosen. -->
-                    <ui:Button name="map-node-okinawa" class="map-pin map-pin--okinawa map-pin--current tap-target-lg">
-                        <ui:Label text="空" class="map-pin__glyph" picking-mode="Ignore" />
+                         action is what routes to the Techniques hub. The glow
+                         brightens via the runtime-only "selected" modifier once
+                         chosen. -->
+                    <ui:Button name="map-node-okinawa" class="map-pin map-pin--okinawa map-pin--current tap-target">
+                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
+                            <ui:VisualElement class="map-pin__glow" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-pin__dot" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="OKINAWA" class="map-pin__label" picking-mode="Ignore" />
                     </ui:Button>
 
-                    <!-- Tonokku / Kanto / future checkpoint — honestly locked
-                         ("Coming Soon"), NOT navigators (no go- name), non-interactive
-                         (picking ignored), so they can never open Okinawa or start a
-                         lesson. -->
+                    <!-- Tonokku / Kanto — simple muted/white dots with plain labels,
+                         honestly locked (no "SOON" capsule, no badge), NOT navigators
+                         (no go- name), non-interactive (picking ignored), so they can
+                         never open Okinawa or start a lesson. -->
                     <ui:VisualElement class="map-pin map-pin--tonokku map-pin--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-pin__glyph" picking-mode="Ignore" />
-                        <ui:Label text="TONOKKU" class="map-pin__label map-pin__label--locked" picking-mode="Ignore" />
-                        <ui:Label text="SOON" class="map-pin__badge" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
+                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="TONOKKU" class="map-pin__label" picking-mode="Ignore" />
                     </ui:VisualElement>
                     <ui:VisualElement class="map-pin map-pin--kanto map-pin--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-pin__glyph" picking-mode="Ignore" />
-                        <ui:Label text="KANTO" class="map-pin__label map-pin__label--locked" picking-mode="Ignore" />
-                        <ui:Label text="SOON" class="map-pin__badge" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
+                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="KANTO" class="map-pin__label" picking-mode="Ignore" />
                     </ui:VisualElement>
+
+                    <!-- future/northern checkpoint — a muted point only; no label
+                         (matches the approved reference, where this point sits at
+                         the map's edge and its label is cropped). -->
                     <ui:VisualElement class="map-pin map-pin--future map-pin--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-pin__glyph" picking-mode="Ignore" />
-                        <ui:Label text="?" class="map-pin__label map-pin__label--locked" picking-mode="Ignore" />
-                        <ui:Label text="SOON" class="map-pin__badge" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-pin__marker" picking-mode="Ignore">
+                            <ui:VisualElement class="map-pin__dot map-pin__dot--locked" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- RIGHT: Okinawa level-detail panel, docked flush against the top,
-                     right and bottom edges (an inline preview, NOT a full-screen
-                     background — see Media/BackgroundMediaController.cs for the
-                     separate full-bleed video system that stays untouched here).
+                <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush
+                     against the top, right and bottom edges. One full-height video
+                     with layered dark overlays over its lower portion — title,
+                     description, stats and the CTA sit directly on top of the video
+                     (there is no separate solid-black content panel below it).
                      Hidden by default (Map.uss ".map-detail" has display:none);
-                     MapLevelPreviewController shows it (adds the "open" modifier) when
-                     the Okinawa checkpoint pin above is selected, and drives the
-                     inline video's lifecycle independently of the map background. -->
+                     MapLevelPreviewController shows it (adds the "open" modifier)
+                     when the Okinawa checkpoint pin above is selected, and drives the
+                     inline video's lifecycle independently of the map background
+                     (see Media/BackgroundMediaController.cs for the separate
+                     full-bleed system that stays untouched here). -->
                 <ui:VisualElement name="map-detail" class="map-detail">
-                    <ui:VisualElement class="map-detail__preview">
-                        <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
-                        <ui:VisualElement class="map-detail__video-scrim" picking-mode="Ignore" />
-                        <!-- safe static fallback: shown instead of the video if it cannot load -->
-                        <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
-                        <ui:Button name="map-detail-close" class="map-detail__close tap-target">
-                            <ui:Label text="✕" class="map-detail__close-icon" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
+                    <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
 
-                    <ui:VisualElement class="map-detail__body">
+                    <!-- layered dark overlays approximating the reference's gradient
+                         (USS has no linear-gradient support): a subtle overall tint
+                         plus two stronger bands anchored to the bottom, so scenery
+                         stays visible behind the upper portion of the video while the
+                         lower information area stays readable. -->
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--1" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--2" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--3" picking-mode="Ignore" />
+
+                    <!-- safe static fallback: shown instead of the video if it cannot load -->
+                    <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
+
+                    <!-- minimal, unobtrusive close action: plain text, no button
+                         pill/circle behind it, so it never reads as a large control
+                         over the video. -->
+                    <ui:Button name="map-detail-close" class="map-detail__close tap-target">
+                        <ui:Label text="✕" class="map-detail__close-icon" picking-mode="Ignore" />
+                    </ui:Button>
+
+                    <!-- title / subtitle / description / stats / CTA — real UI
+                         Toolkit elements laid directly over the video + overlays,
+                         anchored to the lower portion of the panel. -->
+                    <ui:VisualElement class="map-detail__content">
                         <ui:Label text="OKINAWA" class="map-detail__title" />
                         <ui:Label text="Where it all began" class="map-detail__subtitle" />
                         <ui:Label text="Here you will master stance, breathing, and the first strike." class="map-detail__desc" />
 
                         <ui:VisualElement class="map-detail__stats">
                             <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="4" class="map-detail__stat-value" />
                                 <ui:Label text="LESSONS" class="map-detail__stat-label" />
+                                <ui:Label text="4" class="map-detail__stat-value" />
                             </ui:VisualElement>
                             <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="3" class="map-detail__stat-value" />
                                 <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
+                                <ui:Label text="3" class="map-detail__stat-value" />
                             </ui:VisualElement>
                             <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="2 / 4" class="map-detail__stat-value" />
-                                <ui:Label text="COMPLETED" class="map-detail__stat-label" />
+                                <ui:Label text="2 / 4 COMPLETED" class="map-detail__stat-value" />
                             </ui:VisualElement>
                         </ui:VisualElement>
 
@@ -687,7 +721,6 @@
                              IScreenNavigator to the 'techniques' screen. -->
                         <ui:Button name="map-detail-start" class="map-detail__cta tap-target-lg">
                             <ui:Label text="START LESSON" class="map-detail__cta-text" picking-mode="Ignore" />
-                            <ui:Label text="›" class="map-icon map-icon--action map-detail__cta-icon" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>

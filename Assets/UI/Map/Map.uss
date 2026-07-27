@@ -1,28 +1,31 @@
 /* ============================================================
-   Map — full-viewport landscape "selected-level" screen styles.
-   Palette custom properties (--ember, --seal, --bone, --base, …) cascade
-   in from .mikey-app in theme.uss; this file only adds Map-specific
-   structure so the screen stays modular (same pattern as Home/Home.uss,
+   Map — full-viewport cinematic Map presentation, rebuilt from the
+   approved reference (map_okinawa_approved_reference.jpg). Palette custom
+   properties (--ember, --seal, --bone, --base, …) cascade in from
+   .mikey-app in theme.uss; this file only adds Map-specific structure so
+   the screen stays modular (same pattern as Home/Home.uss,
    Techniques/Techniques.uss, CombineIntro/CombineIntro.uss).
 
-   Approved design: the map itself fills the left ~62-64% of the full
-   viewport (no centered/max-width container, no large outer margins);
-   checkpoints and the route line sit directly over the map (never baked
-   into the background image); a docked, flush right-side panel (~36-38%)
-   shows the Okinawa level detail — hidden until a checkpoint is selected,
-   at which point MapLevelPreviewController shows it and starts its inline
-   preview. Replaces the earlier "roadmap dashboard" composition (left hub
-   card + vertical city-card list + big 4-tab dock), which read as a
-   generic desktop web layout rather than the approved full-bleed map.
+   Baseline composition is 1280x720: the map fills the left ~61.7% (x
+   0-790) and the Okinawa cinematic panel is docked flush against the
+   right ~38.3% (x 790-1280), both full height. Checkpoints and the route
+   line sit directly over the map (never baked into the background image)
+   as simple dots + plain labels — no cards, no badges, no "SOON" pills.
+   The right panel is ONE full-height preview video with layered dark
+   overlays over its lower portion; title/description/stats/CTA sit
+   directly on top of the video, not in a separate solid content panel
+   below it. Percentage-based layout scales the composition at
+   1920x1080 / 2400x1080; font sizes stay fixed px (UI Toolkit has no
+   fluid/viewport-relative typography), sized to the 1280x720 baseline.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .home-bg / .tq-bg / .cam-feed on the other screens. Solid base + a soft
-   ink wash stands in for the painted Asia/Japan map art (which lands later),
-   mirroring the reference's radial-gradient ink map. Untouched by the
-   layout correction — the Map background stays the same full-bleed static
-   image driven by BackgroundMediaController. */
+   .home-bg / .tq-bg / .cam-feed on the other screens. Untouched asset,
+   driven by BackgroundMediaController; only a dark/fog legibility scrim
+   sits over it now — the old translucent red/green "territory shape"
+   glows were removed (they never matched the approved reference's dark
+   monochrome ink-map treatment). */
 .map-bg {
     position: absolute;
     top: 0;
@@ -32,49 +35,16 @@
     background-color: var(--base);
     align-items: center;
 }
-.map-glow {
-    position: absolute;
-    top: -160px;
-    width: 760px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.06);
-}
-.map-ink-wash {
-    position: absolute;
-    bottom: -140px;
-    left: -80px;
-    width: 560px;
-    height: 560px;
-    border-radius: 280px;
-    background-color: rgba(43, 217, 168, 0.04);
-}
 
-/* Dark/fog legibility overlay over the map so checkpoint labels and the
-   route line keep contrast against the painted art. */
+/* Dark/fog legibility overlay over the map so checkpoint dots, labels and
+   the route line keep contrast against the painted art. */
 .map-scrim {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(11, 14, 17, 0.3);
-}
-
-/* ---------- reusable visible-icon kit (Map-scoped) ----------
-   Sizes the rendered glyph itself, independently of the button hit area.
-   Every icon is non-shrinking and centered so flex never collapses the
-   artwork, even at phone-landscape sizes. Mirrors Home's .home-icon and
-   Techniques' .tq-icon kits. */
-.map-icon {
-    flex-shrink: 0;
-    align-self: center;
-    -unity-text-align: middle-center;
-    -unity-font-style: normal;
-}
-.map-icon--action {
-    /* action arrows / icons: 32-40px target */
-    font-size: 28px;
+    background-color: rgba(11, 14, 17, 0.32);
 }
 
 /* ---------- touch-target kit (Map-scoped) ----------
@@ -106,8 +76,8 @@
 /* ---------- full-viewport two-region layout ----------
    No centered/max-width container, no outer side margins: the map stage
    grows to fill whatever width the docked detail panel doesn't take, so
-   the ~63/37 split holds at any viewport width (1920x1080, 2400x1080, …)
-   instead of staying capped at a fixed desktop-webpage width. */
+   the ~61.7/38.3 split (per the approved reference) holds at any
+   viewport width (1280x720, 1920x1080, 2400x1080, …). */
 .map-layout {
     flex-grow: 1;
     width: 100%;
@@ -115,10 +85,10 @@
     align-items: stretch;
 }
 
-/* LEFT — the map stage: checkpoints and the route line are drawn directly
-   over the full-bleed map background (never baked into the image), plus
-   one small, unobtrusive way back to Home. Fills all remaining width once
-   the docked panel (fixed %) takes its share. */
+/* LEFT (~61.7%) — the map stage: checkpoints and the route line are drawn
+   directly over the full-bleed map background (never baked into the
+   image), plus one small, unobtrusive way back to Home. Fills all
+   remaining width once the docked panel (fixed %) takes its share. */
 .map-stage {
     position: relative;
     flex-grow: 1;
@@ -127,182 +97,178 @@
     min-width: 0;
 }
 
-/* Small, unobtrusive Home affordance (replaces the old large 4-tab dock
-   for this selected-level presentation). */
+/* Small, unobtrusive Home affordance: plain text, no pill/box background,
+   so it never competes with the cinematic map. */
 .map-home {
     position: absolute;
-    top: 18px;
-    left: 18px;
-    flex-direction: row;
-    align-items: center;
-    padding: 0 14px;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.55);
-}
-.map-home:hover {
-    border-color: var(--bone);
+    top: 16px;
+    left: 16px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 4px 6px;
 }
 .map-home__icon {
+    color: rgba(237, 230, 216, 0.7);
+    font-size: 15px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+}
+.map-home:hover .map-home__icon {
     color: var(--bone);
-    font-size: 20px;
 }
 
 /* ---------- route line ----------
-   Simple straight segments connecting checkpoint centers, positioned as a
-   percentage of the map stage (approximate at the 1920x1080 reference
-   proportions — starting positions only, easy to retune alongside the
-   .map-pin-- coordinates below). Never baked into the map background. */
+   Several short rotated segments approximating the reference's curved
+   trail (straight segments only — UI Toolkit has no curve primitive),
+   positioned as a percentage of the map stage (starting positions only,
+   easy to retune alongside the .map-pin-- coordinates below). Never
+   baked into the map background. Thin, plain white line — no glow. */
 .map-route-seg {
     position: absolute;
-    height: 3px;
-    background-color: rgba(237, 230, 216, 0.55);
+    height: 2px;
+    background-color: rgba(237, 230, 216, 0.85);
     translate: -50% -50%;
 }
-/* Okinawa -> Tonokku */
+/* Okinawa -> waypoint (steep initial rise) */
 .map-route-seg--1 {
-    left: 37%;
-    top: 58%;
-    width: 30%;
-    rotate: -48deg;
+    left: 30.5%;
+    top: 61.5%;
+    width: 14%;
+    rotate: -69deg;
 }
-/* Tonokku -> Kanto */
+/* waypoint -> Tonokku (levels off) */
 .map-route-seg--2 {
-    left: 59.5%;
-    top: 42.5%;
-    width: 27%;
-    rotate: -20deg;
+    left: 40%;
+    top: 50.5%;
+    width: 17%;
+    rotate: -33deg;
 }
-/* Kanto -> future checkpoint */
+/* Tonokku -> waypoint (gentle rise) */
 .map-route-seg--3 {
-    left: 82%;
-    top: 28%;
-    width: 28%;
-    rotate: -45deg;
+    left: 53.5%;
+    top: 45%;
+    width: 13%;
+    rotate: -9deg;
+}
+/* waypoint -> Kanto */
+.map-route-seg--4 {
+    left: 67.5%;
+    top: 41%;
+    width: 16%;
+    rotate: -22deg;
+}
+/* Kanto -> waypoint (steeper) */
+.map-route-seg--5 {
+    left: 79.5%;
+    top: 32.5%;
+    width: 14%;
+    rotate: -51deg;
+}
+/* waypoint -> future checkpoint */
+.map-route-seg--6 {
+    left: 88.5%;
+    top: 20.5%;
+    width: 16%;
+    rotate: -55deg;
 }
 
-/* ---------- checkpoints (pins) directly over the map ----------
-   Coordinates are percentages of the map stage box, centered on the pin via
-   translate(-50%,-50%) — starting positions only, kept in USS (not baked
-   into the background image or hardcoded in C#) so they stay easy to
-   retune. */
+/* ---------- checkpoints (simple dots + plain labels) ----------
+   Coordinates are percentages of the map stage box, centered on the pin
+   via translate(-50%,-50%) — starting positions only, kept in USS (not
+   baked into the background image or hardcoded in C#) so they stay easy
+   to retune. No cards, no square backing, no "SOON" capsules. */
 .map-pin {
     position: absolute;
     translate: -50% -50%;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
 }
 .map-pin--okinawa {
-    left: 27%;
-    top: 69%;
+    left: 28%;
+    top: 68%;
 }
 .map-pin--tonokku {
     left: 47%;
-    top: 47%;
+    top: 46%;
 }
 .map-pin--kanto {
-    left: 72%;
+    left: 75%;
     top: 38%;
 }
 .map-pin--future {
-    left: 92%;
-    top: 18%;
+    left: 93%;
+    top: 14%;
 }
 
-.map-pin__glyph {
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
-    border-width: 2px;
+/* the dot + its optional glow live in a small fixed-size marker so the
+   glow can be centered behind the dot without disturbing label layout */
+.map-pin__marker {
+    position: relative;
+    width: 18px;
+    height: 18px;
     align-items: center;
     justify-content: center;
-    -unity-text-align: middle-center;
-    font-size: 22px;
+}
+.map-pin__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
 }
 .map-pin__label {
-    margin-top: 6px;
-    font-size: 12px;
+    margin-left: 10px;
+    font-size: 20px;
     -unity-font-style: bold;
-    letter-spacing: 1px;
     color: var(--bone);
-    -unity-text-align: upper-center;
-}
-.map-pin__badge {
-    margin-top: 2px;
-    font-size: 9px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
-    border-radius: 6px;
-    padding: 1px 6px;
-    -unity-text-align: middle-center;
+    -unity-text-align: middle-left;
 }
 
-/* current/available (Okinawa) — the red checkpoint; clickable. */
-.map-pin--current .map-pin__glyph {
+/* current/available (Okinawa) — a solid red dot with a subtle glow;
+   brightens when actively selected (panel open). */
+.map-pin--current .map-pin__dot {
     background-color: var(--seal);
-    border-color: var(--bone);
-    color: var(--bone);
 }
-.map-pin--current:hover .map-pin__glyph {
-    background-color: #D95A3C;
+.map-pin__glow {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    background-color: rgba(200, 71, 46, 0.32);
 }
-/* actively selected (panel open) — brighter ring so the active checkpoint
-   reads as distinct from merely "available". Toggled at runtime by
-   MapLevelPreviewController (SelectCheckpoint / ClosePanel). */
-.map-pin--current.map-node--selected .map-pin__glyph {
-    border-color: var(--ember);
-    border-width: 3px;
-}
-
-/* locked (Tonokku / Kanto / future) — white/muted, non-interactive,
-   honestly "coming soon"; never startable. */
-.map-pin--locked .map-pin__glyph {
-    background-color: rgba(237, 230, 216, 0.14);
-    border-color: rgba(237, 230, 216, 0.4);
-    color: var(--muted);
-}
-.map-pin__label--locked {
-    color: var(--muted);
+.map-node--selected .map-pin__glow {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background-color: rgba(200, 71, 46, 0.55);
 }
 
-/* ---------- Okinawa level-detail panel (docked right side) ----------
+/* locked (Tonokku / Kanto / future) — small muted/white dots, never
+   interactive, never a card or badge. */
+.map-pin__dot--locked {
+    background-color: rgba(237, 230, 216, 0.75);
+}
+
+/* ---------- Okinawa cinematic preview panel (docked right side) ----------
    Opens when the Okinawa checkpoint pin is selected (MapLevelPreviewController
    toggles ".map-detail--open"); hidden by default so the stage fills the
-   full viewport until a checkpoint is chosen. Docked flush against the top,
-   right and bottom edges (no outer margin, square edges, dark charcoal
-   background) rather than a floating rounded card. Conceptually separate
-   from the full-bleed .map-bg / BackgroundMediaController video system:
-   this is an inline, in-panel preview, never a full-screen background. */
+   full viewport until a checkpoint is chosen. Docked flush against the
+   top, right and bottom edges (no outer margin, square edges). ONE
+   full-height video with layered dark overlays over its lower portion —
+   there is no separate solid-black content container below it; the
+   title/description/stats/CTA sit directly on top of the video. */
 .map-detail {
     display: none;
-    flex-direction: column;
+    position: relative;
     flex-shrink: 0;
-    width: 37%;
-    min-width: 460px;
+    width: 38.3%;
+    min-width: 440px;
     background-color: var(--base);
-    border-left-width: 1px;
-    border-left-color: var(--line);
     overflow: hidden;
 }
 .map-detail--open {
     display: flex;
 }
 
-/* upper portion: inline looping preview video + legibility scrim + fallback.
-   Percentage height (not a fixed px) so it stays ~42-48% of the panel at
-   any viewport height; full panel width, centered scale-and-crop so the
-   portrait (1080x1920) source crops top/bottom rather than left/right,
-   keeping the subject visible instead of a narrow banner. */
-.map-detail__preview {
-    position: relative;
-    width: 100%;
-    height: 46%;
-    flex-shrink: 0;
-    background-color: var(--base-2);
-    overflow: hidden;
-}
+/* full-height, full-width preview video (never a banner) */
 .map-detail__video {
     position: absolute;
     top: 0;
@@ -312,18 +278,32 @@
     background-color: var(--base-2);
     -unity-background-scale-mode: scale-and-crop;
 }
-/* Dark scrim over the preview so any future overlaid text stays readable;
-   USS has no linear-gradient support here, so (mirroring .map-scrim
-   elsewhere) this is a flat semi-transparent layer rather than a true
-   gradient. */
-.map-detail__video-scrim {
+
+/* Layered dark overlays approximating the reference's gradient (USS has
+   no linear-gradient support): a subtle overall tint so the whole frame
+   reads a little darker/moodier, plus two stronger bands anchored to the
+   bottom covering roughly the lower 55-65% of the panel, so scenery stays
+   visible behind the upper portion of the video while the information
+   area at the bottom stays readable. */
+.map-detail__overlay {
     position: absolute;
-    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
+}
+.map-detail__overlay--1 {
+    top: 0;
     background-color: rgba(11, 14, 17, 0.18);
 }
+.map-detail__overlay--2 {
+    height: 65%;
+    background-color: rgba(11, 14, 17, 0.4);
+}
+.map-detail__overlay--3 {
+    height: 38%;
+    background-color: rgba(11, 14, 17, 0.72);
+}
+
 /* safe static fallback: shown instead of the video if it cannot load */
 .map-detail__video-fallback {
     display: none;
@@ -343,88 +323,89 @@
 .map-detail__video-fallback--visible {
     display: flex;
 }
-/* small, visually unobtrusive close control */
+
+/* minimal, unobtrusive close action: plain text, no button pill/circle
+   behind it, so it never reads as a large control over the video. */
 .map-detail__close {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 30px;
-    height: 30px;
-    flex-shrink: 0;
-    border-radius: 15px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.55);
-    align-items: center;
-    justify-content: center;
+    top: 14px;
+    right: 16px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 2px 6px;
 }
 .map-detail__close-icon {
-    font-size: 13px;
+    font-size: 16px;
+    color: rgba(237, 230, 216, 0.6);
+}
+.map-detail__close:hover .map-detail__close-icon {
     color: var(--bone);
 }
 
-/* lower portion: title / subtitle / description / stats / CTA — real UI
-   Toolkit elements, never baked into the video. */
-.map-detail__body {
-    flex-direction: column;
+/* title / subtitle / description / stats / CTA — real UI Toolkit elements
+   laid directly over the video + overlays (no background of its own),
+   anchored to the lower portion of the panel via flex + padding rather
+   than absolute pixel coordinates, so it stays in the "middle/lower
+   section" at both the 720 and 1080 baseline heights. */
+.map-detail__content {
+    position: relative;
     flex-grow: 1;
-    padding: 20px 22px 22px;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 40px 60px 58px;
 }
 .map-detail__title {
-    font-size: 30px;
+    font-size: 46px;
     -unity-font-style: bold;
     letter-spacing: 2px;
     color: var(--seal);
 }
 .map-detail__subtitle {
-    font-size: 13px;
+    font-size: 15px;
     color: var(--bone);
     letter-spacing: 1px;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 .map-detail__desc {
-    font-size: 13px;
-    color: var(--muted);
+    font-size: 14px;
+    color: rgba(237, 230, 216, 0.8);
     white-space: normal;
-    margin-top: 12px;
+    max-width: 380px;
+    margin-top: 14px;
 }
 .map-detail__stats {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 18px;
+    flex-direction: column;
+    margin-top: 20px;
 }
 .map-detail__stat {
-    flex-direction: column;
-    align-items: flex-start;
-    margin-right: 26px;
-    margin-bottom: 8px;
-}
-.map-detail__stat-value {
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: var(--bone);
+    flex-direction: row;
+    align-items: baseline;
+    margin-bottom: 6px;
 }
 .map-detail__stat-label {
-    font-size: 10px;
+    font-size: 13px;
     letter-spacing: 1px;
-    color: var(--muted);
-    margin-top: 2px;
+    color: rgba(237, 230, 216, 0.65);
+}
+.map-detail__stat-value {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-left: 16px;
 }
 
-/* Start Lesson: left-aligned, content-width (not a full-width stretched
-   bar), dark-red/red treatment. */
+/* Start Lesson: fixed baseline size (~200x60 at 1280x720), left-aligned,
+   dark-red/vermilion treatment, never full-width. */
 .map-detail__cta {
     align-self: flex-start;
     flex-direction: row;
-    flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 52%;
-    min-width: 200px;
-    min-height: 56px;
-    margin-top: 22px;
-    padding: 0 22px;
-    border-radius: 10px;
+    width: 200px;
+    height: 60px;
+    margin-top: 24px;
+    padding: 0 18px;
+    border-radius: 6px;
     border-width: 1px;
     border-color: var(--seal);
     background-color: var(--seal);
@@ -437,8 +418,4 @@
     -unity-font-style: bold;
     letter-spacing: 1px;
     color: var(--bone);
-}
-.map-detail__cta-icon {
-    color: var(--bone);
-    margin-left: 10px;
 }
