@@ -186,19 +186,31 @@ public static class BambooArena
         int cardTris = cardsMesh.triangles.Length / 3;
         int foliageTris = foliageMesh.triangles.Length / 3;
         int scanTris = scanMesh.triangles.Length / 3;
-        Debug.Log($"BambooArena: timber {timberMesh.triangles.Length / 3} tris, " +
+        int timberTris = timberMesh.triangles.Length / 3;
+        int groundTris = groundMesh.triangles.Length / 3;
+        int arenaTris = timberTris + bambooTris + cardTris + foliageTris + groundTris + scanTris;
+        Debug.Log($"BambooArena: timber {timberTris} tris, " +
                   $"bamboo {bambooTris}, cards {cardTris}, vegetation {foliageTris}, " +
-                  $"ground {groundMesh.triangles.Length / 3}, scan {scanTris}.");
+                  $"ground {groundTris}, scan {scanTris}, arena {arenaTris}.");
 
-        // The grove is the frame's budget, and the ceiling was raised to ~115k for the arena
-        // deliberately, to buy three times the culms. These numbers catch a regression; they do
-        // not police the art decision. If a phone disagrees, cut the tier-2 and tier-3 cards
-        // first — they buy the least picture per shaded pixel — and the near foliage last.
-        // The card mesh carries bank grass as well as the far tiers' foliage now, so its ceiling
-        // is no longer the one set when it held only bamboo.
-        if (bambooTris > 95000 || cardTris > 16000 || foliageTris > 30000)
+        // The ceiling is the whole arena, because that is what a phone draws. It was stated as
+        // ~115k for a long time and enforced nowhere: the per-mesh caps permitted 141k between
+        // them, never tested the timber or the ground, and computed the scanned foliage — a
+        // quarter of the frame — purely in order to log it. The arena sat at 133 552 with no
+        // error raised. Carding the near tier's crowns is what finally made the number meetable.
+        //
+        // These catch a regression; they do not police the art decision. If a phone disagrees,
+        // cut the tier-2 and tier-3 cards first — they buy the least picture per shaded pixel —
+        // and the near foliage last.
+        if (arenaTris > 115000)
+            Debug.LogError($"BambooArena: arena over budget — {arenaTris} tris (max 115000): " +
+                           $"timber {timberTris}, bamboo {bambooTris}, cards {cardTris}, " +
+                           $"vegetation {foliageTris}, ground {groundTris}, scan {scanTris}.");
+        // Per-mesh tripwires on the three a placement change can run away with. The card mesh
+        // carries bank grass and the near tier's crowns as well as the far tiers' foliage now.
+        if (bambooTris > 50000 || cardTris > 16000 || foliageTris > 30000)
             Debug.LogError($"BambooArena: grove over budget — {bambooTris} tris of culm " +
-                           $"(max 95000), {cardTris} of card (max 16000), {foliageTris} of " +
+                           $"(max 50000), {cardTris} of card (max 16000), {foliageTris} of " +
                            $"vegetation (max 30000).");
         return root;
     }
@@ -582,14 +594,20 @@ public static class BambooArena
         public readonly float LeafLength;  // metres, not a fraction of the culm
         public readonly int Cards;
         public readonly float CardSize;
+        /// <summary>Which atlas cells this tier's cards may draw, as a first cell and a count.
+        /// A property of the tier, not something to infer from the card count: the old rule —
+        /// two cards or fewer means the dense far-distance blob — would hand the near tier a
+        /// thirty-metre silhouette at six.</summary>
+        public readonly int CellFirst;
+        public readonly int CellCount;
         public readonly float RadiusMin;
         public readonly float RadiusMax;
         public readonly float HeightMin;
         public readonly float HeightMax;
 
         public Tier(int sides, float nodeSwell, int rings, int branchPairs, float leafLength,
-                    int cards, float cardSize, float radiusMin, float radiusMax,
-                    float heightMin, float heightMax)
+                    int cards, float cardSize, int cellFirst, int cellCount, float radiusMin,
+                    float radiusMax, float heightMin, float heightMax)
         {
             Sides = sides;
             NodeSwell = nodeSwell;
@@ -598,6 +616,8 @@ public static class BambooArena
             LeafLength = leafLength;
             Cards = cards;
             CardSize = cardSize;
+            CellFirst = cellFirst;
+            CellCount = cellCount;
             RadiusMin = radiusMin;
             RadiusMax = radiusMax;
             HeightMin = heightMin;
@@ -623,12 +643,19 @@ public static class BambooArena
     // of the larger leaf fill about the crown five pairs of the smaller one did, for 40% of the
     // triangles. Height is the one dimension left alone: it is set by where the frame ends, not by
     // what bamboo does, and scaling it would put the crowns back above the top of the picture.
-    //                                          sides swell rings pairs leaf  cards size   rMin    rMax    hMin  hMax
-    private static readonly Tier EdgeTier = new Tier(8, 0.09f,   0,    2, 0.315f, 0, 0f,    0.0975f, 0.146f, 9f,  14f);
-    private static readonly Tier NearTier = new Tier(6, 0f,      6,    2, 0.46f,  0, 0f,    0.039f, 0.107f,  4.5f, 8f);
-    private static readonly Tier MidTier  = new Tier(6, 0f,      2,    0, 0f,     3, 2.25f, 0.068f, 0.117f,  6f,  11f);
-    private static readonly Tier FarTier  = new Tier(6, 0f,      1,    0, 0f,     1, 3.4f,  0.068f, 0.117f,  8f,  15f);
-    private static readonly Tier ShootTier = new Tier(6, 0f,     6,    1, 0.34f,  0, 0f,    0.029f, 0.049f,  1.5f, 3f);
+    // The near tier carries no branches any more. Its crowns were 168 triangles a culm across 195
+    // culms — 32 760, forty-seven per cent of the whole grove — of twig and geometric blade, eight
+    // to eighteen metres from the lens, standing next to a photographed bark map that made every
+    // one of those blades read as a painted stroke. Two cards from the atlas replace them for
+    // 3 120. The frame edge keeps its geometry: there the crown is 12.7% of the culm's cost and it
+    // is four metres away, and EdgeTier.Rings is 0 only because NodeSwell is not — drop the swell
+    // without raising the rings and those six culms vanish from the mesh.
+    //                                          sides swell rings pairs leaf  cards size  cell0 cells rMin    rMax    hMin  hMax
+    private static readonly Tier EdgeTier = new Tier(8, 0.09f,   0,    2, 0.315f, 0, 0f,    0, 0, 0.0975f, 0.146f, 9f,  14f);
+    private static readonly Tier NearTier = new Tier(6, 0f,      6,    0, 0f,     2, 2.0f,  7, 2, 0.039f, 0.107f,  4.5f, 8f);
+    private static readonly Tier MidTier  = new Tier(6, 0f,      2,    0, 0f,     3, 2.25f, 0, 3, 0.068f, 0.117f,  6f,  11f);
+    private static readonly Tier FarTier  = new Tier(6, 0f,      1,    0, 0f,     1, 3.4f,  3, 1, 0.068f, 0.117f,  8f,  15f);
+    private static readonly Tier ShootTier = new Tier(6, 0f,     6,    1, 0.34f,  0, 0f,    0, 0, 0.029f, 0.049f,  1.5f, 3f);
 
     /// <summary>The reference bamboo hue carried to a luminance the tier already had. Only the
     /// hue and the saturation were wrong: the tonal ladder between tiers is what carries depth
@@ -834,10 +861,14 @@ public static class BambooArena
         for (int c = 0; c < tier.Cards && cards != null; c++)
         {
             float t = Mathf.Lerp(BranchStart, 0.98f, (c + 0.5f) / tier.Cards);
-            // A tier down to two cards is far enough that individual leaves are sub-pixel, so it
-            // gets the dense blob; the nearer card tier gets the three readable fans.
-            int cell = tier.Cards <= 2 ? 3 : Random.Range(0, 3);
-            cards.Card(Along(t) + Random.insideUnitSphere * (height * 0.025f),
+            // Off the axis, by the reach the branches this replaces threw their foliage: a card
+            // centred on the culm has the culm rendering straight through the middle of it, and
+            // the jitter alone is ±0.16 m at the near tier's mean height.
+            float cardTurn = Random.value * Mathf.PI * 2f;
+            var outward = new Vector3(Mathf.Cos(cardTurn), 0f, Mathf.Sin(cardTurn))
+                        * (height * 0.085f * Mathf.Lerp(0.75f, 1.3f, t));
+            int cell = tier.CellFirst + Random.Range(0, tier.CellCount);
+            cards.Card(Along(t) + outward + Random.insideUnitSphere * (height * 0.025f),
                        tier.CardSize * Random.Range(0.82f, 1.2f), cell, LeafCardRadii,
                        color * 1.12f, phase, t);
         }
