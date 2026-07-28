@@ -105,7 +105,6 @@ public static class BambooArena
         BuildProps(timber, foliage);
         BuildBamboo(bamboo, cards);
         BuildBanks(ground);
-        BuildRocks(ground);
         BuildScanFoliage(scan);
         BuildUndergrowth(foliage, cards);
 
@@ -878,9 +877,10 @@ public static class BambooArena
                 bake.Tri(index[i + 1, j], index[i, j + 1], index[i + 1, j + 1]);
             }
 
-        // Pebbles only. The boulders that used to be boxes here are scanned meshes now — see
-        // BuildRocks — but a scattering of small stones is still cheaper as geometry than as a
-        // grafted model, and at this size a box is indistinguishable from a pebble anyway.
+        // Pebbles only, and deliberately so. Scanned boulders stood here for one build and were
+        // cut: placed thickly enough to be seen at all, they read as a continuous grey kerb along
+        // the waterline rather than as scattered stones, and they cost 32k triangles for it. At
+        // pebble size a box is indistinguishable from a stone anyway.
         for (int i = 0; i < 45; i++)
         {
             float x = Random.Range(-16f, 16f);
@@ -1090,37 +1090,6 @@ public static class BambooArena
             // decimation.
             if (a != b2 && b2 != c2 && a != c2)
                 bake.Tri(a, b2, c2);
-        }
-    }
-
-    /// <summary>
-    /// Scanned boulders along both waterlines, grafted into the ground mesh so they share its
-    /// texture and its draw call. They replace the axis-aligned boxes that stood here: at this
-    /// distance a box reads as a box, and the bank is the one surface the camera looks along
-    /// rather than at.
-    /// </summary>
-    private static void BuildRocks(Bake ground)
-    {
-        Mesh[] rocks = { LoadScanMesh("rock_moss_set_01.fbx"), LoadScanMesh("stone_01.fbx") };
-        Color stone = new Color(0.85f, 0.85f, 0.82f);
-        // Along the waterline, not scattered across the map and filtered by height. The shore is a
-        // line at |x| ≈ ShoreX, not an area: thrown uniformly over x ±16 nearly every boulder
-        // landed on open water, got rejected, and the handful that survived were spread over
-        // thirty units of z. Almost none reached the frame.
-        for (int i = 0; i < 26; i++)
-        {
-            float x = (i % 2 == 0 ? 1f : -1f) * Random.Range(6.3f, 9f);
-            float z = Random.Range(8f, 18f);
-            float y = Ground(x, z);
-            if (y < WaterY - 0.4f || y > WaterY + 1.8f)
-                continue;
-            float size = Random.Range(0.35f, 1.3f);
-            // Sunk a little, so a boulder sits in the bank rather than resting on top of it.
-            // Welded at a twelfth of its own height: enough to hold the outline, enough to throw
-            // away the thousands of interior triangles a scan spends on a surface this smooth.
-            Graft(ground, rocks[i % rocks.Length], new Vector3(x, y - Random.Range(0.05f, 0.2f), z),
-                  size, Random.Range(0f, 360f), stone * Random.Range(0.7f, 1.15f), -1, 0f,
-                  size / 12f);
         }
     }
 
