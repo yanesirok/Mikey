@@ -54,3 +54,6 @@ crashlytics-build.properties
 # OS clutter
 .DS_Store
 Thumbs.db
+
+# 3.6 GB D5 Render scene pack, not Unity content
+/Vol.258*/
