@@ -57,3 +57,7 @@ Thumbs.db
 
 # 3.6 GB D5 Render scene pack, not Unity content
 /Vol.258*/
+
+# Vendor asset packs: extracted into Assets/Fight/Arena/Ref by tools/ja14_extract.py
+*.unitypackage
+JA14_*.zip

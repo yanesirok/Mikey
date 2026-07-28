@@ -104,8 +104,34 @@ public static class ArenaTextures
     /// <see cref="BarkNodesPerTile"/> internodes, so the painted rings line up with the geometric
     /// ones on the frame-edge culms instead of drifting into a second, offset row of nodes.</summary>
     public const float BarkNodeSpacing = 0.34f;
-    public const int BarkNodesPerTile = 6;
+    /// <summary>Three, not the six the drawn map used: the reference strip carries exactly three
+    /// node rings and tiles seamlessly on all three, so cutting it down to one internode would
+    /// discard the natural variation in pitch and buy a cross-faded seam for it.</summary>
+    public const int BarkNodesPerTile = 3;
     public const float BarkTileHeight = BarkNodeSpacing * BarkNodesPerTile;
+
+    /// <summary>Metres of culm circumference under one horizontal repeat of the bark strip.
+    /// The drawn map pre-stretched its noise 8.7:1 (<c>Fbm(u * 26, v * 3)</c>) so that one wrap
+    /// looked right on any culm; a photograph carries its own fibre scale and cannot. Our culms
+    /// run from 0.25 m of circumference at the shoots to 0.92 m at the frame edge, so the repeat
+    /// count comes from the culm instead — see <c>Bake.Tube</c>.</summary>
+    public const float BarkWrapMetres = 0.25f;
+
+    /// <summary>
+    /// Fraction of its own height the reference strip is rolled by, to bring its printed node
+    /// rings onto the geometric ones. The strip has them at v 0.2366 / 0.6062 / 0.9631 and the
+    /// contract wants (k + 0.5) / 3.
+    ///
+    /// About 0.09 of an internode of error survives any roll and always will: the photographed
+    /// internodes are 731, 757 and 560 rows tall while the contract spaces them evenly. Three
+    /// centimetres on a 34 cm internode is not visible; half an internode would be, which is
+    /// what <see cref="CheckRingPhase"/> is set to catch.
+    /// </summary>
+    private const float BarkRingRoll = 0.1020f;
+
+    /// <summary>Mean the bark albedo is renormalised to, in the same gamma space the procedural
+    /// generator authored in — its own was 0.72 of base plus about 0.11 of fibre.</summary>
+    private const float BarkTargetValue = 0.83f;
 
     /// <summary>
     /// Bamboo bark. Carries the fine vertical fibre, the blotching of age, and — for every culm
@@ -118,62 +144,139 @@ public static class ArenaTextures
     /// </summary>
     public static Surface Bark()
     {
-        const int size = 256;
-        var albedo = new Color32[size * size];
-        var normal = new Color32[size * size];
-        var mask = new Color32[size * size];
-        var height = new float[size * size];
+        Texture2D srcColour = LoadRef("JA14_Bark_BC");
+        Texture2D srcNormal = LoadRef("JA14_Bark_N");
+        Texture2D srcRough = LoadRef("JA14_Bark_R");
+        if (srcColour == null || srcNormal == null || srcRough == null)
+            return default;
 
-        for (int y = 0; y < size; y++)
+        int width = srcColour.width, height = srcColour.height;
+        if (srcNormal.width != width || srcNormal.height != height ||
+            srcRough.width != width || srcRough.height != height)
         {
-            for (int x = 0; x < size; x++)
+            Debug.LogError($"ArenaTextures: the three bark references disagree on size — " +
+                           $"BC {srcColour.width}x{srcColour.height}, " +
+                           $"N {srcNormal.width}x{srcNormal.height}, " +
+                           $"R {srcRough.width}x{srcRough.height}.");
+            return default;
+        }
+
+        Color32[] srcC = srcColour.GetPixels32();
+        Color32[] srcN = srcNormal.GetPixels32();
+        Color32[] srcR = srcRough.GetPixels32();
+
+        var albedo = new Color32[width * height];
+        var normal = new Color32[width * height];
+        var mask = new Color32[width * height];
+
+        // Rec.709 in the photograph's own gamma space. The arena authors every map in gamma and
+        // lets ToColor32(c.linear) do the one conversion; matching that convention matters more
+        // than being right about it, because every colour constant here was tuned against it.
+        var luma = new float[width * height];
+        float sum = 0f;
+        for (int i = 0; i < luma.Length; i++)
+        {
+            luma[i] = (0.2126f * srcC[i].r + 0.7152f * srcC[i].g + 0.0722f * srcC[i].b) / 255f;
+            sum += luma[i];
+        }
+        // Straight to the value the drawn map had. A 1:1 swap would land the culms at 0.39 of
+        // their old linear brightness and take the frame-edge tier, whose vertex colour is
+        // already 0.012, into black.
+        float gain = BarkTargetValue / Mathf.Max(sum / luma.Length, 1e-4f);
+
+        // GetPixels32 and SetPixels32 both run bottom to top, so y is v and the roll moves the
+        // rings down in v by taking each destination row from further up the source.
+        int roll = Mathf.RoundToInt(BarkRingRoll * height);
+
+        for (int y = 0; y < height; y++)
+        {
+            int sy = (y + roll) % height;
+            for (int x = 0; x < width; x++)
             {
-                float u = x / (float)size;
-                float v = y / (float)size;
-                int i = y * size + x;
+                int i = y * width + x, s = sy * width + x;
 
-                // Fibre runs up the culm: v is along the stalk, so the noise must vary fast in u.
-                float fibre = Fbm(u * 26f, v * 3f, 3, 26, 3, 5);
-                float blotch = Fbm(u * 4f, v * 4f, 3, 4, 4, 91);
-                float value = 0.72f + fibre * 0.22f + (blotch - 0.5f) * 0.3f;
-
-                // Position inside one internode. The ring sits at the middle of the cell, not at
-                // its edge, so that v = 0 lands on clean culm: leaves and branches share this
-                // map and sample near the origin, and a node band printed across a leaf is
-                // instantly wrong.
-                float f = Mathf.Repeat(v * BarkNodesPerTile, 1f);
-                float toRing = Mathf.Abs(f - 0.5f);
-                // Ring: 1.5 cm of a 34 cm internode. Sharp — a soft gradient reads as a stain.
-                float ring = 1f - Step(0.02f, 0.05f, toRing);
-                // The waxy band sits *below* the ring. This pale collar is what the eye actually
-                // identifies as bamboo at distance; without it a banded tube reads as rope.
-                float wax = Step(0.34f, 0.40f, f) * (1f - Step(0.45f, 0.485f, f));
-                // And a little shade immediately above the ring, where the sheath scar sits.
-                float scar = Step(0.60f, 0.55f, f) * Step(0.52f, 0.55f, f);
-
-                value *= Mathf.Lerp(1f, 0.66f, ring);
-                value *= Mathf.Lerp(1f, 1.30f, wax);
-                value *= Mathf.Lerp(1f, 0.86f, scar);
-
+                float value = Mathf.Clamp01(luma[s] * gain);
                 albedo[i] = ToColor32(new Color(value, value, value).linear);
-                // The ring is a ridge in the normal map too — that is what carries the node on
-                // the tiers whose geometry is a plain tube.
-                height[i] = fibre * 0.5f + ring * 0.5f;
-                // Bamboo is waxy, and more so where it is young and smooth — and most of all in
-                // the collar under the node, which is where a real culm catches the sky.
-                float smooth = Mathf.Lerp(Mathf.Lerp(0.25f, 0.6f, blotch), 0.75f, wax);
-                mask[i] = new Color32(0, (byte)(Mathf.Lerp(0.85f, 1f, fibre) * (1f - ring * 0.25f) * 255f),
-                                      0, (byte)(smooth * 255f));
+
+                // DirectX green. At every one of the three rings the reference reads below 128
+                // above the ring and above 128 below it, which is the Y-down polarity for a
+                // raised ridge; Unity wants Y-up.
+                normal[i] = new Color32(srcN[s].r, (byte)(255 - srcN[s].g), srcN[s].b, 255);
+
+                // g = occlusion, a = smoothness. There is no AO map in the pack, so occlusion
+                // comes from the albedo's own luminance, ranged to the 0.64..1 the drawn map
+                // authored. The node scar is the darkest band in the photograph, so the dip
+                // lands on the node for free — which is what the drawn map did by formula.
+                float occlusion = Mathf.Lerp(0.64f, 1f, value);
+                // The pack's R map is roughness: 155-162 over the sheath scar, 106-113 over the
+                // waxy collar below it. Dark is smooth, which is the correct polarity.
+                float smooth = 1f - srcR[s].r / 255f;
+                mask[i] = new Color32(0, (byte)(occlusion * 255f), 0, (byte)(smooth * 255f));
             }
         }
 
-        BuildNormal(height, size, 1.1f, normal);
+        CheckRingPhase(albedo, width, height);
+
         return new Surface
         {
-            Albedo = Save("T_Bark", size, albedo),
-            Normal = Save("T_Bark_N", size, normal, linear: true),
-            Mask = Save("T_Bark_M", size, mask),
+            Albedo = Save("T_Bark", width, height, albedo),
+            Normal = Save("T_Bark_N", width, height, normal, linear: true),
+            Mask = Save("T_Bark_M", width, height, mask),
         };
+    }
+
+    /// <summary>A third-party reference map, or null with a loud error. These live outside the
+    /// player build: nothing but this file and the crown baker ever references them.</summary>
+    private static Texture2D LoadRef(string name)
+    {
+        string path = Dir + "Ref/" + name + ".png";
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (tex == null)
+            Debug.LogError($"ArenaTextures: {path} is missing — run tools/ja14_extract.py.");
+        return tex;
+    }
+
+    /// <summary>
+    /// Fails loudly when the printed node rings drift out of phase with the geometric swell.
+    /// <c>Bake.Tube</c> puts its swollen loop at v = (k + 0.5) / <see cref="BarkNodesPerTile"/>
+    /// and the map has to paint its ring in the same place; half an internode out and a
+    /// frame-edge culm carries two rows of nodes, one modelled and one printed.
+    ///
+    /// The tolerance is 0.2 of an internode, not something tighter: about 0.09 is irreducible
+    /// because the photographed internodes are unequal, and the failure worth catching — a lost
+    /// or remeasured roll — is half an internode or more.
+    /// </summary>
+    private static void CheckRingPhase(Color32[] albedo, int width, int height)
+    {
+        var rowMean = new float[height];
+        for (int y = 0; y < height; y++)
+        {
+            float sum = 0f;
+            for (int x = 0; x < width; x++)
+                sum += albedo[y * width + x].r;
+            rowMean[y] = sum / width;
+        }
+
+        for (int k = 0; k < BarkNodesPerTile; k++)
+        {
+            // Row index is v: GetPixels32 hands the texture over bottom to top.
+            float target = (k + 0.5f) / BarkNodesPerTile;
+            int centre = Mathf.RoundToInt(target * height);
+            int span = height / (BarkNodesPerTile * 2);
+            int darkest = centre % height;
+            for (int d = -span; d <= span; d++)
+            {
+                int y = ((centre + d) % height + height) % height;
+                if (rowMean[y] < rowMean[darkest])
+                    darkest = y;
+            }
+            float actual = (darkest + 0.5f) / height;
+            float error = Mathf.Abs(actual - target) * BarkNodesPerTile;
+            if (error > 0.2f)
+                Debug.LogError($"ArenaTextures: bark ring {k} sits {error:F3} of an internode " +
+                               $"from its geometric node (v {actual:F4}, want {target:F4}). " +
+                               $"BarkRingRoll needs remeasuring against the reference strip.");
+        }
     }
 
     /// <summary>
