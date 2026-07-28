@@ -135,6 +135,19 @@ public static class BambooArena
                            $"for {bambooMesh.vertexCount} vertices — M_ArenaBamboo enables " +
                            $"_NORMALMAP, so the bark relief is being read off an undefined basis.");
 
+        // Tube duplicates the seam vertex so u runs 0..uTiles across a ring instead of wrapping
+        // back to zero on the last facet. Without it that facet carries the whole strip squeezed
+        // in backwards, which is invisible on a noise map and not on a photograph. u reaching its
+        // far end somewhere in the mesh is exactly the invariant; before the fix it stopped at
+        // (sides - 1) / sides.
+        float maxU = 0f;
+        foreach (Vector2 uv in bambooMesh.uv)
+            maxU = Mathf.Max(maxU, uv.x);
+        if (maxU < 0.999f)
+            Debug.LogError($"BambooArena: bark u stops at {maxU:F3} on the bamboo mesh — the seam " +
+                           $"ring is not being duplicated, so the strip runs backwards across one " +
+                           $"facet of every culm.");
+
         var root = new GameObject("Arena");
         GameObject timberGo = AddMesh(root, "Timber", timberMesh, TimberMaterial(wood), castShadows: true);
         // Bamboo does not cast. The frame-edge culms are twelve units tall and stand a couple of
@@ -1888,22 +1901,37 @@ public static class BambooArena
                         : loopV[r];
                 float height = windHeight >= 0f ? windHeight : (heightSpan > 0f ? t : 0f);
 
-                for (int s = 0; s < sides; s++)
+                // One horizontal repeat per BarkWrapMetres of circumference, so the photographed
+                // fibre keeps roughly the same world size from a 3 cm shoot to a 29 cm frame-edge
+                // culm. Integer, or the strip does not meet itself at the seam; capped at three,
+                // because past that the fibre is finer than a pixel at any distance the camera
+                // ever sees a culm from.
+                float uTiles = nodeSpacing > 0f
+                    ? Mathf.Clamp(Mathf.Round(Mathf.PI * (radiusFrom + radiusTo) /
+                                              ArenaTextures.BarkWrapMetres), 1f, 3f)
+                    : 1f;
+
+                // sides + 1: the last vertex repeats the first position with u at the far end of
+                // the strip instead of back at zero. It costs vertices only — the loop below
+                // still closes `sides` quads per ring — and without it one facet of every culm
+                // carries the whole texture squeezed into it backwards.
+                for (int s = 0; s <= sides; s++)
                 {
                     float a = s / (float)sides * Mathf.PI * 2f;
                     Vector3 dir = side * Mathf.Cos(a) + forward * Mathf.Sin(a);
-                    Push(centre + dir * radius, dir, new Vector2(s / (float)sides, v),
+                    Push(centre + dir * radius, dir, new Vector2(s / (float)sides * uTiles, v),
                          new Vector2(phase, height), tint);
                 }
             }
 
+            int stride = sides + 1;
             for (int r = 0; r < loopT.Count - 1; r++)
                 for (int s = 0; s < sides; s++)
                 {
-                    int i0 = start + r * sides + s;
-                    int i1 = start + r * sides + (s + 1) % sides;
-                    Tri(i0, i0 + sides, i1);
-                    Tri(i1, i0 + sides, i1 + sides);
+                    int i0 = start + r * stride + s;
+                    int i1 = i0 + 1;
+                    Tri(i0, i0 + stride, i1);
+                    Tri(i1, i0 + stride, i1 + stride);
                 }
         }
 
