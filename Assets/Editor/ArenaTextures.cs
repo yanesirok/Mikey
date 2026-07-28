@@ -359,95 +359,66 @@ public static class ArenaTextures
             pixels[i] = ToColor32(Color.Lerp(shade, lit, 0.5f).linear);
         var alpha = new float[size * size];
 
-        var rng = new System.Random(20260727);
+        // The bamboo cells are photographs of a real crown now, rendered from six framings — the
+        // pack ships one flat leaf sheet fanning upward, and no rotation of it produces a cluster
+        // that hangs down or a mass with no readable leaves in it.
+        foreach (BambooCrownBake.Pose pose in BambooCrownBake.Poses)
+        {
+            var bakedRgb = new Color32[cell * cell];
+            var bakedAlpha = new float[cell * cell];
+            if (!BambooCrownBake.Render(pose, cell, bakedRgb, bakedAlpha))
+                continue;
+
+            int bx = pose.Cell % LeafAtlasGrid * cell, by = pose.Cell / LeafAtlasGrid * cell;
+            for (int y = 0; y < cell; y++)
+                for (int x = 0; x < cell; x++)
+                {
+                    int src = y * cell + x, dst = (by + y) * size + bx + x;
+                    if (bakedAlpha[src] <= 0f)
+                        continue; // the flat fill stays, so mips never blend in a dark surround
+                    alpha[dst] = bakedAlpha[src];
+                    pixels[dst] = bakedRgb[src];
+                }
+        }
+
+        // Its own stream. The bamboo cells draw nothing now, and a shared generator would hand the
+        // grass a different sequence purely because the draws in front of it went away. Separate
+        // streams mean the grass stops depending on what the bamboo cells happen to do — though
+        // this rebuild changes it once regardless, along with the rest of the arena.
+        var rng = new System.Random(20260728);
         float Rand(float a, float b) => a + (float)rng.NextDouble() * (b - a);
 
-        for (int c = 0; c < LeafAtlasCells; c++)
+        // Bank grass, still drawn: many thin arching blades rather than twigs carrying leaves,
+        // and there is no grass in the bamboo pack. It lives in the same atlas so the whole
+        // clipped scene keeps one material and one draw call.
+        for (int c = GrassCellFirst; c < GrassCellFirst + GrassCells; c++)
         {
             int ox = c % LeafAtlasGrid * cell, oy = c / LeafAtlasGrid * cell;
-
-            // Cells 4 and up are bank grass, not bamboo: many thin arching blades rather than
-            // twigs carrying leaves. They live in the same atlas so the whole scene keeps one
-            // clipped material and one draw call.
-            if (c >= GrassCellFirst)
+            int blades = rng.Next(46, 62);
+            var root = new Vector2(0.5f, 0.06f);
+            for (int b = 0; b < blades; b++)
             {
-                int blades = rng.Next(46, 62);
-                var root = new Vector2(0.5f, 0.06f);
-                for (int b = 0; b < blades; b++)
+                // Steeply up, then arching over: a blade that leaves the ground sideways
+                // reads as a fallen stalk, and one that stays straight reads as a reed.
+                float angle = Mathf.PI * 0.5f + Rand(-0.85f, 0.85f);
+                var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                float len = Rand(0.42f, 0.82f);
+                float bend = Rand(0.5f, 1.15f);
+                var from = root + new Vector2(Rand(-0.10f, 0.10f), Rand(-0.02f, 0.05f));
+                float lift = Rand(0f, 1f);
+
+                for (int s = 0; s <= 160; s++)
                 {
-                    // Steeply up, then arching over: a blade that leaves the ground sideways
-                    // reads as a fallen stalk, and one that stays straight reads as a reed.
-                    float angle = Mathf.PI * 0.5f + Rand(-0.85f, 0.85f);
-                    var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                    float len = Rand(0.42f, 0.82f);
-                    float bend = Rand(0.5f, 1.15f);
-                    var from = root + new Vector2(Rand(-0.10f, 0.10f), Rand(-0.02f, 0.05f));
-                    float lift = Rand(0f, 1f);
-
-                    for (int s = 0; s <= 160; s++)
-                    {
-                        float t = s / 160f;
-                        Vector2 p = from + dir * (len * t) + Vector2.down * (bend * len * t * t);
-                        // Thin, but not thinner than alpha clipping can carry. At 0.007 a blade
-                        // was a pixel and a half wide, its alpha never reached 1 anywhere, and
-                        // mip maps plus a 0.35 cutoff erased the entire cell — the cards were in
-                        // the mesh and invisible on screen. Three pixels of solid core is the
-                        // floor for anything that gets clipped.
-                        float halfWidth = 0.018f * len * Mathf.Sin(Mathf.Pow(t, 0.4f) * Mathf.PI);
-                        Color tint = Color.Lerp(shade, lit, Mathf.Clamp01(lift * 0.5f + t * 0.6f));
-                        Stamp(pixels, alpha, size, ox, oy, cell, p, halfWidth, tint);
-                    }
-                }
-                continue;
-            }
-
-            bool sideways = c == 2;
-            bool dense = c == 3;
-            // A cell is a whole branch mass, not one fan: several twigs, each carrying its own
-            // small leaves. Drawn as a handful of big leaves instead, a 1.5 m card puts metre-long
-            // leaves in the frame — which is exactly what the first pass did, and it read as
-            // shrubbery hanging in the sky rather than as bamboo at thirty units.
-            int twigs = dense ? 9 : 6;
-            var stem = sideways ? new Vector2(0.09f, 0.74f) : new Vector2(0.5f, 0.88f);
-
-            for (int b = 0; b < twigs; b++)
-            {
-                float twigAngle = (sideways ? 0f : -Mathf.PI * 0.5f)
-                                + (sideways ? Rand(-0.5f, 0.8f) : Rand(-1.05f, 1.05f));
-                var twigDir = new Vector2(Mathf.Cos(twigAngle), Mathf.Sin(twigAngle));
-                float twigLen = dense ? Rand(0.22f, 0.34f) : Rand(0.26f, 0.40f);
-                Vector2 tip = stem + twigDir * twigLen + Vector2.down * (twigLen * 0.25f);
-
-                // The twig itself, one pixel wide: at this size it is a hairline, and its absence
-                // is why the leaves would otherwise float unattached.
-                for (int s = 0; s <= 220; s++)
-                {
-                    float t = s / 220f;
-                    Vector2 p = Vector2.Lerp(stem, tip, t) + Vector2.down * (twigLen * 0.1f * t * (1f - t));
-                    Stamp(pixels, alpha, size, ox, oy, cell, p, 0.004f, shade);
-                }
-
-                int leaves = dense ? rng.Next(7, 11) : rng.Next(6, 10);
-                for (int l = 0; l < leaves; l++)
-                {
-                    float angle = twigAngle + Rand(-0.9f, 0.9f);
-                    var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                    float len = dense ? Rand(0.07f, 0.12f) : Rand(0.09f, 0.16f);
-                    float droop = Rand(0.35f, 0.7f);
-                    float lift = Rand(0f, 1f);
-                    Vector2 from = Vector2.Lerp(stem, tip, Rand(0.45f, 1f));
-
-                    const int steps = 90;
-                    for (int s = 0; s <= steps; s++)
-                    {
-                        float t = s / (float)steps;
-                        Vector2 p = from + dir * (len * t) + Vector2.down * (droop * len * t * t);
-                        float halfWidth = LeafHalfWidth(t) * len;
-                        // Darker at the base, lighter toward the tip, and each leaf sitting at
-                        // its own level — a fan of leaves all one value is a green blob.
-                        Color tint = Color.Lerp(shade, lit, Mathf.Clamp01(lift * 0.6f + t * 0.5f));
-                        Stamp(pixels, alpha, size, ox, oy, cell, p, halfWidth, tint);
-                    }
+                    float t = s / 160f;
+                    Vector2 p = from + dir * (len * t) + Vector2.down * (bend * len * t * t);
+                    // Thin, but not thinner than alpha clipping can carry. At 0.007 a blade
+                    // was a pixel and a half wide, its alpha never reached 1 anywhere, and
+                    // mip maps plus a 0.35 cutoff erased the entire cell — the cards were in
+                    // the mesh and invisible on screen. Three pixels of solid core is the
+                    // floor for anything that gets clipped.
+                    float halfWidth = 0.018f * len * Mathf.Sin(Mathf.Pow(t, 0.4f) * Mathf.PI);
+                    Color tint = Color.Lerp(shade, lit, Mathf.Clamp01(lift * 0.5f + t * 0.6f));
+                    Stamp(pixels, alpha, size, ox, oy, cell, p, halfWidth, tint);
                 }
             }
         }
@@ -475,6 +446,25 @@ public static class ArenaTextures
                 radii[c, d] = Mathf.Clamp(radii[c, d] * 1.0824f, 0.08f, 0.5f);
         }
 
+        // A cell that baked empty, or one whose alpha fell under the cutoff everywhere, is
+        // indistinguishable from a placement bug when looking at the frame — the cards are in the
+        // mesh and nothing is on screen. Coverage on the drawn cells runs 0.06 to 0.13 of a cell,
+        // so anything under a fortieth is a failure and anything over half is a solid square.
+        for (int c = 0; c < LeafAtlasCells; c++)
+        {
+            int ox = c % LeafAtlasGrid * cell, oy = c / LeafAtlasGrid * cell;
+            int covered = 0;
+            for (int y = 0; y < cell; y++)
+                for (int x = 0; x < cell; x++)
+                    if (alpha[(oy + y) * size + ox + x] >= 0.35f)
+                        covered++;
+            float fraction = covered / (float)(cell * cell);
+            if (fraction < 0.025f || fraction > 0.5f)
+                Debug.LogError($"ArenaTextures: leaf atlas cell {c} covers {fraction:P1} of its " +
+                               $"cell above the 0.35 cutoff — every card drawing it is either " +
+                               $"invisible or a solid block.");
+        }
+
         // ponytail: mip maps thin the alpha out, so a far card can shrink under the cutoff. The
         // clusters are solid enough in the middle that it does not show at these distances; if a
         // tier ever fades out, rescale each mip's alpha to preserve coverage in Save.
@@ -489,12 +479,14 @@ public static class ArenaTextures
         return atlas;
     }
 
-    /// <summary>Atlas layout: a square grid of 256 px cells. Cells 0–3 are bamboo foliage,
-    /// <see cref="GrassCellFirst"/> and up are bank grass. One atlas rather than two keeps the
-    /// whole clipped-foliage scene on a single material.</summary>
+    /// <summary>Atlas layout: a 3×3 grid of 256 px cells. Cells 0–3 are baked bamboo foliage —
+    /// 0–2 the mid tier's readable fans, 3 the far tier's dense mass — 4–6 are drawn bank grass,
+    /// and 7–8 are the near tier's baked crowns. One atlas rather than three keeps the whole
+    /// clipped-foliage scene on a single material.</summary>
     public const int LeafAtlasGrid = 3;
     public const int GrassCellFirst = 4;
-    public const int LeafAtlasCells = 7;
+    public const int GrassCells = 3;
+    public const int LeafAtlasCells = 9;
 
     /// <summary>Half-width of a lanceolate leaf at <paramref name="t"/> along its length, as a
     /// fraction of that length. Widest a third of the way along and drawn to a point: a leaf
