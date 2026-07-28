@@ -430,6 +430,9 @@ public static class ArenaTextures
         // which pushes the octagon's vertices out far enough that its *edges* still clear the
         // furthest pixel between two of them.
         radii = new float[LeafAtlasCells, 8];
+        // The furthest pixel in the 45° span *between* two octant vertices, which is what the
+        // chord between them has to clear.
+        var edge = new float[LeafAtlasCells, 8];
         for (int c = 0; c < LeafAtlasCells; c++)
         {
             int ox = c % LeafAtlasGrid * cell, oy = c / LeafAtlasGrid * cell;
@@ -439,11 +442,65 @@ public static class ArenaTextures
                     if (alpha[(oy + y) * size + ox + x] < 0.35f)
                         continue;
                     float dx = (x + 0.5f) / cell - 0.5f, dy = (y + 0.5f) / cell - 0.5f;
-                    int octant = Mathf.RoundToInt(Mathf.Atan2(dy, dx) / (Mathf.PI * 0.25f) + 8f) % 8;
-                    radii[c, octant] = Mathf.Max(radii[c, octant], Mathf.Sqrt(dx * dx + dy * dy));
+                    float angle = Mathf.Atan2(dy, dx) / (Mathf.PI * 0.25f);
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    // round() bins to the nearest vertex; floor() bins to the span between two.
+                    int vertex = Mathf.RoundToInt(angle + 8f) % 8;
+                    int span = Mathf.FloorToInt(angle + 8f) % 8;
+                    radii[c, vertex] = Mathf.Max(radii[c, vertex], r);
+                    edge[c, span] = Mathf.Max(edge[c, span], r);
                 }
+            // Push the vertices out until the octagon's EDGES clear the drawing, not just its
+            // vertices. The old flat 1.0824 = 1/cos(22.5°) is exactly the right factor for a
+            // circle and for nothing else: where two adjacent radii differ — a grass clump jumps
+            // from 0.08 to 0.5 between neighbours — the chord between them passes well inside the
+            // silhouette. Every one of the nine cells was cropped, the worst of them losing more
+            // than half its reach. Two passes, because widening one edge moves both neighbours.
+            // Each short edge is solved for one endpoint at a time with the other held, rather
+            // than by scaling both. Scaling both is exact while they are free — the chord is
+            // linear in the radii — and useless the moment one is against the cell wall, which
+            // is the case that was leaving a grass clump cropped to 61% of its own reach.
             for (int d = 0; d < 8; d++)
-                radii[c, d] = Mathf.Clamp(radii[c, d] * 1.0824f, 0.08f, 0.5f);
+                radii[c, d] = Mathf.Clamp(radii[c, d], 0.08f, OctantLimit(d));
+            for (int pass = 0; pass < 3; pass++)
+                for (int d = 0; d < 8; d++)
+                {
+                    int e = (d + 1) % 8;
+                    for (int half = 0; half < 2; half++)
+                    {
+                        int move = half == 0 ? d : e, hold = half == 0 ? e : d;
+                        Vector2 held = Octant(hold) * radii[c, hold];
+                        if (((Octant(move) * radii[c, move] + held) * 0.5f).magnitude >= edge[c, d])
+                            break;
+                        float wanted = ReachRadius(Octant(move), held, edge[c, d]);
+                        if (wanted > radii[c, move])
+                            radii[c, move] = Mathf.Min(wanted, OctantLimit(move));
+                    }
+                }
+
+            for (int d = 0; d < 8; d++)
+            {
+                int e = (d + 1) % 8;
+                float chord = ((Octant(d) * radii[c, d] + Octant(e) * radii[c, e]) * 0.5f).magnitude;
+                if (edge[c, d] <= chord + 0.002f)
+                    continue;
+                // Two different failures, and only one of them is this code's fault. If both rim
+                // vertices are already against the cell wall the drawing has simply put pixels
+                // where an octagon inscribed in a square cannot reach, and the answer is to draw
+                // a smaller clump. If they are not, the solve above gave up early.
+                bool pinned = radii[c, d] >= OctantLimit(d) - 1e-3f &&
+                              radii[c, e] >= OctantLimit(e) - 1e-3f;
+                if (!pinned)
+                    Debug.LogError($"ArenaTextures: cell {c} edge {d} cuts the silhouette with " +
+                                   $"room to spare — the octagon reaches {chord:F3} where the " +
+                                   $"drawing reaches {edge[c, d]:F3} and neither rim vertex is " +
+                                   $"against the cell wall.");
+                else if (chord < edge[c, d] * 0.85f)
+                    Debug.LogWarning($"ArenaTextures: cell {c} edge {d} is cropped to " +
+                                     $"{chord / edge[c, d]:P0} of the drawing — the clump reaches " +
+                                     $"{edge[c, d]:F3} into the cell corner, past anything an " +
+                                     $"octagon inside the cell can cover. Draw it smaller.");
+            }
         }
 
         // A cell that baked empty, or one whose alpha fell under the cutoff everywhere, is
@@ -493,6 +550,38 @@ public static class ArenaTextures
     /// widest in the middle reads as grass. 1:8 overall, which is the real proportion — the
     /// earlier 1:20 is why the grove read as sedge.</summary>
     public static float LeafHalfWidth(float t) => 0.06f * Mathf.Sin(Mathf.Pow(t, 0.5f) * Mathf.PI);
+
+    /// <summary>Unit vector of octant <paramref name="d"/>, in the order <c>Bake.Card</c> walks
+    /// its rim: 0 is +right and each step is 45° counter-clockwise.</summary>
+    private static Vector2 Octant(int d)
+    {
+        float a = d * Mathf.PI * 0.25f;
+        return new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+    }
+
+    /// <summary>How far a rim vertex may reach in octant <paramref name="d"/> before its UV
+    /// leaves the cell. A flat 0.5 was over-tight on the four diagonals, where the cell corner is
+    /// 0.707 away — which is where a drooping grass clump puts most of its length.</summary>
+    private static float OctantLimit(int d)
+    {
+        Vector2 v = Octant(d);
+        return 0.5f / Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y));
+    }
+
+    /// <summary>
+    /// How far a rim vertex has to sit along <paramref name="direction"/> for the midpoint of the
+    /// chord to <paramref name="held"/> to reach <paramref name="target"/> from the cell centre.
+    ///
+    /// The midpoint is (r·direction + held) / 2, so |r·direction + held| = 2·target, which is a
+    /// quadratic in r with one non-negative root. Returns 0 when no reach is enough — held is
+    /// already pointing far enough the other way.
+    /// </summary>
+    private static float ReachRadius(Vector2 direction, Vector2 held, float target)
+    {
+        float b = Vector2.Dot(direction, held);
+        float discriminant = b * b - held.sqrMagnitude + 4f * target * target;
+        return discriminant <= 0f ? 0f : Mathf.Max(-b + Mathf.Sqrt(discriminant), 0f);
+    }
 
     // ------------------------------------------------------------------ helpers
 
