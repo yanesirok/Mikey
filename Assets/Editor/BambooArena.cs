@@ -125,6 +125,15 @@ public static class BambooArena
 
         timberMesh.RecalculateTangents(); // normal-mapped, so it needs them
         groundMesh.RecalculateTangents();
+        bambooMesh.RecalculateTangents(); // and so does the bark, which had none for its whole life
+
+        // The bamboo material enables _NORMALMAP, and Arena.shader builds its basis from
+        // input.tangentWS. On a mesh with no tangent stream that basis is undefined, and the bark
+        // relief — the whole reason the culms carry a normal map — resolves to noise.
+        if (bambooMesh.tangents.Length != bambooMesh.vertexCount)
+            Debug.LogError($"BambooArena: bamboo mesh has {bambooMesh.tangents.Length} tangents " +
+                           $"for {bambooMesh.vertexCount} vertices — M_ArenaBamboo enables " +
+                           $"_NORMALMAP, so the bark relief is being read off an undefined basis.");
 
         var root = new GameObject("Arena");
         GameObject timberGo = AddMesh(root, "Timber", timberMesh, TimberMaterial(wood), castShadows: true);
