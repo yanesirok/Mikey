@@ -1131,53 +1131,59 @@ public static class BambooArena
         // to six at that size is roughly 55 leaves, which leaves the jade water visible between
         // them instead of paving it over.
         //
-        // Eight, and it is the triangle ceiling that says so rather than the composition. The
-        // arena had 1 045 triangles of headroom when this was written, and a leaf that is a circle
-        // with a turned-up rim costs ten times a seven-triangle fan. What gets cut is leaves and
-        // never flowers: a bloom is 48 triangles and it is the only thing on this water anyone
-        // looks at, while the fifth leaf in a clump is 33 triangles of more of the same.
+        // Forty, which over the 182 m² of water this camera actually shows puts a clump every
+        // 2.1 m — the spacing a photograph of a lily stand has. Two things had to be fixed before
+        // that was affordable, and neither was a triangle budget increase. The distance tier in
+        // LilyPad stopped paying for fourteen segments on a leaf twenty-five pixels wide, and
+        // BuildScanFoliage stopped letting its own cost ride on the Random stream.
         //
-        // If the headroom ever comes back — most of it went to a 33% swing in the scanned bank
-        // foliage, whose surviving clump count rides on the Random stream and moved when the
-        // railing was rewritten — this is the number to raise first, back toward fifteen.
+        // Eight clumps was the honest answer to the ceiling before both, and it was visibly wrong:
+        // on a capture the river read as empty water with three dark specks in it.
         //
-        // Rejection sampling rather than a lattice: the clumps have to keep 1.5 m apart *and* land
+        // What gets cut is never the flower. A bloom is 48 triangles and it is the only thing on
+        // this water anyone looks at; the fifth leaf in a clump is 24 triangles of more of the same.
+        //
+        // Rejection sampling rather than a lattice: the clumps have to keep 1.2 m apart *and* land
         // where the bed is deep enough, and the two conditions do not compose into a formula.
+        // 1.2 m and not 2: a clump is about half a metre across, so this keeps them separate while
+        // still letting the scatter bunch them, which is what a stand does. The spacing is a floor,
+        // not the average — the average falls out of the count.
         var rhizomes = new List<Vector2>();
-        for (int attempt = 0; attempt < 300 && rhizomes.Count < 8; attempt++)
+        for (int attempt = 0; attempt < 1500 && rhizomes.Count < 40; attempt++)
         {
-            // Two bands, because the water this camera shows is two disconnected patches and not
-            // one field. Projected through the fight camera — z = -_distance between -6 and -8.5,
-            // height 1.15, 2.5° down, 32° FOV — the frame's bottom edge crosses the surface at
-            // z -3.3, the deck hides z -1.1 to 1.1, and everything past the bridge runs up the
-            // middle of the frame to the fog. So: a quarter of the clumps into the 2 m strip in
-            // front of the deck, the rest into the channel beyond it, biased toward the near end
-            // where a square metre of water is worth the most pixels.
+            // Everything goes past the bridge, and that is a measured decision rather than an
+            // obvious one. This camera is nearly level — height 1.15, tilt 2.5°, and FightCamera's
+            // own comment says the bottom fifth of the frame is water seen *through the gap below
+            // the boards*. So the water in that strip is behind the deck, not in front of it, and
+            // the 2 m of surface between the camera and the deck's near edge falls below the frame
+            // at every zoom level. Two builds put three clumps in ten there and photographed an
+            // empty strip both times.
             //
-            // At 240 leaves sown flat over z -10..26 none of this mattered; at eight clumps it is
-            // the difference between a planted river and an empty one. The first build of this
-            // started the band at z -10, which is *behind the camera*, and lost half of them.
+            // Biased toward z 1.3, right at the deck's far edge, because that is where a square
+            // metre of water is worth the most pixels. Out to 17, where the fog takes over.
+            //
+            // The first build of this started the band at z -10, which is *behind the camera*. At
+            // 240 leaves sown flat over z -10..26 none of this mattered; at a few dozen clumps it
+            // is the whole difference between a planted river and an empty one.
             //
             // x ±5.8 keeps inside the channel: Ground() puts the bank at |x| 6.8, so anything
             // wider is rejected by the depth test below after paying for the attempt.
-            var root = new Vector2(
-                Random.Range(-5.8f, 5.8f),
-                Random.value < 0.25f ? Random.Range(-3.2f, -1.4f)
-                                     : Mathf.Lerp(1.6f, 15f, Random.value * Random.value));
+            var root = new Vector2(Random.Range(-5.8f, 5.8f),
+                                   Mathf.Lerp(1.3f, 17f, Random.value * Random.value));
             // Not on the shallows at the very edge: the old test was 5 cm of water, which put
             // leaves where the bank is about to surface through them.
             if (Ground(root.x, root.y) > WaterY - 0.15f)
                 continue;
             bool crowded = false;
             foreach (Vector2 other in rhizomes)
-                crowded |= (other - root).sqrMagnitude < 1.5f * 1.5f;
+                crowded |= (other - root).sqrMagnitude < 1.2f * 1.2f;
             if (crowded)
                 continue;
             rhizomes.Add(root);
             LilyClump(bake, shade, root, pad, bloom);
         }
-        if (rhizomes.Count < 7)
-            Debug.LogError($"BambooArena: only {rhizomes.Count} lily clumps placed of 8 — the " +
+        if (rhizomes.Count < 33)
+            Debug.LogError($"BambooArena: only {rhizomes.Count} lily clumps placed of 40 — the " +
                            $"spacing test or the depth test is rejecting nearly everything.");
     }
 
@@ -1192,11 +1198,20 @@ public static class BambooArena
     /// </summary>
     private static void LilyClump(Bake bake, Bake shade, Vector2 root, Color pad, Color bloom)
     {
+        // Twelve metres out from a camera sitting at z -6 to -8.5. Nearer than that a mature
+        // leaf is fifty pixels across or more and worth all three rings; beyond it the same leaf is
+        // under thirty and seen almost edge-on, so it gets eight segments and two rings at a third
+        // of the cost. This one line is most of what pays for forty clumps instead of eight; see
+        // LilyPad.
+        bool distant = root.y > 4f;
+
         // Three size classes, not a continuous range: real leaves grow in distinct stages, and a
-        // smooth spread of sizes reads as noise. One mature leaf per clump, never two, and at most
-        // one young one — a 5 cm leaf is a dozen pixels in frame and the first thing worth cutting
-        // when the budget is short, which it is.
-        var radii = new List<float> { Random.Range(0.11f, 0.14f) };
+        // smooth spread of sizes reads as noise. One mature leaf per clump, never two.
+        //
+        // Mature runs to 0.16 — a 32 cm leaf, the top of what Nymphaea alba actually reaches. It
+        // was 0.14 and the river read as empty; size is the one lever here that costs nothing,
+        // because the triangle count is set by the segment count and not by the radius.
+        var radii = new List<float> { Random.Range(0.12f, 0.16f) };
         for (int i = 0, n = Random.Range(2, 4); i < n; i++)
             radii.Add(Random.Range(0.07f, 0.11f));
         for (int i = 0, n = Random.Range(0, 2); i < n; i++)
@@ -1226,7 +1241,7 @@ public static class BambooArena
                 ? Random.value * Mathf.PI * 2f
                 : Mathf.Atan2(root.y - z, root.x - x) + Random.Range(-0.7f, 0.7f);
             var centre = new Vector3(x, WaterY + 0.02f + Random.Range(-0.005f, 0.005f), z);
-            LilyPad(bake, centre, radii[k], notch, pad * Random.Range(0.82f, 1.18f));
+            LilyPad(bake, centre, radii[k], notch, distant, pad * Random.Range(0.82f, 1.18f));
         }
 
         // One patch of shade for the whole clump, not one per leaf. Per leaf is both four times
@@ -1236,18 +1251,17 @@ public static class BambooArena
         if (extent > 0f)
             LilyShade(shade, new Vector3(root.x, 0f, root.y), extent);
 
-        // Roughly one flower per four leaves, which is denser than the one-per-five-to-eight a real
-        // stand shows. Deliberate: this is where the triangles went. A bloom is 48 triangles and it
-        // is the only thing on this water anyone looks at; the leaf it replaces in the budget is 33
-        // triangles of more green.
-        if (Random.value < 0.9f)
+        // Roughly one flower per five leaves, which is the low end of what a real stand shows, and
+        // deliberately not lower: a bloom is 48 triangles and it is the only thing on this water
+        // anyone looks at, while the leaf it displaces in the budget is 24 triangles of more green.
+        if (Random.value < 0.75f)
         {
             float a = Random.value * Mathf.PI * 2f;
             float d = Random.Range(0.12f, 0.3f);
             float x = root.x + Mathf.Cos(a) * d;
             float z = root.y + Mathf.Sin(a) * d;
             if (Ground(x, z) < WaterY - 0.08f)
-                LilyBloom(bake, new Vector3(x, WaterY + 0.045f, z), Random.Range(0.05f, 0.075f),
+                LilyBloom(bake, new Vector3(x, WaterY + 0.045f, z), Random.Range(0.055f, 0.08f),
                           bloom);
         }
     }
@@ -1394,30 +1408,50 @@ public static class BambooArena
         // is hidden behind the deck edge and the railing, however wide the x band is. Three
         // separate passes of bank dressing were placed at z 2..10 and were invisible for this
         // reason alone.
-        for (int i = 0; i < 16; i++)
+        // Counted by what is *placed*, not by what is attempted, and this is a bug fix rather than
+        // a tidy-up. These were sixteen and ten attempts with a height test that rejects whatever
+        // lands too high or too low on the bank, so the surviving count — and this mesh is a
+        // thousand seven hundred triangles a clump, the most expensive thing per instance in the
+        // arena — rode on the Random stream. Rewriting the railing shifted that stream and the
+        // scanned foliage silently grew from 33 844 triangles to 45 112, a third, which put the
+        // whole arena over its ceiling and left nothing for anything else to be added.
+        //
+        // Twelve and eight are what used to survive. The bank keeps the density every capture of
+        // this scene was tuned against; what it loses is the ability to change cost when something
+        // unrelated is edited.
+        int grassPlaced = 0;
+        for (int attempt = 0; grassPlaced < 12 && attempt < 200; attempt++)
         {
-            float x = (i % 2 == 0 ? 1f : -1f) * Random.Range(6.7f, 9.2f);
+            float x = (grassPlaced % 2 == 0 ? 1f : -1f) * Random.Range(6.7f, 9.2f);
             float z = Random.Range(9f, 17f);
             float y = Ground(x, z);
             if (y < WaterY + 0.15f || y > WaterY + 2.2f)
                 continue;
             Graft(scan, grass, new Vector3(x, y - 0.05f, z), Random.Range(0.9f, 1.7f),
                   Random.Range(0f, 360f), lit * Random.Range(0.85f, 1.12f), 0, GrassPhase(x, z));
+            grassPlaced++;
         }
 
-        for (int i = 0; i < 10; i++)
+        int bushPlaced = 0;
+        for (int attempt = 0; bushPlaced < 8 && attempt < 200; attempt++)
         {
-            float x = (i % 2 == 0 ? 1f : -1f) * Random.Range(6.7f, 9.5f);
+            float x = (bushPlaced % 2 == 0 ? 1f : -1f) * Random.Range(6.7f, 9.5f);
             float z = Random.Range(9f, 17f);
             float y = Ground(x, z);
             if (y < WaterY + 0.2f || y > WaterY + 2.2f)
                 continue;
-            bool bushy = i % 3 == 0;
+            bool bushy = bushPlaced % 3 == 0;
             Graft(scan, bushy ? shrub : fern, new Vector3(x, y - 0.05f, z),
                   bushy ? Random.Range(1.1f, 1.9f) : Random.Range(0.7f, 1.2f),
                   Random.Range(0f, 360f), lit * Random.Range(0.8f, 1.05f),
                   bushy ? 2 : 1, GrassPhase(x, z));
+            bushPlaced++;
         }
+
+        if (grassPlaced < 12 || bushPlaced < 8)
+            Debug.LogError($"BambooArena: scanned bank foliage placed {grassPlaced} of 12 grass and " +
+                           $"{bushPlaced} of 8 shrubs — the height window on the bank has moved, so " +
+                           $"the bank is thinner than every capture was graded against.");
     }
 
     // ------------------------------------------------------------------ water
@@ -1743,17 +1777,22 @@ public static class BambooArena
     /// </summary>
     /// <param name="notch">Where the sinus opens, in the same XZ angle the rim is swept through.
     /// The clump aims it at the rhizome; see <see cref="LilyClump"/>.</param>
-    private static void LilyPad(Bake bake, Vector3 centre, float radius, float notch, Color color)
+    /// <param name="distant">Clump more than about twelve metres out. Measured on a capture, a
+    /// leaf out there is twelve pixels across: the fourteen-segment outline, the third ring and the
+    /// rusty margin are all sub-pixel, and paying for them is what limited the river to eight
+    /// clumps. At 24 triangles instead of 70 the same budget plants three times as many.</param>
+    private static void LilyPad(Bake bake, Vector3 centre, float radius, float notch, bool distant,
+                                Color color)
     {
         const float gap = 0.25f; // half the sinus, so 0.5 rad — 29°, inside the botanical 25-30°
 
-        // Detail bought against the leaf's own size, because the arena has no triangles to spare
-        // and a young leaf is 5 cm across — a dozen pixels in frame. It needs a round outline and
-        // nothing else: the rusty margin on it would come out narrower than a pixel, and the third
-        // ring that carries it costs 40% of the leaf. The mature leaf pays for all three rings and
-        // fourteen segments; nothing else does.
-        bool margin = radius >= 0.105f;
-        int sides = radius >= 0.105f ? 14 : radius >= 0.07f ? 11 : 8;
+        // Detail bought against the leaf's size and its distance, because the arena has no
+        // triangles to spare. A young leaf is 5 cm across — it needs a round outline and nothing
+        // else, since the rusty margin on it would come out narrower than a pixel and the third
+        // ring that carries it costs 40% of the leaf. Only a mature leaf in the near water pays for
+        // all three rings and fourteen segments.
+        bool margin = !distant && radius >= 0.105f;
+        int sides = distant ? 8 : radius >= 0.105f ? 14 : radius >= 0.07f ? 11 : 8;
         int rings = margin ? 3 : 2;
 
         // Ring radius, height and surface slope, all as fractions of the leaf's radius so a 5 cm
