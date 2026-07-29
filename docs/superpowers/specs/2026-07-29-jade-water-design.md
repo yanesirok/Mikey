@@ -52,8 +52,11 @@ Opaque и содержит в этой текстуре саму себя. Он 
 Длина луча внутри воды берётся по **невзрачённому** лучу:
 
 ```hlsl
-float L = h / max(-viewWS.y, 0.09);   // 0.09 ≈ 5°; дальше туман всё равно съедает
+float L = h / max(viewWS.y, 0.09);   // 0.09 ≈ 5°; дальше туман всё равно съедает
 ```
+
+Знак: `viewWS` в этом шейдере смотрит **от поверхности к камере**, камера над водой, поэтому
+`viewWS.y` и есть положительный синус угла возвышения. Луч, идущий внутрь воды, — это `-viewWS`.
 
 | Расстояние | Угол | `L` |
 |---|---|---|
@@ -99,8 +102,9 @@ float3 body = bed * exp(-_Absorption * L)
 ([2026-07-29-arena-colour-space-design.md](2026-07-29-arena-colour-space-design.md)).
 
 Существующий `_DeepColor` (`#0A1A18`, плоская заливка `цвет · (0.35 + SH)`) переиспользуется под
-дальний конец палитры. Новых свойств шесть на весь дизайн: `_ShallowColor`, `_ScatterDensity`,
-`_Absorption`, `_BedMap`, `_BedUvScale`, `_RefractStrength`.
+дальний конец палитры. Новых свойств девять на весь дизайн: `_Absorption`, `_ScatterDensity`,
+`_ShallowColor`, `_BedMap`, `_BedUvScale`, `_BedTint`, `_RefractStrength`, `_FresnelTilt`,
+`_Caustics`.
 
 ### Френель
 
