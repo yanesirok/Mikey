@@ -118,13 +118,14 @@ public static class BambooArena
         var foliage = new Bake();
         var ground = new Bake();
         var scan = new Bake();
+        var shade = new Bake();
 
         BuildBridge(timber, foliage);
         BuildProps(timber, foliage);
         BuildBamboo(bamboo, cards);
         BuildBanks(ground);
         BuildScanFoliage(scan);
-        BuildUndergrowth(foliage, cards);
+        BuildUndergrowth(foliage, cards, shade);
 
         Mesh timberMesh = timber.ToMesh("ArenaTimber");
         Mesh bambooMesh = bamboo.ToMesh("ArenaBamboo");
@@ -132,6 +133,7 @@ public static class BambooArena
         Mesh foliageMesh = foliage.ToMesh("ArenaFoliage");
         Mesh groundMesh = ground.ToMesh("ArenaGround");
         Mesh scanMesh = scan.ToMesh("ArenaScan");
+        Mesh shadeMesh = shade.ToMesh("ArenaLilyShade");
 
         // Occlusion is the single biggest thing separating generated geometry from modelled
         // geometry: without it planks, posts and props all sit in the same flat light and
@@ -184,6 +186,11 @@ public static class BambooArena
         GameObject groundGo = AddMesh(root, "Ground", groundMesh, GroundMaterial(), castShadows: false);
         GameObject scanGo = AddMesh(root, "ScanFoliage", scanMesh, ScanFoliageMaterial(),
                                     castShadows: false);
+        // The lily pads' contact shadow. Deliberately left on Default rather than following the
+        // vegetation into a reflected layer, for the same reason the fighters' blob is: this is a
+        // cheat tuned for the main camera's angle, and mirrored it becomes a dark patch floating
+        // in the sky the water is showing.
+        AddMesh(root, "LilyShade", shadeMesh, LilyShadeMaterial(), castShadows: false);
         BuildWater(root);
 
         // Two reflected layers, because the two halves cost very different amounts. The bridge
@@ -211,10 +218,13 @@ public static class BambooArena
         int scanTris = scanMesh.triangles.Length / 3;
         int timberTris = timberMesh.triangles.Length / 3;
         int groundTris = groundMesh.triangles.Length / 3;
-        int arenaTris = timberTris + bambooTris + cardTris + foliageTris + groundTris + scanTris;
+        int shadeTris = shadeMesh.triangles.Length / 3;
+        int arenaTris = timberTris + bambooTris + cardTris + foliageTris + groundTris + scanTris
+                        + shadeTris;
         Debug.Log($"BambooArena: timber {timberTris} tris, " +
                   $"bamboo {bambooTris}, cards {cardTris}, vegetation {foliageTris}, " +
-                  $"ground {groundTris}, scan {scanTris}, arena {arenaTris}.");
+                  $"ground {groundTris}, scan {scanTris}, lily shade {shadeTris}, " +
+                  $"arena {arenaTris}.");
 
         // The ceiling is the whole arena, because that is what a phone draws. It was stated as
         // ~115k for a long time and enforced nowhere: the per-mesh caps permitted 141k between
@@ -228,7 +238,8 @@ public static class BambooArena
         if (arenaTris > 115000)
             Debug.LogError($"BambooArena: arena over budget — {arenaTris} tris (max 115000): " +
                            $"timber {timberTris}, bamboo {bambooTris}, cards {cardTris}, " +
-                           $"vegetation {foliageTris}, ground {groundTris}, scan {scanTris}.");
+                           $"vegetation {foliageTris}, ground {groundTris}, scan {scanTris}, " +
+                           $"lily shade {shadeTris}.");
         // Per-mesh tripwires on the three a placement change can run away with. The card mesh
         // carries bank grass and the near tier's crowns as well as the far tiers' foliage now.
         if (bambooTris > 50000 || cardTris > 16000 || foliageTris > 30000)
@@ -416,7 +427,7 @@ public static class BambooArena
             }
         }
 
-        BuildRailing(bake, plankPale, plankMid);
+        BuildRailing(bake, plankPale);
         BuildAbutments(bake);
     }
 
@@ -439,37 +450,26 @@ public static class BambooArena
     }
 
     /// <summary>
-    /// The balustrade on the far side, and the sill that finishes both deck edges.
+    /// The sill that finishes both deck edges. Nothing stands on it.
     ///
-    /// The near side carries the sill and nothing above it. A rail between the camera and the
-    /// fighters would cut their legs off, which this framing cannot afford; eight centimetres of
-    /// sill projects below a boot instead of across a shin, and that is enough to turn a row of
-    /// board ends into an edge.
+    /// There was a balustrade here — sill, posts, lower rail, balusters at an even pitch, a flat
+    /// handrail, heavier posts closing the run — and it was well built. It came out anyway, and
+    /// the reason is worth keeping so nobody builds it back.
     ///
-    /// This was a run of two thin rails on posts that leaned, stood at an uneven step and had one
-    /// bay knocked out of them. That aimed at a real problem — a rail of identical square sticks
-    /// reads as a row of black palings — and answered it with damage where construction was
-    /// wanted. What separates a built railing from a fence is how many members it has and the
-    /// fact that they line up: a sill carrying the posts, a lower rail, balusters at an even
-    /// pitch, a handrail flat enough to rest a hand on, and heavier posts closing both ends. The
-    /// only variation left is the kind a hand plane leaves.
+    /// This camera puts the far edge of the deck directly behind the fighters at waist height.
+    /// Whatever stands there is not scenery, it is the backdrop the fight is read against, and a
+    /// row of forty-five balusters is a rhythm at exactly the frequency a moving figure is: at
+    /// the moment the two close, the legs and the balusters interleave and the eye has to pick
+    /// the fighters out of a picket fence. Nothing about the railing was wrong except where it
+    /// stood, and there is nowhere else on a bridge to put one.
+    ///
+    /// The sill stays. It is 8 cm at deck level, so it never crosses a figure, and it is the one
+    /// member that turns a row of board ends into an edge.
     /// </summary>
-    private static void BuildRailing(Bake bake, Color pale, Color mid)
+    private static void BuildRailing(Bake bake, Color pale)
     {
         const float sillWidth = 0.14f;   // across the bridge
         const float sillHeight = 0.08f;
-        // 0.72 is measured against this camera, not off a drawing: at 0.86 the handrail stands
-        // 1.16 further away than the fighters do and, from an eye at 1.15, projected across their
-        // chests. Every height below is stacked under that one.
-        const float handRail = 0.72f;
-        const float lowRail = 0.30f;
-        const float postTop = 0.86f;
-        const float newelTop = 0.95f;
-        // Even, so that no post lands on x = 0. Seven posts put one dead centre of the frame and
-        // dead centre of the fight, a vertical line straight up between the two fighters at the
-        // exact moment they close. Six put a bay there instead.
-        const int postCount = 6;
-        const int balustersPerBay = 9;
 
         float sillZ = HalfWidth + 0.06f - sillWidth * 0.5f; // outer face flush with the board ends
 
@@ -484,63 +484,18 @@ public static class BambooArena
                      Mathf.Lerp(-HalfLength, HalfLength, (s + 1) / (float)sillLengths),
                      sillHeight * 0.5f, side * sillZ,
                      new Vector2(sillHeight, sillWidth), pale * 0.95f);
-
-        var postX = new float[postCount];
-        for (int p = 0; p < postCount; p++)
-            postX[p] = Mathf.Lerp(-HalfLength + 0.55f, HalfLength - 0.55f, p / (float)(postCount - 1));
-
-        for (int p = 0; p < postCount; p++)
-        {
-            // The two that close the run are heavier and stand taller. Without them the railing
-            // stops where it happens to run out of posts.
-            bool newel = p == 0 || p == postCount - 1;
-            float top = (newel ? newelTop : postTop) + Random.Range(-0.005f, 0.005f);
-            float height = top - sillHeight;
-            float thick = newel ? 0.14f : 0.10f;
-            // Standing on the sill, not driven into the boards. A post that simply enters a plank
-            // reads as pushed into clay.
-            float baseY = DeckHeight(postX[p]) + sillHeight;
-            bake.Box(new Vector3(postX[p], baseY + height * 0.5f, sillZ),
-                     new Vector3(thick, height, thick), pale * Random.Range(1.0f, 1.06f),
-                     new Vector2(0.4f, 3f), new Vector2(Random.value, Random.value),
-                     Random.Range(-0.3f, 0.3f), newel ? 0.022f : 0.015f);
-        }
-
-        for (int bay = 0; bay < postCount - 1; bay++)
-        {
-            // The run overshoots the end posts by 7 cm: a through tenon, not two boxes meeting.
-            float a = postX[bay] - (bay == 0 ? 0.07f : 0f);
-            float b = postX[bay + 1] + (bay == postCount - 2 ? 0.07f : 0f);
-
-            Beam(bake, a, b, handRail, sillZ, new Vector2(0.06f, 0.12f), pale * 1.06f);
-            Beam(bake, a, b, lowRail, sillZ, new Vector2(0.05f, 0.08f), pale * 1.02f);
-
-            // Worn strip along the top of the handrail: lighter where hands have polished it.
-            // Wear, not damage — this one stays.
-            Beam(bake, postX[bay] + 0.06f, postX[bay + 1] - 0.06f, handRail + 0.036f, sillZ,
-                 new Vector2(0.012f, 0.07f), pale * 1.12f, 0.004f);
-
-            // Balusters. Four and a half centimetres at a 31 cm pitch: at this camera that is
-            // four pixels of timber against twenty-six of gap, which reads as a rhythm rather
-            // than as a wall behind the fighters. Four-sided tubes — eight triangles each, and
-            // both ends are buried in the rails, so there is nothing for a cap to close.
-            for (int i = 1; i <= balustersPerBay; i++)
-            {
-                float bx = Mathf.Lerp(postX[bay], postX[bay + 1], i / (float)(balustersPerBay + 1));
-                float deck = DeckHeight(bx);
-                bake.Tube(new Vector3(bx, deck + lowRail + 0.015f, sillZ),
-                          new Vector3(bx, deck + handRail - 0.02f, sillZ),
-                          0.023f, 0.023f, mid * Random.Range(1.08f, 1.18f), 4, 1);
-            }
-        }
     }
 
     /// <summary>Stone steps where the bridge lands on each bank. Without them the deck ends in
     /// mid-air, which is visible the moment the camera pans to either extreme.</summary>
     private static void BuildAbutments(Bake bake)
     {
-        Color stone = new Color(0.95f, 0.97f, 0.98f);
-        Color stoneDark = new Color(0.55f, 0.58f, 0.6f);
+        // Cooled hard, because these ride the wood map like everything else on this material and
+        // the map is now cedar rather than driftwood. A near-neutral multiplier over a warm map
+        // is a warm result: the abutments would have come out as brown blocks. The 1.5 on blue
+        // is not a colour, it is the inverse of the map's own hue.
+        Color stone = new Color(0.95f, 1.14f, 1.48f);
+        Color stoneDark = new Color(0.55f, 0.66f, 0.86f);
 
         for (int side = -1; side <= 1; side += 2)
         {
@@ -763,6 +718,48 @@ public static class BambooArena
         return Srgb(r, g, b);
     }
 
+    /// <summary>The ladder these tints exist to build, checked rather than trusted. Every retune of
+    /// the grove is done by eye against a frame, and each rule below has already cost a build once:
+    /// an equal saturation cut across the tiers leaves the farthest plane the purest green in frame,
+    /// turf pitched under the grove vanishes into the bank's cast shadow, and a near tier dropped to
+    /// the edge culms' value merges with them into one black curtain. All three are arithmetic, so
+    /// the bake can say so instead of the next screenshot.</summary>
+    private static void CheckFoliageLadder(Color edge, Color near, Color mid, Color far)
+    {
+        float Lum(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+        float Sat(Color c)
+        {
+            float max = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+            return max <= 1e-4f ? 0f : (max - Mathf.Min(c.r, Mathf.Min(c.g, c.b))) / max;
+        }
+
+        if (Sat(near) <= Sat(mid) || Sat(mid) <= Sat(far))
+            Debug.LogError($"BambooArena: foliage saturation must fall with distance, got near " +
+                           $"{Sat(near):P0}, mid {Sat(mid):P0}, far {Sat(far):P0} — the haze reads " +
+                           "inverted and the farthest plane is the purest green in frame.");
+
+        if (Lum(Turf) <= Lum(near))
+            Debug.LogError($"BambooArena: turf {Lum(Turf):F3} must stay brighter than the near " +
+                           $"grove {Lum(near):F3}, or the bank loses it to the bridge's shadow.");
+
+        if (Lum(edge) >= Lum(near))
+            Debug.LogError($"BambooArena: frame-edge culms {Lum(edge):F3} must stay darker than " +
+                           $"the near grove {Lum(near):F3}, or the two merge into one black curtain.");
+
+        // Printed every bake, not just on failure: every spec in docs/ argues from a table of
+        // measured luminance, and the numbers being in the log is what makes the next retune an
+        // argument about evidence rather than about what the frame felt like.
+        //
+        // These are linear, because Culm() ends in Srgb() and that is what the vertex stream
+        // carries. They read darker and far purer than the sRGB figures the spec tabulates — near
+        // logs 0.108/70% where the eye is shown 0.360/45%. Comparing a number here against a
+        // number there is the mistake this sentence exists to stop.
+        Debug.Log($"BambooArena: foliage ladder, linear — " +
+                  $"edge {Lum(edge):F3}/{Sat(edge):P0}, near {Lum(near):F3}/{Sat(near):P0}, " +
+                  $"turf {Lum(Turf):F3}/{Sat(Turf):P0}, mid {Lum(mid):F3}/{Sat(mid):P0}, " +
+                  $"far {Lum(far):F3}/{Sat(far):P0} (luminance/saturation).");
+    }
+
     // ponytail: the grove is the frame's main cost. If a real phone disagrees, cut the tier-3
     // cluster count first — fog is already doing most of that tier's work.
     private static void BuildBamboo(Bake bake, Bake cards)
@@ -770,19 +767,33 @@ public static class BambooArena
         // Four steps of brightness, and now of saturation too. Depth here comes from the tonal
         // step between tiers, not from blur: a background that is merely out of focus still reads
         // flat, while separated values read as separate planes even when sharp.
-        Color edge = Culm(0.561f, 0.659f, 0.235f, 0.114f, 1.30f);  // #8FA83C at the near-black level
-        // 0.45, not the 0.32 this tier used to sit at. Once the crowns filled with foliage the
-        // near grove became most of the left and right thirds of the frame, and at the old value
-        // it read as one black curtain with no step between it and the frame-edge culms. This is
-        // the one place the tonal ladder was genuinely wrong and not just desaturated.
-        Color near = Culm(0.659f, 0.690f, 0.290f, 0.45f, 1.35f);   // #A8B04A, the mature culm
-        // The far tiers are pulled toward the reference hue further than before, but their
-        // saturation is barely touched: they stand where the fog does, and saturated green in the
-        // haze flattens the depth the ladder exists to build. The distance has to end in sky.
+        //
+        // Saturation is what made the grove read as painted rather than photographed. A leaf under
+        // open sky has sky falling into its shade, so its blue channel never collapses; at 1.30-1.35
+        // these tiers held blue at a seventh of green and landed at 77-82% saturation, where foliage
+        // in soft light sits at 30-45%. The multipliers are below one now, and in Culm() that lifts
+        // blue toward the tier's own luminance without moving the tier along the ladder.
+        Color edge = Culm(0.561f, 0.659f, 0.235f, 0.100f, 0.76f);  // #8FA83C at the near-black level
+        // 0.360, down from the 0.45 this tier was lifted to once the crowns filled with foliage.
+        // That lift was right against a grove at 77% saturation: the tier was carrying the left and
+        // right thirds of the frame and had nothing but value to separate it from the frame-edge
+        // culms. With the green cut back it reads as a plane at a darker value, and the step out to
+        // the far tiers grows rather than shrinks. What must not come back is 0.32, where this tier
+        // and the edge culms merged into one black curtain.
+        Color near = Culm(0.659f, 0.690f, 0.290f, 0.360f, 0.77f);  // #A8B04A, the mature culm
+        // The far tiers keep their luminance almost exactly — they stand where the fog does, and
+        // the distance has to end in sky. Their saturation moves least of the four in absolute
+        // terms, and that is the point rather than an oversight: haze had already taken most of
+        // their chroma, so they have the least left to give. Cutting every tier by the same amount
+        // is the obvious move and it inverts the ladder — the two planes that started cleanest end
+        // up the purest green in frame. What has to survive is the order, 45% near / 32% mid /
+        // 21% far, not the size of any single cut.
         Color mid = Color.Lerp(Srgb(0.46f, 0.50f, 0.35f),
-                               Culm(0.659f, 0.690f, 0.290f, 0.481f, 1.15f), 0.70f);
+                               Culm(0.659f, 0.690f, 0.290f, 0.386f, 0.56f), 0.70f);
         Color far = Color.Lerp(Srgb(0.62f, 0.66f, 0.55f),
-                               Culm(0.659f, 0.690f, 0.290f, 0.644f, 1.05f), 0.35f);
+                               Culm(0.659f, 0.690f, 0.290f, 0.636f, 0.48f), 0.35f);
+
+        CheckFoliageLadder(edge, near, mid, far);
 
         // Culms at the frame edges. At z -3.5..-2 the frame is under 9.6 units wide however the
         // camera pans, so |x| >= 3.4 can only ever cross its outer edge. Rooted below the water
@@ -886,10 +897,12 @@ public static class BambooArena
         }
     }
 
-    /// <summary>Bank growth, one step below the near tier in luminance. Brighter than the culms
+    /// <summary>Bank growth, one step above the near tier in luminance. Brighter than the culms
     /// standing over it, not darker: the ground it stands on is the darkest surface in the scene,
-    /// and grass pitched below the grove disappeared into it.</summary>
-    private static Color Turf => Culm(0.561f, 0.659f, 0.235f, 0.52f, 1.25f);
+    /// and grass pitched below the grove disappeared into it. The +0.070 gap to the near tier is
+    /// the invariant, not either endpoint — both moved down together when the green came out, and
+    /// <see cref="CheckFoliageLadder"/> fails the bake if the gap ever closes.</summary>
+    private static Color Turf => Culm(0.561f, 0.659f, 0.235f, 0.430f, 0.65f);
 
     /// <summary>Wind phase taken from where a clump stands rather than at random. Grass moves in
     /// waves crossing the bank; a grove does not, which is why the culms keep their random phase.
@@ -1035,7 +1048,7 @@ public static class BambooArena
         }
     }
 
-    private static void BuildUndergrowth(Bake bake, Bake cards)
+    private static void BuildUndergrowth(Bake bake, Bake cards, Bake shade)
     {
         Color reed = Srgb(0.30f, 0.36f, 0.17f);
         Color fern = Srgb(0.20f, 0.28f, 0.13f);
@@ -1084,9 +1097,9 @@ public static class BambooArena
         // z starts at 2, not at the bridge: at the bridge's own depth the bank is already past the
         // edge of the frame, and an earlier attempt spent more than half its clumps where nothing
         // sees them. This band sits under the part of the grove the camera actually frames.
-        // 0.52 — brighter than the culms standing over it (0.45), not darker. The bank lies in the
-        // shadow the bridge throws, and at the value the ground itself has, grass painted a step
-        // below the grove disappears into it. In the reference the bank growth is the lightest
+        // 0.430 — brighter than the culms standing over it (0.360), not darker. The bank lies in
+        // the shadow the bridge throws, and at the value the ground itself has, grass painted a
+        // step below the grove disappears into it. In the reference the bank growth is the lightest
         // thing in the bottom half of the frame; here it has a cast shadow to climb out of first.
         Color turf = Turf;
 
@@ -1111,23 +1124,94 @@ public static class BambooArena
                        turf * Random.Range(0.82f, 1.18f), GrassPhase(x, z), 0.45f);
         }
 
-        // Lily pads, three size classes rather than one continuous range — real ones grow in
-        // distinct stages, and a smooth spread of sizes reads as noise.
-        for (int i = 0; i < 240; i++)
+        // Lily pads. A water lily grows from a rhizome on the bed, so its leaves come out in a
+        // clump around one point — which is why an even sowing across the whole channel is the
+        // most visible placement mistake there is, and it is what stood here: 240 leaves at
+        // uniform random, up to 92 cm across. A Nymphaea leaf is 10-28 cm. Fifteen clumps of four
+        // to six at that size is roughly 75 leaves, which leaves the jade water visible between
+        // them instead of paving it over.
+        //
+        // Rejection sampling rather than a lattice: the clumps have to keep 1.5 m apart *and* land
+        // where the bed is deep enough, and the two conditions do not compose into a formula.
+        var rhizomes = new List<Vector2>();
+        for (int attempt = 0; attempt < 300 && rhizomes.Count < 15; attempt++)
         {
-            float x = Random.Range(-13f, 13f);
-            float z = Mathf.Lerp(-10f, 26f, Random.value * Random.value);
-            if (Ground(x, z) > WaterY - 0.05f)
+            var root = new Vector2(Random.Range(-12f, 12f),
+                                   Mathf.Lerp(-10f, 26f, Random.value * Random.value));
+            // Not on the shallows at the very edge: the old test was 5 cm of water, which put
+            // leaves where the bank is about to surface through them.
+            if (Ground(root.x, root.y) > WaterY - 0.15f)
                 continue;
-            float roll = Random.value;
-            float radius = roll < 0.5f ? Random.Range(0.1f, 0.16f)
-                         : roll < 0.85f ? Random.Range(0.2f, 0.28f)
-                         : Random.Range(0.34f, 0.46f);
-            var centre = new Vector3(x, WaterY + 0.02f, z);
-            LilyPad(bake, centre, radius, pad * Random.Range(0.75f, 1.25f));
-            if (Random.value < 0.05f)
-                Blades(bake, centre + new Vector3(0f, 0.05f, 0f), 0.11f, 0.6f, -0.2f, 6, bloom,
-                       Random.value, 0.3f, 0.5f);
+            bool crowded = false;
+            foreach (Vector2 other in rhizomes)
+                crowded |= (other - root).sqrMagnitude < 1.5f * 1.5f;
+            if (crowded)
+                continue;
+            rhizomes.Add(root);
+            LilyClump(bake, shade, root, pad, bloom);
+        }
+        if (rhizomes.Count < 12)
+            Debug.LogError($"BambooArena: only {rhizomes.Count} lily clumps placed of 15 — the " +
+                           $"spacing test or the depth test is rejecting nearly everything.");
+    }
+
+    /// <summary>
+    /// One rhizome's worth of leaves, and at best one flower.
+    ///
+    /// Positions come from phyllotaxis — golden angle, distance growing as sqrt(k) — because that
+    /// is literally how the plant lays its leaves out, and it packs a clump with no two leaves at
+    /// the same distance and no gaps in the middle. The constant in front of it sets the crowding:
+    /// at 2.0 mean radii neighbours overlap by about 15%, which is what a photograph of a real
+    /// clump shows and what no amount of jittered scatter produces.
+    /// </summary>
+    private static void LilyClump(Bake bake, Bake shade, Vector2 root, Color pad, Color bloom)
+    {
+        // Three size classes, not a continuous range: real leaves grow in distinct stages, and a
+        // smooth spread of sizes reads as noise. One mature leaf per clump, never two.
+        var radii = new List<float> { Random.Range(0.11f, 0.14f) };
+        for (int i = 0, n = Random.Range(2, 4); i < n; i++)
+            radii.Add(Random.Range(0.07f, 0.11f));
+        for (int i = 0, n = Random.Range(1, 3); i < n; i++)
+            radii.Add(Random.Range(0.05f, 0.07f));
+
+        const float golden = 2.399963f;
+        float mean = 0f;
+        foreach (float r in radii)
+            mean += r / radii.Count;
+        float spin = Random.value * Mathf.PI * 2f;
+
+        for (int k = 0; k < radii.Count; k++)
+        {
+            float a = spin + k * golden;
+            float d = 2f * mean * Mathf.Sqrt(k);
+            float x = root.x + Mathf.Cos(a) * d;
+            float z = root.y + Mathf.Sin(a) * d;
+            if (Ground(x, z) > WaterY - 0.08f)
+                continue;
+            // The petiole enters the leaf at the sinus and runs down to the rhizome, so the notch
+            // faces the middle of the clump. Getting this wrong is subtle and reads as wrong: a
+            // ring of leaves with their notches pointing outward looks like a scatter of shapes
+            // rather than like one plant. The leaf sitting on the rhizome has no direction to face.
+            float notch = k == 0
+                ? Random.value * Mathf.PI * 2f
+                : Mathf.Atan2(root.y - z, root.x - x) + Random.Range(-0.7f, 0.7f);
+            var centre = new Vector3(x, WaterY + 0.02f + Random.Range(-0.005f, 0.005f), z);
+            LilyPad(bake, centre, radii[k], notch, pad * Random.Range(0.82f, 1.18f));
+            LilyShade(shade, centre, radii[k]);
+        }
+
+        // Roughly one flower per nine leaves. The real ratio is one per five to eight; this lands
+        // just under it because a white bloom is by a long way the brightest thing on this water,
+        // and eight of them in frame is already where the eye goes first.
+        if (Random.value < 0.55f)
+        {
+            float a = Random.value * Mathf.PI * 2f;
+            float d = Random.Range(0.12f, 0.3f);
+            float x = root.x + Mathf.Cos(a) * d;
+            float z = root.y + Mathf.Sin(a) * d;
+            if (Ground(x, z) < WaterY - 0.08f)
+                LilyBloom(bake, new Vector3(x, WaterY + 0.045f, z), Random.Range(0.05f, 0.075f),
+                          bloom);
         }
     }
 
@@ -1247,11 +1331,25 @@ public static class BambooArena
         Mesh fern = LoadScanMesh("fern_02.fbx");
         Mesh shrub = LoadScanMesh("shrub_02.fbx");
 
-        // Near white, and deliberately not the turf tint the drawn grass uses. These plants carry
+        // Near neutral, and deliberately not the turf tint the drawn grass uses. These plants carry
         // their colour in a photograph; multiplying that by a green tint multiplies two greens and
         // sends them black. The vertex colour here is a multiplier, nothing more — the same
         // mistake the decking and the bank each cost a build to learn.
-        Color lit = new Color(1.05f, 1.08f, 0.98f);
+        //
+        // Measured over the opaque texels of T_ScanFoliage.png, the photograph averages
+        // 0.423 / 0.395 / 0.251 — red above green, an olive, at 42% median saturation. It was
+        // already the most photographic green in the arena, and the old tint was the thing making
+        // it shout: all three channels above one, with G the largest of them, brightening the plate
+        // and pushing it green at the same time. Below one now, G smallest and B above it, which
+        // lifts the shade the same way the culm tints do.
+        //
+        // The multiplier lands on an albedo the sampler has already decoded to linear, so it moves
+        // value far more than it moves chroma: perceived luminance 0.403 to 0.363, median
+        // saturation only 44.5% to 41.6%. That is the whole correction this plate needs. It was
+        // never the thing shouting green — at 42% it was already the most photographic foliage in
+        // the arena, and it only had to come down to meet the drawn turf that now sits at 43% and
+        // 0.430. Landing just under the turf is right: this geometry shadows itself.
+        Color lit = new Color(0.88f, 0.85f, 0.90f);
 
         // The window is z 9..18 at |x| 6.5..9.5, and it was measured rather than guessed: the
         // bank positions were projected through the fight camera (FOV 32, height 1.15, tilt 2.5°,
@@ -1584,33 +1682,203 @@ public static class BambooArena
         bake.Tri(a, c, b);
     }
 
-    private static void LilyPad(Bake bake, Vector3 centre, float radius, Color color)
+    /// <summary>
+    /// A floating leaf: a radial mesh of three rings, not the seven-triangle fan this used to be.
+    /// Seventy triangles instead of seven, and each of the three things the extra rings buy is
+    /// something nothing else can produce.
+    ///
+    /// A circle instead of a heptagon. Fourteen segments is where the outline stops reading as a
+    /// polygon at the size these leaves occupy in frame.
+    ///
+    /// A rim that turns up. The outer 10% of the leaf climbs from 6% to 14% of its radius, which
+    /// is a 39° slope — steep enough that the edge takes visibly different light from the middle.
+    /// That difference, and not detail, is what stops a flat leaf reading as a decal on the water.
+    ///
+    /// Somewhere to put a gradient. This material carries no texture at all — see
+    /// <see cref="FoliageMaterial"/>, which nulls every map — so the only place a leaf can have a
+    /// dark yellow middle, a lighter body, a rusty margin and venation is in the vertex stream,
+    /// and a fan with one hub and one rim has nowhere to write them.
+    ///
+    /// The sinus — the wedge notch a water lily has and a lotus does not — is a gap left in the
+    /// fan, not transparency in a map. There is no alpha anywhere in this material, which is why
+    /// none of the standard lily-pad problems (mip-thinned cutouts, transparent sorting against
+    /// the water, ZWrite off) exist here to be fixed.
+    /// </summary>
+    /// <param name="notch">Where the sinus opens, in the same XZ angle the rim is swept through.
+    /// The clump aims it at the rhizome; see <see cref="LilyClump"/>.</param>
+    private static void LilyPad(Bake bake, Vector3 centre, float radius, float notch, Color color)
     {
-        const int sides = 7;
-        float phase = Random.value;
-        float notch = Random.value * Mathf.PI * 2f;
-        var wind = new Vector2(phase, 0.05f);
-        int hub = bake.Push(centre, Vector3.up, new Vector2(0.5f, 0.5f), wind, color * 0.85f);
+        const int sides = 14;
+        const float gap = 0.25f; // half the sinus, so 0.5 rad — 29°, inside the botanical 25-30°
 
-        var rim = new int[sides + 1];
-        for (int i = 0; i <= sides; i++)
+        // Ring radius, height and surface slope, all as fractions of the leaf's radius so a 5 cm
+        // leaf curls in proportion to a 14 cm one. The slopes are what the vertex normals are
+        // built from: each is the mean of the two facets meeting at that ring.
+        float[] ringR = { 0.5f, 0.9f, 1f };
+        float[] ringY = { 0f, 0.06f, 0.14f };
+        float[] ringSlope = { 0.115f, 0.475f, 0.8f };
+        // uv1.y, which the shader uses for *both* wind falloff and translucency strength. Kept low
+        // on purpose: a leaf is held by a stem and barely moves, and at 0.25 the wind term works
+        // out to a couple of millimetres at the rim. The gradient is there for the translucency —
+        // the leaf is thinnest at its edge and that is where light comes through it.
+        float[] ringHeight = { 0.10f, 0.18f, 0.25f };
+
+        Color[] ringColor =
         {
-            float a = notch + 0.4f + i / (float)sides * (Mathf.PI * 2f - 0.8f);
-            var p = centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (radius * Random.Range(0.86f, 1.1f));
-            p.y += 0.012f;
-            rim[i] = bake.Push(p, Vector3.up, new Vector2(0.5f + Mathf.Cos(a) * 0.5f, 0.5f + Mathf.Sin(a) * 0.5f),
-                               wind, color);
+            color * 0.95f,
+            color * 1.15f,
+            // The rusty margin a Nymphaea leaf carries, and the one part of it that is not a shade
+            // of its own green. A fifth of the way to the brown: at two fifths the rim lit up as
+            // an orange ring, which is a louder mistake than the flat colour it replaced.
+            Color.Lerp(color * 0.85f, Srgb(0.54f, 0.35f, 0.18f), 0.2f),
+        };
+
+        float phase = Random.value;
+        // Middle of the leaf: darker, and yellower rather than merely darker — the blue channel
+        // comes down a further 28%. This is the opposite direction from the desaturation pass the
+        // rest of the greenery got, and deliberately so: that pass fixed foliage lit by open sky,
+        // and the middle of a lily pad is the one place on this water nothing blue reaches.
+        var hubColor = new Color(color.r * 0.70f, color.g * 0.70f, color.b * 0.70f * 0.72f, color.a);
+        int hub = bake.Push(centre + Vector3.down * (radius * 0.04f), Vector3.up,
+                            new Vector2(0.5f, 0.5f), new Vector2(phase, 0f), hubColor);
+
+        var ring = new int[3][];
+        for (int r = 0; r < 3; r++)
+        {
+            ring[r] = new int[sides + 1];
+            for (int i = 0; i <= sides; i++)
+            {
+                float a = notch + gap + i / (float)sides * (Mathf.PI * 2f - gap * 2f);
+                float cos = Mathf.Cos(a), sin = Mathf.Sin(a);
+                // Wobble on the outer ring only. On an inner ring the same jitter never reaches
+                // the silhouette and shows up instead as a dent in the shading.
+                float rr = radius * ringR[r] * (r == 2 ? Random.Range(0.9f, 1.06f) : 1f);
+                var p = centre + new Vector3(cos * rr, radius * ringY[r], sin * rr);
+                if (r == 2)
+                    p.y += radius * Random.Range(-0.02f, 0.02f);
+                float slope = ringSlope[r];
+                // Veins: alternate vertices a step either side of the ring's value. The vertices
+                // are shared between neighbouring segments, so this is not a set of hard wedges
+                // but fourteen soft radial bands converging on the stem — which is what venation
+                // amounts to at the size this leaf occupies on a phone.
+                float vein = (i & 1) == 0 ? 1.08f : 0.94f;
+                ring[r][i] = bake.Push(p, new Vector3(-slope * cos, 1f, -slope * sin).normalized,
+                                       new Vector2(0.5f + cos * 0.5f, 0.5f + sin * 0.5f),
+                                       new Vector2(phase, ringHeight[r]), ringColor[r] * vein);
+            }
         }
-        // Wound so the face points the way its vertices claim to. Taken the other way round,
-        // cross(rim[i] - hub, rim[i+1] - hub) for a rising angle in XZ comes out as -Y: the pad's
-        // geometric normal pointed at the riverbed. The material is Cull Off, so the pad still
-        // drew — but the shader flips the shading normal by VFACE, and a back face whose vertex
-        // normal is already reversed gets flipped away from the viewer rather than toward it.
-        // Sun contribution zero, ground ambient only: 4% of the light an up-facing leaf takes,
-        // which is how a leaf on bright water reads as a hole punched through it. Two earlier
-        // passes raised the albedo against this and moved the pixels from 1 to 7.
+
+        // Wound so the faces point the way their vertices claim to: (inner, outer[i+1], outer[i])
+        // is the up-facing order for a rising angle in XZ. Taken the other way round,
+        // cross(rim[i] - hub, rim[i+1] - hub) comes out as -Y and the pad's geometric normal
+        // points at the riverbed. The material is Cull Off, so the pad still draws — but the
+        // shader flips the shading normal by VFACE, and a back face whose vertex normal is already
+        // reversed gets flipped away from the viewer rather than toward it. Sun contribution zero,
+        // ground ambient only: 4% of the light an up-facing leaf takes, which is how a leaf on
+        // bright water reads as a hole punched through it. Two earlier passes raised the albedo
+        // against this bug and moved the pixels from 1 to 7.
         for (int i = 0; i < sides; i++)
-            bake.Tri(hub, rim[i + 1], rim[i]);
+        {
+            bake.Tri(hub, ring[0][i + 1], ring[0][i]);
+            for (int r = 0; r < 2; r++)
+            {
+                bake.Tri(ring[r][i], ring[r + 1][i + 1], ring[r + 1][i]);
+                bake.Tri(ring[r][i], ring[r][i + 1], ring[r + 1][i + 1]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The flower, and the reason to touch any of this: on every reference of water like this it
+    /// is the blooms and not the leaves that carry the picture. What stood here before was a
+    /// six-blade grass tuft painted white.
+    ///
+    /// Twenty-one petals in three rows of seven, two triangles each, over a hexagonal cone of
+    /// stamens: 48 triangles, less than one chamfered box. Each row is shorter and steeper than
+    /// the one outside it, and offset half a step around, so no petal sits directly on another.
+    ///
+    /// The glow is free. The material already runs _Translucency 1.2 and the shader scales it by
+    /// uv1.y, so ramping that from 0.05 at the petal's base to 0.42 at its tip lights the petal
+    /// through from behind exactly where it is thin — and a white water lily is mostly that glow.
+    /// </summary>
+    private static void LilyBloom(Bake bake, Vector3 centre, float radius, Color tip)
+    {
+        // A petal is greenish-yellow where it attaches and white at the tip. Missing that gradient
+        // is what makes a white flower read as a paper cutout.
+        Color root = Srgb(0.70f, 0.72f, 0.48f);
+        Color heart = Srgb(0.86f, 0.68f, 0.16f);
+
+        const int perRow = 7;
+        float[] tilt = { 10f, 38f, 62f };
+        float[] length = { 1f, 0.78f, 0.55f };
+        float spin = Random.value * Mathf.PI * 2f;
+        float phase = Random.value;
+
+        for (int row = 0; row < 3; row++)
+            for (int p = 0; p < perRow; p++)
+            {
+                float a = spin + (p + row * 0.5f) / perRow * Mathf.PI * 2f;
+                var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                float t = tilt[row] * Mathf.Deg2Rad;
+                Vector3 axis = dir * Mathf.Cos(t) + Vector3.up * Mathf.Sin(t);
+                Vector3 side = Vector3.Cross(Vector3.up, dir); // horizontal, never degenerate
+                Vector3 n = Vector3.Cross(axis, side).normalized;
+                float len = radius * length[row] * Random.Range(0.92f, 1.08f);
+                float wide = len * 0.3f;
+                Color mid = Color.Lerp(root, tip, 0.5f);
+
+                int b = bake.Push(centre + axis * (len * 0.1f), n, new Vector2(0.5f, 0f),
+                                  new Vector2(phase, 0.05f), root);
+                int sa = bake.Push(centre + axis * (len * 0.4f) + side * wide, n,
+                                   new Vector2(1f, 0.4f), new Vector2(phase, 0.25f), mid);
+                int sb = bake.Push(centre + axis * (len * 0.4f) - side * wide, n,
+                                   new Vector2(0f, 0.4f), new Vector2(phase, 0.25f), mid);
+                int tp = bake.Push(centre + axis * len, n, new Vector2(0.5f, 1f),
+                                   new Vector2(phase, 0.42f), tip);
+                bake.Tri(b, tp, sa);
+                bake.Tri(b, sb, tp);
+            }
+
+        // Stamens. At ten to fifteen centimetres across, the middle of this flower is a yellow dot
+        // a few pixels wide; a modelled bundle of filaments would be the same few pixels of the
+        // same yellow for thirty times the triangles. A cone, not a disc, so it takes a highlight.
+        int crown = bake.Push(centre + Vector3.up * (radius * 0.1f), Vector3.up,
+                              new Vector2(0.5f, 0.5f), new Vector2(phase, 0.1f), heart * 1.15f);
+        var skirt = new int[7];
+        for (int i = 0; i <= 6; i++)
+        {
+            float a = spin + i / 6f * Mathf.PI * 2f;
+            skirt[i] = bake.Push(
+                centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (radius * 0.22f)
+                       + Vector3.up * (radius * 0.02f),
+                Vector3.up, new Vector2(0.5f, 0.5f), new Vector2(phase, 0.06f), heart);
+        }
+        for (int i = 0; i < 6; i++)
+            bake.Tri(crown, skirt[i + 1], skirt[i]);
+    }
+
+    /// <summary>
+    /// The soft darkening a floating leaf puts on the water beneath it — a leaf two centimetres
+    /// off the surface occludes the sky over a patch a little wider than itself, and without that
+    /// patch the pad reads as lying *on top of* the water rather than *on* it.
+    ///
+    /// Same texture, shader and queue as the fighters' blob (FightSceneSetup.AddBlobShadow). Its
+    /// own mesh rather than part of the vegetation because that material is opaque and this one
+    /// has to blend; two triangles a leaf, one draw call for the lot.
+    /// </summary>
+    private static void LilyShade(Bake shade, Vector3 centre, float radius)
+    {
+        // 1.35 radii of half-extent. T_Blob is opaque only inside 15% of its half-width and fades
+        // to nothing at the edge, so what this actually puts on the water is a small dark core
+        // under the middle of the leaf and a wide soft falloff — not a square.
+        float s = radius * 1.35f;
+        float y = WaterY + 0.005f;
+        // Wound anticlockwise in XZ so the quad faces up; the particle shader culls back faces.
+        shade.Quad(new Vector3(centre.x - s, y, centre.z - s),
+                   new Vector3(centre.x - s, y, centre.z + s),
+                   new Vector3(centre.x + s, y, centre.z + s),
+                   new Vector3(centre.x + s, y, centre.z - s),
+                   Vector3.up, Color.white, 0f, 0f, 0f);
     }
 
     // ------------------------------------------------------------------ assets
@@ -1774,6 +2042,44 @@ public static class BambooArena
         return mat;
     }
 
+    /// <summary>The lily pads' contact shadow. Same shader, texture and queue as the fighters'
+    /// blob; a separate material only so the opacity can differ, because a fighter standing on the
+    /// boards occludes far more sky than a leaf lying two centimetres off the water. Every float
+    /// here is copied from what URP's own material inspector writes for a transparent particle —
+    /// a freshly created material has none of them, and without the keyword it renders as an
+    /// opaque black square.</summary>
+    private static Material LilyShadeMaterial()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+        if (shader == null)
+        {
+            Debug.LogError("BambooArena: URP particle shader not found — the lily pads will have " +
+                           "no contact shadow.");
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+        }
+
+        Material mat = LoadOrCreate("M_ArenaLilyShade", shader);
+        mat.SetFloat("_Surface", 1f);   // transparent
+        mat.SetFloat("_Blend", 0f);     // alpha
+        mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+        mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+        mat.SetFloat("_ZWrite", 0f);
+        mat.SetFloat("_Cull", (float)CullMode.Back);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.SetOverrideTag("RenderType", "Transparent");
+        mat.SetShaderPassEnabled("DepthOnly", false);
+        mat.SetShaderPassEnabled("SHADOWCASTER", false);
+        // Under the water's ripple particles, over the water itself — which is Queue Geometry and
+        // writes depth, so this lands on the surface and not through it.
+        mat.renderQueue = (int)RenderQueue.Transparent - 50;
+        mat.SetTexture("_BaseMap", LoadTexture("T_Blob.asset"));
+        // 0.35 against the fighters' 0.55. A leaf is not opaque and does not sit on the surface;
+        // at the fighters' value the water under a clump went to a flat dark mat.
+        mat.SetColor("_BaseColor", new Color(0f, 0f, 0f, 0.35f));
+        mat.SetColor("_Color", new Color(0f, 0f, 0f, 0.35f));
+        return mat;
+    }
+
     private static Material WaterMaterial()
     {
         Shader shader = Shader.Find("Mikey/Water");
@@ -1783,14 +2089,40 @@ public static class BambooArena
             shader = Shader.Find("Universal Render Pipeline/Lit");
         }
         Material mat = LoadOrCreate("M_ArenaWater", shader);
-        mat.SetColor("_DeepColor", new Color(0.039f, 0.102f, 0.094f));
+        // The two ends of the jade palette, raw — the same convention _SkyColor and _FoamColor
+        // below them already use, and now the measured one.
+        //
+        // Srgb() here was wrong and the probe caught it: a material serialises its Colors in gamma
+        // and Unity converts them on upload, so a value that arrives already linear is converted a
+        // second time. The body of the water came out four times too dark, with G/R at 5.1 where
+        // the model says 3.5 — a nonlinear error, which is the signature of a double conversion
+        // rather than a mistuned constant.
+        mat.SetColor("_DeepColor", new Color(0.027f, 0.247f, 0.271f));  // #073F45
+        // Dimmer than the reference palette's #8FE8DC, and deliberately. That hex is the colour a
+        // photograph *comes out*, which already contains the bottom showing through and the sky
+        // on top of it. Fed in as the source of scattering it counts that brightness twice: at
+        // 0.81 linear green the water column outshone a lit riverbed by four to one and the bed
+        // was invisible at any depth.
+        mat.SetColor("_ShallowColor", new Color(0.373f, 0.655f, 0.612f)); // #5FA79C
+        mat.SetVector("_Absorption", new Vector4(1.15f, 0.16f, 0.28f, 0f));
+        // 0.22, down from 0.45. At 0.45 the scattering term was already at half strength 1.5 m
+        // along the ray — which is the near band, where the bed is supposed to be legible.
+        mat.SetFloat("_ScatterDensity", 0.22f);
+        // The bank's own silt multiplier, and a multiplier is exactly what it stays: BuildBanks
+        // writes (0.55, 0.50, 0.45) and says why — a multiplier run through gamma conversion
+        // darkens twice. Set as a vector so that no conversion happens on the way in either.
+        mat.SetVector("_BedTint", new Vector4(0.55f, 0.50f, 0.45f, 0f));
+        mat.SetFloat("_FresnelTilt", 0.22f);
         // The sky colour, not a dark tint. At a 5-10° view angle Fresnel puts 60-90% of the
         // surface into reflection, so water darker than the sky above it is physically
         // impossible — and a 0.27 sky against a 0.78 fog is exactly why it read as a grey
         // sheet painted across the bottom of the frame.
         mat.SetColor("_SkyColor", new Color(0.784f, 0.824f, 0.800f));
         mat.SetColor("_FoamColor", new Color(0.769f, 0.812f, 0.788f));
-        mat.SetFloat("_FresnelPower", 4.5f);
+        // 3.0, down from the 4.5 a physical surface wants. Together with _FresnelTilt this takes
+        // the reflection from 16/46/64% at 3/10/20 metres to 5/24/33%, and what the reflection
+        // gives up is exactly what the body of the water takes.
+        mat.SetFloat("_FresnelPower", 3f);
         mat.SetFloat("_FresnelBias", 0.03f);
         mat.SetFloat("_RippleStrength", 0.9f);
         mat.SetFloat("_RippleScale", 1.4f);
@@ -1805,6 +2137,35 @@ public static class BambooArena
         mat.SetFloat("_GustScale", 0.012f);
         mat.SetFloat("_FoamCutoff", 0.42f);
         mat.SetTexture("_NoiseMap", ArenaTextures.Noise());
+        Texture2D bankMap = LoadTexture("T_Ground.jpg");
+        mat.SetTexture("_BedMap", bankMap);
+        mat.SetFloat("_BedUvScale", BankUvScale);
+        mat.SetFloat("_RefractStrength", 0.035f);
+        mat.SetFloat("_Caustics", 1.4f);
+
+        // The body of the water is what makes it jade, and it is switched on by exactly one thing:
+        // a non-zero absorption vector. A material deserialised from before this work has the
+        // property at zero, transmittance comes out 1 everywhere, and the water silently goes back
+        // to being a mirror over a flat colour — a hard failure to spot by eye and a trivial one
+        // to spot here.
+        if (mat.GetVector("_Absorption").sqrMagnitude < 1e-6f)
+            Debug.LogError("BambooArena: M_ArenaWater has no absorption — the water has no body " +
+                           "and will render as a mirror over the bed colour.");
+
+        // The bed must be the same map the bank wears, from the same call. Anything else here is
+        // not a missing decoration: the water would draw its bed as flat tint and the waterline
+        // would grow a seam exactly where the eye goes, between a textured bank and an untextured
+        // river.
+        if (mat.GetTexture("_BedMap") != bankMap)
+            Debug.LogError("BambooArena: M_ArenaWater bed map is not the bank's T_Ground.jpg — " +
+                           "the waterline will show a seam.");
+
+        // Caustics at zero are not "off", they are a silent regression: the shader still pays for
+        // two texture fetches and the bed loses the only thing that made it read as being under
+        // water rather than painted on the surface.
+        if (mat.GetFloat("_Caustics") <= 0f)
+            Debug.LogError("BambooArena: M_ArenaWater has no caustics intensity — the bed will " +
+                           "render flat.");
         return mat;
     }
 
