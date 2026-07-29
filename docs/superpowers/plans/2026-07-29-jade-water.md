@@ -2,6 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Executed 2026-07-29.** All six tasks done, every self-check silent, measurements in the spec's
+> "Результат проверок". Four things went differently from the way they are written here, and the
+> spec says what and why: the palette colours are written raw rather than through `Srgb()` (a
+> double gamma conversion the measurement caught), `_BedTint` became a Vector, the shadow plumbing
+> from Task 5 was pulled forward into Task 4 because an unlit bed was invisible, and Task 6's first
+> check was mis-specified and was replaced by a three-frame `WaterProbe`.
+>
+> Two files this work touches — `Assets/Editor/BambooArena.cs` and `Assets/Editor/ArenaTextures.cs`
+> — were being edited by a second Claude session at the same time, so their changes are **not
+> committed** here. See the closing note.
+
 **Goal:** Give the river a visible body — a jade colour that comes from light absorbed and scattered along the path through the water, with the riverbed and its caustics visible under it — without moving the water out of the opaque queue.
 
 **Architecture:** No depth texture and no opaque copy. The bed depth is baked into the water mesh's vertex colours, the path length is computed from it and the view ray, and the bed is drawn by the water shader itself using the same texture and the same world-space UV projection the banks already use. Caustics ride in the free `B` channel of the existing water noise map. Fresnel is deliberately cheated down so the body shows at all at a 5–10° camera.
