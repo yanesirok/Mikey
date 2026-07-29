@@ -57,6 +57,7 @@ Shader "Mikey/Water"
         // UVs at exactly this scale, and the bed is the bank continuing under the water.
         _BedUvScale ("Bed UV Scale", Range(0.05, 1)) = 0.25
         _RefractStrength ("Refraction Strength", Range(0, 0.2)) = 0.035
+        _Caustics ("Caustics", Range(0, 4)) = 1.4
         // A material property defaulting to black rather than a global, so that when nothing
         // has written it — edit mode, or before the reflection camera's first frame — the
         // sampler resolves to black and the water falls back to its own sky colour. An unbound
@@ -116,6 +117,7 @@ Shader "Mikey/Water"
                 float  _FresnelTilt;
                 float  _BedUvScale;
                 float  _RefractStrength;
+                float  _Caustics;
                 float4 _SkyColor;
                 float4 _FoamColor;
                 float4 _NoiseMap_ST;
@@ -267,6 +269,23 @@ Shader "Mikey/Water"
                                                   * mainLight.shadowAttenuation;
                 float3 bed = SAMPLE_TEXTURE2D(_BedMap, sampler_BedMap, bedUV * _BedUvScale).rgb
                            * _BedTint.rgb * bedLight;
+                // Caustics. Two samples of the same vein field moving against each other, joined
+                // with min() rather than added: the minimum of two webs is the sharp intersection
+                // of them, the sum is a bruise. The coordinate is the point on the *bed*, so the
+                // net lies on the ground and stays there when the camera pans.
+                //
+                // 0.35 per metre puts a Voronoi cell at roughly half a metre, which is the scale
+                // a rippled surface focuses light at in water this shallow. It fades along the
+                // path and dies wherever the sun does not reach — under the deck most of all,
+                // through the same shadow term that lights the bed.
+                float2 kUV = bedUV * 0.35;
+                float k1 = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap,
+                                            kUV + _Time.y * float2(0.020, 0.015)).b;
+                float k2 = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap,
+                                            kUV * 1.31 - _Time.y * float2(0.017, 0.023)).b;
+                float caustics = min(k1, k2) * exp(-L * 0.55) * mainLight.shadowAttenuation;
+                bed += mainLight.color * caustics * _Caustics;
+
                 float3 transmittance = exp(-_Absorption.rgb * L);
                 // Scatter that fades along the path as well as accumulating along it. Without the
                 // lerp the colour converges on the scatter tint, so distance makes the water
