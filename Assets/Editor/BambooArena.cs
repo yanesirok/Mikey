@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Mikey.Fight;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -15,7 +16,7 @@ using Random = UnityEngine.Random;
 /// GPU can be handed.
 ///
 /// World layout. The fighters' floor is y = 0, which is the deck surface at mid-span:
-///   bridge  x ±8, z ±1.1, deck top at y 0 rising <see cref="Sag"/> toward both ends
+///   bridge  x ±8, z ±1.1, deck top at y 0 rising toward both ends by FightRules.BridgeSag
 ///   water   y <see cref="WaterY"/> — 0.6 below the boards, close enough to reach
 ///   banks   a height field either side of |x| = <see cref="ShoreX"/>; the bamboo grows on it
 ///   bamboo  three tiers at distinct brightness steps, plus dark culms at the frame edges
@@ -30,9 +31,8 @@ public static class BambooArena
     public const float DeckY = 0f;       // deck surface at mid-span = the fighters' floor
     public const float WaterY = -0.6f;   // low: in the reference the water is right at the boards
 
-    private const float HalfLength = 8f;   // bridge spans x ±8, so its ends stay just out of frame
+    private const float HalfLength = FightRules.BridgeHalfLength; // ±8, ends just out of frame
     private const float HalfWidth = 1.1f;  // and z ±1.1
-    private const float Sag = 0.18f;       // the ends ride this much higher than mid-span
     private const float ShoreX = 6.8f;     // water's edge; the bridge lands 1.2 units onto the bank
     private const float ChannelEndZ = 26f; // the channel closes here, deep enough to be pure fog
     private const int Seed = 20260727;
@@ -41,6 +41,12 @@ public static class BambooArena
     /// around each one — knowing the positions at build time is what lets the foam skip the
     /// depth texture entirely.</summary>
     private static readonly float[] PileX = { -5.4f, -1.9f, 1.9f, 5.4f };
+
+    /// <summary>The stringers the boards are nailed to, and what actually carries the span.
+    /// Three at 72 cm rather than two at 144: a 2.3 m deck on two stringers has its whole middle
+    /// unsupported, and that is visible through the gaps as a long empty shadow where a beam
+    /// ought to be. Shared so the nail heads land on them rather than near them.</summary>
+    private static readonly float[] BearerZ = { -0.72f, 0f, 0.72f };
     private const float PileWaterZ = 0.7f; // where a splayed leg crosses the surface
 
     private const string Dir = "Assets/Fight/Arena/";
@@ -56,12 +62,12 @@ public static class BambooArena
     private const float BarkClearV = 0.05f;
 
     /// <summary>Deck surface height. A dead straight bridge reads as a box; the sag is what
-    /// makes it read as something slung between two banks.</summary>
-    public static float DeckHeight(float x)
-    {
-        float t = Mathf.Clamp(x / HalfLength, -1f, 1f);
-        return DeckY + Sag * t * t;
-    }
+    /// makes it read as something slung between two banks.
+    ///
+    /// The curve itself lives in <see cref="FightRules"/>: the boards are built from it here and
+    /// the fighters stand on it at runtime, and two copies of a curve is two copies that drift.
+    /// </summary>
+    public static float DeckHeight(float x) => DeckY + FightRules.DeckHeight(x);
 
     /// <summary>Bank height field. Below the water line inside the channel, climbing to the bank
     /// tops outside it. The channel narrows to nothing past <see cref="ChannelEndZ"/> so the
@@ -75,6 +81,18 @@ public static class BambooArena
              * Mathf.Clamp01(inland / 2.5f);
         return y;
     }
+
+    /// <summary>Metres of water standing above the bed at a point, zero on dry land. Clamped to a
+    /// metre because that is the range the vertex colour byte has to span: the channel bottoms out
+    /// 0.7 below the surface, and a byte over a metre quantises to 4 mm, finer than the grid this
+    /// is sampled on.</summary>
+    public static float BedDepthAt(float x, float z) => Mathf.Clamp01(WaterY - Ground(x, z));
+
+    /// <summary>World-space UV scale of the bank's planar projection. The water shader draws the
+    /// riverbed with the same texture and must use the same number: the bed is the bank continuing
+    /// under the water, and two copies of this constant would part company exactly on the
+    /// waterline, which is where the eye is.</summary>
+    public const float BankUvScale = 0.25f;
 
     public static GameObject Build()
     {
@@ -150,6 +168,11 @@ public static class BambooArena
 
         var root = new GameObject("Arena");
         GameObject timberGo = AddMesh(root, "Timber", timberMesh, TimberMaterial(wood), castShadows: true);
+        // The only collider in the arena, and it exists for one reason: foot IK has to find the
+        // board a sole is standing on, and the boards sit proud of one another by up to three
+        // centimetres in a pattern that only this mesh knows. Seven thousand triangles is nothing
+        // to cook and nothing to raycast four times a frame — and no rigidbody ever touches it.
+        timberGo.AddComponent<MeshCollider>().sharedMesh = timberMesh;
         // Bamboo does not cast. The frame-edge culms are twelve units tall and stand a couple of
         // units off camera, so under a 45° key they throw a shadow band clear across the deck —
         // it put one of the two fighters in total darkness while the other stood in the light.
@@ -261,32 +284,58 @@ public static class BambooArena
         // as absolute sRGB colours they were converted to linear and multiplied into the map,
         // darkening every board twice over and turning the deck to charcoal. Multipliers are not
         // colours and must not go through the gamma conversion.
-        Color plankPale = new Color(1.15f, 1.12f, 1.06f);
-        Color plankMid = new Color(0.9f, 0.88f, 0.84f);
-        Color plankDark = new Color(0.62f, 0.6f, 0.56f);
+        // Pulled down by about a third once the wood map stopped arriving two stops dark. The
+        // deck measured 125 against a 219 sky and read as bleached driftwood — brighter than
+        // either fighter, which inverts what the frame is about. Target is 95..110: darker than
+        // the water it sits over, lighter than the beams under it.
+        //
+        // Near-neutral again, and deliberately: the hue now lives in the wood map, where it
+        // belongs, and these are back to being what they are called — multipliers that separate
+        // one board from the next. Lifted about 15% because the warm map is darker than the grey
+        // one it replaced, and the deck has to land back in the 100..115 it was measured at.
+        //
+        // An earlier pass warmed these by 12% instead and left the map grey. That was too timid
+        // by half: a tenth of a hue difference under a grade that removes saturation is not a
+        // warm bridge, it is the same silver one with an apology attached.
+        Color plankPale = new Color(0.97f, 0.94f, 0.90f);
+        Color plankMid = new Color(0.77f, 0.74f, 0.71f);
+        Color plankDark = new Color(0.55f, 0.53f, 0.50f);
         Color beam = new Color(0.5f, 0.48f, 0.44f);
         Color wet = new Color(0.3f, 0.32f, 0.32f);
+        // Multipliers again, so both read against the wood map they share: the nail cold and
+        // dark, the lashing lighter and greyer than any board around it.
+        Color nail = new Color(0.42f, 0.43f, 0.46f);
+        Color rope = new Color(0.95f, 0.90f, 0.76f);
 
         // Boards laid across the direction of travel: the repeating edge is what gives the
         // bridge its rhythm and tells the eye how big a fighter is against it.
-        const float pitch = 0.27f;   // 25 cm board, 2 cm gap — the gap shows water through it
+        // Laid one against the next with a fixed gap, rather than dropped on a fixed pitch. On a
+        // 27 cm pitch a 22 cm board left a 5 cm gap and a 25 cm board left 2 cm: the widest read
+        // as a missing board, and the run of them as a deck with its planks pulled up. Constant
+        // gap, varying board is also the right way round — geometry regular, timber varied.
+        //
+        // 15 mm, not the 8 to 10 a real deck drains through. This camera puts 106 pixels on a
+        // metre, so 9 mm is 0.95 of a pixel: correct, and invisible. Measured at 9 the deck came
+        // back as one continuous sheet with faint scratches on it, and the board rhythm that
+        // tells the eye how big a fighter is against the bridge was gone. 15 mm is 1.6 pixels —
+        // a line that draws, still four times tighter than what read as a missing plank.
+        const float gap = 0.015f;
         const float thickness = 0.055f;
-        int index = 0;
-        for (float x = -HalfLength; x <= HalfLength; x += pitch, index++)
+        for (float x = -HalfLength; x <= HalfLength; )
         {
             float width = Random.Range(0.22f, 0.25f);
             float top = DeckHeight(x);
 
-            // Unevenness is not decoration. A deck of identical boards reads as a printed
-            // texture; three or four sitting proud or sunk is what makes it read as built.
-            float roll = Random.value;
-            if (roll < 0.06f) top += Random.Range(0.012f, 0.03f);      // proud
-            else if (roll < 0.12f) top -= Random.Range(0.01f, 0.022f); // sunk
+            // Unevenness is not decoration, but there are two kinds of it and only one belongs
+            // here. A deck of identical boards reads as a printed texture; a deck with boards
+            // three centimetres proud, boards cut short and boards missing reads as abandoned,
+            // which is what this arena was accused of and what it was in fact built as. What is
+            // left is the tolerance a hand plane leaves — millimetres, not centimetres — and the
+            // board-to-board difference in width and tone, which is where the variation belongs.
+            top += Random.Range(-0.004f, 0.004f);
 
-            float halfSpan = HalfWidth + 0.06f;
-            float zOffset = Random.Range(-0.03f, 0.03f);
-            if (roll > 0.94f)
-                halfSpan -= Random.Range(0.15f, 0.35f); // one board short, leaving a gap at the edge
+            float halfSpan = HalfWidth + 0.06f - Random.Range(0f, 0.012f);
+            float zOffset = Random.Range(-0.008f, 0.008f);
 
             Color tint = Color.Lerp(plankDark, plankPale, Random.Range(0.25f, 1f));
             tint = Color.Lerp(tint, plankMid, 0.3f);
@@ -296,11 +345,21 @@ public static class BambooArena
             // Grain runs down the length of the board, and each board gets its own patch of the
             // map: without the per-board offset the repeat is visible across the whole deck.
             bake.Box(centre, size, tint, new Vector2(0.4f, 3f),
-                     new Vector2(Random.value, Random.value), Random.Range(-1.2f, 1.2f));
+                     new Vector2(Random.value, Random.value), Random.Range(-0.4f, 0.4f));
+
+            // What holds the board down. Two heads over the two bearers, one quad each: at this
+            // camera a nail is two pixels across, so a box would spend forty-four triangles on
+            // something a flat dot says just as well. Without them the boards are laid on the
+            // beams and nothing explains why they stay there.
+            foreach (float bearerZ in BearerZ)
+                NailHead(bake, new Vector3(centre.x, top + 0.002f, bearerZ + Random.Range(-0.02f, 0.02f)),
+                         Random.Range(0.018f, 0.026f), nail);
+
+            x += width + gap;
         }
 
         // Two longitudinal bearers under the boards, seen through the gaps and at the edges.
-        foreach (float z in new[] { -0.72f, 0.72f })
+        foreach (float z in BearerZ)
             for (int i = 0; i < 12; i++)
             {
                 float x0 = Mathf.Lerp(-HalfLength, HalfLength, i / 12f);
@@ -316,6 +375,14 @@ public static class BambooArena
         Color submerged = new Color(0.16f, 0.24f, 0.2f); // greener and much darker under water
         foreach (float x in PileX)
         {
+            // The head beam tying each pair of piles, and the one member whose absence broke the
+            // load path outright: two piles stood under the deck touching nothing but a stringer,
+            // so the eye followed a post up and found it holding a plank. The lashings sit at
+            // exactly this height, which now reads as the pile being tied to the beam it carries.
+            bake.Box(new Vector3(x, DeckHeight(x) - 0.255f, 0f), new Vector3(0.2f, 0.1f, 1.45f),
+                     beam * 0.94f, new Vector2(0.4f, 3f),
+                     new Vector2(Random.value, Random.value), 0f);
+
             for (int i = -1; i <= 1; i += 2)
             {
                 var head = new Vector3(x, DeckHeight(x) - 0.2f, i * 0.62f);
@@ -325,6 +392,18 @@ public static class BambooArena
                 Vector3 damp = At(WaterY + 0.15f);
                 Vector3 line = At(WaterY);
                 bake.Tube(head, damp, 0.075f, 0.078f, beam, 6, 1);
+                // Lashing at the pile head, where the deck loads onto it. This is the joint the
+                // eye goes to when it asks what holds the bridge up, and it was a pile ending in
+                // mid-air under a board. Twelve triangles for the whole answer.
+                bake.Tube(head + Vector3.up * 0.03f, head - Vector3.up * 0.055f,
+                          0.089f, 0.087f, rope, 6, 1);
+                // Moss where the pile meets the water, and nowhere else. It used to grow at the
+                // foot of every railing post, on a deck people cross daily — that is not a
+                // weathered bridge, that is an abandoned one. Down here it is just damp.
+                if (Random.value < 0.75f)
+                    Blades(foliage, damp + new Vector3(Random.Range(-0.05f, 0.05f), 0f, i * 0.06f),
+                           Random.Range(0.08f, 0.16f), 1.4f, 0.5f, 5,
+                           Srgb(0.16f, 0.22f, 0.11f) * Random.Range(0.8f, 1.2f), Random.value, 0f, 1f);
                 // The wet band sits *above* the water, 15 cm of it, dark and glossier. It is a
                 // separate thing from the foam and it is what says the water has been at this
                 // height for a while.
@@ -337,117 +416,122 @@ public static class BambooArena
             }
         }
 
-        BuildRailing(bake, foliage, plankPale, plankMid, plankDark);
+        BuildRailing(bake, plankPale, plankMid);
         BuildAbutments(bake);
     }
 
     /// <summary>
-    /// Far railing only. The near side stays open: a rail between the camera and the fighters
-    /// would cut their legs off, which this framing cannot afford.
-    ///
-    /// Everything here exists to stop it reading as a row of identical black sticks. Nothing is
-    /// square to anything: posts lean a degree or two each their own way, differ in height and
-    /// thickness, and stand at an uneven step. Rails sag between them, run through the posts
-    /// rather than butting against them, and stick out past the last one. One bay is broken.
+    /// A member laid along the bridge, tilted to the deck's own slope. A horizontal box on a
+    /// curved deck steps at every joint, and thirty of them stepping against each other is half
+    /// of what made the old railing read as thrown together rather than built.
     /// </summary>
-    private static void BuildRailing(Bake bake, Bake foliage, Color pale, Color mid, Color dark)
+    /// <param name="section">y is the member's thickness, z its width across the bridge.</param>
+    private static void Beam(Bake bake, float x0, float x1, float above, float z,
+                             Vector2 section, Color colour, float bevel = 0.015f)
     {
-        float railZ = HalfWidth + 0.06f;
-        // Lowered from 0.86. In world terms that was already hip height, but the rail stands
-        // 1.16 further from the camera than the fighters do, and seen from an eye at 1.15 it
-        // projected across their chests and cut them with a horizontal line.
-        const float topRail = 0.72f;
-        const float lowRail = 0.38f;
+        float y0 = DeckHeight(x0) + above;
+        float y1 = DeckHeight(x1) + above;
+        float run = x1 - x0, rise = y1 - y0;
+        bake.Box(new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, z),
+                 new Vector3(Mathf.Sqrt(run * run + rise * rise), section.x, section.y),
+                 colour, new Vector2(0.4f, 3f), new Vector2(Random.value, Random.value),
+                 Quaternion.Euler(0f, 0f, Mathf.Atan2(rise, run) * Mathf.Rad2Deg), bevel);
+    }
 
-        // 2.4 / 2.9 / 2.6 repeating: a constant step is the loudest thing announcing a loop.
-        var spacing = new[] { 2.4f, 2.9f, 2.6f };
-        var posts = new List<float>();
-        for (float x = -HalfLength + 0.55f, i = 0; x <= HalfLength - 0.55f; x += spacing[(int)i % 3], i++)
-            posts.Add(x);
+    /// <summary>
+    /// The balustrade on the far side, and the sill that finishes both deck edges.
+    ///
+    /// The near side carries the sill and nothing above it. A rail between the camera and the
+    /// fighters would cut their legs off, which this framing cannot afford; eight centimetres of
+    /// sill projects below a boot instead of across a shin, and that is enough to turn a row of
+    /// board ends into an edge.
+    ///
+    /// This was a run of two thin rails on posts that leaned, stood at an uneven step and had one
+    /// bay knocked out of them. That aimed at a real problem — a rail of identical square sticks
+    /// reads as a row of black palings — and answered it with damage where construction was
+    /// wanted. What separates a built railing from a fence is how many members it has and the
+    /// fact that they line up: a sill carrying the posts, a lower rail, balusters at an even
+    /// pitch, a handrail flat enough to rest a hand on, and heavier posts closing both ends. The
+    /// only variation left is the kind a hand plane leaves.
+    /// </summary>
+    private static void BuildRailing(Bake bake, Color pale, Color mid)
+    {
+        const float sillWidth = 0.14f;   // across the bridge
+        const float sillHeight = 0.08f;
+        // 0.72 is measured against this camera, not off a drawing: at 0.86 the handrail stands
+        // 1.16 further away than the fighters do and, from an eye at 1.15, projected across their
+        // chests. Every height below is stacked under that one.
+        const float handRail = 0.72f;
+        const float lowRail = 0.30f;
+        const float postTop = 0.86f;
+        const float newelTop = 0.95f;
+        // Even, so that no post lands on x = 0. Seven posts put one dead centre of the frame and
+        // dead centre of the fight, a vertical line straight up between the two fighters at the
+        // exact moment they close. Six put a bay there instead.
+        const int postCount = 6;
+        const int balustersPerBay = 9;
 
-        int brokenBay = 2; // the one span with its top rail gone
+        float sillZ = HalfWidth + 0.06f - sillWidth * 0.5f; // outer face flush with the board ends
 
-        for (int p = 0; p < posts.Count; p++)
+        // Both edges. Seven lengths a side, and odd for the same reason the posts are even: six
+        // would butt two of them together at x = 0, putting a joint in the sill at the centre of
+        // the frame. Seven is also what the curvature costs — a tilted chord over 2.3 m departs
+        // from the sag by 4 mm, inside the tolerance the boards themselves keep.
+        const int sillLengths = 7;
+        foreach (int side in new[] { -1, 1 })
+            for (int s = 0; s < sillLengths; s++)
+                Beam(bake, Mathf.Lerp(-HalfLength, HalfLength, s / (float)sillLengths),
+                     Mathf.Lerp(-HalfLength, HalfLength, (s + 1) / (float)sillLengths),
+                     sillHeight * 0.5f, side * sillZ,
+                     new Vector2(sillHeight, sillWidth), pale * 0.95f);
+
+        var postX = new float[postCount];
+        for (int p = 0; p < postCount; p++)
+            postX[p] = Mathf.Lerp(-HalfLength + 0.55f, HalfLength - 0.55f, p / (float)(postCount - 1));
+
+        for (int p = 0; p < postCount; p++)
         {
-            float x = posts[p];
-            float baseY = DeckHeight(x);
-            // Ends five centimetres above the top rail. At 1.0 the posts overshot it by twenty
-            // and the railing read as a row of spikes rather than as a fence.
-            float height = 0.86f + Random.Range(-0.05f, 0.05f);
-            float thick = 0.1f * Random.Range(0.88f, 1.12f);
-            // A post beside the broken bay took the same knock the rail did.
-            // Kept small. At ±4° every post leaned visibly and the whole run read as damaged
-            // rather than as weathered; the one bay that is meant to be broken has to be the
-            // only thing that looks broken.
-            float lean = p == brokenBay || p == brokenBay + 1
-                ? Random.Range(3.5f, 5.5f) * (p == brokenBay ? -1f : 1f)
-                : Random.Range(-2f, 2f);
-            Quaternion tilt = Quaternion.Euler(0f, Random.Range(-3f, 3f), lean);
-
-            bake.Box(new Vector3(x, baseY + height * 0.40f, railZ), new Vector3(thick, height, thick),
-                     pale * Random.Range(1.0f, 1.18f), new Vector2(0.4f, 3f),
-                     new Vector2(Random.value, Random.value), tilt);
-
-            // Moss at the foot, on the shaded side. Goes in the foliage mesh because the timber
-            // material is the wood map and moss has no business being wood-coloured.
-            if (Random.value < 0.7f)
-                Blades(foliage, new Vector3(x + Random.Range(-0.07f, 0.07f), baseY - 0.02f, railZ + 0.05f),
-                       Random.Range(0.1f, 0.2f), 1.4f, 0.5f, 5,
-                       Srgb(0.16f, 0.22f, 0.11f) * Random.Range(0.8f, 1.2f), Random.value, 0f, 1f);
+            // The two that close the run are heavier and stand taller. Without them the railing
+            // stops where it happens to run out of posts.
+            bool newel = p == 0 || p == postCount - 1;
+            float top = (newel ? newelTop : postTop) + Random.Range(-0.005f, 0.005f);
+            float height = top - sillHeight;
+            float thick = newel ? 0.14f : 0.10f;
+            // Standing on the sill, not driven into the boards. A post that simply enters a plank
+            // reads as pushed into clay.
+            float baseY = DeckHeight(postX[p]) + sillHeight;
+            bake.Box(new Vector3(postX[p], baseY + height * 0.5f, sillZ),
+                     new Vector3(thick, height, thick), pale * Random.Range(1.0f, 1.06f),
+                     new Vector2(0.4f, 3f), new Vector2(Random.value, Random.value),
+                     Random.Range(-0.3f, 0.3f), newel ? 0.022f : 0.015f);
         }
 
-        // Rails. Three sub-segments per bay so the sag is a curve rather than a kink, and the
-        // run overshoots the end posts by 7 cm — a through tenon, not two boxes meeting.
-        foreach ((float y, float thickness, bool top) rail in
-                 new[] { (topRail, 0.075f, true), (lowRail, 0.065f, false) })
+        for (int bay = 0; bay < postCount - 1; bay++)
         {
-            for (int bay = 0; bay < posts.Count - 1; bay++)
-            {
-                if (rail.top && bay == brokenBay)
-                    continue; // this span is what is missing
+            // The run overshoots the end posts by 7 cm: a through tenon, not two boxes meeting.
+            float a = postX[bay] - (bay == 0 ? 0.07f : 0f);
+            float b = postX[bay + 1] + (bay == postCount - 2 ? 0.07f : 0f);
 
-                float x0 = posts[bay] - (bay == 0 ? 0.07f : 0f);
-                float x1 = posts[bay + 1] + (bay == posts.Count - 2 ? 0.07f : 0f);
-                for (int s = 0; s < 3; s++)
-                {
-                    float a = Mathf.Lerp(x0, x1, s / 3f);
-                    float b = Mathf.Lerp(x0, x1, (s + 1) / 3f);
-                    float mid01 = ((s + 0.5f) / 3f - 0.5f) * 2f;
-                    float sag = 0.02f * (1f - mid01 * mid01); // 2 cm at the middle of the span
-                    float centreX = (a + b) * 0.5f;
-                    bake.Box(new Vector3(centreX, DeckHeight(centreX) + rail.y - sag, railZ),
-                             new Vector3(b - a + 0.01f, rail.thickness, rail.thickness),
-                             pale * 1.08f, new Vector2(0.4f, 3f),
-                             new Vector2(Random.value, Random.value), Random.Range(-0.6f, 0.6f));
-                }
-            }
+            Beam(bake, a, b, handRail, sillZ, new Vector2(0.06f, 0.12f), pale * 1.06f);
+            Beam(bake, a, b, lowRail, sillZ, new Vector2(0.05f, 0.08f), pale * 1.02f);
 
             // Worn strip along the top of the handrail: lighter where hands have polished it.
-            // The single most noticeable wear detail on a railing and the one most often missed.
-            if (!rail.top)
-                continue;
-            for (int bay = 0; bay < posts.Count - 1; bay++)
-            {
-                if (bay == brokenBay)
-                    continue;
-                float centreX = (posts[bay] + posts[bay + 1]) * 0.5f;
-                float span = posts[bay + 1] - posts[bay];
-                bake.Box(new Vector3(centreX, DeckHeight(centreX) + rail.y + 0.032f, railZ),
-                         new Vector3(span * 0.92f, 0.012f, rail.thickness * 0.55f),
-                         pale * 1.06f, new Vector2(0.4f, 3f),
-                         new Vector2(Random.value, Random.value), 0f, 0.004f);
-            }
-        }
+            // Wear, not damage — this one stays.
+            Beam(bake, postX[bay] + 0.06f, postX[bay + 1] - 0.06f, handRail + 0.036f, sillZ,
+                 new Vector2(0.012f, 0.07f), pale * 1.12f, 0.004f);
 
-        // The broken span: two splintered stubs left in the posts either side.
-        for (int side = 0; side <= 1; side++)
-        {
-            float from = posts[brokenBay + side];
-            float dir = side == 0 ? 1f : -1f;
-            float length = Random.Range(0.35f, 0.6f);
-            bake.Box(new Vector3(from + dir * length * 0.5f, DeckHeight(from) + topRail + 0.03f, railZ),
-                     new Vector3(length, 0.06f, 0.06f), dark * 0.9f, new Vector2(0.4f, 3f),
-                     new Vector2(Random.value, Random.value), Quaternion.Euler(0f, dir * 4f, dir * 9f));
+            // Balusters. Four and a half centimetres at a 31 cm pitch: at this camera that is
+            // four pixels of timber against twenty-six of gap, which reads as a rhythm rather
+            // than as a wall behind the fighters. Four-sided tubes — eight triangles each, and
+            // both ends are buried in the rails, so there is nothing for a cap to close.
+            for (int i = 1; i <= balustersPerBay; i++)
+            {
+                float bx = Mathf.Lerp(postX[bay], postX[bay + 1], i / (float)(balustersPerBay + 1));
+                float deck = DeckHeight(bx);
+                bake.Tube(new Vector3(bx, deck + lowRail + 0.015f, sillZ),
+                          new Vector3(bx, deck + handRail - 0.02f, sillZ),
+                          0.023f, 0.023f, mid * Random.Range(1.08f, 1.18f), 4, 1);
+            }
         }
     }
 
@@ -920,7 +1004,8 @@ public static class BambooArena
                 Color tint = Color.Lerp(moss, mud, wetness) * Random.Range(0.82f, 1.12f);
                 // Cheap crevice occlusion: hollows are darker than ridges.
                 tint *= Mathf.Lerp(0.72f, 1f, Mathf.InverseLerp(-0.5f, 0.6f, y));
-                index[i, j] = bake.Push(new Vector3(x, y, z), normal, new Vector2(x * 0.25f, z * 0.25f),
+                index[i, j] = bake.Push(new Vector3(x, y, z), normal,
+                                        new Vector2(x * BankUvScale, z * BankUvScale),
                                         Vector2.zero, tint);
             }
         for (int i = 0; i < cols - 1; i++)
@@ -954,11 +1039,16 @@ public static class BambooArena
     {
         Color reed = Srgb(0.30f, 0.36f, 0.17f);
         Color fern = Srgb(0.20f, 0.28f, 0.13f);
-        // Was Srgb(0.22, 0.29, 0.15), darkened on purpose to keep the water dark. The water has
-        // since been lifted, and against it a pad measured (16, 21, 21) to the water's (70, 87,
-        // 94) — four times darker and with no green left after the grade. At that ratio a leaf
-        // stops being a leaf and becomes a hole. Two to one is the most it can take.
-        Color pad = Srgb(0.30f, 0.42f, 0.19f);
+        // Albedo was never the problem. Lifting it four times over moved the pads from (1, 5, 0)
+        // to (8, 20, 3) — exactly four times, and still a hole in the water. What was wrong was
+        // the winding of the fan, fixed in LilyPad. Facing the sky the leaf takes eight times
+        // the light it did, so the constant comes down rather than up: darker and greyer than
+        // any value tried against the broken geometry, because now it is a lit leaf and the
+        // grade this scene runs has saturation pulled down and everything else in frame with it.
+        // At this value the dark green in the near water reads 78 against the water's 135. The
+        // number is a band average that also catches the bridge's shadow, so it is evidence that
+        // the pads are no longer holes, not a measurement of one leaf.
+        Color pad = Srgb(0.20f, 0.26f, 0.13f);
         Color bloom = Srgb(0.90f, 0.84f, 0.82f);
 
         // Both bands were x ±18, z -10..34 — most of that is outside anything the camera frames,
@@ -1128,7 +1218,7 @@ public static class BambooArena
             }
             else
             {
-                uv = new Vector2(p.x * 0.25f, p.z * 0.25f); // the bank's own projection
+                uv = new Vector2(p.x * BankUvScale, p.z * BankUvScale); // the bank's own projection
                 wind = Vector2.zero;
                 c = tint;
             }
@@ -1225,8 +1315,20 @@ public static class BambooArena
             {
                 int v = i * rows + j;
                 verts[v] = new Vector3(xs[i], 0f, zs[j]);
-                colors[v] = new Color(FoamAt(xs[i], zs[j]), 0f, 0f, 1f);
+                colors[v] = new Color(FoamAt(xs[i], zs[j]), BedDepthAt(xs[i], zs[j]), 0f, 1f);
             }
+
+        // The shader reads the bed depth out of vertex g and divides by the view ray's vertical
+        // component to get the path length through the water. Zero there is not a dark river, it
+        // is no river at all: the path collapses, the body term vanishes and the surface goes back
+        // to being a mirror over a flat colour. Two points pin it — mid-channel, where the bed is a
+        // known 0.7 below the surface, and the bank top, where there is no water above the ground.
+        float midChannel = colors[IndexOf(xs, zs, 0f, 0f)].g;
+        float bankTop = colors[IndexOf(xs, zs, 12f, 0f)].g;
+        if (Mathf.Abs(midChannel - 0.7f) > 0.01f || bankTop > 0.001f)
+            Debug.LogError($"BambooArena: water vertex g carries no bed depth — mid-channel " +
+                           $"{midChannel:F3} (want 0.700), bank top {bankTop:F3} (want 0.000).");
+
         for (int i = 0; i < cols - 1; i++)
             for (int j = 0; j < rows - 1; j++)
             {
@@ -1269,7 +1371,24 @@ public static class BambooArena
                 piles = Mathf.Max(piles, 1f - Mathf.Clamp01(d / 0.5f));
             }
 
-        return Mathf.Clamp01(Mathf.Max(shore * 0.9f, piles));
+        // 0.4, down from 0.9. The shore band of foam was a prop: it hid the hard line where the
+        // water plane cuts the bank. The body of the water dissolves that line properly now —
+        // depth goes to zero at the edge and the water becomes the bank — so what is left here is
+        // only as much scum as a slow river actually collects against a shore.
+        return Mathf.Clamp01(Mathf.Max(shore * 0.4f, piles));
+    }
+
+    /// <summary>Vertex index of the grid point nearest a world XZ position. Only the self-checks
+    /// use it: the grid is non-uniform, so there is no arithmetic that maps a coordinate to an
+    /// index.</summary>
+    private static int IndexOf(float[] xs, float[] zs, float x, float z)
+    {
+        int i = 0, j = 0;
+        for (int k = 1; k < xs.Length; k++)
+            if (Mathf.Abs(xs[k] - x) < Mathf.Abs(xs[i] - x)) i = k;
+        for (int k = 1; k < zs.Length; k++)
+            if (Mathf.Abs(zs[k] - z) < Mathf.Abs(zs[j] - z)) j = k;
+        return i * zs.Length + j;
     }
 
     /// <summary>Coordinates along one axis, fine through a window and coarse outside it.</summary>
@@ -1326,6 +1445,8 @@ public static class BambooArena
         Vector3[] normals = target.normals;
         Color[] colors = target.colors;
         int occluded = 0;
+        float deckSum = 0f, deckMin = 1f;
+        int deckCount = 0;
 
         for (int i = 0; i < positions.Length; i++)
         {
@@ -1346,6 +1467,20 @@ public static class BambooArena
                 if (Physics.Raycast(origin, world, out RaycastHit hit, radius) && hit.distance > 0.035f)
                     hits++;
             }
+            // The deck's own occlusion, tracked separately and reported below. A plank is 25 cm
+            // wide with no interior vertex, so every vertex it has sits on its perimeter two
+            // centimetres from the next board — exactly where a tracer finds occluders. If the
+            // mean here sits near the floor, the middle of every board is being shaded with the
+            // value measured at its edge, and no albedo will make the deck read lit.
+            if (normals[i].y > 0.9f && positions[i].y > DeckY - 0.02f
+                && positions[i].y < DeckY + FightRules.BridgeSag + 0.06f)
+            {
+                float deckAo = Mathf.Lerp(1f, 0.6f, hits / (float)rays);
+                deckSum += deckAo;
+                deckMin = Mathf.Min(deckMin, deckAo);
+                deckCount++;
+            }
+
             if (hits == 0)
                 continue;
             occluded++;
@@ -1358,6 +1493,15 @@ public static class BambooArena
         }
 
         target.colors = colors;
+
+        // The deck's own occlusion, reported separately. A plank is 25 cm wide with no interior
+        // vertex, so every vertex it has sits on its perimeter two centimetres from the next
+        // board — which is exactly where a tracer finds occluders. If the average here is well
+        // below one, the middle of every board is being shaded with the value measured at its
+        // edge, and no amount of albedo will make the deck read flat and lit.
+        if (deckCount > 0)
+            Debug.Log($"BambooArena: deck up-facing verts {deckCount}, occlusion mean " +
+                      $"{deckSum / deckCount:F3}, min {deckMin:F3} (1.0 = unoccluded, floor 0.6).");
         Object.DestroyImmediate(holder);
         Debug.Log($"BambooArena: occlusion baked, {occluded} of {positions.Length} vertices darkened.");
     }
@@ -1422,6 +1566,24 @@ public static class BambooArena
         }
     }
 
+    /// <summary>A nail head: one quad lying on the board, two triangles. Wound counter to the
+    /// obvious order because Unity takes the face normal from cross(b - a, c - a), and the
+    /// obvious order puts it under the deck.</summary>
+    private static void NailHead(Bake bake, Vector3 centre, float size, Color color)
+    {
+        float h = size * 0.5f;
+        var uv = new Vector2(Random.value, Random.value);
+        int a = bake.Push(centre + new Vector3(-h, 0f, -h), Vector3.up, uv, Vector2.zero, color);
+        int b = bake.Push(centre + new Vector3(h, 0f, -h), Vector3.up, uv + new Vector2(0.02f, 0f),
+                          Vector2.zero, color);
+        int c = bake.Push(centre + new Vector3(h, 0f, h), Vector3.up, uv + new Vector2(0.02f, 0.02f),
+                          Vector2.zero, color);
+        int d = bake.Push(centre + new Vector3(-h, 0f, h), Vector3.up, uv + new Vector2(0f, 0.02f),
+                          Vector2.zero, color);
+        bake.Tri(a, d, c);
+        bake.Tri(a, c, b);
+    }
+
     private static void LilyPad(Bake bake, Vector3 centre, float radius, Color color)
     {
         const int sides = 7;
@@ -1439,8 +1601,16 @@ public static class BambooArena
             rim[i] = bake.Push(p, Vector3.up, new Vector2(0.5f + Mathf.Cos(a) * 0.5f, 0.5f + Mathf.Sin(a) * 0.5f),
                                wind, color);
         }
+        // Wound so the face points the way its vertices claim to. Taken the other way round,
+        // cross(rim[i] - hub, rim[i+1] - hub) for a rising angle in XZ comes out as -Y: the pad's
+        // geometric normal pointed at the riverbed. The material is Cull Off, so the pad still
+        // drew — but the shader flips the shading normal by VFACE, and a back face whose vertex
+        // normal is already reversed gets flipped away from the viewer rather than toward it.
+        // Sun contribution zero, ground ambient only: 4% of the light an up-facing leaf takes,
+        // which is how a leaf on bright water reads as a hole punched through it. Two earlier
+        // passes raised the albedo against this and moved the pixels from 1 to 7.
         for (int i = 0; i < sides; i++)
-            bake.Tri(hub, rim[i], rim[i + 1]);
+            bake.Tri(hub, rim[i + 1], rim[i]);
     }
 
     // ------------------------------------------------------------------ assets
@@ -1490,13 +1660,26 @@ public static class BambooArena
         return mat;
     }
 
+    /// <summary>
+    /// Specular strength 0.55, not 1.1. A multiplier above one is not a physical quantity, and it
+    /// only ever looked defensible while the diffuse was arriving two stops dark — with nothing
+    /// else to see, the specular was the surface. Restored, it drew a white outline along the
+    /// chamfer of every board and rail, which is the "chromed pipe" the deck was accused of.
+    /// </summary>
     private static Material TimberMaterial(ArenaTextures.Surface wood)
     {
-        Material mat = ArenaMaterial("M_ArenaWood", CullMode.Back, 0f, 1f, 0f, 1f, 1.1f);
+        Material mat = ArenaMaterial("M_ArenaWood", CullMode.Back, 0f, 1f, 0f, 1f, 0.55f);
         mat.SetTexture("_BaseMap", wood.Albedo);
         mat.SetTexture("_BumpMap", wood.Normal);
         mat.SetTexture("_MaskMap", wood.Mask);
-        mat.SetFloat("_BumpScale", 1.3f);
+        // 0.55, down from 1.3: the normal carries the same fibre the albedo does, and at full
+        // strength the two together made a corduroy rather than a board.
+        mat.SetFloat("_BumpScale", 0.55f);
+        // The fog's own colour on every upward edge. Kept low: this is meant to find the top of
+        // a handrail and the chamfer of a board, not to wash the deck.
+        mat.SetColor("_RimColor", Srgb(0.72f, 0.78f, 0.82f));
+        mat.SetFloat("_RimStrength", 0.35f);
+        mat.SetFloat("_RimPower", 3.5f);
         mat.EnableKeyword("_NORMALMAP");
         return mat;
     }
@@ -1831,8 +2014,13 @@ public static class BambooArena
                 rim[i] = Push(centre + (right * offset.x + Vector3.up * offset.y) * size, normal,
                               uvCell + uvMid + offset / grid, wind, color);
             }
+            // Same reversal as the lily pads, and for the same reason: with this order
+            // cross(rim[i] - hub, rim[i+1] - hub) is cross(right, up), the opposite of the
+            // normal every vertex here was pushed with. The card faces the camera and shades as
+            // though it were turned away from it, so a crown lit from the front got ambient and
+            // nothing else.
             for (int i = 0; i < 8; i++)
-                Tri(hub, rim[i], rim[(i + 1) % 8]);
+                Tri(hub, rim[(i + 1) % 8], rim[i]);
         }
 
         /// <summary>
