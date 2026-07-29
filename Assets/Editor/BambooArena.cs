@@ -1127,17 +1127,43 @@ public static class BambooArena
         // Lily pads. A water lily grows from a rhizome on the bed, so its leaves come out in a
         // clump around one point — which is why an even sowing across the whole channel is the
         // most visible placement mistake there is, and it is what stood here: 240 leaves at
-        // uniform random, up to 92 cm across. A Nymphaea leaf is 10-28 cm. Fifteen clumps of four
-        // to six at that size is roughly 75 leaves, which leaves the jade water visible between
+        // uniform random, up to 92 cm across. A Nymphaea leaf is 10-28 cm. Twelve clumps of four
+        // to six at that size is roughly 55 leaves, which leaves the jade water visible between
         // them instead of paving it over.
+        //
+        // Eight, and it is the triangle ceiling that says so rather than the composition. The
+        // arena had 1 045 triangles of headroom when this was written, and a leaf that is a circle
+        // with a turned-up rim costs ten times a seven-triangle fan. What gets cut is leaves and
+        // never flowers: a bloom is 48 triangles and it is the only thing on this water anyone
+        // looks at, while the fifth leaf in a clump is 33 triangles of more of the same.
+        //
+        // If the headroom ever comes back — most of it went to a 33% swing in the scanned bank
+        // foliage, whose surviving clump count rides on the Random stream and moved when the
+        // railing was rewritten — this is the number to raise first, back toward fifteen.
         //
         // Rejection sampling rather than a lattice: the clumps have to keep 1.5 m apart *and* land
         // where the bed is deep enough, and the two conditions do not compose into a formula.
         var rhizomes = new List<Vector2>();
-        for (int attempt = 0; attempt < 300 && rhizomes.Count < 15; attempt++)
+        for (int attempt = 0; attempt < 300 && rhizomes.Count < 8; attempt++)
         {
-            var root = new Vector2(Random.Range(-12f, 12f),
-                                   Mathf.Lerp(-10f, 26f, Random.value * Random.value));
+            // Two bands, because the water this camera shows is two disconnected patches and not
+            // one field. Projected through the fight camera — z = -_distance between -6 and -8.5,
+            // height 1.15, 2.5° down, 32° FOV — the frame's bottom edge crosses the surface at
+            // z -3.3, the deck hides z -1.1 to 1.1, and everything past the bridge runs up the
+            // middle of the frame to the fog. So: a quarter of the clumps into the 2 m strip in
+            // front of the deck, the rest into the channel beyond it, biased toward the near end
+            // where a square metre of water is worth the most pixels.
+            //
+            // At 240 leaves sown flat over z -10..26 none of this mattered; at eight clumps it is
+            // the difference between a planted river and an empty one. The first build of this
+            // started the band at z -10, which is *behind the camera*, and lost half of them.
+            //
+            // x ±5.8 keeps inside the channel: Ground() puts the bank at |x| 6.8, so anything
+            // wider is rejected by the depth test below after paying for the attempt.
+            var root = new Vector2(
+                Random.Range(-5.8f, 5.8f),
+                Random.value < 0.25f ? Random.Range(-3.2f, -1.4f)
+                                     : Mathf.Lerp(1.6f, 15f, Random.value * Random.value));
             // Not on the shallows at the very edge: the old test was 5 cm of water, which put
             // leaves where the bank is about to surface through them.
             if (Ground(root.x, root.y) > WaterY - 0.15f)
@@ -1150,8 +1176,8 @@ public static class BambooArena
             rhizomes.Add(root);
             LilyClump(bake, shade, root, pad, bloom);
         }
-        if (rhizomes.Count < 12)
-            Debug.LogError($"BambooArena: only {rhizomes.Count} lily clumps placed of 15 — the " +
+        if (rhizomes.Count < 7)
+            Debug.LogError($"BambooArena: only {rhizomes.Count} lily clumps placed of 8 — the " +
                            $"spacing test or the depth test is rejecting nearly everything.");
     }
 
@@ -1167,11 +1193,13 @@ public static class BambooArena
     private static void LilyClump(Bake bake, Bake shade, Vector2 root, Color pad, Color bloom)
     {
         // Three size classes, not a continuous range: real leaves grow in distinct stages, and a
-        // smooth spread of sizes reads as noise. One mature leaf per clump, never two.
+        // smooth spread of sizes reads as noise. One mature leaf per clump, never two, and at most
+        // one young one — a 5 cm leaf is a dozen pixels in frame and the first thing worth cutting
+        // when the budget is short, which it is.
         var radii = new List<float> { Random.Range(0.11f, 0.14f) };
         for (int i = 0, n = Random.Range(2, 4); i < n; i++)
             radii.Add(Random.Range(0.07f, 0.11f));
-        for (int i = 0, n = Random.Range(1, 3); i < n; i++)
+        for (int i = 0, n = Random.Range(0, 2); i < n; i++)
             radii.Add(Random.Range(0.05f, 0.07f));
 
         const float golden = 2.399963f;
@@ -1179,6 +1207,7 @@ public static class BambooArena
         foreach (float r in radii)
             mean += r / radii.Count;
         float spin = Random.value * Mathf.PI * 2f;
+        float extent = 0f;
 
         for (int k = 0; k < radii.Count; k++)
         {
@@ -1188,6 +1217,7 @@ public static class BambooArena
             float z = root.y + Mathf.Sin(a) * d;
             if (Ground(x, z) > WaterY - 0.08f)
                 continue;
+            extent = Mathf.Max(extent, d + radii[k]);
             // The petiole enters the leaf at the sinus and runs down to the rhizome, so the notch
             // faces the middle of the clump. Getting this wrong is subtle and reads as wrong: a
             // ring of leaves with their notches pointing outward looks like a scatter of shapes
@@ -1197,13 +1227,20 @@ public static class BambooArena
                 : Mathf.Atan2(root.y - z, root.x - x) + Random.Range(-0.7f, 0.7f);
             var centre = new Vector3(x, WaterY + 0.02f + Random.Range(-0.005f, 0.005f), z);
             LilyPad(bake, centre, radii[k], notch, pad * Random.Range(0.82f, 1.18f));
-            LilyShade(shade, centre, radii[k]);
         }
 
-        // Roughly one flower per nine leaves. The real ratio is one per five to eight; this lands
-        // just under it because a white bloom is by a long way the brightest thing on this water,
-        // and eight of them in frame is already where the eye goes first.
-        if (Random.value < 0.55f)
+        // One patch of shade for the whole clump, not one per leaf. Per leaf is both four times
+        // the triangles and wrong: the quads overlap where the leaves crowd, and two blends at 35%
+        // compound to 58% — the water under a clump came out as a dark mat with a visible square
+        // corner. A clump throws one soft patch.
+        if (extent > 0f)
+            LilyShade(shade, new Vector3(root.x, 0f, root.y), extent);
+
+        // Roughly one flower per four leaves, which is denser than the one-per-five-to-eight a real
+        // stand shows. Deliberate: this is where the triangles went. A bloom is 48 triangles and it
+        // is the only thing on this water anyone looks at; the leaf it replaces in the budget is 33
+        // triangles of more green.
+        if (Random.value < 0.9f)
         {
             float a = Random.value * Mathf.PI * 2f;
             float d = Random.Range(0.12f, 0.3f);
@@ -1708,30 +1745,49 @@ public static class BambooArena
     /// The clump aims it at the rhizome; see <see cref="LilyClump"/>.</param>
     private static void LilyPad(Bake bake, Vector3 centre, float radius, float notch, Color color)
     {
-        const int sides = 14;
         const float gap = 0.25f; // half the sinus, so 0.5 rad — 29°, inside the botanical 25-30°
+
+        // Detail bought against the leaf's own size, because the arena has no triangles to spare
+        // and a young leaf is 5 cm across — a dozen pixels in frame. It needs a round outline and
+        // nothing else: the rusty margin on it would come out narrower than a pixel, and the third
+        // ring that carries it costs 40% of the leaf. The mature leaf pays for all three rings and
+        // fourteen segments; nothing else does.
+        bool margin = radius >= 0.105f;
+        int sides = radius >= 0.105f ? 14 : radius >= 0.07f ? 11 : 8;
+        int rings = margin ? 3 : 2;
 
         // Ring radius, height and surface slope, all as fractions of the leaf's radius so a 5 cm
         // leaf curls in proportion to a 14 cm one. The slopes are what the vertex normals are
-        // built from: each is the mean of the two facets meeting at that ring.
-        float[] ringR = { 0.5f, 0.9f, 1f };
-        float[] ringY = { 0f, 0.06f, 0.14f };
-        float[] ringSlope = { 0.115f, 0.475f, 0.8f };
-        // uv1.y, which the shader uses for *both* wind falloff and translucency strength. Kept low
-        // on purpose: a leaf is held by a stem and barely moves, and at 0.25 the wind term works
-        // out to a couple of millimetres at the rim. The gradient is there for the translucency —
-        // the leaf is thinnest at its edge and that is where light comes through it.
-        float[] ringHeight = { 0.10f, 0.18f, 0.25f };
+        // built from: each is the mean of the two facets meeting at that ring, and they are why a
+        // lit rim reads as a turned-up edge rather than as a lighter ring painted on a disc.
+        //
+        // uv1.y — the last row — is what the shader uses for *both* wind falloff and translucency
+        // strength. Kept low on purpose: a leaf is held by a stem and barely moves, and at 0.25
+        // the wind term works out to a couple of millimetres at the rim. The gradient is there for
+        // the translucency, because the leaf is thinnest at its edge and that is where light comes
+        // through it.
+        float[] ringR = margin ? new[] { 0.5f, 0.9f, 1f } : new[] { 0.55f, 1f };
+        float[] ringY = margin ? new[] { 0f, 0.06f, 0.14f } : new[] { 0f, 0.1f };
+        float[] ringSlope = margin ? new[] { 0.115f, 0.475f, 0.8f } : new[] { 0.148f, 0.222f };
+        float[] ringHeight = margin ? new[] { 0.1f, 0.18f, 0.25f } : new[] { 0.12f, 0.25f };
 
-        Color[] ringColor =
-        {
-            color * 0.95f,
-            color * 1.15f,
-            // The rusty margin a Nymphaea leaf carries, and the one part of it that is not a shade
-            // of its own green. A fifth of the way to the brown: at two fifths the rim lit up as
-            // an orange ring, which is a louder mistake than the flat colour it replaced.
-            Color.Lerp(color * 0.85f, Srgb(0.54f, 0.35f, 0.18f), 0.2f),
-        };
+        // The rusty margin a Nymphaea leaf carries, and the one part of it that is not a shade of
+        // its own green. A fifth of the way to the brown: at two fifths the rim lit up as an orange
+        // ring, which is a louder mistake than the flat colour it replaced. Where there is no
+        // margin ring to put it on, a trace of it rides the outer ring instead — over half the leaf
+        // rather than a tenth of it, so it has to be weaker still.
+        Color[] ringColor = margin
+            ? new[]
+            {
+                color * 0.95f,
+                color * 1.15f,
+                Color.Lerp(color * 0.85f, Srgb(0.54f, 0.35f, 0.18f), 0.2f),
+            }
+            : new[]
+            {
+                color * 0.95f,
+                Color.Lerp(color * 1.1f, Srgb(0.54f, 0.35f, 0.18f), 0.12f),
+            };
 
         float phase = Random.value;
         // Middle of the leaf: darker, and yellower rather than merely darker — the blue channel
@@ -1742,9 +1798,10 @@ public static class BambooArena
         int hub = bake.Push(centre + Vector3.down * (radius * 0.04f), Vector3.up,
                             new Vector2(0.5f, 0.5f), new Vector2(phase, 0f), hubColor);
 
-        var ring = new int[3][];
-        for (int r = 0; r < 3; r++)
+        var ring = new int[rings][];
+        for (int r = 0; r < rings; r++)
         {
+            bool outer = r == rings - 1;
             ring[r] = new int[sides + 1];
             for (int i = 0; i <= sides; i++)
             {
@@ -1752,14 +1809,14 @@ public static class BambooArena
                 float cos = Mathf.Cos(a), sin = Mathf.Sin(a);
                 // Wobble on the outer ring only. On an inner ring the same jitter never reaches
                 // the silhouette and shows up instead as a dent in the shading.
-                float rr = radius * ringR[r] * (r == 2 ? Random.Range(0.9f, 1.06f) : 1f);
+                float rr = radius * ringR[r] * (outer ? Random.Range(0.9f, 1.06f) : 1f);
                 var p = centre + new Vector3(cos * rr, radius * ringY[r], sin * rr);
-                if (r == 2)
+                if (outer)
                     p.y += radius * Random.Range(-0.02f, 0.02f);
                 float slope = ringSlope[r];
                 // Veins: alternate vertices a step either side of the ring's value. The vertices
                 // are shared between neighbouring segments, so this is not a set of hard wedges
-                // but fourteen soft radial bands converging on the stem — which is what venation
+                // but a dozen soft radial bands converging on the stem — which is what venation
                 // amounts to at the size this leaf occupies on a phone.
                 float vein = (i & 1) == 0 ? 1.08f : 0.94f;
                 ring[r][i] = bake.Push(p, new Vector3(-slope * cos, 1f, -slope * sin).normalized,
@@ -1780,7 +1837,7 @@ public static class BambooArena
         for (int i = 0; i < sides; i++)
         {
             bake.Tri(hub, ring[0][i + 1], ring[0][i]);
-            for (int r = 0; r < 2; r++)
+            for (int r = 0; r < rings - 1; r++)
             {
                 bake.Tri(ring[r][i], ring[r + 1][i + 1], ring[r + 1][i]);
                 bake.Tri(ring[r][i], ring[r][i + 1], ring[r + 1][i + 1]);
@@ -1858,19 +1915,19 @@ public static class BambooArena
     }
 
     /// <summary>
-    /// The soft darkening a floating leaf puts on the water beneath it — a leaf two centimetres
-    /// off the surface occludes the sky over a patch a little wider than itself, and without that
-    /// patch the pad reads as lying *on top of* the water rather than *on* it.
+    /// The soft darkening a clump of floating leaves puts on the water beneath it — leaves two
+    /// centimetres off the surface occlude the sky over a patch a little wider than they are, and
+    /// without that patch they read as lying *on top of* the water rather than *on* it.
     ///
     /// Same texture, shader and queue as the fighters' blob (FightSceneSetup.AddBlobShadow). Its
     /// own mesh rather than part of the vegetation because that material is opaque and this one
-    /// has to blend; two triangles a leaf, one draw call for the lot.
+    /// has to blend; two triangles a clump, one draw call for the lot.
     /// </summary>
     private static void LilyShade(Bake shade, Vector3 centre, float radius)
     {
         // 1.35 radii of half-extent. T_Blob is opaque only inside 15% of its half-width and fades
         // to nothing at the edge, so what this actually puts on the water is a small dark core
-        // under the middle of the leaf and a wide soft falloff — not a square.
+        // under the middle of the clump and a wide soft falloff — not a square.
         float s = radius * 1.35f;
         float y = WaterY + 0.005f;
         // Wound anticlockwise in XZ so the quad faces up; the particle shader culls back faces.
