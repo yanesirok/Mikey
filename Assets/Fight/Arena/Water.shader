@@ -51,7 +51,12 @@ Shader "Mikey/Water"
         // by FightSceneSetup, which owns it alongside the speed of everything floating on top.
         _FlowSpeed ("Flow Speed (m/s)", Range(0, 3)) = 0.5
         _FoamCutoff ("Foam Cutoff", Range(0, 1)) = 0.42
-        _NoiseMap ("Noise (R foam, G gust)", 2D) = "gray" {}
+        _NoiseMap ("Noise (R foam, G gust, B caustics)", 2D) = "gray" {}
+        _BedMap ("Riverbed (the bank's own map)", 2D) = "grey" {}
+        // Written from BambooArena.BankUvScale. Not a free-standing number: the bank projects its
+        // UVs at exactly this scale, and the bed is the bank continuing under the water.
+        _BedUvScale ("Bed UV Scale", Range(0.05, 1)) = 0.25
+        _RefractStrength ("Refraction Strength", Range(0, 0.2)) = 0.035
         // A material property defaulting to black rather than a global, so that when nothing
         // has written it — edit mode, or before the reflection camera's first frame — the
         // sampler resolves to black and the water falls back to its own sky colour. An unbound
@@ -76,6 +81,11 @@ Shader "Mikey/Water"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            // The water has never sampled a shadow. It could get away with that while the surface
+            // was a mirror — a mirror does not care what light falls on it. A lit riverbed does,
+            // and the deck is directly over the middle of it.
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _SHADOWS_SOFT
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -104,6 +114,8 @@ Shader "Mikey/Water"
                 float4 _BedTint;
                 float  _ScatterDensity;
                 float  _FresnelTilt;
+                float  _BedUvScale;
+                float  _RefractStrength;
                 float4 _SkyColor;
                 float4 _FoamColor;
                 float4 _NoiseMap_ST;
@@ -138,6 +150,7 @@ Shader "Mikey/Water"
 
             TEXTURE2D(_ReflectionTex); SAMPLER(sampler_ReflectionTex);
             TEXTURE2D(_NoiseMap);      SAMPLER(sampler_NoiseMap);
+            TEXTURE2D(_BedMap);        SAMPLER(sampler_BedMap);
 
             // Three directional waves. Returns the surface slope in x and z; the height they
             // describe is only needed in the vertex stage, hence the split.
@@ -226,7 +239,34 @@ Shader "Mikey/Water"
                 float h = input.bedDepth;
                 float L = h / max(viewWS.y, 0.09);
 
-                float3 bed = _BedTint.rgb;
+                // Where the ray actually lands on the bed, by Snell — and this one is *not*
+                // cheated, unlike the path length above.
+                //
+                // The two want different things. The path length is a scalar feeding an
+                // exponential; all it needs is a gradient, and the long ray supplies one. This is
+                // a position on the ground. Computed from the same long ray it would swing metres
+                // as the camera pans along the fight line, and the riverbed would swim under the
+                // surface. Snell caps the offset inside a 48.6° cone, so it never exceeds 1.13*h —
+                // eighty centimetres at the deepest point of the channel.
+                float  sinI  = saturate(length(viewWS.xz));
+                float  sinT  = sinI / 1.333;
+                float2 bedUV = input.positionWS.xz
+                             - normalize(viewWS.xz + 1e-6) * (h * sinT * rsqrt(max(1.0 - sinT * sinT, 1e-4)));
+                // Ripple wobble. No shallow-water damping term is needed: the offset is already
+                // proportional to h, and h goes to zero at the shore on its own.
+                bedUV += slope * _RefractStrength;
+
+                // The bed is lit, not raw albedo. The bank carries the same texture and the same
+                // tint and is lit by the same sun, and at the waterline the two are the same
+                // surface a centimetre apart — an unlit bed puts a dark band along every metre of
+                // shoreline. The bed is flat enough that its normal is up everywhere; using a
+                // constant one costs nothing and saves reconstructing a gradient of Ground().
+                Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
+                float3 bedLight = SampleSH(float3(0, 1, 0))
+                                + mainLight.color * saturate(mainLight.direction.y)
+                                                  * mainLight.shadowAttenuation;
+                float3 bed = SAMPLE_TEXTURE2D(_BedMap, sampler_BedMap, bedUV * _BedUvScale).rgb
+                           * _BedTint.rgb * bedLight;
                 float3 transmittance = exp(-_Absorption.rgb * L);
                 // Scatter that fades along the path as well as accumulating along it. Without the
                 // lerp the colour converges on the scatter tint, so distance makes the water
@@ -275,7 +315,6 @@ Shader "Mikey/Water"
                 // Sun glint. Squeezing the normal along the depth axis spreads the highlight
                 // through z, which projects as the vertical glitter path real water has —
                 // a round specular blob is one of the strongest tells of a fake surface.
-                Light mainLight = GetMainLight();
                 float3 specNormal = normalize(float3(normalWS.x, normalWS.y, normalWS.z * 0.3));
                 float3 halfWS = normalize(mainLight.direction + viewWS);
                 float glossy = lerp(0.45, 1.0, 1.0 - gust); // glassy patches glint harder
