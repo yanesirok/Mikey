@@ -487,10 +487,20 @@ public static class BambooArena
     ///
     /// Heights are set by where the members land *on a fighter*, not by where they land on a tape
     /// measure. The far edge stands 1.16 further from the lens than the fight line does, so at this
-    /// camera — y 1.15, tilt 2.5°, 32° lens — everything on it projects higher than it stands. The
-    /// handrail at 0.72 crosses a 1.7 m figure at 0.79 and the post caps at 0.78 cross it at 0.85,
-    /// both under a hip at 0.90, across the whole zoom range. The 0.80 that a tape measure calls
-    /// hip height would put the caps on the hip itself; 0.86 was tried and cut for exactly this.
+    /// camera — y 1.15, tilt 2.5°, 32° lens — everything on it projects higher than it stands: a
+    /// member at height h crosses a 1.7 m figure at 0.186 + 0.838h when the camera is in at 6, and
+    /// at 0.138 + 0.880h when it is out at 8.5.
+    ///
+    /// The handrail at 0.36 crosses the figure at 0.46 to 0.49 and the post caps at 0.39 cross it
+    /// at 0.48 to 0.51 — a knee sits at 0.48, so the whole railing rides at knee height and below,
+    /// and never touches the torso at any zoom.
+    ///
+    /// It was built at twice this and that was the mistake. Hip height is what a tape measure says
+    /// a railing is, and it is what the frame could not carry: at 0.72 the rail crossed the figure
+    /// at 0.79 and read as a heavy bar laid across the fighters. The reference this is drawn from
+    /// is not a *thinner* railing than that one, it is a *lower* one — its posts are 0.20 of their
+    /// own height in thickness against 0.23 here, near enough the same stick. Everything that read
+    /// as bulk was the height, and halving it is the whole fix. Sections did not change.
     ///
     /// Three joints, none of which costs a triangle:
     ///
@@ -516,12 +526,15 @@ public static class BambooArena
         // with eight, a 2.29 m opening sits there instead.
         const int posts = 8;
         const float postSection = 0.09f;
-        const float postTop = 0.78f;      // above the deck
+        const float postTop = 0.39f;      // above the deck
         const float postFoot = -0.35f;    // and below it, down to the stringer
-        const float railTop = 0.72f;
+        const float railTop = 0.36f;
         const float railHeight = 0.06f;
         const float railWidth = 0.08f;
-        const float lowerRail = 0.38f;
+        // Clear of both neighbours: 8 cm from the sill's top face below it and 8 cm from the
+        // handrail's underside above. At this camera that is about 26 px a gap at 1080p, which is
+        // what keeps sill, lower rail and handrail reading as three lines rather than one band.
+        const float lowerRail = 0.19f;
         const float lowerRadius = 0.0275f;
         const float overhang = 0.07f;     // the through-tenon past the end posts
 
