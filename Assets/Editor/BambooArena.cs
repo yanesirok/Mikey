@@ -19,12 +19,13 @@ using Random = UnityEngine.Random;
 ///   bridge  x ±8, z ±1.1, deck top at y 0 rising toward both ends by FightRules.BridgeSag
 ///   water   y <see cref="WaterY"/> — 0.6 below the boards, close enough to reach
 ///   banks   a height field either side of |x| = <see cref="ShoreX"/>; the bamboo grows on it
-///   bamboo  three tiers at distinct brightness steps, plus dark culms at the frame edges
+///   bamboo  three tiers at distinct brightness steps, all of them rooted on the banks
 ///
 /// Placement is driven by what the camera can actually see. FightCamera frames ±7.3 units around
 /// the fight at full zoom-out, so nothing is built beyond that except what the fog is meant to
-/// swallow. The foreground culms sit exactly where they can only ever cross the outer edge of
-/// the frame — a stalk in front of a fighter is the one thing a side-on fight cannot afford.
+/// swallow. Nothing grows between the banks: the channel is water, <see cref="Stalk"/> refuses a
+/// root below the surface, and a stalk in front of a fighter is the one thing a side-on fight
+/// cannot afford.
 /// </summary>
 public static class BambooArena
 {
@@ -105,7 +106,6 @@ public static class BambooArena
                            $"{DeckHeight(0f)} (want {DeckY}), ground under it {Ground(0f, 0f)} " +
                            $"(want below {WaterY}).");
 
-        CheckNodeSilhouette(); // before the seed, so the probe cannot shift the grove's randomness
         Random.InitState(Seed);
         ArenaTextures.Surface wood = ArenaTextures.Wood();
         ArenaTextures.Surface bark = ArenaTextures.Bark();
@@ -175,10 +175,12 @@ public static class BambooArena
         // centimetres in a pattern that only this mesh knows. Seven thousand triangles is nothing
         // to cook and nothing to raycast four times a frame — and no rigidbody ever touches it.
         timberGo.AddComponent<MeshCollider>().sharedMesh = timberMesh;
-        // Bamboo does not cast. The frame-edge culms are twelve units tall and stand a couple of
-        // units off camera, so under a 45° key they throw a shadow band clear across the deck —
-        // it put one of the two fighters in total darkness while the other stood in the light.
-        // A grove casting no shadow costs nothing here; a fighter lost to one costs the fight.
+        // Bamboo does not cast. It was the frame-edge culms that proved it — twelve units tall a
+        // couple of units off camera, under a 45° key they threw a shadow band clear across the
+        // deck and put one fighter in total darkness while the other stood in the light. Those are
+        // gone, but the near tier is eight units tall on a bank six from the fight line and the
+        // geometry of it does not change. A grove casting no shadow costs nothing here; a fighter
+        // lost to one costs the fight.
         GameObject bambooGo = AddMesh(root, "Bamboo", bambooMesh, BambooMaterial(bark), castShadows: false);
         GameObject cardsGo = AddMesh(root, "BambooCards", cardsMesh, LeafCardMaterial(leafCard),
                                      castShadows: false);
@@ -247,43 +249,6 @@ public static class BambooArena
                            $"(max 50000), {cardTris} of card (max 16000), {foliageTris} of " +
                            $"vegetation (max 30000).");
         return root;
-    }
-
-    /// <summary>The silhouette test from the design, written down where it can fail loudly: on a
-    /// frame-edge culm the node has to be a real bump, not a painted band. Measured off the built
-    /// mesh rather than the parameters, so it still holds if <c>Tube</c> is rewritten.</summary>
-    private static void CheckNodeSilhouette()
-    {
-        var probe = new Bake();
-        var root = new Vector3(0f, 0f, 0f);
-        Stalk(probe, null, root, 10f, 0.06f, Color.white, EdgeTier, Vector2.zero, 0f);
-        Mesh mesh = probe.ToMesh("Probe");
-
-        // One metre of culm, taken from below the branches. A band this short is the point:
-        // measured over the whole stalk the taper alone would swing the radius by six per cent
-        // and the test would pass on a smooth cone. Here the taper contributes well under one
-        // per cent, so whatever variation is left is the node. The radius cap keeps a stray
-        // branch out of the sample if BranchStart ever moves down.
-        float widest = 0f, narrowest = float.MaxValue;
-        int sampled = 0;
-        foreach (Vector3 v in mesh.vertices)
-        {
-            float r = new Vector2(v.x, v.z).magnitude;
-            if (v.y < 3f || v.y > 4f || r > 0.12f)
-                continue;
-            sampled++;
-            widest = Mathf.Max(widest, r);
-            narrowest = Mathf.Min(narrowest, r);
-        }
-
-        if (sampled == 0)
-            Debug.LogError("BambooArena: node silhouette check sampled nothing — the probe culm " +
-                           "no longer has geometry between 3 and 4 metres and the check is dead.");
-        else if (widest < narrowest * 1.05f)
-            Debug.LogError($"BambooArena: frame-edge culm has no node in its silhouette — " +
-                           $"radius runs {narrowest:F4}..{widest:F4}. The nodes are texture only, " +
-                           $"and at two units from the lens that reads as a smooth pipe.");
-        Object.DestroyImmediate(mesh);
     }
 
     // ------------------------------------------------------------------ bridge
@@ -686,11 +651,18 @@ public static class BambooArena
     // culms — 32 760, forty-seven per cent of the whole grove — of twig and geometric blade, eight
     // to eighteen metres from the lens, standing next to a photographed bark map that made every
     // one of those blades read as a painted stroke. Two cards from the atlas replace them for
-    // 3 120. The frame edge keeps its geometry: there the crown is 12.7% of the culm's cost and it
-    // is four metres away, and EdgeTier.Rings is 0 only because NodeSwell is not — drop the swell
-    // without raising the rings and those six culms vanish from the mesh.
+    // 3 120.
+    // There was a fifth tier above these, six dark culms at the frame edges carrying geometric
+    // nodes and a crown of real leaves. They are gone, and with them the only reason this table has
+    // a swell column: they were rooted below the water line on the theory that at that depth the
+    // surface is beneath the bottom of the frame. It is not — the water plane hides the root and
+    // draws the intersection, so what the frame showed was bamboo growing out of a river. There is
+    // nowhere dry to put them either: the bank starts at |x| 6.8, and the nearest dry point at the
+    // frame's edge is eleven metres from the lens instead of four, where a one-centimetre node
+    // swell is sub-pixel and the culm is just a dark front rank of the near tier.
+    // ponytail: no tier swells its nodes any more, so Tube's swell branch has no caller. Delete it
+    // and this column together the next time the grove is touched, if that is still true.
     //                                          sides swell rings pairs leaf  cards size  cell0 cells rMin    rMax    hMin  hMax
-    private static readonly Tier EdgeTier = new Tier(8, 0.09f,   0,    2, 0.315f, 0, 0f,    0, 0, 0.0975f, 0.146f, 9f,  14f);
     private static readonly Tier NearTier = new Tier(6, 0f,      6,    0, 0f,     2, 2.0f,  7, 2, 0.039f, 0.107f,  4.5f, 8f);
     private static readonly Tier MidTier  = new Tier(6, 0f,      2,    0, 0f,     3, 2.25f, 0, 3, 0.068f, 0.117f,  6f,  11f);
     private static readonly Tier FarTier  = new Tier(6, 0f,      1,    0, 0f,     1, 3.4f,  3, 1, 0.068f, 0.117f,  8f,  15f);
@@ -721,10 +693,13 @@ public static class BambooArena
     /// <summary>The ladder these tints exist to build, checked rather than trusted. Every retune of
     /// the grove is done by eye against a frame, and each rule below has already cost a build once:
     /// an equal saturation cut across the tiers leaves the farthest plane the purest green in frame,
-    /// turf pitched under the grove vanishes into the bank's cast shadow, and a near tier dropped to
-    /// the edge culms' value merges with them into one black curtain. All three are arithmetic, so
-    /// the bake can say so instead of the next screenshot.</summary>
-    private static void CheckFoliageLadder(Color edge, Color near, Color mid, Color far)
+    /// and turf pitched under the grove vanishes into the bank's cast shadow. Both are arithmetic, so
+    /// the bake can say so instead of the next screenshot.
+    ///
+    /// A third rule stood here — the frame-edge culms had to stay darker than the near tier, or the
+    /// two merged into one black curtain. Those culms are gone, so the near tier now holds the dark
+    /// end of the ladder on its own and there is nothing left to compare it against.</summary>
+    private static void CheckFoliageLadder(Color near, Color mid, Color far)
     {
         float Lum(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
         float Sat(Color c)
@@ -742,10 +717,6 @@ public static class BambooArena
             Debug.LogError($"BambooArena: turf {Lum(Turf):F3} must stay brighter than the near " +
                            $"grove {Lum(near):F3}, or the bank loses it to the bridge's shadow.");
 
-        if (Lum(edge) >= Lum(near))
-            Debug.LogError($"BambooArena: frame-edge culms {Lum(edge):F3} must stay darker than " +
-                           $"the near grove {Lum(near):F3}, or the two merge into one black curtain.");
-
         // Printed every bake, not just on failure: every spec in docs/ argues from a table of
         // measured luminance, and the numbers being in the log is what makes the next retune an
         // argument about evidence rather than about what the frame felt like.
@@ -755,7 +726,7 @@ public static class BambooArena
         // logs 0.108/70% where the eye is shown 0.360/45%. Comparing a number here against a
         // number there is the mistake this sentence exists to stop.
         Debug.Log($"BambooArena: foliage ladder, linear — " +
-                  $"edge {Lum(edge):F3}/{Sat(edge):P0}, near {Lum(near):F3}/{Sat(near):P0}, " +
+                  $"near {Lum(near):F3}/{Sat(near):P0}, " +
                   $"turf {Lum(Turf):F3}/{Sat(Turf):P0}, mid {Lum(mid):F3}/{Sat(mid):P0}, " +
                   $"far {Lum(far):F3}/{Sat(far):P0} (luminance/saturation).");
     }
@@ -764,7 +735,7 @@ public static class BambooArena
     // cluster count first — fog is already doing most of that tier's work.
     private static void BuildBamboo(Bake bake, Bake cards)
     {
-        // Four steps of brightness, and now of saturation too. Depth here comes from the tonal
+        // Three steps of brightness, and of saturation too. Depth here comes from the tonal
         // step between tiers, not from blur: a background that is merely out of focus still reads
         // flat, while separated values read as separate planes even when sharp.
         //
@@ -773,13 +744,15 @@ public static class BambooArena
         // these tiers held blue at a seventh of green and landed at 77-82% saturation, where foliage
         // in soft light sits at 30-45%. The multipliers are below one now, and in Culm() that lifts
         // blue toward the tier's own luminance without moving the tier along the ladder.
-        Color edge = Culm(0.561f, 0.659f, 0.235f, 0.100f, 0.76f);  // #8FA83C at the near-black level
+        //
         // 0.360, down from the 0.45 this tier was lifted to once the crowns filled with foliage.
         // That lift was right against a grove at 77% saturation: the tier was carrying the left and
         // right thirds of the frame and had nothing but value to separate it from the frame-edge
         // culms. With the green cut back it reads as a plane at a darker value, and the step out to
-        // the far tiers grows rather than shrinks. What must not come back is 0.32, where this tier
-        // and the edge culms merged into one black curtain.
+        // the far tiers grows rather than shrinks. Those edge culms are gone now and this tier holds
+        // the dark end of the range alone, so the 0.32 it must never return to is no longer a floor
+        // it can merge with — judge it against a frame, not against a number that outlived its
+        // neighbour.
         Color near = Culm(0.659f, 0.690f, 0.290f, 0.360f, 0.77f);  // #A8B04A, the mature culm
         // The far tiers keep their luminance almost exactly — they stand where the fog does, and
         // the distance has to end in sky. Their saturation moves least of the four in absolute
@@ -793,23 +766,7 @@ public static class BambooArena
         Color far = Color.Lerp(Srgb(0.62f, 0.66f, 0.55f),
                                Culm(0.659f, 0.690f, 0.290f, 0.636f, 0.48f), 0.35f);
 
-        CheckFoliageLadder(edge, near, mid, far);
-
-        // Culms at the frame edges. At z -3.5..-2 the frame is under 9.6 units wide however the
-        // camera pans, so |x| >= 3.4 can only ever cross its outer edge. Rooted below the water
-        // line, which at that depth is beneath the bottom of the frame, so they read as stalks
-        // passing the lens rather than bamboo growing out of a river. These six are the only
-        // culms whose nodes are worth building out of triangles, and the only ones dark enough
-        // to anchor the bottom of the tonal range — bright foreground bamboo would out-read the
-        // fighters, which is the one thing the frame cannot afford.
-        for (int i = 0; i < 6; i++)
-        {
-            float x = Random.Range(3.4f, 5.2f) * (i % 2 == 0 ? 1f : -1f);
-            var root = new Vector3(x, WaterY - 1.2f, Random.Range(-3.5f, -2f));
-            Stalk(bake, cards, root, Random.Range(EdgeTier.HeightMin, EdgeTier.HeightMax),
-                  Random.Range(EdgeTier.RadiusMin, EdgeTier.RadiusMax),
-                  edge * Random.Range(0.85f, 1.2f), EdgeTier, RandomLean(0.14f), 0.05f);
-        }
+        CheckFoliageLadder(near, mid, far);
 
         // Tier 1, the near grove, on the banks either side of the channel. Deliberately absent
         // from the middle of the frame — behind the fighters there has to be pale empty mist, or
@@ -925,6 +882,22 @@ public static class BambooArena
     private static void Stalk(Bake bake, Bake cards, Vector3 root, float height, float radius,
                               Color color, in Tier tier, Vector2 lean, float bow)
     {
+        // Bamboo grows on the bank, not in the channel. The tiers are placed by what the camera
+        // frames, so their x bands start just inside the water's edge and Cluster's spread — up to
+        // 2.3 m — carries a culm past it: at |x| 6 with the shore at 6.8 the root lands under the
+        // river, and the water plane hides it and draws the intersection. One rule here rather than
+        // three at the call sites, because Cluster, BuildShoots and whatever comes next all root
+        // their culms in Ground() and all have the same reach past the shore.
+        //
+        // 5 cm of clearance, not zero: the water is one flat rectangle at WaterY (see BuildWater),
+        // hidden by the terrain wherever the bed rises above it, so a root a centimetre under the
+        // surface still stands in a visible film of river. The margin costs the picture nothing —
+        // the tightest survivor is the middle of the wall that shuts the end of the corridor, where
+        // past z 30 the channel has closed and the bed at |x| 0 sits 5.9 cm clear, just inside the
+        // rule; by |x| 0.3 it is 25 cm clear.
+        if (root.y < WaterY + 0.05f)
+            return;
+
         float phase = Random.value;
         var top = new Vector3(root.x + lean.x * height, root.y + height, root.z + lean.y * height);
         Vector3 bowVec = new Vector3(lean.x, 0f, lean.y).normalized * (bow * height);
@@ -2578,8 +2551,8 @@ public static class BambooArena
                 float height = windHeight >= 0f ? windHeight : (heightSpan > 0f ? t : 0f);
 
                 // One horizontal repeat per BarkWrapMetres of circumference, so the photographed
-                // fibre keeps roughly the same world size from a 3 cm shoot to a 29 cm frame-edge
-                // culm. Integer, or the strip does not meet itself at the seam; capped at three,
+                // fibre keeps roughly the same world size from a 3 cm shoot to a 23 cm mature culm.
+                // Integer, or the strip does not meet itself at the seam; capped at three,
                 // because past that the fibre is finer than a pixel at any distance the camera
                 // ever sees a culm from.
                 float uTiles = nodeSpacing > 0f
