@@ -38,6 +38,23 @@ public static class BambooArena
     private const float ChannelEndZ = 26f; // the channel closes here, deep enough to be pure fog
     private const int Seed = 20260727;
 
+    /// <summary>
+    /// The dark end of the jade palette, raw — the water's own body colour with no sky in it.
+    ///
+    /// Shared rather than written twice, because the lily pads' contact shadow is this colour. A
+    /// leaf lying on water does not cast a black patch: what it takes away is the sky reflection,
+    /// and what is left underneath is exactly this. Written black, the pads read as holes punched
+    /// in the river, and worst in the bottom corners of the frame where Fresnel has already taken
+    /// the water to its darkest.
+    ///
+    /// #1D4540. Two thirds of the saturation it carried at #073F45 and 14° further round toward
+    /// green: the river had become the most saturated thing in a frame that is otherwise fog, and
+    /// it was pulling the eye off the fighters. Value is untouched on purpose — the tonal ladder
+    /// is measured and guarded, and moving the water's brightness moves everything graded against
+    /// it. Only the chroma comes down.
+    /// </summary>
+    private static readonly Color DeepWater = new Color(0.114f, 0.271f, 0.251f);
+
     /// <summary>Where the piles stand. Shared with the water builder, which bakes a foam mask
     /// around each one — knowing the positions at build time is what lets the foam skip the
     /// depth texture entirely.</summary>
@@ -402,34 +419,43 @@ public static class BambooArena
     /// of what made the old railing read as thrown together rather than built.
     /// </summary>
     /// <param name="section">y is the member's thickness, z its width across the bridge.</param>
+    /// <param name="uvScale">Left at the deck's own tiling unless given. The railing asks for a
+    /// finer one: its members are a third the width of a board, and grain cut for a 25 cm plank
+    /// does not fit across 8 cm of handrail.</param>
     private static void Beam(Bake bake, float x0, float x1, float above, float z,
-                             Vector2 section, Color colour, float bevel = 0.015f)
+                             Vector2 section, Color colour, float bevel = 0.015f,
+                             Vector2 uvScale = default, float topTint = 0f)
     {
+        if (uvScale == default)
+            uvScale = new Vector2(0.4f, 3f);
         float y0 = DeckHeight(x0) + above;
         float y1 = DeckHeight(x1) + above;
         float run = x1 - x0, rise = y1 - y0;
         bake.Box(new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, z),
                  new Vector3(Mathf.Sqrt(run * run + rise * rise), section.x, section.y),
-                 colour, new Vector2(0.4f, 3f), new Vector2(Random.value, Random.value),
-                 Quaternion.Euler(0f, 0f, Mathf.Atan2(rise, run) * Mathf.Rad2Deg), bevel);
+                 colour, uvScale, new Vector2(Random.value, Random.value),
+                 Quaternion.Euler(0f, 0f, Mathf.Atan2(rise, run) * Mathf.Rad2Deg), bevel, topTint);
     }
 
     /// <summary>
-    /// The sill that finishes both deck edges. Nothing stands on it.
+    /// The sill that finishes both deck edges, and the posts and rails that stand on the far one.
     ///
-    /// There was a balustrade here — sill, posts, lower rail, balusters at an even pitch, a flat
-    /// handrail, heavier posts closing the run — and it was well built. It came out anyway, and
-    /// the reason is worth keeping so nobody builds it back.
+    /// There was a balustrade here once — sill, posts, lower rail, balusters at an even pitch, a
+    /// flat handrail — and it came out. The reason it came out is the reason this one is built
+    /// the way it is, so it is worth keeping rather than rediscovering.
     ///
-    /// This camera puts the far edge of the deck directly behind the fighters at waist height.
-    /// Whatever stands there is not scenery, it is the backdrop the fight is read against, and a
-    /// row of forty-five balusters is a rhythm at exactly the frequency a moving figure is: at
-    /// the moment the two close, the legs and the balusters interleave and the eye has to pick
-    /// the fighters out of a picket fence. Nothing about the railing was wrong except where it
-    /// stood, and there is nowhere else on a bridge to put one.
+    /// This camera puts the far edge of the deck directly behind the fighters. Whatever stands
+    /// there is not scenery, it is the backdrop the fight is read against, and a row of
+    /// forty-five balusters is a rhythm at exactly the frequency a moving figure is: at the
+    /// moment the two close, the legs and the balusters interleave and the eye has to pick the
+    /// fighters out of a picket fence.
     ///
-    /// The sill stays. It is 8 cm at deck level, so it never crosses a figure, and it is the one
-    /// member that turns a row of board ends into an edge.
+    /// What is wrong there is the *frequency*, not the railing. Eight posts across sixteen metres
+    /// is one vertical every 2.29 m, six times coarser than a figure is wide, and nothing about a
+    /// pair of thin horizontals interleaves with a walking man at all. So the railing comes back
+    /// without a single baluster: posts, a handrail, a lower rail, and the sill underneath them.
+    /// Wide gaps and thin members are the whole design — you see through it, and it does not
+    /// argue with what is behind it.
     /// </summary>
     private static void BuildRailing(Bake bake, Color pale)
     {
@@ -448,7 +474,96 @@ public static class BambooArena
                 Beam(bake, Mathf.Lerp(-HalfLength, HalfLength, s / (float)sillLengths),
                      Mathf.Lerp(-HalfLength, HalfLength, (s + 1) / (float)sillLengths),
                      sillHeight * 0.5f, side * sillZ,
-                     new Vector2(sillHeight, sillWidth), pale * 0.95f);
+                     new Vector2(sillHeight, sillWidth), pale * 0.95f, topTint: 0.08f);
+
+        BuildFarRailing(bake, pale, sillZ);
+    }
+
+    /// <summary>
+    /// Posts and two rails, on the far edge only.
+    ///
+    /// Only the far edge, because the near one is at the bottom of the frame and a fighter's shins
+    /// are behind it. The sill is all the near edge gets, and 8 cm of it projects below the feet.
+    ///
+    /// Heights are set by where the members land *on a fighter*, not by where they land on a tape
+    /// measure. The far edge stands 1.16 further from the lens than the fight line does, so at this
+    /// camera — y 1.15, tilt 2.5°, 32° lens — everything on it projects higher than it stands. The
+    /// handrail at 0.72 crosses a 1.7 m figure at 0.79 and the post caps at 0.78 cross it at 0.85,
+    /// both under a hip at 0.90, across the whole zoom range. The 0.80 that a tape measure calls
+    /// hip height would put the caps on the hip itself; 0.86 was tried and cut for exactly this.
+    ///
+    /// Three joints, none of which costs a triangle:
+    ///
+    /// The handrail runs *through* the posts — same z, and a post is opaque, so no hole has to be
+    /// cut. In a modelling package this is the expensive option and a notch is the cheap one; here
+    /// it is the other way round, because a notch means cutting geometry and a through-member means
+    /// nothing at all. It oversails the end posts by 7 cm, which is a tenon and not a break.
+    ///
+    /// The posts stand 6 cm proud of the handrail. The top face of a bevelled box already exists.
+    ///
+    /// The posts pass through the sill and carry on 35 cm below the deck to the stringer. The sill
+    /// hides the joint that used to read as a post pushed into clay, and the post is still
+    /// structurally continuous, which was the objection to standing it on the sill instead.
+    ///
+    /// Variation is craft, not decay: thickness, tone, a patch of map and six tenths of a degree of
+    /// lean. No uneven pitch, no sagging rails, no broken bay — those were removed from this bridge
+    /// deliberately, because together they read as abandoned rather than as weathered.
+    /// </summary>
+    private static void BuildFarRailing(Bake bake, Color pale, float sillZ)
+    {
+        // Even, so that no post stands at x = 0. The centre of the frame is where the fighters
+        // meet, and a vertical there is a vertical between them at the exact moment it matters;
+        // with eight, a 2.29 m opening sits there instead.
+        const int posts = 8;
+        const float postSection = 0.09f;
+        const float postTop = 0.78f;      // above the deck
+        const float postFoot = -0.35f;    // and below it, down to the stringer
+        const float railTop = 0.72f;
+        const float railHeight = 0.06f;
+        const float railWidth = 0.08f;
+        const float lowerRail = 0.38f;
+        const float lowerRadius = 0.0275f;
+        const float overhang = 0.07f;     // the through-tenon past the end posts
+
+        // A tenth darker than the deck: a horizontal board bleaches in the sun, a railing does not.
+        Color timber = pale * 0.88f;
+        // Finer than the deck's (0.4, 3). These members are a third the width of a board.
+        var uv = new Vector2(0.5f, 4f);
+
+        float PostX(int i) => Mathf.Lerp(-HalfLength, HalfLength, i / (float)(posts - 1));
+
+        for (int i = 0; i < posts; i++)
+        {
+            float x = PostX(i);
+            float thick = postSection * Random.Range(0.92f, 1.08f);
+            bake.Box(new Vector3(x, DeckHeight(x) + (postTop + postFoot) * 0.5f, sillZ),
+                     new Vector3(thick, postTop - postFoot, thick),
+                     timber * Random.Range(0.94f, 1.06f), uv,
+                     new Vector2(Random.value, Random.value),
+                     // Six tenths of a degree, both axes. A post hewn by hand is never plumb; a
+                     // post at three degrees has fallen over, and this bridge is not falling over.
+                     Quaternion.Euler(Random.Range(-0.6f, 0.6f), 0f, Random.Range(-0.6f, 0.6f)),
+                     0.008f);
+        }
+
+        for (int i = 0; i < posts - 1; i++)
+        {
+            float a = PostX(i), b = PostX(i + 1);
+
+            // 0.18 of lift on whatever faces the sky. This is the hand-worn top of the rail, and
+            // with the bevel under it, the pale line it draws the length of the bridge is the most
+            // valuable 3 cm in the whole structure.
+            Beam(bake, a - (i == 0 ? overhang : 0f), b + (i == posts - 2 ? overhang : 0f),
+                 railTop - railHeight * 0.5f, sillZ, new Vector2(railHeight, railWidth),
+                 timber * Random.Range(0.96f, 1.04f), 0.015f, uv, 0.18f);
+
+            // Six sides rather than a bevelled box, and not only to save 32 triangles a span: on a
+            // member 5.5 cm thick a 6 mm chamfer is under a pixel at this camera, so the box would
+            // be paying for a highlight nobody can resolve. The open ends finish inside the posts.
+            bake.Tube(new Vector3(a, DeckHeight(a) + lowerRail, sillZ),
+                      new Vector3(b, DeckHeight(b) + lowerRail, sillZ),
+                      lowerRadius, lowerRadius, timber * Random.Range(0.92f, 1.02f), 6, 1);
+        }
     }
 
     /// <summary>Stone steps where the bridge lands on each bank. Without them the deck ends in
@@ -2142,10 +2257,13 @@ public static class BambooArena
         // writes depth, so this lands on the surface and not through it.
         mat.renderQueue = (int)RenderQueue.Transparent - 50;
         mat.SetTexture("_BaseMap", LoadTexture("T_Blob.asset"));
-        // 0.35 against the fighters' 0.55. A leaf is not opaque and does not sit on the surface;
-        // at the fighters' value the water under a clump went to a flat dark mat.
-        mat.SetColor("_BaseColor", new Color(0f, 0f, 0f, 0.35f));
-        mat.SetColor("_Color", new Color(0f, 0f, 0f, 0.35f));
+        // The water's own body colour at 0.30, not black at 0.35. A leaf is not opaque, does not
+        // sit on the surface, and does not remove light — it removes the *sky*, which is the one
+        // thing this shade should be subtracting. Black subtracted the water as well, and the two
+        // clumps nearest the lens read as dark holes rather than as leaves.
+        var shade = new Color(DeepWater.r, DeepWater.g, DeepWater.b, 0.30f);
+        mat.SetColor("_BaseColor", shade);
+        mat.SetColor("_Color", shade);
         return mat;
     }
 
@@ -2166,13 +2284,18 @@ public static class BambooArena
         // second time. The body of the water came out four times too dark, with G/R at 5.1 where
         // the model says 3.5 — a nonlinear error, which is the signature of a double conversion
         // rather than a mistuned constant.
-        mat.SetColor("_DeepColor", new Color(0.027f, 0.247f, 0.271f));  // #073F45
+        mat.SetColor("_DeepColor", DeepWater);  // #1D4540, was #073F45 — see the field
         // Dimmer than the reference palette's #8FE8DC, and deliberately. That hex is the colour a
         // photograph *comes out*, which already contains the bottom showing through and the sky
         // on top of it. Fed in as the source of scattering it counts that brightness twice: at
         // 0.81 linear green the water column outshone a lit riverbed by four to one and the bed
         // was invisible at any depth.
-        mat.SetColor("_ShallowColor", new Color(0.373f, 0.655f, 0.612f)); // #5FA79C
+        //
+        // #5FA79C → #78A794: same value, saturation down a third, hue 16° toward green. The river
+        // had ended up the most saturated surface in a frame built out of fog and pale sky, which
+        // put the brightest chroma in the picture at the bottom of it, away from the fight. What it
+        // has to be is the floor of the composition, not a feature of it.
+        mat.SetColor("_ShallowColor", new Color(0.471f, 0.655f, 0.580f)); // #78A794
         mat.SetVector("_Absorption", new Vector4(1.15f, 0.16f, 0.28f, 0f));
         // 0.22, down from 0.45. At 0.45 the scattering term was already at half strength 1.5 m
         // along the ray — which is the near band, where the bed is supposed to be legible.
@@ -2321,13 +2444,24 @@ public static class BambooArena
         /// without it a deck of a hundred boards shows one texture a hundred times.
         /// </summary>
         public void Box(Vector3 centre, Vector3 size, Color color, Vector2 uvScale, Vector2 uvOffset,
-                        float yawDegrees, float bevel = 0.015f) =>
-            Box(centre, size, color, uvScale, uvOffset, Quaternion.Euler(0f, yawDegrees, 0f), bevel);
+                        float yawDegrees, float bevel = 0.015f, float topTint = 0f) =>
+            Box(centre, size, color, uvScale, uvOffset, Quaternion.Euler(0f, yawDegrees, 0f), bevel,
+                topTint);
 
         /// <summary>As above but freely oriented — railing posts lean a degree or two off
         /// vertical, which yaw alone cannot express.</summary>
+        /// <param name="topTint">
+        /// Lightens the faces that look at the sky, by this fraction at straight up and by nothing
+        /// at horizontal. It exists for the handrail: the top of a rail people hold is rubbed
+        /// smooth and pale, and that pale line running the length of the bridge is the single
+        /// detail that separates a built railing from four boxes. The bevel already gives the top
+        /// edges their own vertices and their own normals, so this costs no triangles at all — it
+        /// only changes what colour those vertices are pushed with. Alpha is carried through
+        /// untouched: these colours are multipliers on the wood map, and a multiplier above one on
+        /// alpha would be meaningless.
+        /// </param>
         public void Box(Vector3 centre, Vector3 size, Color color, Vector2 uvScale, Vector2 uvOffset,
-                        Quaternion rot, float bevel = 0.015f)
+                        Quaternion rot, float bevel = 0.015f, float topTint = 0f)
         {
             Vector3 h = size * 0.5f;
             float b = Mathf.Clamp(bevel, 0f, Mathf.Min(h.x, Mathf.Min(h.y, h.z)) * 0.4f);
@@ -2400,6 +2534,14 @@ public static class BambooArena
                 bool flip = Vector3.Dot(Vector3.Cross(points[1] - points[0], points[2] - points[0]), normal) < 0f;
                 Vector3 worldNormal = rot * normal;
 
+                // Measured after the rotation, not before: what has to be pale is whatever faces
+                // the sky once the member is in place, and a post leaning off vertical or a rail
+                // tilted to the deck's sag would otherwise light the wrong edge.
+                float lift = 1f + topTint * Mathf.Max(0f, worldNormal.y);
+                var tinted = topTint > 0f
+                    ? new Color(color.r * lift, color.g * lift, color.b * lift, color.a)
+                    : color;
+
                 var indices = new int[points.Length];
                 for (int i = 0; i < points.Length; i++)
                 {
@@ -2407,7 +2549,7 @@ public static class BambooArena
                     Vector2 uv = swap
                         ? new Vector2(p[av] * uvScale.x, p[au] * uvScale.y)
                         : new Vector2(p[au] * uvScale.x, p[av] * uvScale.y);
-                    indices[i] = Push(centre + rot * p, worldNormal, uvOffset + uv, Vector2.zero, color);
+                    indices[i] = Push(centre + rot * p, worldNormal, uvOffset + uv, Vector2.zero, tinted);
                 }
                 for (int i = 2; i < indices.Length; i++)
                     Tri(indices[0], indices[i - 1], indices[i]);
