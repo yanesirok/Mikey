@@ -330,6 +330,66 @@ def pile_beam():
     return low, hi
 
 
+@register('Pile', cap=380, rect=(0.50, 0.5, 0.25, 0.5))
+def pile():
+    """Свая: комель (низ) шире вершины, кольцевые трещины у головы."""
+    low = cyl_part('Pile', r_top=0.075, r_bot=0.095, h=1.6, sides=12)
+    hi = clone_high(low, [
+        ('CLOUDS', 0.35, 0.0040),     # кора снята, но бревно живое
+        ('MUSGRAVE', 0.10, 0.0055),   # продольные трещины
+    ])
+    # кольцевые трещины у головы: верхняя четверть high пережимается волной
+    import math
+    for v in hi.data.vertices:
+        if v.co.y > 0.4:
+            v.co.x *= 1.0 - 0.02 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
+            v.co.z *= 1.0 - 0.02 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
+    return low, hi
+
+
+@register('Lashing', cap=220, rect=(0.75, 0.5, 0.25, 0.5))
+def lashing():
+    """Вязка: low — бочкообразная обечайка, витки верёвки печёт high-poly
+    из настоящих торов. Это то, что AAA и делает: геометрия витков на 4
+    экранных пикселях — расход, а нормали читаются."""
+    low = cyl_part('Lashing', r_top=0.085, r_bot=0.085, h=0.11, sides=10)
+    # лёгкая бочка: середина чуть шире, чтобы силуэт не был идеальным цилиндром
+    for v in low.data.vertices:
+        k = 1.0 + 0.06 * (1.0 - (abs(v.co.y) / 0.055) ** 2)
+        v.co.x *= k
+        v.co.z *= k
+
+    # high: 5 витков-торов вокруг той же оси + узел
+    coils = []
+    for i in range(5):
+        y = -0.044 + i * 0.022
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.085, minor_radius=0.011,
+                                         major_segments=48, minor_segments=12,
+                                         location=(0.0, 0.0, 0.0))
+        t = bpy.context.active_object
+        t.rotation_euler = (-1.5707963, 0.0, 0.35 * i)
+        t.location = (0.0, y, 0.0)
+        coils.append(t)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.016, segments=16, ring_count=8,
+                                         location=(0.088, 0.0, 0.02))
+    coils.append(bpy.context.active_object)
+    bpy.ops.object.select_all(action='DESELECT')
+    for c in coils:
+        c.select_set(True)
+    bpy.context.view_layer.objects.active = coils[0]
+    bpy.ops.object.join()
+    hi = bpy.context.active_object
+    hi.name = 'Lashing_hi'
+    tex = bpy.data.textures.new('rope_fibre', type='CLOUDS')
+    tex.noise_scale = 0.02
+    d = hi.modifiers.new('fibre', 'DISPLACE')
+    d.texture = tex
+    d.strength = 0.0025
+    d.mid_level = 0.5
+    apply_mods(hi)
+    return low, hi
+
+
 # ---------------------------------------------------------------- сборка
 
 def main():
