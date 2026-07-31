@@ -294,6 +294,10 @@ def main():
             sys.exit(1)
         lows.append(low)
 
+    if total > 2500:
+        print(f'bridge_kit: FAIL — кит целиком {total} трисов (потолок 2500)')
+        sys.exit(1)
+
     save_png(normal_img, os.path.join(out_dir, 'T_BridgeKit_N.png'))
 
     # маска Arena.shader: G — окклюзия, A — гладкость, R/B не читаются
@@ -317,9 +321,6 @@ def main():
         apply_scale_options='FBX_SCALE_UNITS', bake_space_transform=True,
         axis_forward='-Z', axis_up='Y', use_mesh_modifiers=True)
 
-    if total > 2500:
-        print(f'bridge_kit: FAIL — кит целиком {total} трисов (потолок 2500)')
-        sys.exit(1)
     print(f'bridge_kit: OK — {len(lows)} деталей, {total} трисов, атлас {ATLAS}')
 
 
