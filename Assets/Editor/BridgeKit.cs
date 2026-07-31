@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Детали моста, запечённые Blender-скриптом Tools/Blender/bridge_kit.py: восемь именованных
+/// Детали моста, запечённые Blender-скриптом tools/Blender/bridge_kit.py: восемь именованных
 /// мешей в одном FBX плюс атласы нормалей и маски. Этот класс только читает их; вся
 /// расстановка — позиции, кривая провиса, наклоны, тона — остаётся в BambooArena, потому что
 /// выверена против конкретной камеры и правится там одной константой.
@@ -41,7 +41,7 @@ public static class BridgeKit
         if (_parts != null && _parts.TryGetValue(name, out Part part))
             return part;
         Debug.LogError($"BridgeKit: деталь '{name}' не найдена в {FbxPath} — " +
-                       "прогони Tools/Blender/build_bridge_kit.ps1 и закоммить результат.");
+                       "прогони tools/Blender/build_bridge_kit.ps1 и закоммить результат.");
         return null;
     }
 
@@ -62,8 +62,11 @@ public static class BridgeKit
     // длинная ось X от перестановки не страдает, поэтому дефект был не виден в габаритах, но
     // деталировка приезжала повёрнутой на 90° вокруг длинной оси — затёртый верх поручня
     // смотрел вбок, врубки PileBeam вбок вместо низа, а витки вязки ложились поперёк сваи.
-    // Признак того, что теперь ось верна: BambooArena задаёт каждой детали ровно её авторские
-    // габариты, и все скейлы FitTrs выходят единичными.
+    // Признак того, что теперь ось верна — на диагностическом наборе фикс-раунда (сечения
+    // Rail1m/Sill1m/PileBeam) скейлы FitTrs по y/z и правда выходили единичными: BambooArena
+    // тогда взяла свои константы прямо из авторских габаритов детали. Это не общее свойство:
+    // свая масштабируется ≈0.84, столбы — ±8% случайным разбросом, вязка — ≈1.03, а сами
+    // погонные детали растягиваются по длинной оси X в разы (~2.3x) под длину пролёта.
     // bridge_kit.py прошёл ревью отдельно — не трогаем его, правим только здесь.
     private static Part BuildPart(Mesh m)
     {
@@ -92,7 +95,7 @@ public static class BridgeKit
         if (meshes.Count == 0)
         {
             Debug.LogError($"BridgeKit: {FbxPath} отсутствует или пуст — " +
-                           "прогони Tools/Blender/build_bridge_kit.ps1.");
+                           "прогони tools/Blender/build_bridge_kit.ps1.");
             return;
         }
         _parts = new Dictionary<string, Part>();
@@ -150,6 +153,7 @@ public static class BridgeKit
                                "Линейные детали лежат по X, столбы и сваи — по Y.");
             Debug.Log($"BridgeKit: {name} — {tris} трисов, баунды {s}.");
         }
+        // Потолок 2500 держим в синхроне с main() в tools/Blender/bridge_kit.py.
         if (total > 2500)
             Debug.LogError($"BridgeKit: кит целиком {total} трисов (потолок 2500).");
         else

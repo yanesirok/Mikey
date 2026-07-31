@@ -424,6 +424,7 @@ def main():
             sys.exit(1)
         lows.append(low)
 
+    # Потолок 2500 держим в синхроне с BridgeKit.Verify() в Assets/Editor/BridgeKit.cs.
     if total > 2500:
         print(f'bridge_kit: FAIL — кит целиком {total} трисов (потолок 2500)')
         sys.exit(1)

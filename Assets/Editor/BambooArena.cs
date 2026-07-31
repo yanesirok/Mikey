@@ -452,8 +452,9 @@ public static class BambooArena
 
     /// <summary>Штампует деталь кита в бейк. Тинт — функцией от мировой точки, потому что
     /// свая одним мешем проходит три среды (воздух, мокрая полоса, под водой) и цвет обязан
-    /// смениться посреди детали. topTint — как у Bake.Box: осветление граней, глядящих в небо,
-    /// затёртый верх поручня.</summary>
+    /// смениться посреди детали. topTint — осветление граней, глядящих в небо, затёртый верх
+    /// поручня; в отличие от Bake.Box сдвиг здесь аддитивный, а не мультипликативный — на этих
+    /// тонах разница ~1%.</summary>
     private static void Stamp(Bake bake, BridgeKit.Part part, Matrix4x4 trs,
                               System.Func<Vector3, Color> tint, float topTint = 0f)
     {
@@ -710,7 +711,7 @@ public static class BambooArena
         Color stone = new Color(0.92f, 0.95f, 0.96f);
         Color stoneDark = new Color(0.5f, 0.53f, 0.55f);
         Color timberDark = new Color(0.55f, 0.5f, 0.42f);
-        Color rope = new Color(0.85f, 0.76f, 0.55f);
+        Color coilRope = new Color(0.85f, 0.76f, 0.55f);
         Color cloth = Srgb(0.62f, 0.56f, 0.44f); // foliage mesh: untextured, so a real colour
 
         // Stone lantern on the right bank: the classic marker that places the scene instantly.
@@ -726,11 +727,11 @@ public static class BambooArena
         // Coiled rope and a bucket by the water.
         var coil = new Vector3(7.4f, Ground(7.4f, -1.2f) + 0.05f, -1.2f);
         for (int i = 0; i < 3; i++)
-            timber.Torus(coil + Vector3.up * (i * 0.055f), 0.24f - i * 0.045f, 0.035f, rope, 10, 5);
+            timber.Torus(coil + Vector3.up * (i * 0.055f), 0.24f - i * 0.045f, 0.035f, coilRope, 10, 5);
         var bucketAt = new Vector3(-7.6f, Ground(-7.6f, -0.6f) + 0.14f, -0.6f);
         timber.Tube(bucketAt + Vector3.down * 0.14f, bucketAt + Vector3.up * 0.14f, 0.16f, 0.19f,
                     timberDark, 9, 2);
-        timber.Torus(bucketAt + Vector3.up * 0.14f, 0.19f, 0.022f, rope, 9, 4);
+        timber.Torus(bucketAt + Vector3.up * 0.14f, 0.19f, 0.022f, coilRope, 9, 4);
 
         // Cloth on a bamboo pole, animated by the same wind the foliage uses.
         float px = 7.9f, pz = -2.6f;
