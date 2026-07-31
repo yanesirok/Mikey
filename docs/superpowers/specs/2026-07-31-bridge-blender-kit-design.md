@@ -44,7 +44,8 @@ build_bridge_kit.ps1
        ├─ high-poly каждой детали (подразделение + процедурный рельеф, фиксированный сид)
        ├─ low-poly той же детали, UV в общий атлас
        ├─ запекание high→low: нормали + AO, атлас 2048×2048 на весь кит
-       └─ экспорт: Assets/Fight/Arena/BridgeKit/BridgeKit.fbx + T_BridgeKit_N.png + T_BridgeKit_AO.png
+       └─ экспорт: Assets/Fight/Arena/BridgeKit/BridgeKit.fbx + T_BridgeKit_N.png
+          + T_BridgeKit_Mask.png (AO в G-канале, гладкость в A — формат _MaskMap шейдера Arena)
 ```
 
 Результат **коммитится в git**. Сборка Unity никогда не запускает Blender; скрипт прогоняется
