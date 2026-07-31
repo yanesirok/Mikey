@@ -260,6 +260,76 @@ def post():
     return low, hi
 
 
+@register('PostEnd', cap=400, rect=(0.25, 0.0, 0.25, 0.5))
+def post_end():
+    """Начальный столб 14x14, макушка на два ската."""
+    low = box_part('PostEnd', 0.14, 0.74, 0.14, bevel=0.012, segs=2)
+    # два ската: верхние вершины разъезжаются по высоте знаком X
+    top = max(v.co.y for v in low.data.vertices)
+    for v in low.data.vertices:
+        if v.co.y > top - 0.02:
+            v.co.y -= 0.02 + 0.025 * abs(v.co.x) / 0.07  # конёк в центре, скаты к краям
+    hi = clone_high(low, [
+        ('CLOUDS', 0.4, 0.0035),
+        ('VORONOI', 0.2, 0.0050),
+    ])
+    return low, hi
+
+
+@register('Rail1m', cap=180, rect=(0.50, 0.0, 0.25, 0.5))
+def rail():
+    """Поручень: верх затёрт ладонями до скругления — фаска сверху крупнее."""
+    low = box_part('Rail1m', 1.0, 0.06, 0.08, bevel=0.012, segs=2)
+    hi = clone_high(low, [
+        ('CLOUDS', 0.5, 0.0020),
+    ])
+    # затёртость: у high верхние рёбра осаживаются к центру сечения
+    for v in hi.data.vertices:
+        if v.co.y > 0.02:
+            v.co.y -= 0.006 * (abs(v.co.z) / 0.04) ** 2
+    return low, hi
+
+
+@register('LowerRail1m', cap=120, rect=(0.75, 0.0, 0.25, 0.5))
+def lower_rail():
+    """Круглая жердь со снятой корой: сучки — буграми displace."""
+    # 6 граней, не 8: subsurf в cyl_part удваивает их, а 12 после удвоения — потолок cap 120
+    low = cyl_part('LowerRail1m', 0.0275, 0.0275, 1.0, sides=6)
+    low.rotation_euler = (0.0, 0.0, 1.5707963)   # ось Y -> X: жердь лежит вдоль моста
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    hi = clone_high(low, [
+        ('CLOUDS', 0.3, 0.0022),
+        ('STUCCI', 0.12, 0.0030),   # сучки
+    ])
+    return low, hi
+
+
+@register('Sill1m', cap=90, rect=(0.00, 0.5, 0.25, 0.5))
+def sill():
+    """Порожек: грубая фаска, торцы со следом пилы (рельефом high-poly)."""
+    low = box_part('Sill1m', 1.0, 0.08, 0.14, bevel=0.010, segs=1)
+    hi = clone_high(low, [
+        ('CLOUDS', 0.45, 0.0030),
+        ('WOOD', 0.08, 0.0025),     # кольца пилы на торцах
+    ])
+    return low, hi
+
+
+@register('PileBeam', cap=150, rect=(0.25, 0.5, 0.25, 0.5))
+def pile_beam():
+    """Насадка на пару свай, с врубками по посадочным местам (±0.62 от центра
+    в мировых Z, здесь это ±0.62 по X при длине 1.45)."""
+    low = box_part('PileBeam', 1.45, 0.10, 0.20, bevel=0.010, segs=2)
+    hi = clone_high(low, [
+        ('CLOUDS', 0.4, 0.0030),
+    ])
+    # врубки: нижняя грань high осаживается над посадочными местами свай
+    for v in hi.data.vertices:
+        if v.co.y < -0.02 and (abs(v.co.x - 0.62) < 0.09 or abs(v.co.x + 0.62) < 0.09):
+            v.co.y += 0.012
+    return low, hi
+
+
 # ---------------------------------------------------------------- сборка
 
 def main():
