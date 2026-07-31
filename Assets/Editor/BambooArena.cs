@@ -124,12 +124,14 @@ public static class BambooArena
                            $"(want below {WaterY}).");
 
         Random.InitState(Seed);
+        BridgeKit.Reset();               // переэкспортированный FBX подхватывается без перезапуска
         ArenaTextures.Surface wood = ArenaTextures.Wood();
         ArenaTextures.Surface bark = ArenaTextures.Bark();
         Texture2D leafCard = ArenaTextures.LeafAtlas(out LeafCardRadii);
         ArenaTextures.Blob();
 
         var timber = new Bake();
+        var bridgeKit = new Bake();
         var bamboo = new Bake();
         var cards = new Bake();
         var foliage = new Bake();
@@ -137,7 +139,10 @@ public static class BambooArena
         var scan = new Bake();
         var shade = new Bake();
 
-        BuildBridge(timber, foliage);
+        BuildBridge(timber, bridgeKit, foliage);
+        // Штамповка не тянет Random так, как тянули трубки, поэтому пересев: иначе любая
+        // правка кита перемешивала бы рощу. Роща переложится один раз — на этом коммите.
+        Random.InitState(Seed + 1);
         BuildProps(timber, foliage);
         BuildBamboo(bamboo, cards);
         BuildBanks(ground);
@@ -145,6 +150,7 @@ public static class BambooArena
         BuildUndergrowth(foliage, cards, shade);
 
         Mesh timberMesh = timber.ToMesh("ArenaTimber");
+        Mesh kitMesh = bridgeKit.ToMesh("ArenaBridgeKit");
         Mesh bambooMesh = bamboo.ToMesh("ArenaBamboo");
         Mesh cardsMesh = cards.ToMesh("ArenaBambooCards");
         Mesh foliageMesh = foliage.ToMesh("ArenaFoliage");
@@ -158,9 +164,11 @@ public static class BambooArena
         // arena; the foliage gets a cheaper height-based approximation while it is being built.
         // Foliage is deliberately not an occluder: cooking a collider for a hundred thousand
         // two-sided leaf strips costs seconds and shadows nothing a leaf could actually shadow.
-        BakeOcclusion(timberMesh, new[] { timberMesh, bambooMesh });
+        BakeOcclusion(timberMesh, new[] { timberMesh, bambooMesh, kitMesh });
+        BakeOcclusion(kitMesh, new[] { timberMesh, bambooMesh, kitMesh });
 
         timberMesh.RecalculateTangents(); // normal-mapped, so it needs them
+        kitMesh.RecalculateTangents();    // and the kit, which is nothing but normal map
         groundMesh.RecalculateTangents();
         bambooMesh.RecalculateTangents(); // and so does the bark, which had none for its whole life
 
@@ -192,6 +200,8 @@ public static class BambooArena
         // centimetres in a pattern that only this mesh knows. Seven thousand triangles is nothing
         // to cook and nothing to raycast four times a frame — and no rigidbody ever touches it.
         timberGo.AddComponent<MeshCollider>().sharedMesh = timberMesh;
+        GameObject kitGo = AddMesh(root, "BridgeKit", kitMesh, BridgeKitMaterial(wood),
+                                   castShadows: true);
         // Bamboo does not cast. It was the frame-edge culms that proved it — twelve units tall a
         // couple of units off camera, under a 45° key they threw a shadow band clear across the
         // deck and put one fighter in total darkness while the other stood in the light. Those are
@@ -218,8 +228,12 @@ public static class BambooArena
         // stands near the horizon, so it is the grove that produces the stretched vertical
         // streaks — but it is also 80k triangles of second pass.
         int reflected = LayerMask.NameToLayer(Mikey.Fight.WaterReflection.LayerName);
+        // Кит — мост: отражается всегда, вместе с настилом.
         if (reflected >= 0)
+        {
             timberGo.layer = reflected;
+            kitGo.layer = reflected;
+        }
 
         int reflectedFar = LayerMask.NameToLayer(Mikey.Fight.WaterReflection.FarLayerName);
         if (reflectedFar >= 0)
@@ -236,11 +250,12 @@ public static class BambooArena
         int foliageTris = foliageMesh.triangles.Length / 3;
         int scanTris = scanMesh.triangles.Length / 3;
         int timberTris = timberMesh.triangles.Length / 3;
+        int kitTris = kitMesh.triangles.Length / 3;
         int groundTris = groundMesh.triangles.Length / 3;
         int shadeTris = shadeMesh.triangles.Length / 3;
-        int arenaTris = timberTris + bambooTris + cardTris + foliageTris + groundTris + scanTris
-                        + shadeTris;
-        Debug.Log($"BambooArena: timber {timberTris} tris, " +
+        int arenaTris = timberTris + kitTris + bambooTris + cardTris + foliageTris + groundTris
+                        + scanTris + shadeTris;
+        Debug.Log($"BambooArena: timber {timberTris} tris, kit {kitTris}, " +
                   $"bamboo {bambooTris}, cards {cardTris}, vegetation {foliageTris}, " +
                   $"ground {groundTris}, scan {scanTris}, lily shade {shadeTris}, " +
                   $"arena {arenaTris}.");
@@ -251,14 +266,20 @@ public static class BambooArena
         // quarter of the frame — purely in order to log it. The arena sat at 133 552 with no
         // error raised. Carding the near tier's crowns is what finally made the number meetable.
         //
+        // 150k, not 115k, since the bridge kit landed (spec 2026-07-31): the railing and the
+        // piles are modelled parts now rather than boxes and tubes, and the arena was raised
+        // deliberately to buy the chamfers and the lashings that came with them.
+        //
         // These catch a regression; they do not police the art decision. If a phone disagrees,
         // cut the tier-2 and tier-3 cards first — they buy the least picture per shaded pixel —
         // and the near foliage last.
-        if (arenaTris > 115000)
-            Debug.LogError($"BambooArena: arena over budget — {arenaTris} tris (max 115000): " +
-                           $"timber {timberTris}, bamboo {bambooTris}, cards {cardTris}, " +
-                           $"vegetation {foliageTris}, ground {groundTris}, scan {scanTris}, " +
-                           $"lily shade {shadeTris}.");
+        if (arenaTris > 150000)
+            Debug.LogError($"BambooArena: arena over budget — {arenaTris} tris (max 150000): " +
+                           $"timber {timberTris}, kit {kitTris}, bamboo {bambooTris}, " +
+                           $"cards {cardTris}, vegetation {foliageTris}, ground {groundTris}, " +
+                           $"scan {scanTris}, lily shade {shadeTris}.");
+        if (kitTris > 40000)
+            Debug.LogError($"BambooArena: bridge kit over budget — {kitTris} tris (max 40000).");
         // Per-mesh tripwires on the three a placement change can run away with. The card mesh
         // carries bank grass and the near tier's crowns as well as the far tiers' foliage now.
         if (bambooTris > 50000 || cardTris > 16000 || foliageTris > 30000)
@@ -270,36 +291,39 @@ public static class BambooArena
 
     // ------------------------------------------------------------------ bridge
 
-    private static void BuildBridge(Bake bake, Bake foliage)
-    {
-        // Multipliers on the wood map, not colours. The texture already says what timber looks
-        // like; the vertex stream's job is board-to-board variation and baked occlusion. Written
-        // as absolute sRGB colours they were converted to linear and multiplied into the map,
-        // darkening every board twice over and turning the deck to charcoal. Multipliers are not
-        // colours and must not go through the gamma conversion.
-        // Pulled down by about a third once the wood map stopped arriving two stops dark. The
-        // deck measured 125 against a 219 sky and read as bleached driftwood — brighter than
-        // either fighter, which inverts what the frame is about. Target is 95..110: darker than
-        // the water it sits over, lighter than the beams under it.
-        //
-        // Near-neutral again, and deliberately: the hue now lives in the wood map, where it
-        // belongs, and these are back to being what they are called — multipliers that separate
-        // one board from the next. Lifted about 15% because the warm map is darker than the grey
-        // one it replaced, and the deck has to land back in the 100..115 it was measured at.
-        //
-        // An earlier pass warmed these by 12% instead and left the map grey. That was too timid
-        // by half: a tenth of a hue difference under a grade that removes saturation is not a
-        // warm bridge, it is the same silver one with an apology attached.
-        Color plankPale = new Color(0.97f, 0.94f, 0.90f);
-        Color plankMid = new Color(0.77f, 0.74f, 0.71f);
-        Color plankDark = new Color(0.55f, 0.53f, 0.50f);
-        Color beam = new Color(0.5f, 0.48f, 0.44f);
-        Color wet = new Color(0.3f, 0.32f, 0.32f);
-        // Multipliers again, so both read against the wood map they share: the nail cold and
-        // dark, the lashing lighter and greyer than any board around it.
-        Color nail = new Color(0.42f, 0.43f, 0.46f);
-        Color rope = new Color(0.95f, 0.90f, 0.76f);
+    // Multipliers on the wood map, not colours. The texture already says what timber looks
+    // like; the vertex stream's job is board-to-board variation and baked occlusion. Written
+    // as absolute sRGB colours they were converted to linear and multiplied into the map,
+    // darkening every board twice over and turning the deck to charcoal. Multipliers are not
+    // colours and must not go through the gamma conversion.
+    // Pulled down by about a third once the wood map stopped arriving two stops dark. The
+    // deck measured 125 against a 219 sky and read as bleached driftwood — brighter than
+    // either fighter, which inverts what the frame is about. Target is 95..110: darker than
+    // the water it sits over, lighter than the beams under it.
+    //
+    // Near-neutral again, and deliberately: the hue now lives in the wood map, where it
+    // belongs, and these are back to being what they are called — multipliers that separate
+    // one board from the next. Lifted about 15% because the warm map is darker than the grey
+    // one it replaced, and the deck has to land back in the 100..115 it was measured at.
+    //
+    // An earlier pass warmed these by 12% instead and left the map grey. That was too timid
+    // by half: a tenth of a hue difference under a grade that removes saturation is not a
+    // warm bridge, it is the same silver one with an apology attached.
+    //
+    // Fields rather than locals of BuildBridge because the kit stamping needs them two calls
+    // deep: the lashings in BuildFarRailing are the same rope as the ones on the pile heads,
+    // and threading a colour through two signatures to say so is worse than saying it once.
+    private static readonly Color plankPale = new Color(0.97f, 0.94f, 0.90f);
+    private static readonly Color plankMid = new Color(0.77f, 0.74f, 0.71f);
+    private static readonly Color plankDark = new Color(0.55f, 0.53f, 0.50f);
+    private static readonly Color beam = new Color(0.5f, 0.48f, 0.44f);
+    // Multipliers again, so both read against the wood map they share: the nail cold and
+    // dark, the lashing lighter and greyer than any board around it.
+    private static readonly Color nail = new Color(0.42f, 0.43f, 0.46f);
+    private static readonly Color rope = new Color(0.95f, 0.90f, 0.76f);
 
+    private static void BuildBridge(Bake bake, Bake kit, Bake foliage)
+    {
         // Boards laid across the direction of travel: the repeating edge is what gives the
         // bridge its rhythm and tells the eye how big a fighter is against it.
         // Laid one against the next with a fixed gap, rather than dropped on a fixed pitch. On a
@@ -363,78 +387,125 @@ public static class BambooArena
                          new Vector2(0.4f, 3f), new Vector2(Random.value, Random.value), 0f);
             }
 
-        // Piles: short now that the deck is low, barely clearing the water. Split into three
-        // segments because the interesting part is where they meet the surface.
-        Color submerged = new Color(0.16f, 0.24f, 0.2f); // greener and much darker under water
+        // Piles: short now that the deck is low, barely clearing the water. One kit mesh each,
+        // where there used to be three tube segments — the interesting part is still where they
+        // meet the surface, but that is now a tint boundary rather than a seam in the geometry.
+        BridgeKit.Part pilePart = BridgeKit.Get("Pile");
+        BridgeKit.Part beamPart = BridgeKit.Get("PileBeam");
+        BridgeKit.Part lashPart = BridgeKit.Get("Lashing");
         foreach (float x in PileX)
         {
             // The head beam tying each pair of piles, and the one member whose absence broke the
             // load path outright: two piles stood under the deck touching nothing but a stringer,
             // so the eye followed a post up and found it holding a plank. The lashings sit at
             // exactly this height, which now reads as the pile being tied to the beam it carries.
-            bake.Box(new Vector3(x, DeckHeight(x) - 0.255f, 0f), new Vector3(0.2f, 0.1f, 1.45f),
-                     beam * 0.94f, new Vector2(0.4f, 3f),
-                     new Vector2(Random.value, Random.value), 0f);
+            Stamp(kit, beamPart,
+                  FitTrs(beamPart, new Vector3(1.45f, 0.1f, 0.2f),
+                         new Vector3(x, DeckHeight(x) - 0.255f, 0f),
+                         Quaternion.Euler(0f, 90f, 0f)),
+                  _ => beam * 0.94f);
 
             for (int i = -1; i <= 1; i += 2)
             {
                 var head = new Vector3(x, DeckHeight(x) - 0.2f, i * 0.62f);
                 var foot = new Vector3(x + i * 0.12f, WaterY - 0.85f, i * 0.86f);
-                Vector3 At(float y) => Vector3.Lerp(head, foot, Mathf.InverseLerp(head.y, foot.y, y));
-
-                Vector3 damp = At(WaterY + 0.15f);
-                Vector3 line = At(WaterY);
-                bake.Tube(head, damp, 0.075f, 0.078f, beam, 6, 1);
+                Vector3 axis = head - foot;
+                Quaternion lean = Quaternion.FromToRotation(Vector3.up, axis.normalized);
+                Stamp(kit, pilePart,
+                      FitTrs(pilePart, new Vector3(0.16f, axis.magnitude, 0.16f),
+                             (head + foot) * 0.5f, lean),
+                      p => PileTint(p.y));
                 // Lashing at the pile head, where the deck loads onto it. This is the joint the
                 // eye goes to when it asks what holds the bridge up, and it was a pile ending in
-                // mid-air under a board. Twelve triangles for the whole answer.
-                bake.Tube(head + Vector3.up * 0.03f, head - Vector3.up * 0.055f,
-                          0.089f, 0.087f, rope, 6, 1);
+                // mid-air under a board.
+                Stamp(kit, lashPart,
+                      FitTrs(lashPart, new Vector3(0.185f, 0.11f, 0.185f),
+                             head - Vector3.up * 0.0125f, lean),
+                      _ => rope);
                 // Moss where the pile meets the water, and nowhere else. It used to grow at the
                 // foot of every railing post, on a deck people cross daily — that is not a
                 // weathered bridge, that is an abandoned one. Down here it is just damp.
+                Vector3 damp = Vector3.Lerp(foot, head,
+                    Mathf.InverseLerp(foot.y, head.y, WaterY + 0.15f));
                 if (Random.value < 0.75f)
                     Blades(foliage, damp + new Vector3(Random.Range(-0.05f, 0.05f), 0f, i * 0.06f),
                            Random.Range(0.08f, 0.16f), 1.4f, 0.5f, 5,
                            Srgb(0.16f, 0.22f, 0.11f) * Random.Range(0.8f, 1.2f), Random.value, 0f, 1f);
-                // The wet band sits *above* the water, 15 cm of it, dark and glossier. It is a
-                // separate thing from the foam and it is what says the water has been at this
-                // height for a while.
-                bake.Tube(damp, line, 0.078f, 0.08f, wet, 6, 1);
-                // Below the surface: darker, greener, and stepped sideways. At a grazing angle
-                // there is no refraction to see, but the eye still expects the underwater part
-                // not to line up with the part above it, and a crude offset reads correctly.
-                bake.Tube(line + new Vector3(0.035f * i, 0f, 0.01f), foot + new Vector3(0.035f * i, 0f, 0.01f),
-                          0.082f, 0.088f, submerged, 6, 1);
             }
         }
 
-        BuildRailing(bake, plankPale);
+        BuildRailing(kit, plankPale);
         BuildAbutments(bake);
     }
 
-    /// <summary>
-    /// A member laid along the bridge, tilted to the deck's own slope. A horizontal box on a
-    /// curved deck steps at every joint, and thirty of them stepping against each other is half
-    /// of what made the old railing read as thrown together rather than built.
-    /// </summary>
-    /// <param name="section">y is the member's thickness, z its width across the bridge.</param>
-    /// <param name="uvScale">Left at the deck's own tiling unless given. The railing asks for a
-    /// finer one: its members are a third the width of a board, and grain cut for a 25 cm plank
-    /// does not fit across 8 cm of handrail.</param>
-    private static void Beam(Bake bake, float x0, float x1, float above, float z,
-                             Vector2 section, Color colour, float bevel = 0.015f,
-                             Vector2 uvScale = default, float topTint = 0f)
+    /// <summary>Матрица, ставящая деталь кита центром баундов в centre и растягивающая её
+    /// по-осево под target (в осях детали — до поворота rot).</summary>
+    private static Matrix4x4 FitTrs(BridgeKit.Part part, Vector3 target, Vector3 centre,
+                                    Quaternion rot)
     {
-        if (uvScale == default)
-            uvScale = new Vector2(0.4f, 3f);
-        float y0 = DeckHeight(x0) + above;
-        float y1 = DeckHeight(x1) + above;
+        if (part == null)
+            return Matrix4x4.identity; // Stamp промолчит следом; ошибка уже в консоли
+        Vector3 s = part.Bounds.size;
+        var scale = new Vector3(target.x / s.x, target.y / s.y, target.z / s.z);
+        return Matrix4x4.TRS(centre, rot, scale) * Matrix4x4.Translate(-part.Bounds.center);
+    }
+
+    /// <summary>Штампует деталь кита в бейк. Тинт — функцией от мировой точки, потому что
+    /// свая одним мешем проходит три среды (воздух, мокрая полоса, под водой) и цвет обязан
+    /// смениться посреди детали. topTint — как у Bake.Box: осветление граней, глядящих в небо,
+    /// затёртый верх поручня.</summary>
+    private static void Stamp(Bake bake, BridgeKit.Part part, Matrix4x4 trs,
+                              System.Func<Vector3, Color> tint, float topTint = 0f)
+    {
+        if (part == null)
+            return; // кита нет — ошибка уже в консоли, сборка не валится каскадом
+        Matrix4x4 nrm = trs.inverse.transpose;
+        int firstIndex = -1;
+        for (int i = 0; i < part.Positions.Length; i++)
+        {
+            Vector3 p = trs.MultiplyPoint3x4(part.Positions[i]);
+            Vector3 n = nrm.MultiplyVector(part.Normals[i]).normalized;
+            Color c = tint(p);
+            if (topTint > 0f)
+            {
+                float lift = topTint * Mathf.Clamp01(n.y);
+                c = new Color(c.r + lift, c.g + lift, c.b + lift, c.a);
+            }
+            int idx = bake.Push(p, n, part.Uvs[i], Vector2.zero, c);
+            if (firstIndex < 0)
+                firstIndex = idx;
+        }
+        for (int t = 0; t < part.Triangles.Length; t += 3)
+            bake.Tri(firstIndex + part.Triangles[t], firstIndex + part.Triangles[t + 1],
+                     firstIndex + part.Triangles[t + 2]);
+    }
+
+    /// <summary>Деталью кита — хорда между двумя точками кривой настила. Заменила бокс-хелпер
+    /// Beam: горизонтальный брус на провисшем настиле ступенькой ломается на каждом стыке, а
+    /// наклон по хорде — это ровно то, что делало ограду построенной, а не наваленной.</summary>
+    /// <param name="section">x — толщина детали, y — её ширина поперёк моста.</param>
+    private static void StampBeam(Bake bake, BridgeKit.Part part, float x0, float x1,
+                                  float above, float z, Vector2 section, Color colour,
+                                  float topTint = 0f)
+    {
+        float y0 = DeckHeight(x0) + above, y1 = DeckHeight(x1) + above;
         float run = x1 - x0, rise = y1 - y0;
-        bake.Box(new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, z),
-                 new Vector3(Mathf.Sqrt(run * run + rise * rise), section.x, section.y),
-                 colour, uvScale, new Vector2(Random.value, Random.value),
-                 Quaternion.Euler(0f, 0f, Mathf.Atan2(rise, run) * Mathf.Rad2Deg), bevel, topTint);
+        Stamp(bake, part,
+              FitTrs(part, new Vector3(Mathf.Sqrt(run * run + rise * rise), section.x, section.y),
+                     new Vector3((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, z),
+                     Quaternion.Euler(0f, 0f, Mathf.Atan2(rise, run) * Mathf.Rad2Deg)),
+              _ => colour, topTint);
+    }
+
+    /// <summary>Свая одним мешем: над водой — цвет балки, 15 см мокрой полосы над зеркалом,
+    /// ниже — темнее и зеленее. Ступенька-сдвиг подводной части (имитация преломления у
+    /// трёхсегментной трубы) не переносится: на цельном меше она стоила бы разреза, а на
+    /// грациозном угле камеры это было 2 пикселя.</summary>
+    private static Color PileTint(float y)
+    {
+        if (y < WaterY) return new Color(0.16f, 0.24f, 0.2f);
+        if (y < WaterY + 0.15f) return new Color(0.3f, 0.32f, 0.32f);
+        return beam;
     }
 
     /// <summary>
@@ -457,7 +528,7 @@ public static class BambooArena
     /// Wide gaps and thin members are the whole design — you see through it, and it does not
     /// argue with what is behind it.
     /// </summary>
-    private static void BuildRailing(Bake bake, Color pale)
+    private static void BuildRailing(Bake kit, Color pale)
     {
         const float sillWidth = 0.14f;   // across the bridge
         const float sillHeight = 0.08f;
@@ -469,14 +540,16 @@ public static class BambooArena
         // the frame. Seven is also what the curvature costs — a tilted chord over 2.3 m departs
         // from the sag by 4 mm, inside the tolerance the boards themselves keep.
         const int sillLengths = 7;
+        BridgeKit.Part sillPart = BridgeKit.Get("Sill1m");
         foreach (int side in new[] { -1, 1 })
             for (int s = 0; s < sillLengths; s++)
-                Beam(bake, Mathf.Lerp(-HalfLength, HalfLength, s / (float)sillLengths),
-                     Mathf.Lerp(-HalfLength, HalfLength, (s + 1) / (float)sillLengths),
-                     sillHeight * 0.5f, side * sillZ,
-                     new Vector2(sillHeight, sillWidth), pale * 0.95f, topTint: 0.08f);
+                StampBeam(kit, sillPart,
+                          Mathf.Lerp(-HalfLength, HalfLength, s / (float)sillLengths),
+                          Mathf.Lerp(-HalfLength, HalfLength, (s + 1) / (float)sillLengths),
+                          sillHeight * 0.5f, side * sillZ,
+                          new Vector2(sillHeight, sillWidth), pale * 0.95f, topTint: 0.08f);
 
-        BuildFarRailing(bake, pale, sillZ);
+        BuildFarRailing(kit, pale, sillZ);
     }
 
     /// <summary>
@@ -519,7 +592,7 @@ public static class BambooArena
     /// lean. No uneven pitch, no sagging rails, no broken bay — those were removed from this bridge
     /// deliberately, because together they read as abandoned rather than as weathered.
     /// </summary>
-    private static void BuildFarRailing(Bake bake, Color pale, float sillZ)
+    private static void BuildFarRailing(Bake kit, Color pale, float sillZ)
     {
         // Even, so that no post stands at x = 0. The centre of the frame is where the fighters
         // meet, and a vertical there is a vertical between them at the exact moment it matters;
@@ -540,42 +613,50 @@ public static class BambooArena
 
         // A tenth darker than the deck: a horizontal board bleaches in the sun, a railing does not.
         Color timber = pale * 0.88f;
-        // Finer than the deck's (0.4, 3). These members are a third the width of a board.
-        var uv = new Vector2(0.5f, 4f);
 
         float PostX(int i) => Mathf.Lerp(-HalfLength, HalfLength, i / (float)(posts - 1));
 
+        BridgeKit.Part postPart = BridgeKit.Get("Post");
+        BridgeKit.Part postEndPart = BridgeKit.Get("PostEnd");
+        BridgeKit.Part lashPart = BridgeKit.Get("Lashing");
         for (int i = 0; i < posts; i++)
         {
             float x = PostX(i);
-            float thick = postSection * Random.Range(0.92f, 1.08f);
-            bake.Box(new Vector3(x, DeckHeight(x) + (postTop + postFoot) * 0.5f, sillZ),
-                     new Vector3(thick, postTop - postFoot, thick),
-                     timber * Random.Range(0.94f, 1.06f), uv,
-                     new Vector2(Random.value, Random.value),
-                     // Six tenths of a degree, both axes. A post hewn by hand is never plumb; a
-                     // post at three degrees has fallen over, and this bridge is not falling over.
-                     Quaternion.Euler(Random.Range(-0.6f, 0.6f), 0f, Random.Range(-0.6f, 0.6f)),
-                     0.008f);
+            bool end = i == 0 || i == posts - 1;
+            // Начальные столбы толще — 14 см против 9: мост объявляет себя с торцов.
+            float thick = (end ? 0.14f : postSection) * Random.Range(0.92f, 1.08f);
+            Color tone = timber * Random.Range(0.94f, 1.06f);
+            Stamp(kit, end ? postEndPart : postPart,
+                  FitTrs(end ? postEndPart : postPart,
+                         new Vector3(thick, postTop - postFoot, thick),
+                         new Vector3(x, DeckHeight(x) + (postTop + postFoot) * 0.5f, sillZ),
+                         // Six tenths of a degree, both axes. A post hewn by hand is never plumb; a
+                         // post at three degrees has fallen over, and this bridge is not falling over.
+                         Quaternion.Euler(Random.Range(-0.6f, 0.6f), 0f, Random.Range(-0.6f, 0.6f))),
+                  _ => tone);
+            // Вязка у подошвы, где столб проходит сквозь порожек, — 8 штук, по числу столбов.
+            Stamp(kit, lashPart,
+                  FitTrs(lashPart, new Vector3(thick + 0.06f, 0.09f, thick + 0.06f),
+                         new Vector3(x, DeckHeight(x) + 0.115f, sillZ), Quaternion.identity),
+                  _ => rope);
         }
 
+        BridgeKit.Part railPart = BridgeKit.Get("Rail1m");
+        BridgeKit.Part lowerPart = BridgeKit.Get("LowerRail1m");
         for (int i = 0; i < posts - 1; i++)
         {
             float a = PostX(i), b = PostX(i + 1);
 
             // 0.18 of lift on whatever faces the sky. This is the hand-worn top of the rail, and
-            // with the bevel under it, the pale line it draws the length of the bridge is the most
-            // valuable 3 cm in the whole structure.
-            Beam(bake, a - (i == 0 ? overhang : 0f), b + (i == posts - 2 ? overhang : 0f),
-                 railTop - railHeight * 0.5f, sillZ, new Vector2(railHeight, railWidth),
-                 timber * Random.Range(0.96f, 1.04f), 0.015f, uv, 0.18f);
-
-            // Six sides rather than a bevelled box, and not only to save 32 triangles a span: on a
-            // member 5.5 cm thick a 6 mm chamfer is under a pixel at this camera, so the box would
-            // be paying for a highlight nobody can resolve. The open ends finish inside the posts.
-            bake.Tube(new Vector3(a, DeckHeight(a) + lowerRail, sillZ),
-                      new Vector3(b, DeckHeight(b) + lowerRail, sillZ),
-                      lowerRadius, lowerRadius, timber * Random.Range(0.92f, 1.02f), 6, 1);
+            // with the chamfer under it, the pale line it draws the length of the bridge is the
+            // most valuable 3 cm in the whole structure.
+            StampBeam(kit, railPart,
+                      a - (i == 0 ? overhang : 0f), b + (i == posts - 2 ? overhang : 0f),
+                      railTop - railHeight * 0.5f, sillZ, new Vector2(railHeight, railWidth),
+                      timber * Random.Range(0.96f, 1.04f), 0.18f);
+            StampBeam(kit, lowerPart, a, b, lowerRail, sillZ,
+                      new Vector2(lowerRadius * 2f, lowerRadius * 2f),
+                      timber * Random.Range(0.92f, 1.02f));
         }
     }
 
@@ -2142,6 +2223,27 @@ public static class BambooArena
         mat.SetFloat("_BumpScale", 0.55f);
         // The fog's own colour on every upward edge. Kept low: this is meant to find the top of
         // a handrail and the chamfer of a board, not to wash the deck.
+        mat.SetColor("_RimColor", Srgb(0.72f, 0.78f, 0.82f));
+        mat.SetFloat("_RimStrength", 0.35f);
+        mat.SetFloat("_RimPower", 3.5f);
+        mat.EnableKeyword("_NORMALMAP");
+        return mat;
+    }
+
+    /// <summary>Тот же дровяной отклик, что у M_ArenaWood, но нормали и маска — из атласов
+    /// кита: форма и волокно запечены с high-poly, окклюзия щелей — в G маски. Albedo остаётся
+    /// общей картой дерева: UV кита кладут волокно вдоль деталей, а тон разводят вершинные
+    /// цвета — печь третий атлас не за чем.</summary>
+    private static Material BridgeKitMaterial(ArenaTextures.Surface wood)
+    {
+        BridgeKit.EnsureImportSettings();
+        Material mat = ArenaMaterial("M_ArenaBridgeKit", CullMode.Back, 0f, 1f, 0f, 1f, 0.55f);
+        mat.SetTexture("_BaseMap", wood.Albedo);
+        mat.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(BridgeKit.NormalPath));
+        mat.SetTexture("_MaskMap", AssetDatabase.LoadAssetAtPath<Texture2D>(BridgeKit.MaskPath));
+        // 1.0, не 0.55 как у настила: там карта — синтетическое волокно поверх плоских досок
+        // и на полной силе делала вельвет; здесь карта несёт саму форму — фаски, витки, врубки.
+        mat.SetFloat("_BumpScale", 1f);
         mat.SetColor("_RimColor", Srgb(0.72f, 0.78f, 0.82f));
         mat.SetFloat("_RimStrength", 0.35f);
         mat.SetFloat("_RimPower", 3.5f);
