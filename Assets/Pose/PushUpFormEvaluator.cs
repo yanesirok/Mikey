@@ -1,3 +1,5 @@
+using System;
+
 namespace Mikey.Pose
 {
     /// <summary>The push-up states/faults the evaluator can report, in priority order.</summary>
@@ -62,15 +64,18 @@ namespace Mikey.Pose
         private readonly float _minVisibility;
         private readonly float _straightMinDeg;
         private readonly float _positionMinDeg;
+        private readonly float _maxTorsoTiltDeg;
 
         /// <param name="minVisibility">Lowest visibility a scored chain may have to be trusted.</param>
         /// <param name="straightMinDeg">Body angle at/above which the plank counts as straight.</param>
         /// <param name="positionMinDeg">Body angle below which it isn't a push-up position at all.</param>
-        public PushUpFormEvaluator(float minVisibility = 0.6f, float straightMinDeg = 160f, float positionMinDeg = 135f)
+        /// <param name="maxTorsoTiltDeg">Largest tilt of the shoulder→ankle line from the image horizontal that still counts as a plank; an upright body (~90°) is rejected.</param>
+        public PushUpFormEvaluator(float minVisibility = 0.6f, float straightMinDeg = 160f, float positionMinDeg = 135f, float maxTorsoTiltDeg = 40f)
         {
             _minVisibility = minVisibility;
             _straightMinDeg = straightMinDeg;
             _positionMinDeg = positionMinDeg;
+            _maxTorsoTiltDeg = maxTorsoTiltDeg;
         }
 
         public FormAssessment Evaluate(PoseFrame frame)
@@ -99,6 +104,15 @@ namespace Mikey.Pose
             PoseLandmark hip = frame.Get(useLeftBody ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip);
             PoseLandmark ankle = frame.Get(useLeftBody ? PoseLandmarkType.LeftAnkle : PoseLandmarkType.RightAnkle);
             float bodyAngle = PoseMath.AngleDeg3D(shoulderB, hip, ankle);
+
+            // A plank is horizontal in the image; an upright body (standing, walking) has a
+            // straight shoulder–hip–ankle line too, so the orientation-invariant 3D body
+            // angle alone cannot tell them apart. Gate on the torso's tilt from the image
+            // horizontal — coarse on purpose: it separates ~0-20° (plank) from ~70-90°
+            // (upright), so aspect-ratio distortion of normalized coords doesn't matter.
+            float tilt = (float)(Math.Atan2(Math.Abs(ankle.Y - shoulderB.Y), Math.Abs(ankle.X - shoulderB.X)) * 180.0 / Math.PI);
+            if (tilt > _maxTorsoTiltDeg)
+                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, "Прими упор лёжа", vis);
 
             if (bodyAngle < _positionMinDeg)
                 return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, "Прими упор лёжа", vis);

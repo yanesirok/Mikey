@@ -103,5 +103,15 @@ namespace Mikey.Pose.Tests
             Assert.IsFalse(a.BodyVisible);
             Assert.AreEqual("В кадр", a.Cue);
         }
+
+        [Test]
+        public void StandingArmSwing_DoesNotCount()
+        {
+            var analyzer = new PushUpAnalyzer(smoothingAlpha: 1f);
+            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(170f, timestamp: 0.0));
+            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(100f, timestamp: 1.0));
+            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(170f, timestamp: 2.0));
+            Assert.AreEqual(0, analyzer.Reps);
+        }
     }
 }

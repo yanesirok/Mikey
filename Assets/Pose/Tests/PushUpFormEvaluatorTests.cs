@@ -67,5 +67,14 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual("В кадр", a.Cue);
             Assert.IsNaN(a.ElbowAngleDeg);
         }
+
+        [Test]
+        public void StandingBody_IsNotAPushUpPosition()
+        {
+            var evaluator = new PushUpFormEvaluator();
+            FormAssessment a = evaluator.Evaluate(PoseTestFrames.BuildStanding(170f));
+            Assert.AreEqual(PushUpFault.NotInPosition, a.Fault);
+            Assert.IsFalse(a.PostureValid);
+        }
     }
 }

@@ -55,6 +55,42 @@ namespace Mikey.Pose.Tests
             return new PoseFrame(lm, timestamp);
         }
 
+        /// <summary>
+        /// Upright (standing) figure: vertical shoulder→hip→ankle line with a
+        /// controllable elbow angle, so arm swing while standing/walking can be
+        /// simulated. Proves an upright body is never "in push-up position".
+        /// </summary>
+        public static PoseFrame BuildStanding(float elbowAngleDeg, float visibility = 1f, double timestamp = 0)
+        {
+            var lm = new PoseLandmark[PoseFrame.LandmarkCount];
+            for (int i = 0; i < lm.Length; i++)
+                lm[i] = new PoseLandmark(0f, 0f, 0f, visibility);
+
+            // Vertical body line: shoulder on top, hip below, ankle at the bottom.
+            float sx = 0.5f, sy = 0.2f;
+            float hx = 0.5f, hy = 0.55f;
+            float ax = 0.5f, ay = 0.9f;
+
+            // Arm hangs beside the torso; wrist placed to realize the target elbow angle.
+            float ex = sx + 0.15f, ey = sy + 0.15f;
+            double wd = (-90.0 + elbowAngleDeg) * Deg2Rad;
+            float wx = ex + 0.2f * (float)Math.Cos(wd);
+            float wy = ey + 0.2f * (float)Math.Sin(wd);
+
+            Set(lm, PoseLandmarkType.LeftShoulder, sx, sy, visibility);
+            Set(lm, PoseLandmarkType.LeftElbow, ex, ey, visibility);
+            Set(lm, PoseLandmarkType.LeftWrist, wx, wy, visibility);
+            Set(lm, PoseLandmarkType.LeftHip, hx, hy, visibility);
+            Set(lm, PoseLandmarkType.LeftAnkle, ax, ay, visibility);
+            Set(lm, PoseLandmarkType.RightShoulder, sx, sy, visibility);
+            Set(lm, PoseLandmarkType.RightElbow, ex, ey, visibility);
+            Set(lm, PoseLandmarkType.RightWrist, wx, wy, visibility);
+            Set(lm, PoseLandmarkType.RightHip, hx, hy, visibility);
+            Set(lm, PoseLandmarkType.RightAnkle, ax, ay, visibility);
+
+            return new PoseFrame(lm, timestamp);
+        }
+
         private static void Set(PoseLandmark[] lm, PoseLandmarkType type, float x, float y, float vis)
         {
             lm[(int)type] = new PoseLandmark(x, y, 0f, vis);
