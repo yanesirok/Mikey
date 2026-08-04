@@ -4,17 +4,19 @@ namespace Mikey.Pose.Tests
 {
     /// <summary>
     /// Integration coverage for the analyzer: gating (visibility + push-up position), counting,
-    /// and the form tally. Smoothing is disabled (alpha = 1) so a rep can be expressed as a
-    /// three-frame top→bottom→top sequence; timestamps satisfy the minimum-rep-duration.
+    /// and the form tally. Smoothing is off by default; the bottom is held two frames to satisfy
+    /// the counter's debounce.
     /// </summary>
     public class PushUpAnalyzerTests
     {
         private static PushUpAnalyzer NewAnalyzer() => new PushUpAnalyzer(smoothingAlpha: 1f);
 
-        // One rep, all frames at the given hip offset, advancing the clock 0.5s per frame.
+        // One rep at the given hip offset; the bottom is held two frames because the
+        // default counter debounces the Down phase (2 consecutive below-threshold frames).
         private static void Rep(PushUpAnalyzer a, float hipOffset, ref double t)
         {
             a.ProcessFrame(PoseTestFrames.Build(170f, hipOffset, 1f, t)); t += 0.5;
+            a.ProcessFrame(PoseTestFrames.Build(80f, hipOffset, 1f, t)); t += 0.5;
             a.ProcessFrame(PoseTestFrames.Build(80f, hipOffset, 1f, t)); t += 0.5;
             a.ProcessFrame(PoseTestFrames.Build(170f, hipOffset, 1f, t)); t += 0.5;
         }
@@ -49,7 +51,8 @@ namespace Mikey.Pose.Tests
             // Straight at the top, bent (but still a plank) at the bottom.
             a.ProcessFrame(PoseTestFrames.Build(170f, 0f, 1f, 0.0));
             a.ProcessFrame(PoseTestFrames.Build(80f, 0.06f, 1f, 0.5));
-            a.ProcessFrame(PoseTestFrames.Build(170f, 0f, 1f, 1.0));
+            a.ProcessFrame(PoseTestFrames.Build(80f, 0.06f, 1f, 1.0));
+            a.ProcessFrame(PoseTestFrames.Build(170f, 0f, 1f, 1.5));
 
             Assert.AreEqual(1, a.Reps);
             Assert.AreEqual(1, a.NoReps);
@@ -61,7 +64,7 @@ namespace Mikey.Pose.Tests
             var a = NewAnalyzer();
             double t = 0;
             // Same elbow motion but the body is sharply bent (not a push-up position).
-            Rep(a, 0.12f, ref t);
+            Rep(a, 0.16f, ref t);
 
             Assert.AreEqual(0, a.Reps, "Elbow motion while not in a push-up position must not count.");
             Assert.AreEqual(PushUpFault.NotInPosition, a.CurrentFault);

@@ -5,8 +5,9 @@ using Mikey.Pose;
 namespace Mikey.Pose.Tests
 {
     /// <summary>
-    /// Regression corpus: two real on-device recordings (2026-08-04). Any scoring change
-    /// that breaks genuine push-ups or resurrects phantom reps fails here, not on a phone.
+    /// Regression corpus: real on-device recordings. real_pushups — characterization of current
+    /// configuration (user reported missing counts in previous logic); pushups_with_plank_holds — user's
+    /// ground truth (5–6 reps with form faults and plank holds); walking_noise — zero reps baseline.
     /// </summary>
     public class PushUpRecordingTests
     {
@@ -21,9 +22,19 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
-        public void RealRecording_CountsTwoReps()
+        public void RealRecording_CountsFour()
         {
-            Assert.AreEqual(2, Replay("Pose/Tests/Recordings/real_pushups.csv"));
+            // 4 — характеризация текущей конфигурации, не граунд-трус: прежние «2» были
+            // находкой старой (терявшей повторы) логики, а не правдой. Пользователь в той
+            // сессии жаловался, что счёт не шёл вовсе.
+            Assert.AreEqual(4, Replay("Pose/Tests/Recordings/real_pushups.csv"));
+        }
+
+        [Test]
+        public void PlankHoldsRecording_CountsFive()
+        {
+            // Граунд-трус пользователя: 5–6 отжиманий с ошибками формы + удержания планки.
+            Assert.AreEqual(5, Replay("Pose/Tests/Recordings/pushups_with_plank_holds.csv"));
         }
 
         [Test]

@@ -9,8 +9,9 @@ namespace Mikey.Pose
     /// <list type="bullet">
     ///   <item><b>Gating</b> — only counts while the body is confidently visible AND in a
     ///   valid push-up posture, so ceiling/garbage and out-of-position noise never count.</item>
-    ///   <item><b>Smoothing</b> — an EMA on the elbow angle kills the per-frame jitter that
-    ///   otherwise racks up phantom reps.</item>
+    ///   <item><b>Debounce</b> — the bottom phase opens only after consecutive below-threshold
+    ///   frames (see <see cref="RepCounter"/>), so a single noisy frame while holding a plank
+    ///   cannot start a phantom rep; smoothing is off by default (α = 1).</item>
     /// </list>
     /// Counting policy: every full-range rep counts; a bent-body form fault is tallied in
     /// <see cref="NoReps"/> but does not block the count. Engine-free and EditMode-testable.
@@ -53,9 +54,12 @@ namespace Mikey.Pose
         public bool InPosition => CurrentFault == PushUpFault.None || CurrentFault == PushUpFault.NotStraight;
 
         public PushUpAnalyzer(RepCounter counter = null, PushUpFormEvaluator evaluator = null,
-            float smoothingAlpha = 0.6f, float wristBelowHipMin = 0f)
+            float smoothingAlpha = 1f, float wristBelowHipMin = 0f)
         {
-            _counter = counter ?? new RepCounter();
+            // Дефолт: без сглаживания (α=1) + дебаунс низа. На реальном fps устройства (6–15
+            // кадров/с с провалами) EMA не успевала довести угол до порога — повторы терялись;
+            // от одиночных шумовых кадров вместо неё защищает дебаунс.
+            _counter = counter ?? new RepCounter(downDebounceFrames: 2);
             _evaluator = evaluator ?? new PushUpFormEvaluator();
             _smoothingAlpha = smoothingAlpha;
             _wristBelowHipMin = wristBelowHipMin;
@@ -77,6 +81,7 @@ namespace Mikey.Pose
             if (!assessment.PostureValid)
             {
                 _smoothedElbow = float.NaN;
+                _counter.ResetDownStreak();
                 Changed?.Invoke();
                 return;
             }

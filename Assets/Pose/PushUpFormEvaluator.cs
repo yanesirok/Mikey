@@ -75,7 +75,7 @@ namespace Mikey.Pose
         /// <param name="minVisibility">Lowest visibility a scored chain may have to be trusted.</param>
         /// <param name="straightMinDeg">Body angle at/above which the plank counts as straight.</param>
         /// <param name="positionMinDeg">Body angle below which it isn't a push-up position at all.</param>
-        public PushUpFormEvaluator(float minVisibility = 0.6f, float straightMinDeg = 160f, float positionMinDeg = 135f)
+        public PushUpFormEvaluator(float minVisibility = 0.5f, float straightMinDeg = 160f, float positionMinDeg = 120f)
         {
             _minVisibility = minVisibility;
             _straightMinDeg = straightMinDeg;

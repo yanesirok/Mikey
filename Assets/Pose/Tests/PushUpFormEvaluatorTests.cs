@@ -49,7 +49,7 @@ namespace Mikey.Pose.Tests
         public void BentBody_IsNotAPushUpPosition()
         {
             var evaluator = new PushUpFormEvaluator();
-            FormAssessment a = evaluator.Evaluate(PoseTestFrames.Build(elbowAngleDeg: 90f, hipOffset: 0.12f));
+            FormAssessment a = evaluator.Evaluate(PoseTestFrames.Build(elbowAngleDeg: 90f, hipOffset: 0.16f));
 
             Assert.AreEqual(PushUpFault.NotInPosition, a.Fault);
             Assert.IsFalse(a.PostureValid, "A sharply bent body must not count as a push-up.");
