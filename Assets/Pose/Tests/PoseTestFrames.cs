@@ -71,8 +71,8 @@ namespace Mikey.Pose.Tests
             float hx = 0.5f, hy = 0.55f;
             float ax = 0.5f, ay = 0.9f;
 
-            // Arm hangs beside the torso; wrist placed to realize the target elbow angle.
-            float ex = sx + 0.15f, ey = sy + 0.15f;
+            // Arm: elbow directly below the shoulder (the wrist formula assumes it); wrist realizes the target elbow angle.
+            float ex = sx, ey = sy + 0.15f;
             double wd = (-90.0 + elbowAngleDeg) * Deg2Rad;
             float wx = ex + 0.2f * (float)Math.Cos(wd);
             float wy = ey + 0.2f * (float)Math.Sin(wd);
