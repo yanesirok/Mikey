@@ -28,14 +28,21 @@ namespace Mikey.Pose
         public readonly PushUpFault Fault;
         public readonly float ElbowAngleDeg;
         public readonly float BodyAngleDeg;
+
+        /// <summary>Насколько запястье ниже таза, в долях длины корпуса (плечо–таз).
+        /// Положительно в упоре лёжа (ладони на полу), отрицательно у стоящего с согнутой
+        /// рукой. NaN, когда тело не видно. Реп-проверку делает анализатор.</summary>
+        public readonly float WristBelowHip;
+
         public readonly string Cue;
         public readonly float Visibility;
 
-        public FormAssessment(PushUpFault fault, float elbowAngleDeg, float bodyAngleDeg, string cue, float visibility)
+        public FormAssessment(PushUpFault fault, float elbowAngleDeg, float bodyAngleDeg, float wristBelowHip, string cue, float visibility)
         {
             Fault = fault;
             ElbowAngleDeg = elbowAngleDeg;
             BodyAngleDeg = bodyAngleDeg;
+            WristBelowHip = wristBelowHip;
             Cue = cue;
             Visibility = visibility;
         }
@@ -64,18 +71,15 @@ namespace Mikey.Pose
         private readonly float _minVisibility;
         private readonly float _straightMinDeg;
         private readonly float _positionMinDeg;
-        private readonly float _maxTorsoTiltDeg;
 
         /// <param name="minVisibility">Lowest visibility a scored chain may have to be trusted.</param>
         /// <param name="straightMinDeg">Body angle at/above which the plank counts as straight.</param>
         /// <param name="positionMinDeg">Body angle below which it isn't a push-up position at all.</param>
-        /// <param name="maxTorsoTiltDeg">Largest tilt of the shoulder→ankle line from the image horizontal that still counts as a plank; an upright body (~90°) is rejected.</param>
-        public PushUpFormEvaluator(float minVisibility = 0.6f, float straightMinDeg = 160f, float positionMinDeg = 135f, float maxTorsoTiltDeg = 40f)
+        public PushUpFormEvaluator(float minVisibility = 0.6f, float straightMinDeg = 160f, float positionMinDeg = 135f)
         {
             _minVisibility = minVisibility;
             _straightMinDeg = straightMinDeg;
             _positionMinDeg = positionMinDeg;
-            _maxTorsoTiltDeg = maxTorsoTiltDeg;
         }
 
         public FormAssessment Evaluate(PoseFrame frame)
@@ -93,33 +97,47 @@ namespace Mikey.Pose
             float vis = armVis < bodyVis ? armVis : bodyVis;
 
             if (armVis < _minVisibility || bodyVis < _minVisibility)
-                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, "В кадр", vis);
+                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, "В кадр", vis);
 
             PoseLandmark shoulderA = frame.Get(useLeftArm ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
             PoseLandmark elbow = frame.Get(useLeftArm ? PoseLandmarkType.LeftElbow : PoseLandmarkType.RightElbow);
             PoseLandmark wrist = frame.Get(useLeftArm ? PoseLandmarkType.LeftWrist : PoseLandmarkType.RightWrist);
-            float elbowAngle = PoseMath.AngleDeg3D(shoulderA, elbow, wrist);
-
             PoseLandmark shoulderB = frame.Get(useLeftBody ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
             PoseLandmark hip = frame.Get(useLeftBody ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip);
             PoseLandmark ankle = frame.Get(useLeftBody ? PoseLandmarkType.LeftAnkle : PoseLandmarkType.RightAnkle);
+
+            // Точка за пределами кадра — экстраполяция, а не наблюдение: MediaPipe дорисовывает
+            // её с высокой visibility (на устройстве видели лодыжку на x≈1.05 с vis 0.95),
+            // и такая «уверенная» точка порождает фантомные позы. Не видно — значит не видно.
+            if (!InFrame(shoulderA) || !InFrame(elbow) || !InFrame(wrist)
+                || !InFrame(shoulderB) || !InFrame(hip) || !InFrame(ankle))
+                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, "В кадр", vis);
+
+            float elbowAngle = PoseMath.AngleDeg3D(shoulderA, elbow, wrist);
             float bodyAngle = PoseMath.AngleDeg3D(shoulderB, hip, ankle);
 
-            // A plank is horizontal in the image; an upright body (standing, walking) has a
-            // straight shoulder–hip–ankle line too, so the orientation-invariant 3D body
-            // angle alone cannot tell them apart. Gate on the torso's tilt from the image
-            // horizontal — coarse on purpose: it separates ~0-20° (plank) from ~70-90°
-            // (upright), so aspect-ratio distortion of normalized coords doesn't matter.
-            float tilt = (float)(Math.Atan2(Math.Abs(ankle.Y - shoulderB.Y), Math.Abs(ankle.X - shoulderB.X)) * 180.0 / Math.PI);
-            if (tilt > _maxTorsoTiltDeg)
-                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, "Прими упор лёжа", vis);
+            // «Ладони на полу»: в упоре лёжа запястья ниже таза; нормируем на длину корпуса,
+            // чтобы метрика не зависела от дистанции до камеры. Порог применяет анализатор
+            // на уровне повтора (по нижней фазе), а не по кадру — кадровый вариант съедает
+            // настоящие повторы из-за дрожания точек.
+            float torso = Dist2D(shoulderB, hip);
+            float wristBelowHip = torso < 1e-4f ? float.NaN : (wrist.Y - hip.Y) / torso;
 
             if (bodyAngle < _positionMinDeg)
-                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, "Прими упор лёжа", vis);
+                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, wristBelowHip, "Прими упор лёжа", vis);
             if (bodyAngle < _straightMinDeg)
-                return new FormAssessment(PushUpFault.NotStraight, elbowAngle, bodyAngle, "Держи тело прямым", vis);
+                return new FormAssessment(PushUpFault.NotStraight, elbowAngle, bodyAngle, wristBelowHip, "Держи тело прямым", vis);
 
-            return new FormAssessment(PushUpFault.None, elbowAngle, bodyAngle, string.Empty, vis);
+            return new FormAssessment(PushUpFault.None, elbowAngle, bodyAngle, wristBelowHip, string.Empty, vis);
+        }
+
+        private static bool InFrame(PoseLandmark p) =>
+            p.X >= 0f && p.X <= 1f && p.Y >= 0f && p.Y <= 1f;
+
+        private static float Dist2D(PoseLandmark a, PoseLandmark b)
+        {
+            float dx = a.X - b.X, dy = a.Y - b.Y;
+            return (float)Math.Sqrt(dx * dx + dy * dy);
         }
     }
 }

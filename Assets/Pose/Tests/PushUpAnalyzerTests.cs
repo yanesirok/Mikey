@@ -113,16 +113,5 @@ namespace Mikey.Pose.Tests
             analyzer.ProcessFrame(PoseTestFrames.BuildStanding(170f, timestamp: 2.0));
             Assert.AreEqual(0, analyzer.Reps);
         }
-
-        [Test]
-        public void StandingArmSwing_WouldCountWithoutTheGate()
-        {
-            var noGate = new PushUpFormEvaluator(maxTorsoTiltDeg: 180f);
-            var analyzer = new PushUpAnalyzer(evaluator: noGate, smoothingAlpha: 1f);
-            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(170f, timestamp: 0.0));
-            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(100f, timestamp: 1.0));
-            analyzer.ProcessFrame(PoseTestFrames.BuildStanding(170f, timestamp: 2.0));
-            Assert.AreEqual(1, analyzer.Reps);
-        }
     }
 }

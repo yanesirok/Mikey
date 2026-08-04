@@ -69,12 +69,12 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
-        public void StandingBody_IsNotAPushUpPosition()
+        public void OutOfFrameAnkle_ReportsNotVisible()
         {
             var evaluator = new PushUpFormEvaluator();
-            FormAssessment a = evaluator.Evaluate(PoseTestFrames.BuildStanding(170f));
-            Assert.AreEqual(PushUpFault.NotInPosition, a.Fault);
-            Assert.IsFalse(a.PostureValid);
+            // Лодыжка «за кадром» (x > 1) с высокой visibility — как MediaPipe дорисовывает на устройстве.
+            FormAssessment a = evaluator.Evaluate(PoseTestFrames.Build(170f, ankleX: 1.05f));
+            Assert.AreEqual(PushUpFault.BodyNotVisible, a.Fault);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Mikey.Pose.Tests
     {
         private const double Deg2Rad = Math.PI / 180.0;
 
-        public static PoseFrame Build(float elbowAngleDeg, float hipOffset = 0f, float visibility = 1f, double timestamp = 0)
+        public static PoseFrame Build(float elbowAngleDeg, float hipOffset = 0f, float visibility = 1f, double timestamp = 0, float ankleX = 0.8f)
         {
             var lm = new PoseLandmark[PoseFrame.LandmarkCount];
             for (int i = 0; i < lm.Length; i++)
@@ -35,7 +35,7 @@ namespace Mikey.Pose.Tests
             float wy = ey + 0.2f * (float)Math.Sin(wd);
 
             // Body: flat shoulder→ankle line at y = sy; hip offset vertically.
-            float ax = 0.8f, ay = sy;
+            float ax = ankleX, ay = sy;
             float hx = 0.55f, hy = sy + hipOffset;
 
             Set(lm, PoseLandmarkType.LeftShoulder, sx, sy, visibility);

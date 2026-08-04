@@ -20,6 +20,9 @@ namespace Mikey.Pose
         private readonly RepCounter _counter;
         private readonly PushUpFormEvaluator _evaluator;
         private readonly float _smoothingAlpha;
+        private readonly float _wristBelowHipMin;
+        private int _wristOkFrames;
+        private int _wristBadFrames;
 
         private bool _formOkThisRep = true;
         private float _smoothedElbow = float.NaN;
@@ -37,7 +40,7 @@ namespace Mikey.Pose
         public string DebugInfo =>
             $"elbow {(float.IsNaN(_smoothedElbow) ? "--" : _smoothedElbow.ToString("0"))}°  " +
             $"body {(float.IsNaN(_lastBodyAngle) ? "--" : _lastBodyAngle.ToString("0"))}°  " +
-            $"phase {_counter.Phase}  vis {_lastVis:0.00}  {CurrentFault}";
+            $"phase {_counter.Phase}  vis {_lastVis:0.00}  {CurrentFault}  wrist {_wristOkFrames}/{_wristBadFrames}";
 
         public event Action Changed;
 
@@ -49,11 +52,13 @@ namespace Mikey.Pose
         public bool BodyVisible => CurrentFault != PushUpFault.BodyNotVisible;
         public bool InPosition => CurrentFault == PushUpFault.None || CurrentFault == PushUpFault.NotStraight;
 
-        public PushUpAnalyzer(RepCounter counter = null, PushUpFormEvaluator evaluator = null, float smoothingAlpha = 0.6f)
+        public PushUpAnalyzer(RepCounter counter = null, PushUpFormEvaluator evaluator = null,
+            float smoothingAlpha = 0.6f, float wristBelowHipMin = 0f)
         {
             _counter = counter ?? new RepCounter();
             _evaluator = evaluator ?? new PushUpFormEvaluator();
             _smoothingAlpha = smoothingAlpha;
+            _wristBelowHipMin = wristBelowHipMin;
         }
 
         public void ProcessFrame(PoseFrame frame)
@@ -85,15 +90,32 @@ namespace Mikey.Pose
             RepPhase phase = _counter.Phase;
 
             if (prevPhase != RepPhase.Down && phase == RepPhase.Down)
+            {
                 _formOkThisRep = true;
-            if (phase == RepPhase.Down && assessment.Fault == PushUpFault.NotStraight)
-                _formOkThisRep = false;
+                _wristOkFrames = 0;
+                _wristBadFrames = 0;
+            }
+            if (phase == RepPhase.Down)
+            {
+                if (assessment.Fault == PushUpFault.NotStraight)
+                    _formOkThisRep = false;
+                // NaN >= x == false, так что неопределённая метрика честно идёт в «плохие».
+                if (assessment.WristBelowHip >= _wristBelowHipMin)
+                    _wristOkFrames++;
+                else
+                    _wristBadFrames++;
+            }
 
             if (completed)
             {
-                Reps++;
-                if (!_formOkThisRep)
-                    NoReps++;
+                // «Ладони на полу»: если в большинстве кадров нижней фазы запястье было НЕ ниже
+                // таза — это не отжимание (стоя со сгибанием рук и т.п.), цикл молча игнорируется.
+                if (_wristOkFrames >= _wristBadFrames)
+                {
+                    Reps++;
+                    if (!_formOkThisRep)
+                        NoReps++;
+                }
                 _formOkThisRep = true;
             }
 
@@ -109,6 +131,8 @@ namespace Mikey.Pose
             _smoothedElbow = float.NaN;
             _lastVis = 0f;
             _lastBodyAngle = float.NaN;
+            _wristOkFrames = 0;
+            _wristBadFrames = 0;
             CurrentFault = PushUpFault.BodyNotVisible;
             Cue = "В кадр";
             Changed?.Invoke();
