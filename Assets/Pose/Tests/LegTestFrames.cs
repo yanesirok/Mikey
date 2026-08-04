@@ -37,6 +37,36 @@ namespace Mikey.Pose.Tests
             return new PoseFrame(lm, timestamp);
         }
 
+        /// <summary>
+        /// Wall-sit figure: vertical shank, thigh rotated to realize the knee angle,
+        /// torso rotated about the hip to realize the hip angle (90/90 = ideal seat).
+        /// </summary>
+        public static PoseFrame WallSit(float kneeAngleDeg = 90f, float hipAngleDeg = 90f, float visibility = 1f, double timestamp = 0)
+        {
+            var lm = Blank(visibility);
+
+            float ax = 0.6f, ay = 0.9f;
+            float kx = 0.6f, ky = 0.7f;
+            double phi = (180.0 - kneeAngleDeg) * Deg2Rad;
+            float hx = kx - 0.25f * (float)Math.Sin(phi);   // бедро уходит назад (влево)
+            float hy = ky - 0.25f * (float)Math.Cos(phi);
+
+            // Торс: повернуть направление бедро→колено на hipAngle, чтобы интериорный
+            // угол в бедре (плечо–бедро–колено) вышел ровно заданным.
+            float thigh = (float)Math.Sqrt((kx - hx) * (kx - hx) + (ky - hy) * (ky - hy));
+            float tx = (kx - hx) / thigh, ty = (ky - hy) / thigh;
+            double a = hipAngleDeg * Deg2Rad;
+            float ux = tx * (float)Math.Cos(a) + ty * (float)Math.Sin(a);
+            float uy = -tx * (float)Math.Sin(a) + ty * (float)Math.Cos(a);
+            float sx = hx + 0.3f * ux, sy = hy + 0.3f * uy;
+
+            SetBoth(lm, PoseLandmarkType.LeftAnkle, PoseLandmarkType.RightAnkle, ax, ay, visibility);
+            SetBoth(lm, PoseLandmarkType.LeftKnee, PoseLandmarkType.RightKnee, kx, ky, visibility);
+            SetBoth(lm, PoseLandmarkType.LeftHip, PoseLandmarkType.RightHip, hx, hy, visibility);
+            SetBoth(lm, PoseLandmarkType.LeftShoulder, PoseLandmarkType.RightShoulder, sx, sy, visibility);
+            return new PoseFrame(lm, timestamp);
+        }
+
         internal static PoseLandmark[] Blank(float visibility)
         {
             var lm = new PoseLandmark[PoseFrame.LandmarkCount];

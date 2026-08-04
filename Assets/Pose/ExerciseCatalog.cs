@@ -29,6 +29,7 @@ namespace Mikey.Pose
         {
             new ExerciseDescriptor("pushup", "Push-ups", () => new PushUpAnalyzer()),
             new ExerciseDescriptor("squat", "Squats", () => new SquatAnalyzer()),
+            new ExerciseDescriptor("wallsit", "Wall-sit (сек)", () => new WallSitAnalyzer()),
         };
 
         public static IReadOnlyList<ExerciseDescriptor> All => Items;
