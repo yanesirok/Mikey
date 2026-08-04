@@ -28,8 +28,7 @@ namespace Mikey.Pose
         private static readonly List<ExerciseDescriptor> Items = new List<ExerciseDescriptor>
         {
             new ExerciseDescriptor("pushup", "Push-ups", () => new PushUpAnalyzer()),
-            // Add future exercises here (or via Register), e.g.:
-            // new ExerciseDescriptor("squat", "Squats", () => new SquatAnalyzer()),
+            new ExerciseDescriptor("squat", "Squats", () => new SquatAnalyzer()),
         };
 
         public static IReadOnlyList<ExerciseDescriptor> All => Items;
