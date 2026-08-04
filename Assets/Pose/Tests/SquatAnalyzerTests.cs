@@ -78,6 +78,19 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
+        public void WalkingStrideDoesNotCount()
+        {
+            var a = NewAnalyzer();
+            double t = 0;
+            for (int i = 0; i < 6; i++)
+            {
+                a.ProcessFrame(LegTestFrames.Squat(175f, timestamp: t)); t += 0.4;
+                a.ProcessFrame(LegTestFrames.Stride(timestamp: t)); t += 0.4;
+            }
+            Assert.AreEqual(0, a.Reps, "Шаг с прямой опорной ногой не должен считаться приседом.");
+        }
+
+        [Test]
         public void RegisteredInCatalog()
         {
             Assert.IsNotNull(ExerciseCatalog.Create("squat"));

@@ -120,5 +120,26 @@ namespace Mikey.Pose.Tests
 
             return new PoseFrame(lm, timestamp);
         }
+
+        /// <summary>
+        /// Walking stride: the right (support) leg stands straight, the left knee is lifted
+        /// mid-swing. The squat signal (max leg margin) must stay "standing" on such frames —
+        /// this is the signal's core anti-phantom property.
+        /// </summary>
+        public static PoseFrame Stride(float visibility = 1f, double timestamp = 0)
+        {
+            var lm = Blank(visibility);
+            void Put(PoseLandmarkType t, float x, float y) => lm[(int)t] = new PoseLandmark(x, y, 0f, visibility);
+
+            Put(PoseLandmarkType.RightAnkle, 0.55f, 0.9f);
+            Put(PoseLandmarkType.RightKnee, 0.55f, 0.7f);
+            Put(PoseLandmarkType.RightHip, 0.55f, 0.5f);
+            Put(PoseLandmarkType.RightShoulder, 0.55f, 0.2f);
+            Put(PoseLandmarkType.LeftHip, 0.55f, 0.5f);
+            Put(PoseLandmarkType.LeftKnee, 0.45f, 0.55f);   // колено махом поднято к тазу
+            Put(PoseLandmarkType.LeftAnkle, 0.45f, 0.9f);
+            Put(PoseLandmarkType.LeftShoulder, 0.55f, 0.2f);
+            return new PoseFrame(lm, timestamp);
+        }
     }
 }

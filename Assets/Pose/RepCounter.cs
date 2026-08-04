@@ -15,7 +15,7 @@ namespace Mikey.Pose
 
     /// <summary>
     /// Pure motion detector: counts one full-range rep from a smoothed scalar signal
-    /// (a joint angle in degrees where large = top/rest, small = bottom), using two
+    /// (a joint angle in degrees or a normalized height where large = top/rest, small = bottom), using two
     /// thresholds for hysteresis. A rep is the transition Down→Up, but only if the
     /// descent-to-ascent took at least <c>minRepSeconds</c> — this rejects the sub-frame
     /// threshold flicker that noisy landmarks produce.
