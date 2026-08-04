@@ -74,5 +74,17 @@ namespace Mikey.Pose
             double lineY = shoulder.Y + (ankle.Y - shoulder.Y) * t;
             return (float)(hip.Y - lineY);
         }
+
+        /// <summary>
+        /// How far the hip sits above the knee, in units of that leg's shank length
+        /// (image space, Y grows down): ≈1 standing, ≈0 with the thigh at parallel,
+        /// negative once the hip drops below the knee. Uses only Y coordinates, so it
+        /// is view-independent (no depth). Returns NaN for a degenerate shank.
+        /// </summary>
+        public static float HipDropMargin(PoseLandmark hip, PoseLandmark knee, PoseLandmark ankle)
+        {
+            float shank = Math.Abs(ankle.Y - knee.Y);
+            return shank < 1e-4f ? float.NaN : (knee.Y - hip.Y) / shank;
+        }
     }
 }

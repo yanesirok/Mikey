@@ -3,24 +3,31 @@ using System;
 namespace Mikey.Pose
 {
     /// <summary>
-    /// Scores a wall-sit hold from a side-on view: both the knee angle (hip–knee–ankle)
-    /// and the hip angle (shoulder–hip–knee) must sit in a lenient window around 90°.
-    /// The result is the longest continuous hold (via <see cref="HoldTimer"/>, tracker
-    /// blinks bridged), surfaced through <see cref="Reps"/> as whole seconds because the
-    /// HUD contract has no time field. No <see cref="NoReps"/> for a hold — a drifted
-    /// seat just pauses the timer with a corrective cue. Engine-free.
+    /// Scores a wall-sit hold from the hip-over-knee margin (<see cref="PoseMath.HipDropMargin"/>)
+    /// instead of noisy 3D joint angles, so both the side and the frontal view work. In pose =
+    /// the MAX margin over the visible legs sits in [seatLowAt, seatHighAt]: ≈0 seated at
+    /// parallel, ≈1 standing (above the window), and below the window the hips are a shin-length
+    /// under the knees — sitting on the floor, which is not a wall-sit. Wall proxy: the torso
+    /// must stay within <c>maxTorsoLeanDeg</c> of vertical (a back against the wall is upright),
+    /// otherwise the timer pauses with a corrective cue. The result is the longest continuous
+    /// hold (via <see cref="HoldTimer"/>, tracker blinks bridged), surfaced through
+    /// <see cref="Reps"/> as whole seconds because the HUD contract has no time field.
+    /// No <see cref="NoReps"/> for a hold. Engine-free.
     /// </summary>
     public sealed class WallSitAnalyzer : IExerciseAnalyzer
     {
-        private const string NotVisibleCue = "В кадр (боком)";
+        private const string NotVisibleCue = "В кадр";
 
         private readonly HoldTimer _timer;
         private readonly float _minVisibility;
-        private readonly float _minAngleDeg;
-        private readonly float _maxAngleDeg;
+        private readonly float _seatLowAt;
+        private readonly float _seatHighAt;
+        private readonly float _maxTorsoLeanDeg;
 
-        private float _lastKnee = float.NaN;
-        private float _lastHip = float.NaN;
+        private float _lastSignal = float.NaN;
+        private float _lastMarginLeft = float.NaN;
+        private float _lastMarginRight = float.NaN;
+        private float _lastLean = float.NaN;
         private float _lastVis;
 
         public string Id => "wallsit";
@@ -34,19 +41,22 @@ namespace Mikey.Pose
         public double CurrentHoldSeconds => _timer.CurrentSeconds;
 
         public string DebugInfo =>
-            $"knee {(float.IsNaN(_lastKnee) ? "--" : _lastKnee.ToString("0"))}°  " +
-            $"hip {(float.IsNaN(_lastHip) ? "--" : _lastHip.ToString("0"))}°  " +
+            $"sig {(float.IsNaN(_lastSignal) ? "--" : _lastSignal.ToString("0.00"))}  " +
+            $"L {(float.IsNaN(_lastMarginLeft) ? "--" : _lastMarginLeft.ToString("0.00"))}  " +
+            $"R {(float.IsNaN(_lastMarginRight) ? "--" : _lastMarginRight.ToString("0.00"))}  " +
+            $"lean {(float.IsNaN(_lastLean) ? "--" : _lastLean.ToString("0"))}°  " +
             $"hold {_timer.CurrentSeconds:0.0}s  best {_timer.BestSeconds:0.0}s  vis {_lastVis:0.00}";
 
         public event Action Changed;
 
-        public WallSitAnalyzer(HoldTimer timer = null, float minVisibility = 0.6f,
-            float minAngleDeg = 70f, float maxAngleDeg = 120f)
+        public WallSitAnalyzer(HoldTimer timer = null, float minVisibility = 0.5f,
+            float seatLowAt = -0.45f, float seatHighAt = 0.5f, float maxTorsoLeanDeg = 40f)
         {
             _timer = timer ?? new HoldTimer(graceSeconds: 1.0);
             _minVisibility = minVisibility;
-            _minAngleDeg = minAngleDeg;
-            _maxAngleDeg = maxAngleDeg;
+            _seatLowAt = seatLowAt;
+            _seatHighAt = seatHighAt;
+            _maxTorsoLeanDeg = maxTorsoLeanDeg;
         }
 
         public void ProcessFrame(PoseFrame frame)
@@ -54,34 +64,48 @@ namespace Mikey.Pose
             if (frame == null)
                 throw new ArgumentNullException(nameof(frame));
 
-            float leftVis = Math.Min(
-                frame.MinVisibility(PoseLandmarkType.LeftHip, PoseLandmarkType.LeftKnee, PoseLandmarkType.LeftAnkle),
-                frame.Get(PoseLandmarkType.LeftShoulder).Visibility);
-            float rightVis = Math.Min(
-                frame.MinVisibility(PoseLandmarkType.RightHip, PoseLandmarkType.RightKnee, PoseLandmarkType.RightAnkle),
-                frame.Get(PoseLandmarkType.RightShoulder).Visibility);
-            bool useLeft = leftVis >= rightVis;
-            _lastVis = useLeft ? leftVis : rightVis;
+            float leftVis = frame.MinVisibility(PoseLandmarkType.LeftHip, PoseLandmarkType.LeftKnee, PoseLandmarkType.LeftAnkle);
+            float rightVis = frame.MinVisibility(PoseLandmarkType.RightHip, PoseLandmarkType.RightKnee, PoseLandmarkType.RightAnkle);
+            _lastVis = Math.Max(leftVis, rightVis);
 
-            if (_lastVis < _minVisibility)
+            _lastMarginLeft = leftVis >= _minVisibility
+                ? PoseMath.HipDropMargin(frame.Get(PoseLandmarkType.LeftHip),
+                    frame.Get(PoseLandmarkType.LeftKnee), frame.Get(PoseLandmarkType.LeftAnkle))
+                : float.NaN;
+            _lastMarginRight = rightVis >= _minVisibility
+                ? PoseMath.HipDropMargin(frame.Get(PoseLandmarkType.RightHip),
+                    frame.Get(PoseLandmarkType.RightKnee), frame.Get(PoseLandmarkType.RightAnkle))
+                : float.NaN;
+
+            bool anyLeg = !float.IsNaN(_lastMarginLeft) || !float.IsNaN(_lastMarginRight);
+            if (!anyLeg)
             {
-                // Не помечаем "не в позе": HoldTimer сам сошьёт короткий провал грейсом.
+                // Не помечаем «не в позе»: HoldTimer сам сошьёт короткий провал грейсом.
+                _lastSignal = float.NaN;
+                _lastLean = float.NaN;
                 FormState = ExerciseFormState.NotVisible;
                 Cue = NotVisibleCue;
                 Changed?.Invoke();
                 return;
             }
 
-            PoseLandmark shoulder = frame.Get(useLeft ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
-            PoseLandmark hip = frame.Get(useLeft ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip);
-            PoseLandmark knee = frame.Get(useLeft ? PoseLandmarkType.LeftKnee : PoseLandmarkType.RightKnee);
-            PoseLandmark ankle = frame.Get(useLeft ? PoseLandmarkType.LeftAnkle : PoseLandmarkType.RightAnkle);
+            _lastSignal =
+                float.IsNaN(_lastMarginLeft) ? _lastMarginRight
+                : float.IsNaN(_lastMarginRight) ? _lastMarginLeft
+                : Math.Max(_lastMarginLeft, _lastMarginRight);
 
-            _lastKnee = PoseMath.AngleDeg3D(hip, knee, ankle);
-            _lastHip = PoseMath.AngleDeg3D(shoulder, hip, knee);
+            // Наклон торса от вертикали — прокси стены; плечо со стороны более видимой ноги,
+            // невидимое плечо (vis < порога) проверку пропускает, а не блокирует.
+            bool leanLeft = leftVis >= rightVis;
+            PoseLandmark shoulder = frame.Get(leanLeft ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
+            PoseLandmark hip = frame.Get(leanLeft ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip);
+            _lastLean = shoulder.Visibility >= _minVisibility
+                ? (float)(Math.Atan2(Math.Abs(shoulder.X - hip.X), Math.Max(1e-6f, hip.Y - shoulder.Y)) * 180.0 / Math.PI)
+                : float.NaN;
 
-            bool inPose = _lastKnee >= _minAngleDeg && _lastKnee <= _maxAngleDeg
-                       && _lastHip >= _minAngleDeg && _lastHip <= _maxAngleDeg;
+            bool seated = _lastSignal >= _seatLowAt && _lastSignal <= _seatHighAt;
+            bool leanOk = float.IsNaN(_lastLean) || _lastLean <= _maxTorsoLeanDeg;
+            bool inPose = seated && leanOk;
             _timer.Update(inPose, frame.TimestampSeconds);
 
             if (inPose)
@@ -92,7 +116,9 @@ namespace Mikey.Pose
             else
             {
                 FormState = ExerciseFormState.BadForm;
-                Cue = _lastKnee > _maxAngleDeg || _lastHip > _maxAngleDeg ? "Ниже" : "Выше";
+                Cue = _lastSignal > _seatHighAt ? "Ниже"
+                    : _lastSignal < _seatLowAt ? "Выше"
+                    : "Спиной к стене";
             }
 
             Changed?.Invoke();
@@ -101,8 +127,10 @@ namespace Mikey.Pose
         public void Reset()
         {
             _timer.Reset();
-            _lastKnee = float.NaN;
-            _lastHip = float.NaN;
+            _lastSignal = float.NaN;
+            _lastMarginLeft = float.NaN;
+            _lastMarginRight = float.NaN;
+            _lastLean = float.NaN;
             _lastVis = 0f;
             FormState = ExerciseFormState.NotVisible;
             Cue = NotVisibleCue;

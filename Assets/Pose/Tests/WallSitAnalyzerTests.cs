@@ -66,5 +66,26 @@ namespace Mikey.Pose.Tests
         {
             Assert.IsNotNull(ExerciseCatalog.Create("wallsit"));
         }
+
+        [Test]
+        public void FloorSitDoesNotAccumulate()
+        {
+            var a = new WallSitAnalyzer();
+            for (double t = 0.0; t <= 5.0 + 1e-9; t += 0.5)
+                a.ProcessFrame(LegTestFrames.WallSit(kneeAngleDeg: 55f, timestamp: t));
+            Assert.AreEqual(0, a.Reps);
+            Assert.AreEqual("Выше", a.Cue);
+        }
+
+        [Test]
+        public void HeavyLeanPausesTimerWithWallCue()
+        {
+            var a = new WallSitAnalyzer();
+            for (double t = 0.0; t <= 5.0 + 1e-9; t += 0.5)
+                a.ProcessFrame(LegTestFrames.WallSit(hipAngleDeg: 140f, timestamp: t));
+            Assert.AreEqual(0, a.Reps);
+            Assert.AreEqual(ExerciseFormState.BadForm, a.FormState);
+            Assert.AreEqual("Спиной к стене", a.Cue);
+        }
     }
 }

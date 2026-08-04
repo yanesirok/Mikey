@@ -123,11 +123,10 @@ namespace Mikey.Pose
         // стоя ≈ 1, параллель ≈ 0, глубже — отрицательно.
         private static float Margin(PoseFrame frame, bool left)
         {
-            PoseLandmark hip = frame.Get(left ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip);
-            PoseLandmark knee = frame.Get(left ? PoseLandmarkType.LeftKnee : PoseLandmarkType.RightKnee);
-            PoseLandmark ankle = frame.Get(left ? PoseLandmarkType.LeftAnkle : PoseLandmarkType.RightAnkle);
-            float shank = Math.Abs(ankle.Y - knee.Y);
-            return shank < 1e-4f ? float.NaN : (knee.Y - hip.Y) / shank;
+            return PoseMath.HipDropMargin(
+                frame.Get(left ? PoseLandmarkType.LeftHip : PoseLandmarkType.RightHip),
+                frame.Get(left ? PoseLandmarkType.LeftKnee : PoseLandmarkType.RightKnee),
+                frame.Get(left ? PoseLandmarkType.LeftAnkle : PoseLandmarkType.RightAnkle));
         }
 
         public void Reset()
