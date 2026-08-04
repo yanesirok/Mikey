@@ -30,6 +30,9 @@ namespace Mikey.Pose
             new ExerciseDescriptor("pushup", "Push-ups", () => new PushUpAnalyzer()),
             new ExerciseDescriptor("squat", "Squats", () => new SquatAnalyzer()),
             new ExerciseDescriptor("wallsit", "Wall-sit (сек)", () => new WallSitAnalyzer()),
+            new ExerciseDescriptor("maegeri-gedan", "Mae geri gedan", () => new MaeGeriAnalyzer(KickZone.Gedan)),
+            new ExerciseDescriptor("maegeri-chudan", "Mae geri chudan", () => new MaeGeriAnalyzer(KickZone.Chudan)),
+            new ExerciseDescriptor("maegeri-jodan", "Mae geri jodan", () => new MaeGeriAnalyzer(KickZone.Jodan)),
         };
 
         public static IReadOnlyList<ExerciseDescriptor> All => Items;
