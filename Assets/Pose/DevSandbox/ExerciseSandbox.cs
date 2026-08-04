@@ -37,10 +37,15 @@ namespace Mikey.Pose.DevSandbox
 
         private string _savedLogPath;
 
+        private Level0Results _results;
+        private PlayerStats _stats;
+
         private void Awake()
         {
             _controller = GetComponent<PoseController>();
             _voice = new AndroidVoice();
+            _results = Level0Results.Load();
+            _stats = StatCalculator.Compute(_results);
         }
 
         private void Start()
@@ -108,6 +113,9 @@ namespace Mikey.Pose.DevSandbox
             GUILayout.BeginArea(new Rect(40, 40, Screen.width - 80, Screen.height - 80));
             GUILayout.Label("SELECT EXERCISE", _title);
             GUILayout.Label("Совет: телефон сбоку, всё тело в кадр (голова–стопы)", _mid);
+            GUILayout.Label(
+                $"СТАТЫ  сила {_stats.Strength}  вынос {_stats.Endurance}  гибк {_stats.Flexibility}  баланс {_stats.Balance}",
+                _mid);
             GUILayout.Space(24);
 
             foreach (ExerciseDescriptor exercise in ExerciseCatalog.All)
@@ -170,6 +178,9 @@ namespace Mikey.Pose.DevSandbox
             {
                 // Auto-save the recording on exit so a session is never lost.
                 _savedLogPath = _controller.SaveRecording();
+                _results.Absorb(a);
+                _results.Save();
+                _stats = StatCalculator.Compute(_results);
                 _controller.ClearExercise();
             }
             if (GUILayout.Button("Reset set", GUILayout.Width(200), GUILayout.Height(80)))
