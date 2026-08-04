@@ -1,6 +1,6 @@
 namespace Mikey.Pose
 {
-    /// <summary>The two ends of a push-up, plus the initial unknown state.</summary>
+    /// <summary>The two ends of a rep cycle (top/bottom), plus the initial unknown state.</summary>
     public enum RepPhase
     {
         /// <summary>Not yet settled at the top — no rep can complete from here.</summary>
@@ -14,14 +14,16 @@ namespace Mikey.Pose
     }
 
     /// <summary>
-    /// Pure motion detector: counts a full-range push-up from the (smoothed) elbow angle,
-    /// using two thresholds for hysteresis. A rep is the transition Down→Up, but only if the
+    /// Pure motion detector: counts one full-range rep from a smoothed scalar signal
+    /// (a joint angle in degrees where large = top/rest, small = bottom), using two
+    /// thresholds for hysteresis. A rep is the transition Down→Up, but only if the
     /// descent-to-ascent took at least <c>minRepSeconds</c> — this rejects the sub-frame
-    /// threshold flicker that noisy landmarks produce (a real push-up can't complete instantly).
+    /// threshold flicker that noisy landmarks produce.
     ///
-    /// Detects movement only; visibility/posture gating is the caller's job.
+    /// Used by push-ups (elbow angle) and squats (knee angle). Detects movement only;
+    /// visibility/posture gating is the caller's job.
     /// </summary>
-    public sealed class PushUpRepCounter
+    public sealed class RepCounter
     {
         private readonly float _upThresholdDeg;
         private readonly float _downThresholdDeg;
@@ -32,7 +34,7 @@ namespace Mikey.Pose
         /// <param name="upThresholdDeg">Elbow angle at/above which arms count as extended (top).</param>
         /// <param name="downThresholdDeg">Elbow angle at/below which the rep counts as deep (bottom).</param>
         /// <param name="minRepSeconds">Minimum time from reaching the bottom to returning to the top.</param>
-        public PushUpRepCounter(float upThresholdDeg = 140f, float downThresholdDeg = 105f, double minRepSeconds = 0.3)
+        public RepCounter(float upThresholdDeg = 140f, float downThresholdDeg = 105f, double minRepSeconds = 0.3)
         {
             _upThresholdDeg = upThresholdDeg;
             _downThresholdDeg = downThresholdDeg;
@@ -50,9 +52,9 @@ namespace Mikey.Pose
         /// exactly on the frame a full rep completes (a confirmed, long-enough bottom followed
         /// by a return to the top).
         /// </summary>
-        public bool Update(float elbowAngleDeg, double timeSeconds)
+        public bool Update(float angleDeg, double timeSeconds)
         {
-            if (elbowAngleDeg >= _upThresholdDeg)
+            if (angleDeg >= _upThresholdDeg)
             {
                 bool longEnough = (timeSeconds - _downEnterTime) >= _minRepSeconds;
                 bool completed = Phase == RepPhase.Down && longEnough;
@@ -62,7 +64,7 @@ namespace Mikey.Pose
                 return completed;
             }
 
-            if (elbowAngleDeg <= _downThresholdDeg)
+            if (angleDeg <= _downThresholdDeg)
             {
                 if (Phase == RepPhase.Up)
                 {

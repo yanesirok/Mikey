@@ -4,7 +4,7 @@ namespace Mikey.Pose
 {
     /// <summary>
     /// Turns a stream of <see cref="PoseFrame"/>s into the HUD numbers: a rep count, the
-    /// current state/fault, and one cue. Composes the pure <see cref="PushUpRepCounter"/>
+    /// current state/fault, and one cue. Composes the pure <see cref="RepCounter"/>
     /// (motion) with <see cref="PushUpFormEvaluator"/> (3D posture + visibility), adding:
     /// <list type="bullet">
     ///   <item><b>Gating</b> — only counts while the body is confidently visible AND in a
@@ -17,7 +17,7 @@ namespace Mikey.Pose
     /// </summary>
     public sealed class PushUpAnalyzer : IExerciseAnalyzer
     {
-        private readonly PushUpRepCounter _counter;
+        private readonly RepCounter _counter;
         private readonly PushUpFormEvaluator _evaluator;
         private readonly float _smoothingAlpha;
 
@@ -49,9 +49,9 @@ namespace Mikey.Pose
         public bool BodyVisible => CurrentFault != PushUpFault.BodyNotVisible;
         public bool InPosition => CurrentFault == PushUpFault.None || CurrentFault == PushUpFault.NotStraight;
 
-        public PushUpAnalyzer(PushUpRepCounter counter = null, PushUpFormEvaluator evaluator = null, float smoothingAlpha = 0.6f)
+        public PushUpAnalyzer(RepCounter counter = null, PushUpFormEvaluator evaluator = null, float smoothingAlpha = 0.6f)
         {
-            _counter = counter ?? new PushUpRepCounter();
+            _counter = counter ?? new RepCounter();
             _evaluator = evaluator ?? new PushUpFormEvaluator();
             _smoothingAlpha = smoothingAlpha;
         }
