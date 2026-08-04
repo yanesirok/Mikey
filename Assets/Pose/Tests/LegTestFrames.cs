@@ -85,21 +85,27 @@ namespace Mikey.Pose.Tests
         /// Side-on kicker. Support (right) leg fixed: ankle (0.6, 0.9), knee (0.6, 0.7),
         /// hip (0.6, 0.5), shoulder (0.6, 0.2). Kicking (left) leg: chambered — knee raised,
         /// shin hanging (bent ≈ 108°); otherwise ankle at <paramref name="kickAnkleY"/>
-        /// with a straight leg (knee on the hip→ankle midpoint).
+        /// with a straight leg (knee on the hip→ankle midpoint). Shoulders get
+        /// visibility = Math.Min(<paramref name="visibility"/>, <paramref name="shoulderVisibility"/>)
+        /// so tests can hide just the shoulders while legs stay fully visible.
         /// Zones with these anchors: gedan 0.65, chudan 0.35, jodan 0.18, floor 0.9.
         /// </summary>
-        public static PoseFrame Kick(float kickAnkleY, bool chambered = false, float visibility = 1f, double timestamp = 0)
+        public static PoseFrame Kick(float kickAnkleY, bool chambered = false, float visibility = 1f, double timestamp = 0,
+            float shoulderVisibility = 1f)
         {
             var lm = Blank(visibility);
 
             void Set(PoseLandmarkType t, float x, float y) => lm[(int)t] = new PoseLandmark(x, y, 0f, visibility);
 
+            float shoulderVis = Math.Min(visibility, shoulderVisibility);
+            void SetShoulder(PoseLandmarkType t, float x, float y) => lm[(int)t] = new PoseLandmark(x, y, 0f, shoulderVis);
+
             Set(PoseLandmarkType.RightAnkle, 0.6f, 0.9f);
             Set(PoseLandmarkType.RightKnee, 0.6f, 0.7f);
             Set(PoseLandmarkType.RightHip, 0.6f, 0.5f);
-            Set(PoseLandmarkType.RightShoulder, 0.6f, 0.2f);
+            SetShoulder(PoseLandmarkType.RightShoulder, 0.6f, 0.2f);
             Set(PoseLandmarkType.LeftHip, 0.6f, 0.5f);
-            Set(PoseLandmarkType.LeftShoulder, 0.6f, 0.2f);
+            SetShoulder(PoseLandmarkType.LeftShoulder, 0.6f, 0.2f);
 
             if (chambered)
             {

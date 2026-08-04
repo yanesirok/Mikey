@@ -62,8 +62,12 @@ namespace Mikey.Pose
             if (frame == null)
                 throw new ArgumentNullException(nameof(frame));
 
-            float leftVis = frame.MinVisibility(PoseLandmarkType.LeftHip, PoseLandmarkType.LeftKnee, PoseLandmarkType.LeftAnkle);
-            float rightVis = frame.MinVisibility(PoseLandmarkType.RightHip, PoseLandmarkType.RightKnee, PoseLandmarkType.RightAnkle);
+            float leftVis = Math.Min(
+                frame.MinVisibility(PoseLandmarkType.LeftHip, PoseLandmarkType.LeftKnee, PoseLandmarkType.LeftAnkle),
+                frame.Get(PoseLandmarkType.LeftShoulder).Visibility);
+            float rightVis = Math.Min(
+                frame.MinVisibility(PoseLandmarkType.RightHip, PoseLandmarkType.RightKnee, PoseLandmarkType.RightAnkle),
+                frame.Get(PoseLandmarkType.RightShoulder).Visibility);
             _lastVis = Math.Min(leftVis, rightVis);
 
             if (_lastVis < _minVisibility)

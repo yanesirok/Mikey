@@ -31,8 +31,8 @@ namespace Mikey.Pose
 
         private double _downEnterTime;
 
-        /// <param name="upThresholdDeg">Elbow angle at/above which arms count as extended (top).</param>
-        /// <param name="downThresholdDeg">Elbow angle at/below which the rep counts as deep (bottom).</param>
+        /// <param name="upThresholdDeg">Signal (degrees) at/above which the movement counts as at the top/rest.</param>
+        /// <param name="downThresholdDeg">Signal (degrees) at/below which the rep counts as deep (bottom).</param>
         /// <param name="minRepSeconds">Minimum time from reaching the bottom to returning to the top.</param>
         public RepCounter(float upThresholdDeg = 140f, float downThresholdDeg = 105f, double minRepSeconds = 0.3)
         {
@@ -48,9 +48,9 @@ namespace Mikey.Pose
         public RepPhase Phase { get; private set; } = RepPhase.Unknown;
 
         /// <summary>
-        /// Feeds one frame's elbow angle at time <paramref name="timeSeconds"/>. Returns true
-        /// exactly on the frame a full rep completes (a confirmed, long-enough bottom followed
-        /// by a return to the top).
+        /// Feeds one frame's signal (angle in degrees) at time <paramref name="timeSeconds"/>.
+        /// Returns true exactly on the frame a full rep completes (a confirmed, long-enough
+        /// bottom followed by a return to the top).
         /// </summary>
         public bool Update(float angleDeg, double timeSeconds)
         {

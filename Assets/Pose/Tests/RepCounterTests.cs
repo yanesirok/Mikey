@@ -9,7 +9,7 @@ namespace Mikey.Pose.Tests
     /// </summary>
     public class RepCounterTests
     {
-        // Feeds a sequence of elbow angles 0.5s apart; returns how many reps completed.
+        // Feeds a sequence of angles 0.5s apart; returns how many reps completed.
         private static int Feed(RepCounter counter, params float[] angles)
         {
             int completed = 0;

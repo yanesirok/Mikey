@@ -51,8 +51,16 @@ namespace Mikey.Pose
             string json = PlayerPrefs.GetString(PrefsKey, string.Empty);
             if (string.IsNullOrEmpty(json))
                 return new Level0Results();
-            Level0Results r = JsonUtility.FromJson<Level0Results>(json);
-            return r ?? new Level0Results();
+            try
+            {
+                Level0Results r = JsonUtility.FromJson<Level0Results>(json);
+                return r ?? new Level0Results();
+            }
+            catch (ArgumentException)
+            {
+                // Corrupt PlayerPrefs entry (e.g. non-JSON) — start fresh rather than crash Awake.
+                return new Level0Results();
+            }
         }
 
         public void Save()

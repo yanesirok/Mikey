@@ -34,6 +34,7 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual(0, a.Reps);
             Assert.AreEqual(1, a.NoReps);
             Assert.AreEqual("Медленнее", a.Cue);
+            Assert.AreEqual(0.0, a.TotalLiftedSeconds, 1e-6);
         }
 
         [Test]

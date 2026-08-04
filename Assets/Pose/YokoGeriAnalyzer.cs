@@ -8,8 +8,8 @@ namespace Mikey.Pose
     /// signal (kicking ankle vs the support shank) through <see cref="LegLiftCycle"/>; a
     /// cycle counts only when the leg stayed up at least <c>slowMinSeconds</c> — this is a
     /// balance drill, so a fast swing is the fault ("Медленнее"), not the height reached.
-    /// <see cref="TotalLiftedSeconds"/> accumulates airtime across completed cycles for
-    /// the balance stat. Engine-free.
+    /// <see cref="TotalLiftedSeconds"/> accumulates airtime across completed slow cycles
+    /// only for the balance stat — a fast swing contributes nothing. Engine-free.
     /// </summary>
     public sealed class YokoGeriAnalyzer : IExerciseAnalyzer
     {
@@ -30,7 +30,8 @@ namespace Mikey.Pose
         public string Cue { get; private set; } = NotVisibleCue;
         public ExerciseFormState FormState { get; private set; } = ExerciseFormState.NotVisible;
 
-        /// <summary>Total airtime across completed lift cycles, seconds (balance stat).</summary>
+        /// <summary>Total airtime across completed slow lift cycles, seconds (balance stat);
+        /// fast swings (no-reps) don't add to it.</summary>
         public double TotalLiftedSeconds { get; private set; }
 
         public string DebugInfo =>
@@ -82,9 +83,9 @@ namespace Mikey.Pose
 
             if (completed)
             {
-                TotalLiftedSeconds += _cycle.LiftedSeconds;
                 if (_cycle.LiftedSeconds >= _slowMinSeconds)
                 {
+                    TotalLiftedSeconds += _cycle.LiftedSeconds;
                     Reps++;
                 }
                 else

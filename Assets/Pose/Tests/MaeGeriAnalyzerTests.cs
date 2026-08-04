@@ -88,6 +88,14 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
+        public void InvisibleShoulderReportsNotVisible()
+        {
+            var a = NewAnalyzer(KickZone.Gedan);
+            a.ProcessFrame(LegTestFrames.Kick(Floor, timestamp: 0.0, shoulderVisibility: 0.1f));
+            Assert.AreEqual(ExerciseFormState.NotVisible, a.FormState);
+        }
+
+        [Test]
         public void AllThreeLevelsRegisteredInCatalog()
         {
             Assert.IsNotNull(ExerciseCatalog.Create("maegeri-gedan"));

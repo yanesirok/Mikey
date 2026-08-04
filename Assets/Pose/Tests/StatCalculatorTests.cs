@@ -1,9 +1,16 @@
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Mikey.Pose.Tests
 {
     public class StatCalculatorTests
     {
+        [TearDown]
+        public void TearDown()
+        {
+            PlayerPrefs.DeleteKey("level0.results");
+        }
+
         [Test]
         public void EmptyResultsGiveZeroStats()
         {
@@ -64,7 +71,7 @@ namespace Mikey.Pose.Tests
         [Test]
         public void AbsorbKeepsBestOfEachExercise()
         {
-            var r = new Level0Results { SquatReps = 12 };
+            var r = new Level0Results { SquatReps = 12, PushUpReps = 20 };
 
             var squat = new SquatAnalyzer(smoothingAlpha: 1f);
             // 1 повтор — меньше сохранённых 12: результат не ухудшается.
@@ -86,6 +93,23 @@ namespace Mikey.Pose.Tests
             mg.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 1.0));
             r.Absorb(mg);
             Assert.AreEqual((int)KickZone.Jodan, r.MaeGeriBestZone);
+
+            var pushup = new PushUpAnalyzer(smoothingAlpha: 1f);
+            // 1 повтор — меньше сохранённых 20: результат не ухудшается.
+            pushup.ProcessFrame(PoseTestFrames.Build(170f, timestamp: 0.0));
+            pushup.ProcessFrame(PoseTestFrames.Build(95f, timestamp: 1.0));
+            pushup.ProcessFrame(PoseTestFrames.Build(170f, timestamp: 2.0));
+            r.Absorb(pushup);
+            Assert.AreEqual(20, r.PushUpReps);
+
+            var yoko = new YokoGeriAnalyzer(smoothingAlpha: 1f);
+            yoko.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 0.0));
+            yoko.ProcessFrame(LegTestFrames.Kick(0.45f, timestamp: 1.0));
+            yoko.ProcessFrame(LegTestFrames.Kick(0.45f, timestamp: 3.5));  // держит ≥ 2 c
+            yoko.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 4.0));
+            r.Absorb(yoko);
+            Assert.AreEqual(1, r.YokoGeriSlowReps);
+            Assert.AreEqual(3.0f, r.YokoGeriHoldSeconds, 1e-3f);
         }
 
         [Test]
@@ -96,6 +120,17 @@ namespace Mikey.Pose.Tests
             Level0Results loaded = Level0Results.Load();
             Assert.AreEqual(7, loaded.PushUpReps);
             Assert.AreEqual(33.5f, loaded.WallSitSeconds, 1e-3f);
+        }
+
+        [Test]
+        public void LoadWithCorruptJsonReturnsDefaultInsteadOfThrowing()
+        {
+            PlayerPrefs.SetString("level0.results", "не json");
+            Level0Results loaded = null;
+            Assert.DoesNotThrow(() => loaded = Level0Results.Load());
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(0, loaded.PushUpReps);
+            Assert.AreEqual(0f, loaded.WallSitSeconds);
         }
     }
 }
