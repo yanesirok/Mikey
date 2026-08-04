@@ -30,11 +30,6 @@ namespace Mikey.Pose.DevSandbox
         private bool _flipY = true;
         private bool _mirrorX = true;
 
-        private AndroidVoice _voice;
-        private string _lastSpokenCue = string.Empty;
-        private float _lastSpeakTime;
-        private const float MinSpeakInterval = 2.5f;
-
         private string _savedLogPath;
 
         private Level0Results _results;
@@ -43,7 +38,6 @@ namespace Mikey.Pose.DevSandbox
         private void Awake()
         {
             _controller = GetComponent<PoseController>();
-            _voice = new AndroidVoice();
             _results = Level0Results.Load();
             _stats = StatCalculator.Compute(_results);
         }
@@ -55,35 +49,6 @@ namespace Mikey.Pose.DevSandbox
                 Permission.RequestUserPermission(Permission.Camera);
 #endif
         }
-
-        private void Update()
-        {
-            if (_controller == null || !_controller.HasExercise)
-                return;
-
-            IExerciseAnalyzer a = _controller.Analyzer;
-            if (a == null)
-                return;
-
-            // Speak a form-correction cue when the fault changes (throttled so it doesn't nag).
-            // Skip "get in frame" — only speak actual form corrections.
-            if (a.FormState == ExerciseFormState.BadForm && !string.IsNullOrEmpty(a.Cue))
-            {
-                if (a.Cue != _lastSpokenCue && Time.time - _lastSpeakTime >= MinSpeakInterval)
-                {
-                    _voice.Speak(a.Cue);
-                    _lastSpokenCue = a.Cue;
-                    _lastSpeakTime = Time.time;
-                }
-            }
-            else
-            {
-                // Reset so the next fault re-speaks even if it's the same text.
-                _lastSpokenCue = string.Empty;
-            }
-        }
-
-        private void OnDestroy() => _voice?.Dispose();
 
         private void EnsureStyles()
         {

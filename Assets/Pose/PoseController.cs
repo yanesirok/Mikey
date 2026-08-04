@@ -69,6 +69,10 @@ namespace Mikey.Pose
             if (analyzer == null)
                 throw new ArgumentNullException(nameof(analyzer));
 
+            // Уровень 0 проверяет, а не учит: каждый CSV — одна сессия одного упражнения,
+            // иначе записи склеиваются и разбор с устройства теряет граунд-трус.
+            _recording.Clear();
+
             if (_analyzer != null)
                 _analyzer.Changed -= OnAnalyzerChanged;
 
