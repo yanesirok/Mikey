@@ -123,6 +123,8 @@ namespace Mikey.Pose.DevSandbox
             GUILayout.BeginArea(new Rect(40, 40, Screen.width - 80, Screen.height - 80));
 
             GUILayout.Label(a.DisplayName.ToUpperInvariant(), _mid);
+            if (a.Id == "wallsit")
+                GUILayout.Label("Спиной к стене, бёдра параллельно полу", _mid);
             GUILayout.Label(a.Reps.ToString(), _big);
             GUILayout.Label($"no-reps: {a.NoReps}", _mid);
 
