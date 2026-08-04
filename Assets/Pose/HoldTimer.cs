@@ -11,8 +11,6 @@ namespace Mikey.Pose
         private readonly double _graceSeconds;
         private double _holdStart = double.NaN;
         private double _lastInPose = double.NaN;
-        private double _lastOutOfPose = double.NaN;
-        private double _graceBridgeBias = 0;
 
         /// <summary>Continuous hold so far, seconds (grace-bridged gaps included).</summary>
         public double CurrentSeconds { get; private set; }
@@ -31,16 +29,9 @@ namespace Mikey.Pose
                 {
                     _holdStart = timeSeconds;
                     CurrentSeconds = 0;
-                    _graceBridgeBias = 0;
-                }
-                else if (!double.IsNaN(_lastOutOfPose))
-                {
-                    // Grace-bridged gap: add half of the gap time
-                    _graceBridgeBias += (timeSeconds - _lastOutOfPose) / 2;
-                    _lastOutOfPose = double.NaN;
                 }
                 _lastInPose = timeSeconds;
-                CurrentSeconds = timeSeconds - _holdStart + _graceBridgeBias;
+                CurrentSeconds = timeSeconds - _holdStart;
                 if (CurrentSeconds > BestSeconds)
                     BestSeconds = CurrentSeconds;
             }
@@ -48,12 +39,6 @@ namespace Mikey.Pose
             {
                 CurrentSeconds = 0;
                 _lastInPose = double.NaN;
-                _lastOutOfPose = double.NaN;
-                _graceBridgeBias = 0;
-            }
-            else if (!double.IsNaN(_lastInPose))
-            {
-                _lastOutOfPose = timeSeconds;
             }
         }
 
@@ -61,10 +46,8 @@ namespace Mikey.Pose
         {
             _holdStart = double.NaN;
             _lastInPose = double.NaN;
-            _lastOutOfPose = double.NaN;
             CurrentSeconds = 0;
             BestSeconds = 0;
-            _graceBridgeBias = 0;
         }
     }
 }
