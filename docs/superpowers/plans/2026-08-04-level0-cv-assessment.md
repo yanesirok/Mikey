@@ -136,7 +136,9 @@ namespace Mikey.Pose.Tests
             var t = new HoldTimer(graceSeconds: 1.0);
             Hold(t, 0.0, 2.0);
             t.Update(false, 2.4);          // моргнул трекер
-            Hold(t, 2.8, 4.0);             // разрыв 0.8 с ≤ grace — удержание продолжается
+            t.Update(true, 2.8);           // разрыв 0.8 с ≤ grace — удержание продолжается
+            t.Update(true, 3.3);
+            t.Update(true, 4.0);
             Assert.AreEqual(4.0, t.CurrentSeconds, 1e-6);
         }
 
