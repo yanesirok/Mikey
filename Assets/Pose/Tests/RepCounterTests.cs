@@ -97,5 +97,43 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual(0, counter.Reps);
             Assert.AreEqual(RepPhase.Unknown, counter.Phase);
         }
+
+        [Test]
+        public void SingleFrameSpikeDoesNotOpenDown_WithDebounce()
+        {
+            var counter = new RepCounter(downDebounceFrames: 2);
+            counter.Update(170f, 0.0);
+            counter.Update(100f, 0.5);                 // одиночный шумовой скачок
+            Assert.IsFalse(counter.Update(170f, 1.0)); // Down не открылся — не повтор
+            Assert.AreEqual(0, counter.Reps);
+            counter.Update(100f, 1.5);
+            counter.Update(100f, 2.0);                 // два подряд — Down открыт
+            Assert.IsTrue(counter.Update(170f, 2.5));
+            Assert.AreEqual(1, counter.Reps);
+        }
+
+        [Test]
+        public void MidBandFrameBreaksTheDebounceStreak()
+        {
+            var counter = new RepCounter(downDebounceFrames: 2);
+            counter.Update(170f, 0.0);
+            counter.Update(100f, 0.5);
+            counter.Update(120f, 1.0);                 // середина диапазона — серия сброшена
+            counter.Update(100f, 1.5);
+            counter.Update(170f, 2.0);                 // Down так и не открылся
+            Assert.AreEqual(0, counter.Reps);
+        }
+
+        [Test]
+        public void ResetDownStreakBreaksTheSeries()
+        {
+            var counter = new RepCounter(downDebounceFrames: 2);
+            counter.Update(170f, 0.0);
+            counter.Update(100f, 0.5);
+            counter.ResetDownStreak();                 // провал трекинга между кадрами
+            counter.Update(100f, 1.0);                 // серия начата заново — это 1-й, не 2-й
+            counter.Update(170f, 1.5);
+            Assert.AreEqual(0, counter.Reps);
+        }
     }
 }

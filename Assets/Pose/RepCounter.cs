@@ -28,17 +28,23 @@ namespace Mikey.Pose
         private readonly float _upThresholdDeg;
         private readonly float _downThresholdDeg;
         private readonly double _minRepSeconds;
+        private readonly int _downDebounceFrames;
 
         private double _downEnterTime;
+        private int _belowStreak;
 
-        /// <param name="upThresholdDeg">Signal (degrees) at/above which the movement counts as at the top/rest.</param>
-        /// <param name="downThresholdDeg">Signal (degrees) at/below which the rep counts as deep (bottom).</param>
+        /// <param name="upThresholdDeg">Angle at/above which the movement counts as at the top.</param>
+        /// <param name="downThresholdDeg">Angle at/below which the rep counts as deep (bottom).</param>
         /// <param name="minRepSeconds">Minimum time from reaching the bottom to returning to the top.</param>
-        public RepCounter(float upThresholdDeg = 140f, float downThresholdDeg = 105f, double minRepSeconds = 0.3)
+        /// <param name="downDebounceFrames">Consecutive below-threshold updates required to enter the
+        /// bottom phase. 1 = прежнее поведение; больше — защита от одиночных шумовых кадров
+        /// (низкий fps без сглаживания). Провал трекинга рвёт серию через <see cref="ResetDownStreak"/>.</param>
+        public RepCounter(float upThresholdDeg = 140f, float downThresholdDeg = 105f, double minRepSeconds = 0.3, int downDebounceFrames = 1)
         {
             _upThresholdDeg = upThresholdDeg;
             _downThresholdDeg = downThresholdDeg;
             _minRepSeconds = minRepSeconds;
+            _downDebounceFrames = downDebounceFrames;
         }
 
         /// <summary>Number of completed full-range reps detected.</summary>
@@ -61,19 +67,32 @@ namespace Mikey.Pose
                 if (completed)
                     Reps++;
                 Phase = RepPhase.Up;
+                _belowStreak = 0;
                 return completed;
             }
 
             if (angleDeg <= _downThresholdDeg)
             {
-                if (Phase == RepPhase.Up)
+                _belowStreak++;
+                if (Phase == RepPhase.Up && _belowStreak >= _downDebounceFrames)
                 {
                     Phase = RepPhase.Down;
                     _downEnterTime = timeSeconds;
                 }
             }
+            else
+            {
+                _belowStreak = 0;
+            }
 
             return false;
+        }
+
+        /// <summary>Рвёт серию «низких» кадров — вызывается на невалидных (невидимых) кадрах,
+        /// чтобы серия дебаунса не переживала провалы трекинга.</summary>
+        public void ResetDownStreak()
+        {
+            _belowStreak = 0;
         }
 
         /// <summary>Resets to a fresh session (0 reps, unknown phase).</summary>
@@ -82,6 +101,7 @@ namespace Mikey.Pose
             Reps = 0;
             Phase = RepPhase.Unknown;
             _downEnterTime = 0;
+            _belowStreak = 0;
         }
     }
 }
