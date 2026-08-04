@@ -7,7 +7,9 @@ namespace Mikey.Pose
     /// <see cref="RepCounter"/> (stand ≥ 160° → depth ≤ 100° → stand = one rep). Lenient
     /// policy, mirroring push-ups: every full-range rep counts; a heavy torso lean at the
     /// bottom is tallied in <see cref="NoReps"/> but does not block the count. A shallow
-    /// squat simply never completes the counter's cycle. Engine-free.
+    /// squat simply never completes the counter's cycle. Smoothing is off by default (α = 1);
+    /// the bottom phase is debounced (2 consecutive below-threshold frames) — the pair that
+    /// fixed push-up recall on real device fps. Engine-free.
     /// </summary>
     public sealed class SquatAnalyzer : IExerciseAnalyzer
     {
@@ -38,9 +40,13 @@ namespace Mikey.Pose
         public event Action Changed;
 
         public SquatAnalyzer(RepCounter counter = null, float minVisibility = 0.6f,
-            float maxTorsoLeanDeg = 50f, float smoothingAlpha = 0.6f)
+            float maxTorsoLeanDeg = 50f, float smoothingAlpha = 1f)
         {
-            _counter = counter ?? new RepCounter(upThresholdDeg: 160f, downThresholdDeg: 100f, minRepSeconds: 0.3);
+            // Дефолт: без сглаживания (α=1) + дебаунс низа — та же пара, что вылечила пуш-ап:
+            // на реальном fps устройства EMA не успевала довести угол до порога (повторы
+            // терялись), а от одиночных шумовых кадров защищает дебаунс.
+            _counter = counter ?? new RepCounter(upThresholdDeg: 160f, downThresholdDeg: 100f,
+                minRepSeconds: 0.3, downDebounceFrames: 2);
             _minVisibility = minVisibility;
             _maxTorsoLeanDeg = maxTorsoLeanDeg;
             _smoothingAlpha = smoothingAlpha;
@@ -66,6 +72,7 @@ namespace Mikey.Pose
                 _smoothedKnee = float.NaN;
                 FormState = ExerciseFormState.NotVisible;
                 Cue = NotVisibleCue;
+                _counter.ResetDownStreak();
                 Changed?.Invoke();
                 return;
             }

@@ -15,6 +15,7 @@ namespace Mikey.Pose.Tests
             var a = NewAnalyzer();
             Feed(a, 175f, 0.0);
             Feed(a, 95f, 1.0);     // глубокий сед
+            Feed(a, 95f, 1.5);     // второй кадр низа (дебаунс)
             Feed(a, 175f, 2.0);    // встал
             Assert.AreEqual(1, a.Reps);
             Assert.AreEqual(0, a.NoReps);
@@ -46,6 +47,7 @@ namespace Mikey.Pose.Tests
             var a = NewAnalyzer();
             Feed(a, 175f, 0.0);
             Feed(a, 95f, 1.0, lean: 60f);   // сед с сильным завалом корпуса
+            Feed(a, 95f, 1.5, lean: 60f);   // второй кадр низа (дебаунс)
             Feed(a, 175f, 2.0);
             Assert.AreEqual(1, a.Reps);      // мягкий скоринг: повтор идёт
             Assert.AreEqual(1, a.NoReps);    // но огрех зафиксирован
@@ -68,6 +70,7 @@ namespace Mikey.Pose.Tests
             var a = NewAnalyzer();
             Feed(a, 175f, 0.0);
             Feed(a, 95f, 1.0);
+            Feed(a, 95f, 1.5);
             Feed(a, 175f, 2.0);
             a.Reset();
             Assert.AreEqual(0, a.Reps);
