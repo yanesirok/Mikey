@@ -61,3 +61,4 @@ Thumbs.db
 # Vendor asset packs: extracted into Assets/Fight/Arena/Ref by tools/ja14_extract.py
 *.unitypackage
 JA14_*.zip
+tools/Blender/bamboo_grove.blend
