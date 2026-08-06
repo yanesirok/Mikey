@@ -83,10 +83,19 @@ namespace Mikey.Pose.DevSandbox
                 _mid);
             GUILayout.Space(24);
 
-            foreach (ExerciseDescriptor exercise in ExerciseCatalog.All)
+            // Сетка 3 в ряд, не столбик: на девайсе GUI-высота ~720 (ландшафт), столбик
+            // из 9 кнопок не влезает, а скролла у области нет — хвост списка обрезался.
+            var all = ExerciseCatalog.All;
+            for (int i = 0; i < all.Count; i += 3)
             {
-                if (GUILayout.Button(exercise.DisplayName, GUILayout.Height(110)))
-                    _controller.SelectExercise(exercise.Create());
+                GUILayout.BeginHorizontal();
+                for (int j = i; j < all.Count && j < i + 3; j++)
+                {
+                    ExerciseDescriptor exercise = all[j];
+                    if (GUILayout.Button(exercise.DisplayName, GUILayout.Height(90)))
+                        _controller.SelectExercise(exercise.Create());
+                }
+                GUILayout.EndHorizontal();
             }
 
             GUILayout.Space(24);
