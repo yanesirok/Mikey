@@ -30,6 +30,7 @@ namespace Mikey.Pose.Tests
                 SquatReps = 40,
                 WallSitSeconds = 120f,
                 MaeGeriBestZone = (int)KickZone.Jodan,
+                YokoGeriBestZone = (int)KickZone.Jodan,
                 YokoGeriSlowReps = 10,
                 YokoGeriHoldSeconds = 20f,
             };
@@ -58,6 +59,7 @@ namespace Mikey.Pose.Tests
                 SquatReps = 10,                // 25 из приседаний
                 WallSitSeconds = 60f,
                 MaeGeriBestZone = (int)KickZone.Chudan,
+                YokoGeriBestZone = (int)KickZone.Chudan,
                 YokoGeriSlowReps = 5,          // 35 из повторов
                 YokoGeriHoldSeconds = 10f,     // 15 из удержания
             };
@@ -66,6 +68,15 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual(50, s.Endurance);
             Assert.AreEqual(66, s.Flexibility);
             Assert.AreEqual(50, s.Balance);
+        }
+
+        [Test]
+        public void FlexibilityAveragesFrontAndSideKicks()
+        {
+            var r = new Level0Results { MaeGeriBestZone = (int)KickZone.Jodan };
+            Assert.AreEqual(50, StatCalculator.Compute(r).Flexibility);   // только передний удар
+            r.YokoGeriBestZone = (int)KickZone.Jodan;
+            Assert.AreEqual(100, StatCalculator.Compute(r).Flexibility);
         }
 
         [Test]
@@ -102,14 +113,15 @@ namespace Mikey.Pose.Tests
             r.Absorb(pushup);
             Assert.AreEqual(20, r.PushUpReps);
 
-            var yoko = new YokoGeriAnalyzer(smoothingAlpha: 1f);
+            var yoko = new YokoGeriAnalyzer(KickZone.Gedan, smoothingAlpha: 1f);
             yoko.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 0.0));
-            yoko.ProcessFrame(LegTestFrames.Kick(0.45f, timestamp: 1.0));
-            yoko.ProcessFrame(LegTestFrames.Kick(0.45f, timestamp: 3.5));  // держит ≥ 2 c
+            yoko.ProcessFrame(LegTestFrames.Kick(0.35f, timestamp: 1.0));   // chudan
+            yoko.ProcessFrame(LegTestFrames.Kick(0.35f, timestamp: 3.5));
             yoko.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 4.0));
             r.Absorb(yoko);
             Assert.AreEqual(1, r.YokoGeriSlowReps);
             Assert.AreEqual(3.0f, r.YokoGeriHoldSeconds, 1e-3f);
+            Assert.AreEqual((int)KickZone.Chudan, r.YokoGeriBestZone);
         }
 
         [Test]

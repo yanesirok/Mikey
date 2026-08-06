@@ -141,5 +141,26 @@ namespace Mikey.Pose.Tests
             Put(PoseLandmarkType.LeftShoulder, 0.55f, 0.2f);
             return new PoseFrame(lm, timestamp);
         }
+
+        /// <summary>
+        /// High chamber, no extension: the left knee is pulled up level with the hip, the
+        /// shin hangs down — the ankle clears the lift threshold (lift 1.25) but the
+        /// in-plane knee angle stays ≈72°. A kick analyzer must not award a height zone.
+        /// </summary>
+        public static PoseFrame ChamberHigh(float visibility = 1f, double timestamp = 0)
+        {
+            var lm = Blank(visibility);
+            void Put(PoseLandmarkType t, float x, float y) => lm[(int)t] = new PoseLandmark(x, y, 0f, visibility);
+
+            Put(PoseLandmarkType.RightAnkle, 0.6f, 0.9f);
+            Put(PoseLandmarkType.RightKnee, 0.6f, 0.7f);
+            Put(PoseLandmarkType.RightHip, 0.6f, 0.5f);
+            Put(PoseLandmarkType.RightShoulder, 0.6f, 0.2f);
+            Put(PoseLandmarkType.LeftHip, 0.6f, 0.5f);
+            Put(PoseLandmarkType.LeftShoulder, 0.6f, 0.2f);
+            Put(PoseLandmarkType.LeftKnee, 0.45f, 0.45f);
+            Put(PoseLandmarkType.LeftAnkle, 0.45f, 0.65f);
+            return new PoseFrame(lm, timestamp);
+        }
     }
 }

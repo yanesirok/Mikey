@@ -40,16 +40,22 @@ namespace Mikey.Pose
 
             float strength = (Ramp(r.PushUpReps, PushUpsFor100) + Ramp(r.SquatReps, SquatsFor100)) / 2f * 100f;
             float endurance = Ramp(r.WallSitSeconds, WallSitSecondsFor100) * 100f;
-            int zone = Math.Min(Math.Max(r.MaeGeriBestZone, 0), FlexibilityByZone.Length - 1);
+            // Гибкость — среднее переднего (mae) и бокового (yoko) удара: это разные
+            // растяжки, один вид удара не даёт 100.
+            float flexibility = (FlexibilityByZone[ClampZone(r.MaeGeriBestZone)]
+                               + FlexibilityByZone[ClampZone(r.YokoGeriBestZone)]) / 2f;
             float balance = Ramp(r.YokoGeriSlowReps, SlowRepsFor70) * 70f
                           + Ramp(r.YokoGeriHoldSeconds, HoldSecondsFor30) * 30f;
 
             return new PlayerStats(
                 (int)Math.Round(strength),
                 (int)Math.Round(endurance),
-                FlexibilityByZone[zone],
+                (int)Math.Round(flexibility),
                 (int)Math.Round(balance));
         }
+
+        private static int ClampZone(int zone) =>
+            Math.Min(Math.Max(zone, 0), FlexibilityByZone.Length - 1);
 
         private static float Ramp(float value, float anchor) =>
             value <= 0f ? 0f : Math.Min(value / anchor, 1f);
