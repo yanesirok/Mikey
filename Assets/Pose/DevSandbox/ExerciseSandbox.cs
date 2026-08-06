@@ -125,6 +125,8 @@ namespace Mikey.Pose.DevSandbox
             GUILayout.Label(a.DisplayName.ToUpperInvariant(), _mid);
             if (a.Id == "wallsit")
                 GUILayout.Label("Спиной к стене, бёдра параллельно полу", _mid);
+            if (a.Id.StartsWith("yokogeri"))
+                GUILayout.Label("Лицом к камере, можно держаться за стену", _mid);
             GUILayout.Label(a.Reps.ToString(), _big);
             GUILayout.Label($"no-reps: {a.NoReps}", _mid);
 
