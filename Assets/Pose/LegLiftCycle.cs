@@ -27,6 +27,9 @@ namespace Mikey.Pose
         /// <summary>Duration of the current lift while Lifted; of the last completed one after.</summary>
         public double LiftedSeconds { get; private set; }
 
+        /// <summary>Lift threshold that starts a cycle; kick analyzers gate zone sampling on it.</summary>
+        public float LiftedAt => _liftedAt;
+
         public LegLiftCycle(float liftedAt = 1.0f, float groundedAt = 0.25f, double minLiftSeconds = 0.2)
         {
             _liftedAt = liftedAt;

@@ -62,6 +62,19 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
+        public void ExtensionOnlyOnDescentDoesNotAward()
+        {
+            var a = NewAnalyzer(KickZone.Gedan);
+            a.ProcessFrame(LegTestFrames.Kick(Floor, chambered: false, 1f, 0.0));
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));   // вход в цикл, колено согнуто
+            Feed(a, 0.78f, 0.6);      // нога прямая, но подъём 0.6 — уже опускается
+            Feed(a, Floor, 0.9);
+            Assert.AreEqual(0, a.Reps);
+            Assert.AreEqual(1, a.NoReps);
+            Assert.AreEqual("Выпрями ногу", a.Cue);
+        }
+
+        [Test]
         public void AirtimeAccumulatesForCountedReps()
         {
             var a = NewAnalyzer(KickZone.Chudan);

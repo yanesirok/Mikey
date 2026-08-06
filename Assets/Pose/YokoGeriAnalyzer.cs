@@ -7,7 +7,8 @@ namespace Mikey.Pose
     /// travels sideways, so a profile view would hide its height. Same lift signal and
     /// <see cref="LegLiftCycle"/> as mae geri; the height zone is sampled only on frames
     /// where the leg is extended (in-plane knee angle ≥ minExtensionDeg — noisy z depth
-    /// is not involved), so a raised chamber alone is not a kick. Lenient policy: a kick
+    /// is not involved) AND still at the swing's top (smoothed lift ≥ the cycle's LiftedAt),
+    /// so neither a raised chamber nor the straightening descent counts as a kick. Lenient policy: a kick
     /// reaching the requested zone OR higher counts; below it is a no-rep ("Выше"); a
     /// lift that never extends is a no-rep ("Выпрями ногу"). <see cref="BestZone"/> keeps
     /// the highest zone this set (flexibility stat); <see cref="TotalLiftedSeconds"/>
@@ -110,7 +111,9 @@ namespace Mikey.Pose
                 PoseLandmark shoulder = frame.Get(kickLeft ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
 
                 _lastKneeDeg = PoseMath.AngleDeg(hip, knee, ankle);
-                if (_lastKneeDeg >= _minExtensionDeg)
+                // Зона — только у верхушки взмаха: опускающаяся нога распрямляется сама
+                // (маятник), и её транзитные кадры ниже порога цикла ударом не являются.
+                if (_lastKneeDeg >= _minExtensionDeg && _smoothedLift >= _cycle.LiftedAt)
                 {
                     KickZone zone = KickHeightZone.Classify(ankle.Y, hip.Y, shoulder.Y);
                     if (zone > _peakZone)
