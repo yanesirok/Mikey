@@ -13,8 +13,8 @@ namespace Mikey.Pose
     /// (fast kicks live for one frame; a dropping leg never extends that high), while
     /// frames in the working band ≥ kickBandAt score only when the cycle holds
     /// ≥ minBandFrames of them — a controlled kick keeps the leg extended at height, a
-    /// pendulum drop passes through in one frame. Lenient policy: reaching the requested
-    /// zone OR higher counts. Cues on a failed cycle: no chamber → "Сначала колено";
+    /// pendulum drop passes through in one frame. Strict height window: only the requested zone
+    /// counts — higher is a no-rep ("Ниже"), lower is a no-rep ("Выше"). Cues on a failed cycle: no chamber → "Сначала колено";
     /// chambered but nothing extended at height → "Выпрями ногу"; below the requested
     /// zone → "Выше". <see cref="BestZone"/> keeps the highest zone this set
     /// (flexibility stat); <see cref="TotalLiftedSeconds"/> accumulates airtime of
@@ -164,7 +164,7 @@ namespace Mikey.Pose
                 if (peak > BestZone)
                     BestZone = peak;
 
-                if (peak >= _requested)
+                if (peak == _requested)
                 {
                     Reps++;
                     TotalLiftedSeconds += _cycle.LiftedSeconds;
@@ -174,6 +174,7 @@ namespace Mikey.Pose
                     NoReps++;
                     Cue = !_chambered ? "Сначала колено"
                         : peak == KickZone.None ? "Выпрями ногу"
+                        : peak > _requested ? "Ниже"
                         : "Выше";
                 }
             }

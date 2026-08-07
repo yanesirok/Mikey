@@ -18,8 +18,8 @@ namespace Mikey.Pose.Tests
             Assert.Greater(frames.Count, 100, "запись подозрительно короткая — файл не загрузился?");
             foreach (PoseFrame f in frames)
                 analyzer.ProcessFrame(f);
-            Assert.AreEqual(4, analyzer.Reps);
-            Assert.AreEqual(3, analyzer.NoReps);
+            Assert.AreEqual(3, analyzer.Reps);            // чудан-мах теперь «Ниже», не зачёт
+            Assert.AreEqual(4, analyzer.NoReps);
             Assert.AreEqual(KickZone.Chudan, analyzer.BestZone);
         }
 
@@ -34,6 +34,19 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual(5, analyzer.Reps);
             Assert.AreEqual(9, analyzer.NoReps);
             Assert.AreEqual(KickZone.Gedan, analyzer.BestZone);   // махи прямой ногой без замаха не в зачёте
+        }
+
+        [Test]
+        public void HeightsSession_RejectsKicksAboveRequested()
+        {
+            var analyzer = new YokoGeriAnalyzer(KickZone.Gedan);
+            List<PoseFrame> frames = CsvPoseFrames.Load("Pose/Tests/Recordings/yoko_gedan_heights.csv");
+            Assert.Greater(frames.Count, 100, "запись подозрительно короткая — файл не загрузился?");
+            foreach (PoseFrame f in frames)
+                analyzer.ProcessFrame(f);
+            Assert.AreEqual(4, analyzer.Reps);
+            Assert.AreEqual(5, analyzer.NoReps);
+            Assert.AreEqual(KickZone.Jodan, analyzer.BestZone);   // дзёдан-удары растяжку показали
         }
 
         [Test]

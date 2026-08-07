@@ -113,7 +113,7 @@ namespace Mikey.Pose.Tests
             r.Absorb(pushup);
             Assert.AreEqual(20, r.PushUpReps);
 
-            var yoko = new YokoGeriAnalyzer(KickZone.Gedan, smoothingAlpha: 1f);
+            var yoko = new YokoGeriAnalyzer(KickZone.Chudan, smoothingAlpha: 1f);
             yoko.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 0.0));
             yoko.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.5));   // chamber required
             yoko.ProcessFrame(LegTestFrames.Kick(0.35f, timestamp: 1.0));   // chudan

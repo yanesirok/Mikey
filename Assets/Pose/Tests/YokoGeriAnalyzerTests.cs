@@ -29,15 +29,17 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
-        public void KickAboveRequestedZoneCounts()
+        public void KickAboveRequestedZoneIsNoRepWithLowerCue()
         {
             var a = NewAnalyzer(KickZone.Gedan);
             Feed(a, Floor, 0.0);
             a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));
             Feed(a, JodanY, 0.6);
             Feed(a, Floor, 0.9);
-            Assert.AreEqual(1, a.Reps);
-            Assert.AreEqual(KickZone.Jodan, a.BestZone);
+            Assert.AreEqual(0, a.Reps);
+            Assert.AreEqual(1, a.NoReps);
+            Assert.AreEqual("Ниже", a.Cue);
+            Assert.AreEqual(KickZone.Jodan, a.BestZone);   // гибкость копится и на «Ниже»
         }
 
         [Test]
