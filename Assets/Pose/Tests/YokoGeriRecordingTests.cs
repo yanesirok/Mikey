@@ -31,9 +31,9 @@ namespace Mikey.Pose.Tests
             Assert.Greater(frames.Count, 100, "запись подозрительно короткая — файл не загрузился?");
             foreach (PoseFrame f in frames)
                 analyzer.ProcessFrame(f);
-            Assert.AreEqual(7, analyzer.Reps);
-            Assert.AreEqual(7, analyzer.NoReps);
-            Assert.AreEqual(KickZone.Chudan, analyzer.BestZone);
+            Assert.AreEqual(5, analyzer.Reps);
+            Assert.AreEqual(9, analyzer.NoReps);
+            Assert.AreEqual(KickZone.Gedan, analyzer.BestZone);   // махи прямой ногой без замаха не в зачёте
         }
 
         [Test]

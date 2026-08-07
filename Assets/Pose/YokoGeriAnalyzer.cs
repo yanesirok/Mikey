@@ -5,19 +5,21 @@ namespace Mikey.Pose
     /// <summary>
     /// Scores yoko geri (side kick) at a requested height facing the camera — the leg
     /// travels sideways, so a profile view would hide its height. Same lift signal and
-    /// <see cref="LegLiftCycle"/> as mae geri. The height zone is sampled only on frames
-    /// where the leg is extended (in-plane knee angle ≥ minExtensionDeg — noisy z depth
-    /// is not involved) and is gated by the RAW lift of that frame (the smoothed value
-    /// lags and would leak descent frames): a single extended frame at ≥ fastKickAt
-    /// scores immediately (fast kicks live for one frame; a dropping leg never extends
-    /// that high), while frames in the working band ≥ kickBandAt score only when the
-    /// cycle holds ≥ minBandFrames of them — a controlled kick keeps the leg extended
-    /// at height, a pendulum drop passes through in one frame. Lenient policy: reaching
-    /// the requested zone OR higher counts; below is a no-rep ("Выше"); a lift that
-    /// never extends at height is a no-rep ("Выпрями ногу"). <see cref="BestZone"/>
-    /// keeps the highest zone this set (flexibility stat); <see cref="TotalLiftedSeconds"/>
-    /// accumulates airtime of counted reps (balance stat). Holding a wall for support
-    /// is allowed and not checked. Engine-free.
+    /// <see cref="LegLiftCycle"/> as mae geri. A valid kick is CHAMBER THEN EXTENSION:
+    /// the cycle must first show a bent knee (in-plane angle ≤ chamberMaxKneeDeg), and
+    /// only after that do extended frames (angle ≥ minExtensionDeg) score a height zone,
+    /// gated by the RAW lift of the frame (the smoothed value lags and would leak
+    /// descent frames): a single extended frame at ≥ fastKickAt scores immediately
+    /// (fast kicks live for one frame; a dropping leg never extends that high), while
+    /// frames in the working band ≥ kickBandAt score only when the cycle holds
+    /// ≥ minBandFrames of them — a controlled kick keeps the leg extended at height, a
+    /// pendulum drop passes through in one frame. Lenient policy: reaching the requested
+    /// zone OR higher counts. Cues on a failed cycle: no chamber → "Сначала колено";
+    /// chambered but nothing extended at height → "Выпрями ногу"; below the requested
+    /// zone → "Выше". <see cref="BestZone"/> keeps the highest zone this set
+    /// (flexibility stat); <see cref="TotalLiftedSeconds"/> accumulates airtime of
+    /// counted reps (balance stat). Holding a wall for support is allowed and not
+    /// checked. Engine-free.
     /// </summary>
     public sealed class YokoGeriAnalyzer : IExerciseAnalyzer
     {
@@ -31,8 +33,10 @@ namespace Mikey.Pose
         private readonly float _fastKickAt;
         private readonly float _kickBandAt;
         private readonly int _minBandFrames;
+        private readonly float _chamberMaxKneeDeg;
 
         private float _smoothedLift = float.NaN;
+        private bool _chambered;
         private KickZone _fastPeak = KickZone.None;
         private KickZone _bandPeak = KickZone.None;
         private int _bandFrames;
@@ -54,7 +58,7 @@ namespace Mikey.Pose
 
         public string DebugInfo =>
             $"lift {(float.IsNaN(_smoothedLift) ? "--" : _smoothedLift.ToString("0.00"))}  " +
-            $"phase {_cycle.Phase}  fast {_fastPeak}  band {_bandPeak}x{_bandFrames}  " +
+            $"phase {_cycle.Phase}  chamber {(_chambered ? "Y" : "n")}  fast {_fastPeak}  band {_bandPeak}x{_bandFrames}  " +
             $"knee {(float.IsNaN(_lastKneeDeg) ? "--" : _lastKneeDeg.ToString("0"))}°  " +
             $"total {TotalLiftedSeconds:0.0}s  vis {_lastVis:0.00}";
 
@@ -62,7 +66,8 @@ namespace Mikey.Pose
 
         public YokoGeriAnalyzer(KickZone requested, LegLiftCycle cycle = null, float minVisibility = 0.6f,
             float minExtensionDeg = 150f, float smoothingAlpha = 0.6f,
-            float fastKickAt = 1.2f, float kickBandAt = 0.45f, int minBandFrames = 2)
+            float fastKickAt = 1.2f, float kickBandAt = 0.45f, int minBandFrames = 2,
+            float chamberMaxKneeDeg = 110f)
         {
             if (requested == KickZone.None)
                 throw new ArgumentOutOfRangeException(nameof(requested));
@@ -74,6 +79,7 @@ namespace Mikey.Pose
             _fastKickAt = fastKickAt;
             _kickBandAt = kickBandAt;
             _minBandFrames = minBandFrames;
+            _chamberMaxKneeDeg = chamberMaxKneeDeg;
         }
 
         public void ProcessFrame(PoseFrame frame)
@@ -115,6 +121,7 @@ namespace Mikey.Pose
             {
                 if (prevPhase == LiftPhase.Grounded)
                 {
+                    _chambered = false;
                     _fastPeak = KickZone.None;
                     _bandPeak = KickZone.None;
                     _bandFrames = 0;
@@ -127,10 +134,14 @@ namespace Mikey.Pose
                 PoseLandmark shoulder = frame.Get(kickLeft ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
 
                 _lastKneeDeg = PoseMath.AngleDeg(hip, knee, ankle);
-                // Гейт — по сырому подъёму кадра: сглаженный отстаёт и протаскивает
-                // опускания. Опускающаяся нога-маятник не выпрямляется выше ~1.0 и
-                // проносится через полосу за один кадр — сигнатуре удара не отвечает.
-                if (_lastKneeDeg >= _minExtensionDeg)
+                if (_lastKneeDeg <= _chamberMaxKneeDeg)
+                    _chambered = true;
+
+                // Замах обязателен (порядок: согнутое колено -> выпрямление), гейт — по
+                // сырому подъёму кадра: сглаженный отстаёт и протаскивает опускания.
+                // Опускающаяся нога-маятник не выпрямляется выше ~1.0 и проносится через
+                // полосу за один кадр — сигнатуре удара не отвечает.
+                if (_chambered && _lastKneeDeg >= _minExtensionDeg)
                 {
                     KickZone zone = KickHeightZone.Classify(ankle.Y, hip.Y, shoulder.Y);
                     if (lift >= _fastKickAt && zone > _fastPeak)
@@ -161,7 +172,9 @@ namespace Mikey.Pose
                 else
                 {
                     NoReps++;
-                    Cue = peak == KickZone.None ? "Выпрями ногу" : "Выше";
+                    Cue = !_chambered ? "Сначала колено"
+                        : peak == KickZone.None ? "Выпрями ногу"
+                        : "Выше";
                 }
             }
 
@@ -190,6 +203,7 @@ namespace Mikey.Pose
             BestZone = KickZone.None;
             TotalLiftedSeconds = 0;
             _smoothedLift = float.NaN;
+            _chambered = false;
             _fastPeak = KickZone.None;
             _bandPeak = KickZone.None;
             _bandFrames = 0;

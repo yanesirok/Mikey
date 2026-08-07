@@ -12,13 +12,17 @@ namespace Mikey.Pose.Tests
         private static void Feed(YokoGeriAnalyzer a, float ankleY, double t, float vis = 1f)
             => a.ProcessFrame(LegTestFrames.Kick(ankleY, chambered: false, vis, t));
 
+        // Замах теперь обязателен, поэтому зонные тесты бьют по схеме
+        // Floor -> ChamberHigh (замах) -> удар -> Floor.
+
         [Test]
         public void KickToRequestedZoneCountsAtAnyTempo()
         {
             var a = NewAnalyzer(KickZone.Chudan);
             Feed(a, Floor, 0.0);
-            Feed(a, ChudanY, 0.3);
-            Feed(a, Floor, 0.6);       // быстрый мах — темп свободный
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));
+            Feed(a, ChudanY, 0.6);
+            Feed(a, Floor, 0.9);       // быстрый удар — темп свободный
             Assert.AreEqual(1, a.Reps);
             Assert.AreEqual(0, a.NoReps);
             Assert.AreEqual(ExerciseFormState.GoodForm, a.FormState);
@@ -29,8 +33,9 @@ namespace Mikey.Pose.Tests
         {
             var a = NewAnalyzer(KickZone.Gedan);
             Feed(a, Floor, 0.0);
-            Feed(a, JodanY, 0.3);
-            Feed(a, Floor, 0.6);
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));
+            Feed(a, JodanY, 0.6);
+            Feed(a, Floor, 0.9);
             Assert.AreEqual(1, a.Reps);
             Assert.AreEqual(KickZone.Jodan, a.BestZone);
         }
@@ -40,8 +45,9 @@ namespace Mikey.Pose.Tests
         {
             var a = NewAnalyzer(KickZone.Jodan);
             Feed(a, Floor, 0.0);
-            Feed(a, GedanY, 0.3);
-            Feed(a, Floor, 0.6);
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));
+            Feed(a, GedanY, 0.6);
+            Feed(a, Floor, 0.9);
             Assert.AreEqual(0, a.Reps);
             Assert.AreEqual(1, a.NoReps);
             Assert.AreEqual("Выше", a.Cue);
@@ -89,13 +95,27 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
+        public void StraightSwingWithoutChamberIsNoRep()
+        {
+            var a = NewAnalyzer(KickZone.Gedan);
+            Feed(a, Floor, 0.0);
+            Feed(a, JodanY, 0.3);     // прямая нога сразу — замаха не было
+            Feed(a, Floor, 0.6);
+            Assert.AreEqual(0, a.Reps);
+            Assert.AreEqual(1, a.NoReps);
+            Assert.AreEqual("Сначала колено", a.Cue);
+            Assert.AreEqual(KickZone.None, a.BestZone);
+        }
+
+        [Test]
         public void AirtimeAccumulatesForCountedReps()
         {
             var a = NewAnalyzer(KickZone.Chudan);
             Feed(a, Floor, 0.0);
-            Feed(a, ChudanY, 1.0);
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 1.0));
+            Feed(a, ChudanY, 2.0);
             Feed(a, ChudanY, 3.0);
-            Feed(a, Floor, 3.5);       // в воздухе 2.5 c
+            Feed(a, Floor, 3.5);       // в воздухе 2.5 c (с входа в цикл на замахе)
             Assert.AreEqual(1, a.Reps);
             Assert.AreEqual(2.5, a.TotalLiftedSeconds, 1e-6);
         }
@@ -105,6 +125,7 @@ namespace Mikey.Pose.Tests
         {
             var a = NewAnalyzer(KickZone.Jodan);
             Feed(a, Floor, 0.0);
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.5));
             Feed(a, GedanY, 1.0);
             Feed(a, Floor, 2.0);
             Assert.AreEqual(0, a.Reps);
