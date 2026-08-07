@@ -75,6 +75,20 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
+        public void SlowLowKickCountsThroughBand()
+        {
+            var a = NewAnalyzer(KickZone.Gedan);
+            a.ProcessFrame(LegTestFrames.Kick(Floor, chambered: false, 1f, 0.0));
+            a.ProcessFrame(LegTestFrames.ChamberHigh(timestamp: 0.3));   // вход в цикл, колено согнуто
+            Feed(a, 0.78f, 0.6);      // прямая нога в рабочей полосе (подъём 0.6)...
+            Feed(a, 0.78f, 0.9);      // ...двумя кадрами — сигнатура медленного удара
+            Feed(a, Floor, 1.2);
+            Assert.AreEqual(1, a.Reps);
+            Assert.AreEqual(0, a.NoReps);
+            Assert.AreEqual(ExerciseFormState.GoodForm, a.FormState);
+        }
+
+        [Test]
         public void AirtimeAccumulatesForCountedReps()
         {
             var a = NewAnalyzer(KickZone.Chudan);

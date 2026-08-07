@@ -22,5 +22,27 @@ namespace Mikey.Pose.Tests
             Assert.AreEqual(3, analyzer.NoReps);
             Assert.AreEqual(KickZone.Chudan, analyzer.BestZone);
         }
+
+        [Test]
+        public void MixedSession_CountsKicksRejectsRaisesAndSwings()
+        {
+            var analyzer = new YokoGeriAnalyzer(KickZone.Gedan);
+            List<PoseFrame> frames = CsvPoseFrames.Load("Pose/Tests/Recordings/yoko_gedan_mixed.csv");
+            Assert.Greater(frames.Count, 100, "запись подозрительно короткая — файл не загрузился?");
+            foreach (PoseFrame f in frames)
+                analyzer.ProcessFrame(f);
+            Assert.AreEqual(7, analyzer.Reps);
+            Assert.AreEqual(7, analyzer.NoReps);
+            Assert.AreEqual(KickZone.Chudan, analyzer.BestZone);
+        }
+
+        [Test]
+        public void WalkingRecording_CountsNothing()
+        {
+            var analyzer = new YokoGeriAnalyzer(KickZone.Gedan);
+            foreach (PoseFrame f in CsvPoseFrames.Load("Pose/Tests/Recordings/walking_noise.csv"))
+                analyzer.ProcessFrame(f);
+            Assert.AreEqual(0, analyzer.Reps);
+        }
     }
 }

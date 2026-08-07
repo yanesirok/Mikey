@@ -5,15 +5,19 @@ namespace Mikey.Pose
     /// <summary>
     /// Scores yoko geri (side kick) at a requested height facing the camera — the leg
     /// travels sideways, so a profile view would hide its height. Same lift signal and
-    /// <see cref="LegLiftCycle"/> as mae geri; the height zone is sampled only on frames
+    /// <see cref="LegLiftCycle"/> as mae geri. The height zone is sampled only on frames
     /// where the leg is extended (in-plane knee angle ≥ minExtensionDeg — noisy z depth
-    /// is not involved) AND still at the swing's top (smoothed lift ≥ the cycle's LiftedAt),
-    /// so neither a raised chamber nor the straightening descent counts as a kick. Lenient policy: a kick
-    /// reaching the requested zone OR higher counts; below it is a no-rep ("Выше"); a
-    /// lift that never extends is a no-rep ("Выпрями ногу"). <see cref="BestZone"/> keeps
-    /// the highest zone this set (flexibility stat); <see cref="TotalLiftedSeconds"/>
-    /// accumulates airtime of counted reps (balance stat). Holding a wall for support is
-    /// allowed and not checked. Engine-free.
+    /// is not involved) and is gated by the RAW lift of that frame (the smoothed value
+    /// lags and would leak descent frames): a single extended frame at ≥ fastKickAt
+    /// scores immediately (fast kicks live for one frame; a dropping leg never extends
+    /// that high), while frames in the working band ≥ kickBandAt score only when the
+    /// cycle holds ≥ minBandFrames of them — a controlled kick keeps the leg extended
+    /// at height, a pendulum drop passes through in one frame. Lenient policy: reaching
+    /// the requested zone OR higher counts; below is a no-rep ("Выше"); a lift that
+    /// never extends at height is a no-rep ("Выпрями ногу"). <see cref="BestZone"/>
+    /// keeps the highest zone this set (flexibility stat); <see cref="TotalLiftedSeconds"/>
+    /// accumulates airtime of counted reps (balance stat). Holding a wall for support
+    /// is allowed and not checked. Engine-free.
     /// </summary>
     public sealed class YokoGeriAnalyzer : IExerciseAnalyzer
     {
@@ -24,9 +28,14 @@ namespace Mikey.Pose
         private readonly float _minVisibility;
         private readonly float _minExtensionDeg;
         private readonly float _smoothingAlpha;
+        private readonly float _fastKickAt;
+        private readonly float _kickBandAt;
+        private readonly int _minBandFrames;
 
         private float _smoothedLift = float.NaN;
-        private KickZone _peakZone = KickZone.None;
+        private KickZone _fastPeak = KickZone.None;
+        private KickZone _bandPeak = KickZone.None;
+        private int _bandFrames;
         private float _lastKneeDeg = float.NaN;
         private float _lastVis;
 
@@ -45,13 +54,15 @@ namespace Mikey.Pose
 
         public string DebugInfo =>
             $"lift {(float.IsNaN(_smoothedLift) ? "--" : _smoothedLift.ToString("0.00"))}  " +
-            $"phase {_cycle.Phase}  peak {_peakZone}  knee {(float.IsNaN(_lastKneeDeg) ? "--" : _lastKneeDeg.ToString("0"))}°  " +
+            $"phase {_cycle.Phase}  fast {_fastPeak}  band {_bandPeak}x{_bandFrames}  " +
+            $"knee {(float.IsNaN(_lastKneeDeg) ? "--" : _lastKneeDeg.ToString("0"))}°  " +
             $"total {TotalLiftedSeconds:0.0}s  vis {_lastVis:0.00}";
 
         public event Action Changed;
 
         public YokoGeriAnalyzer(KickZone requested, LegLiftCycle cycle = null, float minVisibility = 0.6f,
-            float minExtensionDeg = 150f, float smoothingAlpha = 0.6f)
+            float minExtensionDeg = 150f, float smoothingAlpha = 0.6f,
+            float fastKickAt = 1.2f, float kickBandAt = 0.45f, int minBandFrames = 2)
         {
             if (requested == KickZone.None)
                 throw new ArgumentOutOfRangeException(nameof(requested));
@@ -60,6 +71,9 @@ namespace Mikey.Pose
             _minVisibility = minVisibility;
             _minExtensionDeg = minExtensionDeg;
             _smoothingAlpha = smoothingAlpha;
+            _fastKickAt = fastKickAt;
+            _kickBandAt = kickBandAt;
+            _minBandFrames = minBandFrames;
         }
 
         public void ProcessFrame(PoseFrame frame)
@@ -101,7 +115,9 @@ namespace Mikey.Pose
             {
                 if (prevPhase == LiftPhase.Grounded)
                 {
-                    _peakZone = KickZone.None;
+                    _fastPeak = KickZone.None;
+                    _bandPeak = KickZone.None;
+                    _bandFrames = 0;
                     Cue = string.Empty;
                 }
 
@@ -111,22 +127,33 @@ namespace Mikey.Pose
                 PoseLandmark shoulder = frame.Get(kickLeft ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
 
                 _lastKneeDeg = PoseMath.AngleDeg(hip, knee, ankle);
-                // Зона — только у верхушки взмаха: опускающаяся нога распрямляется сама
-                // (маятник), и её транзитные кадры ниже порога цикла ударом не являются.
-                if (_lastKneeDeg >= _minExtensionDeg && _smoothedLift >= _cycle.LiftedAt)
+                // Гейт — по сырому подъёму кадра: сглаженный отстаёт и протаскивает
+                // опускания. Опускающаяся нога-маятник не выпрямляется выше ~1.0 и
+                // проносится через полосу за один кадр — сигнатуре удара не отвечает.
+                if (_lastKneeDeg >= _minExtensionDeg)
                 {
                     KickZone zone = KickHeightZone.Classify(ankle.Y, hip.Y, shoulder.Y);
-                    if (zone > _peakZone)
-                        _peakZone = zone;
+                    if (lift >= _fastKickAt && zone > _fastPeak)
+                        _fastPeak = zone;
+                    if (lift >= _kickBandAt)
+                    {
+                        _bandFrames++;
+                        if (zone > _bandPeak)
+                            _bandPeak = zone;
+                    }
                 }
             }
 
             if (completed)
             {
-                if (_peakZone > BestZone)
-                    BestZone = _peakZone;
+                KickZone peak = _fastPeak;
+                if (_bandFrames >= _minBandFrames && _bandPeak > peak)
+                    peak = _bandPeak;
 
-                if (_peakZone >= _requested)
+                if (peak > BestZone)
+                    BestZone = peak;
+
+                if (peak >= _requested)
                 {
                     Reps++;
                     TotalLiftedSeconds += _cycle.LiftedSeconds;
@@ -134,7 +161,7 @@ namespace Mikey.Pose
                 else
                 {
                     NoReps++;
-                    Cue = _peakZone == KickZone.None ? "Выпрями ногу" : "Выше";
+                    Cue = peak == KickZone.None ? "Выпрями ногу" : "Выше";
                 }
             }
 
@@ -163,7 +190,9 @@ namespace Mikey.Pose
             BestZone = KickZone.None;
             TotalLiftedSeconds = 0;
             _smoothedLift = float.NaN;
-            _peakZone = KickZone.None;
+            _fastPeak = KickZone.None;
+            _bandPeak = KickZone.None;
+            _bandFrames = 0;
             _lastKneeDeg = float.NaN;
             _lastVis = 0f;
             FormState = ExerciseFormState.NotVisible;
