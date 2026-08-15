@@ -892,11 +892,11 @@
                         <ui:Label text="家" class="profile-tab__glyph profile-icon profile-icon--nav" />
                         <ui:Label text="Home" class="profile-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="go-map" class="profile-tab tap-target-lg">
+                    <ui:VisualElement name="profile-nav-map" class="profile-tab tap-target-lg">
                         <ui:Label text="地" class="profile-tab__glyph profile-icon profile-icon--nav" />
                         <ui:Label text="Map" class="profile-tab__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="go-techniques" class="profile-tab tap-target-lg">
+                    <ui:VisualElement name="profile-nav-techniques" class="profile-tab tap-target-lg">
                         <ui:Label text="技" class="profile-tab__glyph profile-icon profile-icon--nav" />
                         <ui:Label text="Techniques" class="profile-tab__label" />
                     </ui:VisualElement>

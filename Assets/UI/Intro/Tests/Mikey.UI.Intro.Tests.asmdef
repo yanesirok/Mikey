@@ -1,8 +1,8 @@
 {
-    "name": "Mikey.UI.Profile.Tests",
-    "rootNamespace": "Mikey.UI.Profile.Tests",
+    "name": "Mikey.UI.Intro.Tests",
+    "rootNamespace": "Mikey.UI.Intro.Tests",
     "references": [
-        "Mikey.UI.Profile",
+        "Mikey.UI.Intro",
         "Mikey.UI.Progression",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

@@ -87,5 +87,47 @@ namespace Mikey.UI.Combine.Tests
             StringAssert.Contains("BindButton(root, \"combine-start-lvl1\", OnStartLevel1);", source);
             StringAssert.Contains("BindButton(root, \"combine-retry-assessment\", OnRetryAssessment);", source);
         }
+
+        [Test]
+        public void IsCombineEntry_TrueOnlyForCombineScreenId()
+        {
+            Assert.IsTrue(CombineScreenController.IsCombineEntry("combine"));
+            Assert.IsFalse(CombineScreenController.IsCombineEntry("camTest"));
+            Assert.IsFalse(CombineScreenController.IsCombineEntry("combineIntro"));
+            Assert.IsFalse(CombineScreenController.IsCombineEntry(null));
+        }
+
+        /// <summary>
+        /// Production-blocker fix: a normal completed-assessment entry (Camera Test's
+        /// "go-combine", or Home's "VIEW RESULTS" CTA) must reach the Ready result
+        /// immediately, without any dependency on the Editor/Development-only dev
+        /// controls — otherwise a real player gets stuck on the Loading spinner and
+        /// can never see 'START LVL 1'.
+        /// </summary>
+        [Test]
+        public void NormalEntry_ReachesReadyWithoutDevControls_SoStartLevel1BecomesAvailable()
+        {
+            string source = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("private void OnScreenEntered(string screenId)", source);
+            StringAssert.Contains("if (!IsCombineEntry(screenId))", source);
+            StringAssert.Contains("_viewModel.SetState(CombineState.Ready);", source,
+                "A genuine Combine entry must show Ready directly — no artificial wait, no dev-control dependency.");
+        }
+
+        [Test]
+        public void BindWhenReady_SubscribesToScreenChanged_AndTreatsAlreadyActiveCombineAsEntry()
+        {
+            string source = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("_navigator.ScreenChanged += OnScreenEntered;", source);
+            StringAssert.Contains("if (_navigator != null && IsCombineEntry(_navigator.CurrentScreen))", source,
+                "If Combine is already the active screen at bind time, it must be treated as a genuine entry (shows Ready), not left on the configured initial state.");
+        }
+
+        [Test]
+        public void OnDisable_UnsubscribesFromScreenChanged_NoLeak()
+        {
+            string source = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("_navigator.ScreenChanged -= OnScreenEntered;", source);
+        }
     }
 }

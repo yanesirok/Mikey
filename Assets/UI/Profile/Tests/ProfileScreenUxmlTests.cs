@@ -170,11 +170,21 @@ namespace Mikey.UI.Profile.Tests
             var dock = Profile(root).Q<VisualElement>(className: "profile-dock");
             Assert.IsNotNull(dock, "Profile must have a .profile-dock.");
 
-            foreach (var name in new[] { "go-menu", "go-map", "go-techniques" })
+            // "go-menu" is a plain, always-available ScreenManager navigator.
+            var goMenu = dock.Q<VisualElement>("go-menu");
+            Assert.IsNotNull(goMenu, "Profile dock must contain 'go-menu'.");
+            Assert.IsTrue(Screen(root, "menu").ClassListContains("screen"), "'go-menu' target must exist.");
+            Assert.IsFalse(goMenu.ClassListContains("profile-tab--active"), "'go-menu' must not be active on Profile.");
+
+            // Map/Techniques are progression-gated (ProfileController), not static
+            // "go-" navigators — mirrors Home's home-nav-map/home-nav-techniques so
+            // Profile can no longer bypass Home's Level1Unlocked lock.
+            foreach (var (name, target) in new[] { ("profile-nav-map", "map"), ("profile-nav-techniques", "techniques") })
             {
                 var tab = dock.Q<VisualElement>(name);
                 Assert.IsNotNull(tab, $"Profile dock must contain '{name}'.");
-                string target = name.Substring(NavPrefix.Length);
+                Assert.IsFalse(tab.name.StartsWith(NavPrefix),
+                    $"'{name}' must not be a 'go-' navigator — ProfileController gates navigation by progression state.");
                 Assert.IsTrue(Screen(root, target).ClassListContains("screen"), $"'{name}' target must exist.");
                 Assert.IsFalse(tab.ClassListContains("profile-tab--active"), $"'{name}' must not be active on Profile.");
             }
@@ -193,9 +203,13 @@ namespace Mikey.UI.Profile.Tests
             foreach (var tab in dock.Query<VisualElement>(className: "profile-tab").ToList())
             {
                 bool isNavigator = !string.IsNullOrEmpty(tab.name) && tab.name.StartsWith(NavPrefix);
+                // Map/Techniques are controller-bound (ProfileController) rather than
+                // "go-" navigators, but still have a defined, gated action — see
+                // ProfileDock_HasExpectedRealRoutes_AndActiveProfileHasNoNavigator.
+                bool isControllerBoundAction = tab.name == "profile-nav-map" || tab.name == "profile-nav-techniques";
                 bool isActive = tab.ClassListContains("profile-tab--active");
-                Assert.IsTrue(isNavigator || isActive,
-                    $"Dock tab '{tab.name}' must be a navigator or the active tab.");
+                Assert.IsTrue(isNavigator || isControllerBoundAction || isActive,
+                    $"Dock tab '{tab.name}' must be a navigator, a known controller-bound action, or the active tab.");
             }
 
             Assert.IsEmpty(Profile(BuildTree()).Query<Button>().ToList(),

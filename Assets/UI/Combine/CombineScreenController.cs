@@ -24,6 +24,9 @@ namespace Mikey.UI.Combine
     {
         private const int MaxRootResolveFrames = 30;
 
+        /// <summary>The screen id this controller owns; entering it through the normal flow shows results.</summary>
+        public const string ScreenId = "combine";
+
         [Tooltip("State shown when the screen first binds.")]
         [SerializeField] private CombineState _initialState = CombineState.Loading;
 
@@ -65,6 +68,9 @@ namespace Mikey.UI.Combine
                 _viewModel.Changed -= Render;
                 UnbindButtons();
             }
+
+            if (_navigator != null)
+                _navigator.ScreenChanged -= OnScreenEntered;
 
             _stateViews.Clear();
             _itemsContainer = null;
@@ -124,12 +130,45 @@ namespace Mikey.UI.Combine
 
             WireDevControls(root);
 
+            // Subscribe to the navigation entry signal so a normal production entry
+            // (Camera Test completed -> "go-combine", or Home's "VIEW RESULTS" CTA)
+            // always reaches a usable result instead of being stuck on whatever
+            // state happened to be showing. OnEnable is not a reliable entry hook
+            // here: the shared UI GameObject stays enabled while ScreenManager only
+            // toggles screen visibility (see CameraTestController for the same
+            // pattern).
+            if (_navigator != null)
+                _navigator.ScreenChanged += OnScreenEntered;
+
             _viewModel.Changed += Render;
             _bound = true;
             _bindRoutine = null;
 
-            _viewModel.SetState(_initialState);
+            // If Combine is already the active screen at bind time, treat it as a
+            // genuine entry (shows Ready); otherwise fall back to the configured
+            // initial state (Loading by default) until a real entry occurs.
+            if (_navigator != null && IsCombineEntry(_navigator.CurrentScreen))
+                OnScreenEntered(_navigator.CurrentScreen);
+            else
+                _viewModel.SetState(_initialState);
         }
+
+        /// <summary>
+        /// Navigation entry handler: every genuine entry into Combine Results from the
+        /// normal flow means the (mock) assessment data is already known, so the
+        /// screen shows the Ready result immediately — no artificial wait, and no
+        /// dependency on the Editor/Development-only dev controls to escape Loading.
+        /// </summary>
+        private void OnScreenEntered(string screenId)
+        {
+            if (!IsCombineEntry(screenId))
+                return;
+
+            _viewModel.SetState(CombineState.Ready);
+        }
+
+        /// <summary>Pure entry predicate: true only for an exact Combine Results entry. Unit-tested.</summary>
+        public static bool IsCombineEntry(string screenId) => screenId == ScreenId;
 
         /// <summary>
         /// "START LVL 1": marks the Combine (LVL0) assessment completed, unlocks
