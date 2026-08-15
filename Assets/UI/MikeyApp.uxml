@@ -2,83 +2,60 @@
     <ui:VisualElement name="app" class="mikey-app">
         <Style src="theme.uss" />
 
-        <!-- 1 - TITLE / ENTRANCE (single production entry screen) -->
+        <!-- 1 - LOGO INTRO (startup/logo screen; single production entry screen).
+             Minimal by design: near-black background + centered Mikey logo, nothing
+             else. TitleController auto-advances to Lore after a short beat, or
+             immediately on a tap/click anywhere (no CTA button — this is not a
+             ScreenManager "go-" navigator). The retired title_loop.mp4 / ember-sun
+             treatment is gone; when a dedicated logo-animation video exists later,
+             only .title-logo needs to become a video target. -->
         <ui:VisualElement name="title" class="screen title-screen">
             <Style src="Title/Title.uss" />
-            <!-- full-bleed ink/dojo art, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="title-bg">
-                <ui:VisualElement name="title-bg-media" picking-mode="Ignore" class="bg-media" />
-                <ui:VisualElement class="title-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="title-sun" picking-mode="Ignore" />
-                <ui:VisualElement class="title-scrim" picking-mode="Ignore" />
-            </ui:VisualElement>
+            <!-- full-bleed near-black background, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="title-bg" picking-mode="Ignore" />
 
-            <ui:VisualElement class="safe-area-content sa-bottom-center">
+            <ui:VisualElement class="safe-area-content sa-center">
             <ui:VisualElement class="title-block">
-                <ui:Label text="忍" class="title-kanji" />
-                <ui:Label text="SHINOBU" class="title-name" />
-                <ui:VisualElement class="title-rule" />
-                <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="title-tag" />
-                <!-- one obvious primary CTA → intro (semantic name go-intro) -->
-                <ui:Button name="go-intro" class="btn primary title-cta tap-target">
-                    <ui:Label text="Begin your path" class="title-cta__text" picking-mode="Ignore" />
-                    <ui:Label text="›" class="title-icon title-icon--cta" picking-mode="Ignore" />
-                </ui:Button>
+                <ui:VisualElement class="title-logo" picking-mode="Ignore" />
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 2 - INTRO (landscape cold-open) -->
+        <!-- 2 - LORE (landscape temporary cinematic; full lore video lands later) -->
         <ui:VisualElement name="intro" class="screen intro-screen">
             <Style src="Intro/Intro.uss" />
-            <!-- full-bleed cold-open wash, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="intro-bg">
-                <ui:VisualElement class="intro-glow" />
+            <!-- full-bleed near-black wash, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="intro-bg" picking-mode="Ignore">
+                <ui:VisualElement class="intro-glow" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="intro-layout">
 
                 <!-- Skip → Home (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
-                <ui:Button name="go-menu" class="skip intro-skip tap-target">
+                <ui:Button name="go-menu" class="skip intro-skip tap-target sfx-click">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
                 </ui:Button>
 
-                <!-- cinematic stage: silhouettes stepping into frame (honest placeholder) -->
-                <ui:VisualElement class="intro-stage">
-                    <ui:VisualElement class="intro-cast" picking-mode="Ignore">
-                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="intro-figure intro-figure--lead" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
+                <!-- temporary text-only cinematic (honest placeholder for the future
+                     full lore video): a short sequence of beats with lots of negative
+                     space, no cards/artwork/silhouettes. -->
+                <ui:VisualElement class="intro-copy">
+                    <ui:Label text="Every fighter begins somewhere." class="intro-line intro-line--open" />
+                    <ui:VisualElement class="intro-copy__group">
+                        <ui:Label text="Before technique comes understanding." class="intro-line intro-line--support" />
+                        <ui:Label text="Before mastery comes discipline." class="intro-line intro-line--support" />
                     </ui:VisualElement>
-
-                    <ui:Label text="COLD OPEN" class="intro-kicker" />
-                    <ui:Label text="稽古" class="intro-kanji" />
-                    <ui:Label text="The form was lost. You will restore it." class="intro-headline" />
-                    <ui:Label text="Step into the dojo and begin your path." class="intro-sub" />
-
-                    <!-- subtle progress / timeline (static, honest placeholder) -->
-                    <ui:VisualElement class="intro-timeline">
-                        <ui:VisualElement class="intro-timeline__track">
-                            <ui:VisualElement class="intro-timeline__progress" />
-                        </ui:VisualElement>
-                        <ui:Label text="ANIMATED INTRO · PLACEHOLDER" class="intro-caption" />
+                    <ui:VisualElement class="intro-copy__group">
+                        <ui:Label text="Know where you stand." class="intro-line intro-line--close" />
+                        <ui:Label text="Then begin." class="intro-line intro-line--close" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
                 <!-- primary CTA → Home (semantic class intro-primary) -->
-                <ui:Button name="go-menu" class="btn primary intro-primary intro-cta tap-target">
-                    <ui:Label text="Enter the Dojo" class="intro-cta__text" picking-mode="Ignore" />
+                <ui:Button name="go-menu" class="btn primary intro-primary intro-cta tap-target sfx-click">
+                    <ui:Label text="CONTINUE" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
                 </ui:Button>
 
@@ -86,130 +63,77 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 3 - HOME HUB (landscape) -->
+        <!-- 3 - MAIN MENU (landscape cinematic game shell) -->
         <ui:VisualElement name="menu" class="screen home">
             <Style src="Home/Home.uss" />
-            <!-- full-bleed Home background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed Main Menu background video, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="home-bg">
                 <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
-                <ui:VisualElement class="home-glow" />
                 <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="home-layout">
 
-                <!-- top profile / stat ribbon (mock values) -->
-                <ui:VisualElement class="home-ribbon">
-                    <ui:VisualElement class="home-belt">
-                        <ui:VisualElement class="home-belt__swatch" />
-                        <ui:VisualElement>
-                            <ui:Label text="White Belt" class="home-belt__rank" />
-                            <ui:Label text="LEVEL 1" class="home-belt__level" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="home-stats">
-                        <ui:VisualElement class="home-chip">
-                            <ui:Label text="火" class="home-chip__glyph home-icon home-icon--ribbon" />
-                            <ui:Label text="1-day streak" class="home-chip__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-chip">
-                            <ui:Label text="金" class="home-chip__glyph home-icon home-icon--ribbon" />
-                            <ui:Label text="$10.00" class="home-chip__text home-chip__text--coin" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
+                <!-- upper-left brand mark -->
+                <ui:VisualElement class="home-logo" picking-mode="Ignore" />
 
-                <!-- hero / current journey -->
-                <ui:VisualElement class="home-hero">
-                    <ui:VisualElement class="home-hero__card">
-                        <ui:VisualElement class="home-ring">
-                            <ui:Label text="0" class="home-ring__value" />
-                            <ui:Label text="/1 SESSION" class="home-ring__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-hero__body">
-                            <ui:Label text="稽古 · TODAY'S TRAINING" class="kicker home-hero__kicker" />
-                            <ui:Label text="Earn your day" class="title home-hero__title" />
-                            <ui:Label text="One real session keeps your fighter sharp. Begin the Combine to measure your baseline." class="lead home-hero__lead" />
-                            <!-- Dynamic primary CTA: label + destination change with tutorial
-                                 progression state (see HomeController / TutorialProgressPresenter).
-                                 Deliberately NOT a "go-" navigator — ScreenManager must not
-                                 statically wire it to a fixed screen. Markup default text
-                                 ("START LVL 0") matches the safe NewPlayer default state. -->
-                            <ui:Button name="home-cta" class="btn primary tap-target home-hero__cta">
-                                <ui:Label text="START LVL 0" class="home-cta__text" picking-mode="Ignore" />
-                                <ui:Label text="›" class="home-icon home-icon--cta home-cta__arrow" picking-mode="Ignore" />
-                            </ui:Button>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-
-                    <!-- power ribbon (mock attributes) -->
-                    <ui:VisualElement class="home-power">
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="STR" class="home-power__key" />
-                            <ui:Label text="12" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="SPD" class="home-power__key" />
-                            <ui:Label text="9" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="AGI" class="home-power__key" />
-                            <ui:Label text="11" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="END" class="home-power__key" />
-                            <ui:Label text="8" class="home-power__val" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- persistent landscape bottom navigation dock -->
-                <ui:VisualElement class="home-dock">
-                    <ui:VisualElement name="nav-home" class="home-tab home-tab--active tap-target-lg">
-                        <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Home" class="home-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Progression-gated (see HomeController): locked/dimmed with a
-                         "COMPLETE LVL 0" badge until Level 1 unlocks (Combine completed),
-                         then available. Deliberately NOT a "go-" navigator — ScreenManager
-                         must not statically wire it, since whether a click navigates depends
-                         on progression state. Markup default (locked) matches the safe
-                         NewPlayer state. Keeps the large visible nav icon and the >=56px
-                         dock touch target regardless of lock state. -->
-                    <ui:VisualElement name="home-nav-map" class="home-tab home-tab--locked tap-target-lg">
-                        <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Map" class="home-tab__label" />
-                        <ui:Label text="COMPLETE LVL 0" class="home-tab__badge" />
-                    </ui:VisualElement>
-                    <!-- Progression-gated (see HomeController): locked/dimmed until Level 1
-                         unlocks (Combine completed), then available. Deliberately NOT a
-                         "go-" navigator, for the same reason as home-nav-map above. -->
-                    <ui:VisualElement name="home-nav-techniques" class="home-tab home-tab--locked tap-target-lg">
-                        <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Techniques" class="home-tab__label" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="go-profile" class="home-tab tap-target-lg">
-                        <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Profile" class="home-tab__label" />
-                    </ui:VisualElement>
+                <!-- right-side vertical navigation: spacing + typography, no cards -->
+                <ui:VisualElement class="home-nav">
+                    <!-- PLAY: plain ScreenManager navigator straight to the Map hub -->
+                    <ui:Button name="go-map" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:Label text="PLAY" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- PLANS: local overlay (NOT a "go-" navigator); HomeController opens it -->
+                    <ui:Button name="menu-plans-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:Label text="PLANS" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- SETTINGS: local overlay (NOT a "go-" navigator); HomeController opens it -->
+                    <ui:Button name="menu-settings-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:Label text="SETTINGS" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- QUIT: lowest-priority action visually, never platform-hidden -->
+                    <ui:Button name="menu-quit" class="home-nav__item home-nav__item--quit tap-target-lg sfx-click">
+                        <ui:Label text="QUIT" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
 
             </ui:VisualElement>
-
-            <!-- development-only tutorial-progression state switcher (hidden
-                 outside Editor / dev build; see HomeController.WireDevControls).
-                 No 30-day Vow simulation yet — only the currently reachable
-                 states. -->
-            <ui:VisualElement name="home-devbar" class="home-devbar">
-                <ui:Label text="DEV · PROGRESSION" class="home-devbar__label" />
-                <ui:Button name="home-dev-reset" text="Reset Progress" class="home-devbtn" />
-                <ui:Button name="home-dev-new-player" text="Set New Player" class="home-devbtn" />
-                <ui:Button name="home-dev-combine-started" text="Set Combine Started" class="home-devbtn" />
-                <ui:Button name="home-dev-level1-unlocked" text="Set Level 1 Unlocked" class="home-devbtn" />
-                <ui:Button name="home-dev-lesson-started" text="Set Lesson Started" class="home-devbtn" />
-                <ui:Button name="home-dev-lesson-completed" text="Set Lesson Completed" class="home-devbtn" />
             </ui:VisualElement>
+
+            <!-- PLANS overlay: lightweight "coming soon" modal over the Main Menu.
+                 Hidden by default (display:none is the safe markup default; see
+                 Home.uss ".menu-modal"); HomeController toggles it. The menu
+                 video/music underneath keep playing while this is open. -->
+            <ui:VisualElement name="menu-plans-modal" class="menu-modal">
+                <ui:VisualElement class="menu-modal__card">
+                    <ui:Label text="PLANS" class="menu-modal__title" />
+                    <ui:Label text="Coming soon." class="menu-modal__body" />
+                    <ui:Button name="menu-plans-close" text="CLOSE" class="btn primary sm menu-modal__close tap-target sfx-click" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- SETTINGS overlay: Music / Sound Effects / Trainer Voice volume,
+                 two-way bound to IAudioSettings (PlayerPrefs). Hidden by default. -->
+            <ui:VisualElement name="menu-settings-modal" class="menu-modal">
+                <ui:VisualElement class="menu-modal__card">
+                    <ui:Label text="SETTINGS" class="menu-modal__title" />
+
+                    <ui:VisualElement class="menu-setting">
+                        <ui:Label text="MUSIC" class="menu-setting__label" />
+                        <ui:Slider name="menu-settings-music" low-value="0" high-value="1" value="0.70" class="menu-setting__slider" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="menu-setting">
+                        <ui:Label text="SOUND EFFECTS" class="menu-setting__label" />
+                        <ui:Slider name="menu-settings-sfx" low-value="0" high-value="1" value="1.00" class="menu-setting__slider" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="menu-setting">
+                        <ui:Label text="TRAINER VOICE" class="menu-setting__label" />
+                        <ui:Slider name="menu-settings-trainer" low-value="0" high-value="1" value="1.00" class="menu-setting__slider" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="menu-settings-close" text="CLOSE" class="btn primary sm menu-modal__close tap-target sfx-click" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

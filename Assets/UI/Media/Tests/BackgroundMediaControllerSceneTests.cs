@@ -8,16 +8,19 @@ using UnityEngine.SceneManagement;
 namespace Mikey.UI.Media.Tests
 {
     /// <summary>
-    /// Scene-wiring contract for the MVP background media batch: the "UI"
-    /// GameObject carries a BackgroundMediaController with exactly the four
-    /// screen bindings (title/menu/combine/map), each pointing at the
-    /// bg-media element added to that screen's full-bleed background layer,
-    /// and each binding carries the right kind of media (a video clip for
-    /// title/menu/combine, a static image for map) so no screen silently
-    /// falls through to an unbound player. Uses by-name/SerializedObject
-    /// lookups, mirroring SceneWiringTests, because BackgroundMediaController
-    /// lives in Assembly-CSharp, which this test assembly cannot reference
-    /// directly.
+    /// Scene-wiring contract for the background media batch: the "UI" GameObject
+    /// carries a BackgroundMediaController with exactly three screen bindings
+    /// (menu/combine/map), each pointing at the bg-media element added to that
+    /// screen's full-bleed background layer, and each binding carries the right
+    /// kind of media (a video clip for menu/combine, a static image for map) so no
+    /// screen silently falls through to an unbound player. The Main Menu binding
+    /// specifically must reference the supplied main_menu_loop.mp4 asset. Logo
+    /// Intro ("title") deliberately has no video binding — see
+    /// Assets/UI/Title/Title.uss: it is a static near-black background + the
+    /// centered logo, nothing else; the retired title_loop.mp4 must not be
+    /// visible there. Uses by-name/SerializedObject lookups, mirroring
+    /// SceneWiringTests, because BackgroundMediaController lives in
+    /// Assembly-CSharp, which this test assembly cannot reference directly.
     /// </summary>
     public class BackgroundMediaControllerSceneTests
     {
@@ -50,7 +53,7 @@ namespace Mikey.UI.Media.Tests
         }
 
         [Test]
-        public void Bindings_CoverAllFourScreens_WithTargetElementsAndMedia()
+        public void Bindings_CoverExactlyThreeScreens_WithTargetElementsAndMedia()
         {
             GameObject ui = OpenSceneAndFindUi();
             Component controller = ui.GetComponent("BackgroundMediaController");
@@ -59,11 +62,10 @@ namespace Mikey.UI.Media.Tests
             var serialized = new SerializedObject(controller);
             SerializedProperty bindings = serialized.FindProperty("bindings");
             Assert.IsNotNull(bindings, "BackgroundMediaController must expose a serialized 'bindings' array.");
-            Assert.AreEqual(4, bindings.arraySize, "Expected exactly four screen bindings (title, menu, combine, map).");
+            Assert.AreEqual(3, bindings.arraySize, "Expected exactly three screen bindings (menu, combine, map). Logo Intro ('title') has none.");
 
             var expectedTargets = new Dictionary<string, string>
             {
-                { "title", "title-bg-media" },
                 { "menu", "home-bg-media" },
                 { "combine", "combine-bg-media" },
                 { "map", "map-bg-media" },
@@ -94,11 +96,35 @@ namespace Mikey.UI.Media.Tests
                 {
                     Assert.IsNotNull(clip, $"Binding for '{screenId}' must carry a video clip.");
                     Assert.IsNull(staticImage, $"Binding for '{screenId}' must not carry a static image.");
+
+                    if (screenId == "menu")
+                    {
+                        string clipPath = AssetDatabase.GetAssetPath(clip);
+                        Assert.AreEqual("Assets/UI/Media/Videos/main_menu_loop.mp4", clipPath,
+                            "The Main Menu binding must reference the supplied main_menu_loop.mp4, not the retired home_loop.mp4.");
+                    }
                 }
             }
 
             CollectionAssert.AreEquivalent(expectedTargets.Keys, seen,
-                "Bindings must cover exactly title, menu, combine and map — no more, no fewer.");
+                "Bindings must cover exactly menu, combine and map — no more, no fewer.");
+        }
+
+        [Test]
+        public void TitleScreen_HasNoBackgroundVideoBinding()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+            Component controller = ui.GetComponent("BackgroundMediaController");
+            Assert.IsNotNull(controller, "Expected a BackgroundMediaController on the UI GameObject.");
+
+            var serialized = new SerializedObject(controller);
+            SerializedProperty bindings = serialized.FindProperty("bindings");
+            for (int i = 0; i < bindings.arraySize; i++)
+            {
+                string screenId = bindings.GetArrayElementAtIndex(i).FindPropertyRelative("screenId").stringValue;
+                Assert.AreNotEqual("title", screenId,
+                    "Logo Intro must not have a background-video binding — the retired title_loop.mp4 must not be visible there.");
+            }
         }
     }
 }

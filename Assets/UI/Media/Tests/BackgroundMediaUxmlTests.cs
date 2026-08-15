@@ -5,12 +5,13 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Media.Tests
 {
     /// <summary>
-    /// Structural contract for the background-media layer added to the four
-    /// MVP visual-assets screens in MikeyApp.uxml: each screen's existing
-    /// full-bleed "&lt;x&gt;-bg" layer gets exactly one ".bg-media" element (the
-    /// runtime video/image target), still outside .safe-area-content, and
-    /// each screen keeps a legibility scrim so foreground content stays
-    /// readable over the background media.
+    /// Structural contract for the background-media layer on the three screens
+    /// with a bound video/image in MikeyApp.uxml (menu/combine/map): each screen's
+    /// existing full-bleed "&lt;x&gt;-bg" layer gets exactly one ".bg-media" element
+    /// (the runtime video/image target), still outside .safe-area-content, and
+    /// each screen keeps a legibility scrim so foreground content stays readable
+    /// over the background media. Logo Intro ("title") deliberately has neither —
+    /// it is a static near-black background + the centered logo, nothing else.
     /// </summary>
     public class BackgroundMediaUxmlTests
     {
@@ -33,7 +34,6 @@ namespace Mikey.UI.Media.Tests
             return null;
         }
 
-        [TestCase("title", "title-bg", "title-bg-media")]
         [TestCase("menu", "home-bg", "home-bg-media")]
         [TestCase("combine", "combine-bg", "combine-bg-media")]
         [TestCase("map", "map-bg", "map-bg-media")]
@@ -55,7 +55,6 @@ namespace Mikey.UI.Media.Tests
                 $"'{mediaName}' must not be a descendant of .safe-area-content (it is a full-bleed background).");
         }
 
-        [TestCase("title", "title-scrim")]
         [TestCase("menu", "home-scrim")]
         [TestCase("combine", "combine-scrim")]
         [TestCase("map", "map-scrim")]

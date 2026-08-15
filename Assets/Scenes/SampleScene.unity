@@ -453,6 +453,8 @@ GameObject:
   - component: {fileID: 1720403627}
   - component: {fileID: 1720403628}
   - component: {fileID: 1720403629}
+  - component: {fileID: 1720403630}
+  - component: {fileID: 1720403631}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -574,13 +576,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BackgroundMediaController
   bindings:
-  - screenId: title
-    targetElementName: title-bg-media
-    clip: {fileID: 32900000, guid: 887e157342757294eb6bc9386d1d0111, type: 3}
-    staticImage: {fileID: 0}
   - screenId: menu
     targetElementName: home-bg-media
-    clip: {fileID: 32900000, guid: cbe1c148f16492344b11189a87db477b, type: 3}
+    clip: {fileID: 32900000, guid: e32b8aba9fc48e74dbc9c7b04dc2e871, type: 3}
     staticImage: {fileID: 0}
   - screenId: combine
     targetElementName: combine-bg-media
@@ -653,6 +651,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8158db38570f3b97005c4e42d0793f45, type: 3}
   m_Name:
   m_EditorClassIdentifier: Mikey.UI.Profile::Mikey.UI.Profile.ProfileController
+--- !u!114 &1720403630
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee3995047e30c4a41bb8e8e0d3249785, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Title::Mikey.UI.Title.TitleController
+  autoAdvanceSeconds: 2.75
+--- !u!114 &1720403631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d83c9d807d91145a95001fbe065082, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Audio::Mikey.UI.Audio.AudioController
+  menuMusicClip: {fileID: 8300000, guid: 23cdc616676a6714da8c7efc3db76f48, type: 3}
+  uiClickClip: {fileID: 8300000, guid: 692bb875ccbbc4446be6f2166f1648ee, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
