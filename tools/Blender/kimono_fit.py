@@ -236,8 +236,22 @@ def transfer_weights(low, body, arm):
 
     armmod = low.modifiers.new('Armature', 'ARMATURE')
     armmod.object = arm
-    low.parent = arm
-    low.matrix_parent_inverse = arm.matrix_world.inverted()
+
+    # Раунд правок 2: было low.parent = arm; low.matrix_parent_inverse =
+    # arm.matrix_world.inverted() — математически эквивалентно (обнуляет
+    # матрицу родителя), но экспортёр FBX реконструирует Lcl Rotation для
+    # low иначе, чем для parent_set(): body_meshes приезжают из FBX, где
+    # парентинг сделан Блендером, и переживают экспорт верно; low с ручной
+    # matrix_parent_inverse — нет (при реимпорте получал произвольный лишний
+    # поворот в 90°, ширина/высота кимоно уезжали в глубину — см.
+    # коммит-сообщение и task-4-report.md). parent_set(keep_transform=True)
+    # — тот же результат в сцене (мировое положение low не меняется), но
+    # matrix_parent_inverse считает сам Blender, и с ней экспорт стабилен.
+    bpy.ops.object.select_all(action='DESELECT')
+    low.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
 
 def strip_covered(body):
@@ -276,6 +290,39 @@ def export(path, objs):
         bake_anim=False, apply_scale_options='FBX_SCALE_UNITS',
         bake_space_transform=True, axis_forward='-Z', axis_up='Y',
         use_mesh_modifiers=True)
+
+
+def verify_export(path):
+    """Единственная проверка, которая читает сам записанный FBX, а не
+    состояние сцены до export_scene.fbx.
+
+    Раунд правок 2: экспортёр Blender однажды тихо испортил геометрию
+    кимоно ровно на шаге записи — причина в transfer_weights() (ручной
+    matrix_parent_inverse, см. комментарий там), а все прежние assert'ы
+    смотрели только на сцену до export() и потому прошли, пока на диск
+    ложился негодный файл. Эта проверка перечитывает path тем же
+    импортёром, каким его позже прочтёт Unity.
+    """
+    reset_scene()
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
+    kimono = next(o for o in new if o.name == 'Kimono_low')
+    body = [o for o in new if o is not kimono]
+    bmn, bmx = world_bbox(body)
+    kmn, kmx = world_bbox([kimono])
+    height = bmx.z - bmn.z
+    assert 1.5 < height < 2.0, (
+        f'в готовом FBX тело {height:.3f} м вне человеческого роста')
+    assert kmn.z >= bmn.z - 0.05, (
+        f'в готовом FBX низ кимоно {kmn.z:.3f} ниже стоп {bmn.z:.3f} больше чем на 5 см')
+    assert kmx.z - bmn.z >= 0.5 * height, (
+        f'в готовом FBX верх кимоно на {kmx.z - bmn.z:.3f} м от стоп — не доезжает '
+        f'до плеч (нужно хотя бы {0.5 * height:.3f} м)')
+    combined = max(bmx.z, kmx.z) - min(bmn.z, kmn.z)
+    assert combined < height + 0.1, (
+        f'в готовом FBX кимоно и тело не совпадают по высоте — общий охват '
+        f'{combined:.3f} м при росте тела {height:.3f} м')
 
 
 def main():
@@ -322,6 +369,7 @@ def main():
 
     fbx = os.path.join(a.out, '..', 'KimonoFighter.fbx')
     export(os.path.normpath(fbx), [arm, low] + body_meshes)
+    verify_export(os.path.normpath(fbx))
     print(f'kimono_fit: подгонка scale={scale:.4f}, '
           f'{high_tris} -> {got} трисов, вырезано {removed} вершин тела, '
           f'экспорт {os.path.normpath(fbx)}')
