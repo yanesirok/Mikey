@@ -297,8 +297,8 @@ import bpy
 import mathutils
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
-                        bake_pair, fill, reset_scene, save_png, tri_count)
+from bridge_kit import (ATLAS, apply_mods, bake_pair, fill, reset_scene,
+                        save_png, tri_count)
 
 
 def parse_args():
@@ -503,7 +503,14 @@ git commit -m "feat: kimono_fit — подгонка кимоно по кост�
 
 - [ ] **Step 1: Дописать скиннинг, чистку и экспорт**
 
-В `tools/Blender/kimono_fit.py` добавить перед `main()`:
+В `tools/Blender/kimono_fit.py` расширить импорт из `bridge_kit` — `_install_deterministic_fbx_uuids` нужен здесь впервые, в Task 3 его не было намеренно:
+
+```python
+from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
+                        bake_pair, fill, reset_scene, save_png, tri_count)
+```
+
+Затем добавить перед `main()`:
 
 ```python
 # Кости, чью геометрию закрывает ткань, и кости, которые остаются наружу.
@@ -842,9 +849,12 @@ git commit -m "feat: боец импортируется как Humanoid, мат
                 var path = AssetDatabase.GetAssetPath(s.motion);
                 Assert.IsFalse(path.Contains("UAL1_Standard") || path.Contains("UAL2_Standard"),
                     "state " + s.name + " still plays a CC0 stopgap: " + path);
+                // Asserted on the asset path, not the motion name: every Mixamo clip is
+                // internally called "mixamo.com", so a name check here would pass no matter
+                // what the state actually plays.
                 if (s.name == "Kick")
-                    Assert.IsFalse(s.motion.name.Contains("Punch"),
-                        "Kick still plays a punch");
+                    Assert.IsTrue(path.EndsWith("/Kick.fbx"),
+                        "Kick plays " + path + " instead of the Mixamo kick");
             }
         }
     }
