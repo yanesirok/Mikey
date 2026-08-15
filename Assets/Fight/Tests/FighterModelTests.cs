@@ -191,4 +191,37 @@ namespace Mikey.Fight.Tests
                 "Blocking plays " + motion.name + " instead of age uke");
         }
     }
+
+    /// <summary>Fighter.cs owns the fighters' positions and moves them by writing
+    /// transform.position directly. That only works while the Animator is not also moving them.
+    /// The mocap clips carry real captured translation — up to 0.8 m — so the moment someone
+    /// ticks Apply Root Motion, both fighters start sliding around the arena and the arena's
+    /// bridge-deck height logic stops lining up with where they actually are.</summary>
+    public class FightSceneTests
+    {
+        const string ScenePath = "Assets/Scenes/FightSandbox.unity";
+
+        [Test]
+        public void Fighters_DoNotApplyRootMotion()
+        {
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                ScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+            try
+            {
+                var animators = scene.GetRootGameObjects()
+                    .SelectMany(go => go.GetComponentsInChildren<Animator>(true))
+                    .Where(a => a.GetComponent<Fighter>() != null)
+                    .ToArray();
+
+                Assert.IsNotEmpty(animators, "no fighters found in " + ScenePath);
+                foreach (var animator in animators)
+                    Assert.IsFalse(animator.applyRootMotion,
+                        animator.name + " applies root motion; Fighter.cs already owns position");
+            }
+            finally
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+    }
 }
