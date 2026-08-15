@@ -74,16 +74,26 @@ def import_kimono(path):
     k = bpy.context.view_layer.objects.active
     k.name = 'Kimono_high'
 
+    # Порог сварки выводим из собственного bbox меша, тем же приёмом,
+    # каким fit() выводит масштаб из костей, а не числом: на этом шаге
+    # объект ещё не отмасштабирован (upright()/fit() позже), так что
+    # world_bbox тут — это местные единицы исходного файла. Абсолютное
+    # число было бы завязано на то, в каких единицах кимоно приехало на
+    # этот раз, и молча ломалось бы при переэкспорте в других единицах:
+    # либо не сваривало бы швы, либо съедало настоящие складки.
+    mn, mx = world_bbox([k])
+    weld_threshold = (mx - mn).length * 5e-5
+
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
 
     # 5 склеенных объектов делят швы не по общим вершинам, а по
     # задвоенным — join() не сваривает их. 408 несвязанных островов
     # вершин на выходе не дают smart_project ни одной крупной развёртки:
-    # 98% атласа уходит в межостровные поля. Порог 0.05 — это ~0.1 мм в
-    # мировых единицах при масштабе кимоно 0.0019, спаивает только честные
-    # дубли шва, не трогает реальные складки, где ткань просто соприкасается.
-    bpy.ops.mesh.remove_doubles(threshold=0.05)
+    # 98% атласа уходит в межостровные поля. weld_threshold спаивает
+    # только честные дубли шва, не трогает реальные складки, где ткань
+    # просто соприкасается.
+    bpy.ops.mesh.remove_doubles(threshold=weld_threshold)
 
     # Куски несут не согласованное между собой направление нормалей
     # (обычный дефект сканов из нескольких частей) — bake 'selected to
@@ -154,6 +164,34 @@ def make_low(high, target_tris):
     return low, n
 
 
+# Опорные точки измерены этой же функцией на реальном пайплайне (не
+# взяты из отчёта буквально: там 1.8%/8.7% — доля незалитых ПИКСЕЛЕЙ на
+# готовом PNG, раздутая margin-выпуском запека вокруг мелких островов;
+# здесь же точная площадь UV-треугольников, без выпуска):
+#   без сварки швов (408 островов)              -> 1.9%
+#   со сваркой + pack_islands (текущий пайплайн) -> 3.7%
+# 2.5% лежит между ними: заведомо ловит регресс к развалу развёртки и
+# не трогает текущее рабочее состояние.
+UV_COVERAGE_MIN = 0.025
+
+
+def uv_coverage(obj):
+    """Доля площади атласа 0..1, покрытая UV-треугольниками объекта.
+
+    Интегрирование по loop_triangles в UV-пространстве — тем же приёмом,
+    которым в диагностике был найден провал развёртки на 1.8% (см.
+    task-3-report.md). Наложение островов друг на друга не вычитается —
+    цель не точная площадь, а грубый страж регрессии.
+    """
+    obj.data.calc_loop_triangles()
+    uv = obj.data.uv_layers.active.data
+    total = 0.0
+    for tri in obj.data.loop_triangles:
+        a, b, c = (uv[li].uv for li in tri.loops)
+        total += abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2
+    return total
+
+
 def bake(low, high, out_dir):
     normal = bpy.data.images.new('T_Kimono_Normal', ATLAS, ATLAS,
                                  alpha=False, is_data=True)
@@ -184,6 +222,11 @@ def main():
     low, high_tris = make_low(kimono, a.tris)
     got = tri_count(low)
     assert got <= a.tris * 1.05, f'low-poly {got} трисов при бюджете {a.tris}'
+
+    coverage = uv_coverage(low)
+    assert coverage >= UV_COVERAGE_MIN, (
+        f'атлас заполнен на {coverage:.1%} — развёртка развалилась '
+        f'(ниже порога {UV_COVERAGE_MIN:.0%}, см. UV_COVERAGE_MIN)')
 
     bake(low, kimono, a.out)
     print(f'kimono_fit: подгонка scale={scale:.4f}, '
