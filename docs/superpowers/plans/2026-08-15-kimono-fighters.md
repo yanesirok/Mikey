@@ -562,7 +562,9 @@ from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
 # запястье, но кисть обязана уцелеть.
 # Buttock и Breast есть именно в скелете mixamo_unity (64 кости против 52 у
 # обычного mixamo); без них ягодицы и грудь остались бы под тканью целыми.
-COVERED = ('Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg',
+# Hips — таз и пах, ровно под поясом кимоно: 218 вершин тела доминантно
+# весят на него, и без этой строки они переживают вырезание.
+COVERED = ('Hips', 'Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg',
            'Buttock', 'Breast')
 KEEP = ('Head', 'Neck', 'Hand', 'Foot', 'Toe')
 
