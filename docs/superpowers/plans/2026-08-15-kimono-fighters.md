@@ -1070,35 +1070,6 @@ git ls-files Assets/Fight/character
                 Assert.IsNotNull(s.motion, "state " + s.name + " has no motion");
         }
 
-        /// <summary>Fighter.cs drives position itself, so a clip that carries root motion walks
-        /// the fighter out of the spot the code put them in. These clips are video mocap and do
-        /// carry root translation, so the importer has to bake it into the pose; this asserts
-        /// that setting was actually applied.</summary>
-        [Test]
-        public void EveryClip_StaysInPlace()
-        {
-            foreach (var s in States())
-            {
-                var clip = s.motion as AnimationClip;
-                if (clip == null)
-                    continue;
-                foreach (var binding in AnimationUtility.GetCurveBindings(clip))
-                {
-                    if (binding.propertyName != "RootT.x" && binding.propertyName != "RootT.z")
-                        continue;
-                    var curve = AnimationUtility.GetEditorCurve(clip, binding);
-                    float min = float.MaxValue, max = float.MinValue;
-                    foreach (var key in curve.keys)
-                    {
-                        min = Mathf.Min(min, key.value);
-                        max = Mathf.Max(max, key.value);
-                    }
-                    Assert.Less(max - min, 0.15f,
-                        clip.name + " drifts " + (max - min) + " m on " + binding.propertyName);
-                }
-            }
-        }
-
         /// <summary>Kick used to play Punch_Cross and Blocking used to borrow UAL2's shield
         /// stance, because the CC0 pack had neither a kick nor an unarmed block. Both are paid
         /// off by the project's own karate mocap. UAL1 is deliberately still allowed — Walk and
@@ -1301,7 +1272,7 @@ namespace Mikey.FightEditor
 unity test --mode EditMode --filter FighterClipsTests --output test-results.xml
 ```
 
-Ожидание: PASS, пять тестов. Если валится `EveryClip_StaysInPlace` — у соответствующего клипа не применился `lockRootPositionXZ`; проверь, что имя клипа в `Wiring` совпадает с именем внутри модели, иначе `SetUpClips` его просто не найдёт и молча пропустит.
+Ожидание: PASS, четыре теста. Если какой-то состояние не находится или клип не найден, `Run` бросит исключение с именем — проверь, что имя клипа в `Wiring` совпадает с именем внутри модели, иначе `SetUpClips` его просто не найдёт и молча пропустит.
 
 - [ ] **Step 6: Коммит**
 
@@ -1324,6 +1295,7 @@ Root Transform Position (XZ) = Bake Into Pose: Fighter.cs двигает бой�
 
 **Files:**
 - Modify: `Assets/Scenes/FightSandbox.unity`
+- Modify: `Assets/Fight/Tests/FighterModelTests.cs` (добавить класс `FightSceneTests`)
 
 **Interfaces:**
 - Consumes: всё предыдущее.
@@ -1359,7 +1331,50 @@ Root Transform Position (XZ) = Bake Into Pose: Fighter.cs двигает бой�
 
 Ожидание: отражение бойцов в воде на месте и не разъехалось по вертикали относительно самих бойцов. Если разъехалось — подобрать константу заново и записать новое значение с комментарием, откуда оно.
 
-- [ ] **Step 5: Прогнать весь набор тестов**
+- [ ] **Step 5: Закрепить тестом, что root motion остаётся выключенным**
+
+Это то, на чём держится вся конструкция движения. `Fighter.cs` двигает бойца сам, через `transform.position`, и поэтому клипы могут нести какое угодно смещение корня — аниматор его не применяет. Проверено: у обоих бойцов в сцене `m_ApplyRootMotion: 0`, и ни один скрипт в `Assets/Fight` не трогает `applyRootMotion`, `deltaPosition` или `OnAnimatorMove`. Включи кто-нибудь Apply Root Motion — и бойцы поедут по арене, потому что мокап снят с живого человека и смещение в клипах настоящее, до 0.8 м.
+
+Заметь: проверять это чтением кривых `RootT` у клипов нельзя. Настройка Bake Into Pose не переписывает кривые собственных мокапов проекта ни через типизированный API, ни через `SerializedObject`, ни с `ForceUpdate` — это установлено экспериментально. Единственный надёжный признак живёт в сцене.
+
+Дописать в `Assets/Fight/Tests/FighterModelTests.cs`, внутрь `namespace Mikey.Fight.Tests`:
+
+```csharp
+    /// <summary>Fighter.cs owns the fighters' positions and moves them by writing
+    /// transform.position directly. That only works while the Animator is not also moving them.
+    /// The mocap clips carry real captured translation — up to 0.8 m — so the moment someone
+    /// ticks Apply Root Motion, both fighters start sliding around the arena and the arena's
+    /// bridge-deck height logic stops lining up with where they actually are.</summary>
+    public class FightSceneTests
+    {
+        const string ScenePath = "Assets/Scenes/FightSandbox.unity";
+
+        [Test]
+        public void Fighters_DoNotApplyRootMotion()
+        {
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                ScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+            try
+            {
+                var animators = scene.GetRootGameObjects()
+                    .SelectMany(go => go.GetComponentsInChildren<Animator>(true))
+                    .Where(a => a.GetComponent<Fighter>() != null)
+                    .ToArray();
+
+                Assert.IsNotEmpty(animators, "no fighters found in " + ScenePath);
+                foreach (var animator in animators)
+                    Assert.IsFalse(animator.applyRootMotion,
+                        animator.name + " applies root motion; Fighter.cs already owns position");
+            }
+            finally
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+    }
+```
+
+- [ ] **Step 6: Прогнать весь набор тестов**
 
 ```bash
 unity test --mode EditMode --output test-results.xml
@@ -1367,10 +1382,10 @@ unity test --mode EditMode --output test-results.xml
 
 Ожидание: PASS целиком, включая старые `FightRulesTests`.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 7: Коммит**
 
 ```bash
-git add Assets/Scenes/FightSandbox.unity
+git add Assets/Scenes/FightSandbox.unity Assets/Fight/Tests/FighterModelTests.cs
 git commit -m "feat: бойцы в кимоно в FightSandbox
 
 Ch15 и его материалы пока на месте — сносить их отдельным коммитом,
