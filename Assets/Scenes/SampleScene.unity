@@ -451,6 +451,8 @@ GameObject:
   - component: {fileID: 1720403625}
   - component: {fileID: 1720403626}
   - component: {fileID: 1720403627}
+  - component: {fileID: 1720403628}
+  - component: {fileID: 1720403629}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -627,6 +629,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47d63e6efc3b99845b52497b261c0336, type: 3}
   m_Name:
   m_EditorClassIdentifier: Mikey.UI.Home::Mikey.UI.Home.HomeController
+--- !u!114 &1720403628
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: deff6b8b4b26bcfa405e4a4f1dcccde4, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Intro::Mikey.UI.Intro.IntroController
+--- !u!114 &1720403629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8158db38570f3b97005c4e42d0793f45, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Profile::Mikey.UI.Profile.ProfileController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

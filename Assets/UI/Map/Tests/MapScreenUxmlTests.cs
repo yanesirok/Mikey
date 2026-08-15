@@ -321,8 +321,8 @@ namespace Mikey.UI.Map.Tests
 
         // Detail panel's own Start Lesson action still routes to the existing
         // 'techniques' screen; "go-techniques" remains a real navigator
-        // elsewhere (Home/Techniques/Profile docks, Practice's back action), so
-        // no navigation regression was introduced by the MVP map correction.
+        // elsewhere (Practice's back action), so no navigation regression was
+        // introduced by the MVP map correction.
         [Test]
         public void MapDetailStart_TargetsExistingTechniquesScreen_AndElsewhereUnaffected()
         {
@@ -334,14 +334,15 @@ namespace Mikey.UI.Map.Tests
 
             // "menu" is intentionally excluded here: Home's Techniques tab is now
             // progression-gated as 'home-nav-techniques' (see HomeController /
-            // HomeScreenUxmlTests), not a static 'go-techniques' navigator. Profile
-            // and Practice's back action are unaffected, still real 'go-techniques'
-            // navigators (Profile's dock is the intentional "developer route" that
-            // can still reach Map/Techniques before Level 1 unlocks; see
-            // MapLevelPreviewController's Start Lesson lock for that case).
+            // HomeScreenUxmlTests), not a static 'go-techniques' navigator. Profile's
+            // dock is likewise gated (progression-bound 'profile-nav-techniques' via
+            // ProfileController, not a static navigator) so it can no longer bypass
+            // the Level1Unlocked lock — see ProfileScreenUxmlTests /
+            // ProfileProgressionTests. Practice's back action is unaffected, still a
+            // real 'go-techniques' navigator (Practice is only reachable once Level 1
+            // is already unlocked).
             foreach (var elsewhere in new (string screenId, string navName)[]
             {
-                ("profile", "go-techniques"),
                 ("practice", "go-techniques"),
             })
             {

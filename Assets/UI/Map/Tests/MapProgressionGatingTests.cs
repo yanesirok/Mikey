@@ -5,12 +5,16 @@ namespace Mikey.UI.Map.Tests
 {
     /// <summary>
     /// Contract for Map's Level-1-unlock gate on Okinawa's "START LESSON" action
-    /// (Phase 7): before Level 1 unlocks, a Map visit reached through the
-    /// developer route (Profile's still-static go-map) must not let Start Lesson
-    /// jump straight to Techniques — the button is disabled and dimmed instead.
-    /// Verified by reading the source, mirroring MapLevelPreviewControllerTests'
-    /// established technique for MonoBehaviour internals not practical to drive
-    /// through a live panel in EditMode.
+    /// (Phase 7): before Level 1 unlocks, a Map visit reached by any means (e.g.
+    /// developer controls forcing an earlier state, or an Editor-only direct
+    /// screen jump) must not let Start Lesson jump straight to Techniques — the
+    /// button is disabled and dimmed instead. This is defense-in-depth alongside
+    /// Home's and Profile's own Level1Unlocked navigation gates (see
+    /// HomeController / ProfileController), which already stop a normal
+    /// production player from reaching Map this early. Verified by reading the
+    /// source, mirroring MapLevelPreviewControllerTests' established technique
+    /// for MonoBehaviour internals not practical to drive through a live panel
+    /// in EditMode.
     /// </summary>
     public class MapProgressionGatingTests
     {
