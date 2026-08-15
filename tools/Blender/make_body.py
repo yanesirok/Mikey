@@ -55,6 +55,24 @@ def main():
     for want in ('mixamorig:Hips', 'mixamorig:Neck', 'mixamorig:LeftToeBase'):
         assert want in bones, f'в скелете нет {want} — загрузился не тот риг'
 
+    # load_rig только вешает арматуру: без этого шага у меша 152 служебные
+    # вертексные группы MakeHuman (HelperGeometry, JointCubes, Left/Mid/Right)
+    # и ни одной mixamorig:*, а веса не несёт ни одна вершина. FBX на выходе
+    # выглядит скиннутым (Deformer/Cluster на все 64 кости), но кластеры
+    # пустые — деформировать некому. Веса грузятся отдельным оператором,
+    # активный объект для него — меш.
+    bpy.context.view_layer.objects.active = mesh
+    mesh.select_set(True)
+    bpy.ops.mpfb.load_weights(filepath=os.path.join(rigs_dir(), 'weights.mixamo_unity.json'))
+
+    vgroups = {g.name for g in mesh.vertex_groups}
+    assert bones <= vgroups, (
+        f'веса не загрузились — из {len(bones)} костей совпадений с '
+        f'вертексными группами {len(bones & vgroups)}')
+    unweighted = sum(1 for v in mesh.data.vertices if not v.groups)
+    assert unweighted == 0, (
+        f'{unweighted} вершин без веса скиннинга из {len(mesh.data.vertices)}')
+
     # T-поза, рост человека: если тут не так, дальше сломается подгонка кимоно.
     assert 1.5 < mesh.dimensions.z < 2.0, f'рост {mesh.dimensions.z:.3f} м вне человеческого'
     assert mesh.dimensions.x > mesh.dimensions.y, 'руки не разведены — это не T-поза'

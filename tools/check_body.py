@@ -25,6 +25,17 @@ else:
     for bone in REQUIRED:
         if bone not in data:
             fails.append(f'нет кости {bone.decode()}')
+    # load_rig вешает арматуру, но не грузит веса — тело один раз уехало в
+    # kimono_fit.py с 64 пустыми Deformer/Cluster (кости на месте, а с ними
+    # не связана ни одна вершина). Проверки выше это пропускают: они видят
+    # только имена костей в скелете, а не то, привязан ли к ним меш. Indexes
+    # и Weights — свойства бинарного FBX, которые реально несут номера вершин
+    # и веса каждого кластера; без load_weights их в файле попросту нет
+    # (проверено grep'ом по байтам). Не убирать эту проверку как избыточную
+    # рядом с REQUIRED — она ловит другой дефект.
+    for prop in (b'Indexes', b'Weights'):
+        if prop not in data:
+            fails.append(f'в теле нет скиннинга — нет свойства {prop.decode()}')
     size_mb = len(data) / 1024 / 1024
     if size_mb > 25:
         fails.append(f'тело весит {size_mb:.1f} МБ — похоже, уехали хелперы MPFB')
