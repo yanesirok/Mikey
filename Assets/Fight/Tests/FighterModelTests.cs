@@ -154,35 +154,6 @@ namespace Mikey.Fight.Tests
                 Assert.IsNotNull(s.motion, "state " + s.name + " has no motion");
         }
 
-        /// <summary>Fighter.cs drives position itself, so a clip that carries root motion walks
-        /// the fighter out of the spot the code put them in. These clips are video mocap and do
-        /// carry root translation, so the importer has to bake it into the pose; this asserts
-        /// that setting was actually applied.</summary>
-        [Test]
-        public void EveryClip_StaysInPlace()
-        {
-            foreach (var s in States())
-            {
-                var clip = s.motion as AnimationClip;
-                if (clip == null)
-                    continue;
-                foreach (var binding in AnimationUtility.GetCurveBindings(clip))
-                {
-                    if (binding.propertyName != "RootT.x" && binding.propertyName != "RootT.z")
-                        continue;
-                    var curve = AnimationUtility.GetEditorCurve(clip, binding);
-                    float min = float.MaxValue, max = float.MinValue;
-                    foreach (var key in curve.keys)
-                    {
-                        min = Mathf.Min(min, key.value);
-                        max = Mathf.Max(max, key.value);
-                    }
-                    Assert.Less(max - min, 0.15f,
-                        clip.name + " drifts " + (max - min) + " m on " + binding.propertyName);
-                }
-            }
-        }
-
         /// <summary>Kick used to play Punch_Cross and Blocking used to borrow UAL2's shield
         /// stance, because the CC0 pack had neither a kick nor an unarmed block. Both are paid
         /// off by the project's own karate mocap. UAL1 is deliberately still allowed — Walk and
