@@ -62,6 +62,8 @@ namespace Mikey.FightEditor
 
             var normal = AssetDatabase.LoadAssetAtPath<Texture>(NormalPath);
             var ao = AssetDatabase.LoadAssetAtPath<Texture>(AoPath);
+            if (ao == null)
+                throw new System.IO.FileNotFoundException(AoPath + " is not in the project");
 
             // Skin is shared: player and enemy are the same body and differ only in cloth.
             var skin = Material(shader, CharacterDir + "/M_Fighter_Skin.mat");
