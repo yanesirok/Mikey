@@ -157,6 +157,32 @@ namespace Mikey.UI.SafeArea.Tests
                 "Legacy .videobox-label placeholder must be removed from the Intro screen.");
         }
 
+        // Lore rebuild: the comic/silhouette "cast stepping into frame" placeholder
+        // is retired in favor of a minimal temporary text-only cinematic.
+        [Test]
+        public void OldSilhouetteCastPlaceholder_IsRemoved()
+        {
+            var intro = Intro();
+            Assert.IsEmpty(ByClass(intro, "intro-cast"),
+                "The old placeholder silhouette cast must be removed from Lore.");
+            Assert.IsEmpty(ByClass(intro, "intro-figure"),
+                "The old placeholder silhouette figures must be removed from Lore.");
+        }
+
+        // Lore rebuild: the new temporary copy sequence exists and reads as the
+        // spec'd beats, ending on a CONTINUE that still uses go-menu.
+        [Test]
+        public void NewTemporaryCopySequence_Exists()
+        {
+            var lines = Intro().Query<Label>(className: "intro-line").ToList().Select(l => l.text).ToList();
+            CollectionAssert.Contains(lines, "Every fighter begins somewhere.");
+            CollectionAssert.Contains(lines, "Then begin.");
+
+            var continueCta = Intro().Query<Button>(name: "go-menu", className: "intro-primary").ToList();
+            Assert.AreEqual(1, continueCta.Count, "Expected a single CONTINUE (go-menu/.intro-primary) action.");
+            Assert.AreEqual("CONTINUE", continueCta[0].Q<Label>(className: "intro-cta__text")?.text);
+        }
+
         // 10 (suite-level) — production screen count is ten (Profile added).
         [Test]
         public void ProductionScreenCount_IsTen()
@@ -174,8 +200,10 @@ namespace Mikey.UI.SafeArea.Tests
             var ids = ByClass(root, "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the ten production screens.");
 
-            // Key forward navigators must still be present (routes intact).
-            foreach (var nav in new[] { "go-intro", "go-menu", "go-camTest", "go-combine" })
+            // Key forward navigators must still be present (routes intact). Title's
+            // own route into Intro is no longer "go-intro" — TitleController drives
+            // it directly (see MikeyAppUxmlTests).
+            foreach (var nav in new[] { "go-menu", "go-camTest", "go-combine" })
                 Assert.IsNotEmpty(root.Query<VisualElement>(name: nav).ToList(),
                     $"Existing navigator '{nav}' must remain.");
         }

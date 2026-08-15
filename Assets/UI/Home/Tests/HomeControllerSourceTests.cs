@@ -4,80 +4,96 @@ using NUnit.Framework;
 namespace Mikey.UI.Home.Tests
 {
     /// <summary>
-    /// Contract for HomeController's wiring: the CTA/lock tabs are driven by
-    /// progression state rather than ScreenManager's static "go-" convention, the
-    /// dev-only progression switcher is gated to the Editor/Development Build
-    /// (absent from production builds, mirroring CombineScreenController's
-    /// dev-switcher gate), and handlers/subscriptions are unbound on disable (no
-    /// duplicate-subscription leak). Verified by reading the source, mirroring
-    /// MapLevelPreviewControllerTests' established technique for MonoBehaviour
-    /// internals not practical to drive through a live panel in EditMode.
+    /// Contract for the rebuilt HomeController's wiring: PLANS/SETTINGS open local
+    /// overlays (not ScreenManager navigation), the Settings sliders two-way bind to
+    /// IAudioSettings, QUIT's platform-specific behavior (Editor no-op, real
+    /// Application.Quit() everywhere else — never platform-hidden), re-entering
+    /// Main Menu resets any modal left open, handlers are unbound on disable (no
+    /// duplicate-subscription leak), and none of the old progression-dashboard
+    /// wiring (dynamic CTA, Map/Techniques locking, dev bar) remains. Verified by
+    /// reading the source, mirroring IntroControllerTests/TitleControllerSourceTests
+    /// for MonoBehaviour internals not practical to drive through a live panel in
+    /// EditMode.
     /// </summary>
     public class HomeControllerSourceTests
     {
         private const string SourcePath = "Assets/UI/Home/HomeController.cs";
 
         [Test]
-        public void DevBar_IsGatedToEditorOrDevelopmentBuild()
+        public void PlansAndSettings_OpenLocalOverlays_ViaDisplayStyle()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("#if UNITY_EDITOR || DEVELOPMENT_BUILD", source,
-                "HomeController must gate the dev-only progression switcher behind UNITY_EDITOR || DEVELOPMENT_BUILD.");
-            StringAssert.Contains("_devBar.style.display = allowed ? DisplayStyle.Flex : DisplayStyle.None;", source,
-                "The dev bar must be hidden (not just left in markup) when not allowed.");
+            StringAssert.Contains("ShowModal(_plansModal)", source);
+            StringAssert.Contains("HideModal(_plansModal)", source);
+            StringAssert.Contains("ShowModal(_settingsModal)", source);
+            StringAssert.Contains("HideModal(_settingsModal)", source);
+            StringAssert.Contains("modal.style.display = DisplayStyle.Flex;", source);
+            StringAssert.Contains("modal.style.display = DisplayStyle.None;", source);
         }
 
         [Test]
-        public void DevControls_CoverExactlyTheSpecifiedReachableStates_NoVowSimulation()
+        public void Play_HasNoControllerCode_ScreenManagerHandlesItAlone()
         {
             string source = File.ReadAllText(SourcePath);
-            foreach (var expected in new[]
-            {
-                "_progress.Reset()",
-                "TutorialProgressState.NewPlayer",
-                "TutorialProgressState.CombineStarted",
-                "TutorialProgressState.Level1Unlocked",
-                "TutorialProgressState.LessonStarted",
-                "TutorialProgressState.LessonCompleted",
-            })
-            {
-                StringAssert.Contains(expected, source, $"Expected dev control wiring for '{expected}'.");
-            }
-
-            StringAssert.DoesNotContain("ThirtyDayStreakCompleted", source,
-                "No 30-day Vow simulation dev control yet.");
-            StringAssert.DoesNotContain("VowActivated", source,
-                "No Vow simulation dev control yet.");
-            StringAssert.DoesNotContain("VowAvailable", source,
-                "No Vow simulation dev control yet.");
+            StringAssert.DoesNotContain("go-map", source,
+                "PLAY is a plain ScreenManager 'go-map' navigator — HomeController must not special-case it.");
         }
 
         [Test]
-        public void CtaClick_RecomputesDestinationFromCurrentState_AtClickTime()
+        public void SettingsSliders_TwoWayBindToAudioSettings()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private void OnCtaClicked()", source);
-            StringAssert.Contains("TutorialProgressPresenter.HomeCtaFor(_progress.State)", source,
-                "The destination must be recomputed from the current state at click time, never a stale captured value.");
+            StringAssert.Contains("_audioSettings = GetComponent<IAudioSettings>();", source);
+            StringAssert.Contains("WireSlider(_musicSlider, _audioSettings,", source);
+            StringAssert.Contains("WireSlider(_sfxSlider, _audioSettings,", source);
+            StringAssert.Contains("WireSlider(_trainerVoiceSlider, _audioSettings,", source);
+            StringAssert.Contains("settings.MusicVolume = v", source);
+            StringAssert.Contains("settings.SfxVolume = v", source);
+            StringAssert.Contains("settings.TrainerVoiceVolume = v", source);
         }
 
         [Test]
-        public void LockedTabs_DoNotNavigateOnClick()
+        public void Quit_LogsInEditor_AndCallsApplicationQuitEverywhereElse()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private void OnNavMapClicked()", source);
-            StringAssert.Contains("if (!TutorialProgressPresenter.IsMapUnlocked(_progress.State))", source);
-            StringAssert.Contains("private void OnNavTechniquesClicked()", source);
-            StringAssert.Contains("if (!TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))", source);
+            StringAssert.Contains("private void OnQuitClicked()", source);
+            StringAssert.Contains("#if UNITY_EDITOR", source);
+            StringAssert.Contains("Debug.Log(", source);
+            StringAssert.Contains("Application.Quit();", source);
         }
 
         [Test]
-        public void OnDisable_UnbindsDevButtons_AndUnsubscribesProgressChanged_NoLeak()
+        public void ReenteringMenu_ResetsAnyOpenModal()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_devButtonBindings[i].Unbind();", source);
-            StringAssert.Contains("_devButtonBindings.Clear();", source);
-            StringAssert.Contains("_progress.Changed -= Render;", source);
+            StringAssert.Contains("private void OnScreenEntered(string screenId)", source);
+            StringAssert.Contains("if (screenId != ScreenId)", source);
+        }
+
+        [Test]
+        public void OnDisable_UnbindsButtonsAndSliders_AndUnsubscribesScreenChanged_NoLeak()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_buttonBindings[i].Unbind();", source);
+            StringAssert.Contains("_buttonBindings.Clear();", source);
+            StringAssert.Contains("_musicSlider.UnregisterValueChangedCallback(_musicChangedCallback);", source);
+            StringAssert.Contains("_sfxSlider.UnregisterValueChangedCallback(_sfxChangedCallback);", source);
+            StringAssert.Contains("_trainerVoiceSlider.UnregisterValueChangedCallback(_trainerVoiceChangedCallback);", source);
+            StringAssert.Contains("_navigator.ScreenChanged -= OnScreenEntered;", source);
+        }
+
+        [Test]
+        public void OldProgressionDashboardWiring_IsGone()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("TutorialProgressPresenter", source,
+                "The dynamic progression-driven CTA is retired with the old Home dashboard.");
+            StringAssert.DoesNotContain("ITutorialProgress", source,
+                "HomeController no longer depends on tutorial progression state.");
+            StringAssert.DoesNotContain("home-devbar", source,
+                "The dev-only progression switcher is retired with the old Home dashboard.");
+            StringAssert.DoesNotContain("home-nav-map", source);
+            StringAssert.DoesNotContain("home-nav-techniques", source);
         }
     }
 }

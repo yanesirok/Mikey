@@ -119,41 +119,27 @@ namespace Mikey.UI.Profile.Tests
             }
         }
 
+        // Main Menu no longer links to Profile at all (the old Home dock's
+        // go-profile tab is retired with the rest of the dashboard — see
+        // HomeScreenUxmlTests). Profile itself is untouched and still reachable
+        // from its own dock / other screens; only this one entry point is gone.
         [Test]
-        public void Home_ProfileTab_IsWorkingNavigator_NotLocked()
+        public void Menu_NoLongerLinksToProfile()
         {
             var root = BuildTree();
-
-            var home = Screen(root, "menu");
-            var homeProfile = home.Q<VisualElement>("go-profile");
-            Assert.IsNotNull(homeProfile, "Home must expose go-profile.");
-            Assert.IsFalse(homeProfile.ClassListContains("home-tab--locked"), "Home Profile tab must not be locked.");
-            Assert.IsNull(homeProfile.Q<VisualElement>(className: "home-tab__badge"), "Home Profile must not show SOON.");
-
-            Assert.IsTrue(Screen(root, homeProfile.name.Substring(NavPrefix.Length)).ClassListContains("screen"));
-
-            // Map's selected-level presentation intentionally has no large 4-tab dock
-            // (see approved design correction): it exposes only a minimal Home action,
-            // not a go-profile tab.
-            Assert.IsNull(Screen(root, "map").Q<VisualElement>("go-profile"),
-                "Map's full-viewport selected-level view must not reintroduce a dock go-profile tab.");
+            var menu = Screen(root, "menu");
+            Assert.IsNull(menu.Q<VisualElement>("go-profile"),
+                "Main Menu must not reintroduce a go-profile navigator (old Home dashboard concept).");
         }
 
         [Test]
-        public void HomeAndMap_ExistingNavigationStatesRemainIntact()
+        public void Map_ExistingNavigationStatesRemainIntact_AndHasNoProfileTab()
         {
             var root = BuildTree();
-            var home = Screen(root, "menu");
-            Assert.IsTrue(home.Q<VisualElement>("nav-home").ClassListContains("home-tab--active"));
-            // Map/Techniques are progression-gated (HomeController), not static
-            // "go-" navigators; see HomeScreenUxmlTests for their full contract.
-            Assert.IsNotNull(home.Q<VisualElement>("home-nav-map"));
-            Assert.IsNotNull(home.Q<VisualElement>("home-nav-techniques"));
-            // The Home CTA is now a dynamic, progression-driven control.
-            Assert.IsNotNull(home.Q<Button>("home-cta"));
 
-            // Map's full-viewport selected-level presentation replaces the old 4-tab
-            // dock with one minimal Home action; Okinawa no longer routes directly to
+            // Map's full-viewport selected-level presentation has no large 4-tab
+            // dock (see approved design correction): it exposes only a minimal Home
+            // action, not a go-profile tab. Okinawa no longer routes directly to
             // Techniques: selecting it opens the docked level-detail panel
             // (map-node-okinawa), whose own "START LESSON" action (map-detail-start)
             // is what routes to Techniques.
@@ -161,6 +147,8 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(map.Q<Button>("go-menu"));
             Assert.IsNotNull(map.Q<Button>("map-node-okinawa"), "Okinawa must exist as a checkpoint action.");
             Assert.IsNotNull(map.Q<Button>("map-detail-start"), "Okinawa's level-detail panel must route to Techniques.");
+            Assert.IsNull(map.Q<VisualElement>("go-profile"),
+                "Map's full-viewport selected-level view must not reintroduce a dock go-profile tab.");
         }
 
         [Test]
@@ -301,9 +289,9 @@ namespace Mikey.UI.Profile.Tests
         public void RegressionRoutesRemainUnchanged_AndRetiredCombineResultRouteDoesNotReturn()
         {
             var root = BuildTree();
-            Assert.IsNotNull(Screen(root, "title").Q<Button>("go-intro"));
+            Assert.IsNotNull(Screen(root, "title"));
             Assert.IsNotEmpty(Screen(root, "intro").Query<VisualElement>(name: "go-menu").ToList());
-            Assert.IsNotNull(Screen(root, "menu").Q<Button>("home-cta"));
+            Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-map"), "Main Menu's PLAY must route to Map.");
             Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
             Assert.IsNotNull(Screen(root, "camTest").Q<Button>("go-combine"));
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());

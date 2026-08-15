@@ -1,19 +1,20 @@
 /* ============================================================
-   Home hub — landscape "menu" screen styles.
-   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
-   in from .mikey-app in theme.uss; this file only adds Home-specific
-   structure so the hub stays modular (same pattern as Combine/Combine.uss).
+   Main Menu — landscape "menu" screen styles.
+   Palette custom properties (--ember, --bone, --base, …) cascade in from
+   .mikey-app in theme.uss; this file only adds Main-Menu-specific structure
+   so the screen stays modular (same pattern as Combine/Combine.uss).
 
-   Landscape-first: wide, width-capped composition that fills 16:9 and
-   wider phone-landscape ratios — deliberately NOT the old 720px portrait
-   column. Translated from design-pull/assets/screens-home.jsx + theme.css.
+   Rebuilt as a cinematic game main menu (video + logo + typography), not the
+   old dashboard hub: no cards, no stats, no dock, no progression CTA. The
+   full-bleed background layer keeps its original element/class names
+   (.home-bg / #home-bg-media / .home-scrim) — BackgroundMediaController and
+   its tests key off them by screen id ("menu") already; only the bound clip
+   changed (main_menu_loop.mp4).
    ============================================================ */
 
-/* ---------- full-bleed background ----------
+/* ---------- full-bleed background video ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .title-bg / .combine-bg on the other screens. Solid base + a
-   soft ember glow stands in for painted art (which lands later), matching
-   the reference's radial-gradient hero wash. */
+   .cam-feed / .title-bg / .combine-bg on the other screens. */
 .home-bg {
     position: absolute;
     top: 0;
@@ -21,71 +22,21 @@
     right: 0;
     bottom: 0;
     background-color: var(--base);
-    align-items: center;
-}
-.home-glow {
-    position: absolute;
-    top: -160px;
-    width: 760px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.06);
+    overflow: hidden;
 }
 
-/* Legibility scrim over the background media (video or fallback) so the
-   ribbon/hero text keep contrast; same idiom as .title-scrim. */
+/* Subtle legibility scrim over the cinematic so the logo/menu stay readable
+   without obscuring the supplied video more than needed. */
 .home-scrim {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(11, 14, 17, 0.35);
+    background-color: rgba(8, 10, 12, 0.32);
 }
 
-/* ---------- foreground layout ----------
-   One full-height column inside the safe area: ribbon pinned top, hero
-   filling the middle, dock pinned bottom. align-self centers the capped
-   width bands on ultra-wide displays without a narrow portrait column. */
-.home-layout {
-    flex-grow: 1;
-    width: 100%;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* ---------- reusable visible-icon kit (Home-scoped) ----------
-   Sizes the ICON ARTWORK itself (the rendered glyph), independently of the
-   button hit area. Every icon is non-shrinking and centered so flex never
-   collapses the artwork, and the glyph stays large/recognizable even at
-   phone-landscape sizes. Used alongside the per-context colour classes
-   (.home-tab__glyph / .home-chip__glyph) which now only carry colour. */
-.home-icon {
-    flex-shrink: 0;
-    align-self: center;
-    -unity-text-align: middle-center;
-    -unity-font-style: normal;
-}
-.home-icon--nav {
-    /* bottom-nav visible icons: 40–44px target */
-    font-size: 42px;
-}
-.home-icon--ribbon {
-    /* top ribbon icons/glyphs: 30–36px target */
-    font-size: 34px;
-}
-.home-icon--cta {
-    /* primary CTA arrow: 30–36px target */
-    font-size: 34px;
-}
-
-/* ---------- touch-target kit (Home-scoped) ----------
-   .tap-target  — generic interactive control: >= 48x48 logical.
-   .tap-target-lg — bottom-nav dock tabs: >= 56x56 logical.
-   Both set flex-shrink:0 so flex never collapses a control below a tappable
-   size (keeps the dock clickable at phone-landscape sizes), centre content,
-   and add a real pressed-state scale so controls never feel dead. */
+/* ---------- touch-target kit (Home-scoped) ---------- */
 .tap-target {
     min-width: 48px;
     min-height: 48px;
@@ -95,288 +46,138 @@
     -unity-text-align: middle-center;
 }
 .tap-target:active {
-    scale: 0.97;
+    scale: 0.97 0.97;
 }
 .tap-target-lg {
     min-width: 56px;
     min-height: 56px;
     flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
 }
 .tap-target-lg:active {
-    scale: 0.97;
+    scale: 0.97 0.97;
 }
 
-/* ---------- top profile / stat ribbon ---------- */
-.home-ribbon {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 1400px;
-    align-self: center;
-}
-.home-belt {
-    flex-direction: row;
-    align-items: center;
-}
-/* belt/rank visual — at least 36px in its main dimension, non-shrinking */
-.home-belt__swatch {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 9px;
-    background-color: var(--bone);
-    border-width: 1px;
-    border-color: var(--line);
-    margin-right: 12px;
-}
-.home-belt__rank {
-    font-size: 15px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-.home-belt__level {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--muted);
-}
-.home-stats {
-    flex-direction: row;
-    align-items: center;
-}
-.home-chip {
-    flex-direction: row;
-    align-items: center;
-    background-color: rgba(11, 14, 17, 0.45);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 22px;
-    padding: 8px 16px;
-    margin-left: 10px;
-}
-/* colour only — size comes from .home-icon--ribbon */
-.home-chip__glyph {
-    color: var(--ember);
-    margin-right: 10px;
-}
-.home-chip__text {
-    font-size: 13px;
-    color: var(--bone);
-}
-.home-chip__text--coin {
-    color: var(--jade);
-}
-
-/* ---------- hero / progression ---------- */
-.home-hero {
+/* ---------- foreground layout ----------
+   Logo pinned upper-left (absolute, so it never disturbs the nav's own
+   layout); the vertical nav fills the right side, vertically centered. */
+.home-layout {
     flex-grow: 1;
     width: 100%;
-    align-items: center;
-    justify-content: center;
-}
-.home-hero__card {
     flex-direction: row;
-    align-items: center;
-    width: 100%;
-    max-width: 980px;
-    align-self: center;
-    background-color: rgba(18, 22, 27, 0.7);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 18px;
-    padding: 34px;
-}
-/* session progress ring (focal), stands in for the SVG ring in the reference */
-.home-ring {
-    width: 168px;
-    height: 168px;
-    border-radius: 84px;
-    border-width: 10px;
-    border-color: rgba(237, 230, 216, 0.14);
-    border-top-color: var(--ember);
-    align-items: center;
-    justify-content: center;
-    margin-right: 36px;
-    flex-shrink: 0;
-}
-.home-ring__value {
-    font-size: 48px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-.home-ring__label {
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--muted);
-}
-.home-hero__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-direction: column;
-}
-.home-hero__kicker {
-    letter-spacing: 3px;
-}
-.home-hero__title {
-    font-size: 34px;
-}
-.home-hero__lead {
-    margin-top: 4px;
-    max-width: 520px;
-}
-/* CTA = text label + a separately-sized arrow icon, laid out in a row */
-.home-hero__cta {
-    max-width: 300px;
-    margin-top: 20px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-}
-.home-cta__text {
-    font-size: 18px;
-    -unity-font-style: bold;
-    color: #1A0A03;
-}
-.home-cta__arrow {
-    color: #1A0A03;
-    margin-left: 12px;
-}
-
-/* power ribbon — STR / SPD / AGI / END mock attributes */
-.home-power {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 22px;
-}
-.home-power__cell {
-    align-items: center;
-    min-width: 88px;
-    padding: 11px 18px;
-    margin: 5px;
-    background-color: rgba(11, 14, 17, 0.45);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 12px;
-}
-.home-power__key {
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--muted);
-}
-.home-power__val {
-    font-size: 26px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-
-/* ---------- persistent bottom navigation dock ---------- */
-.home-dock {
-    flex-direction: row;
-    width: 100%;
-    max-width: 1100px;
-    align-self: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-.home-tab {
-    flex-grow: 1;
-    flex-basis: 0;
-    max-width: 240px;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 8px;
-    margin: 0 6px;
-    border-radius: 14px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.5);
-}
-/* colour only — size comes from .home-icon--nav */
-.home-tab__glyph {
-    color: rgba(237, 230, 216, 0.6);
-}
-.home-tab__label {
-    font-size: 13px;
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: rgba(237, 230, 216, 0.6);
-    margin-top: 4px;
-}
-.home-tab__badge {
-    font-size: 9px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
-    border-radius: 6px;
-    padding: 1px 6px;
-    margin-top: 4px;
-}
-
-/* active tab — unmistakable current state (ember accent, top rule) */
-.home-tab--active {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.12);
-    border-top-width: 3px;
-    border-top-color: var(--ember);
-}
-.home-tab--active .home-tab__glyph {
-    color: var(--ember);
-}
-.home-tab--active .home-tab__label {
-    color: var(--bone);
-}
-
-/* locked / "coming soon" tabs — clearly disabled but the icon stays readable
-   (kept distinctly dimmer than the ember active tab, not near-invisible). */
-.home-tab--locked {
-    opacity: 0.6;
-}
-
-/* ---------- development-only tutorial-progression switcher ----------
-   Hidden by HomeController outside the Editor / a Development Build.
-   Compact and visually separate from production UI: pinned to the top-right
-   corner (clear of the hero CTA and the bottom dock), wraps on narrow widths.
-   Mirrors Combine/Combine.uss's ".combine-devbar" pattern, scoped here since
-   Home.uss is its own modular stylesheet. */
-.home-devbar {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    max-width: 320px;
-    flex-direction: row;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
-    background-color: rgba(0, 0, 0, 0.55);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 12px;
-    padding: 6px;
 }
-.home-devbar__label {
-    width: 100%;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--ember);
-    margin: 0 4px 4px;
+
+.home-logo {
+    position: absolute;
+    top: 20px;
+    left: 6px;
+    width: 104px;
+    height: 104px;
+    background-image: url("/Assets/UI/Media/Images/mikey_logo.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ---------- right-side vertical navigation ----------
+   Premium game-menu navigation: spacing and typography carry the hierarchy,
+   not rounded card containers. Strong hover/focus/pressed states. */
+.home-nav {
+    flex-direction: column;
+    align-items: flex-end;
+    padding-right: 8px;
+}
+.home-nav__item {
+    background-color: transparent;
+    border-width: 0;
+    border-right-width: 3px;
+    border-right-color: transparent;
+    border-radius: 0;
+    margin: 6px 0;
+    padding: 8px 26px 8px 46px;
+    color: rgba(237, 230, 216, 0.78);
+}
+.home-nav__item:hover,
+.home-nav__item:focus {
+    color: var(--bone);
+    border-right-color: var(--ember);
+}
+.home-nav__item:active {
+    scale: 0.97 0.97;
+}
+.home-nav__label {
+    font-size: 34px;
+    -unity-font-style: bold;
+    letter-spacing: 3px;
     -unity-text-align: middle-right;
 }
-.home-devbtn {
-    margin: 3px;
-    padding: 6px 10px;
-    border-radius: 8px;
+
+/* QUIT is deliberately the lowest-priority action: same typography kit as
+   PLAY/PLANS/SETTINGS, set apart only by extra separation and a dimmer
+   default color (never smaller, never hidden). */
+.home-nav__item--quit {
+    margin-top: 30px;
+    color: rgba(237, 230, 216, 0.5);
+}
+.home-nav__item--quit:hover,
+.home-nav__item--quit:focus {
+    color: var(--bone);
+}
+
+/* ---------- Plans / Settings modal overlays ----------
+   A full-bleed dim backdrop + a centered card, layered on top of the Main
+   Menu (still a child of the "menu" screen, not a second .safe-area-content).
+   Hidden by default (display:none) — the safe markup default — and toggled
+   by HomeController. The menu video/music underneath is untouched by this. */
+.menu-modal {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(6, 8, 10, 0.72);
+}
+.menu-modal__card {
+    width: 440px;
+    max-width: 86%;
+    background-color: var(--base-3);
     border-width: 1px;
     border-color: var(--line);
-    background-color: var(--base-3);
-    color: var(--bone);
-    font-size: 11px;
-    -unity-font-style: bold;
+    border-radius: 20px;
+    padding: 36px;
+    align-items: center;
 }
-.home-devbtn:hover {
-    border-color: var(--bone);
+.menu-modal__title {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--ember);
+}
+.menu-modal__body {
+    font-size: 19px;
+    color: var(--bone);
+    margin-top: 16px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.menu-modal__close {
+    margin-top: 30px;
+    min-width: 160px;
+}
+
+/* Settings rows: label + full-width slider, spacing carries the hierarchy. */
+.menu-setting {
+    width: 100%;
+    align-items: flex-start;
+    margin-top: 20px;
+}
+.menu-setting__label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.menu-setting__slider {
+    width: 100%;
 }

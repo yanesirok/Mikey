@@ -251,14 +251,15 @@ namespace Mikey.UI.SafeArea.Tests
                 "There must be exactly ten production screens.");
         }
 
-        // 16 — Title → Intro → Home remains unchanged.
+        // 16 — Title → Intro → Home remains unchanged (Title's own route into
+        // Intro is driven by TitleController, not a "go-intro" navigator — see
+        // MikeyAppUxmlTests.GoIntroNavigator_NoLongerExists_TitleDrivesNavigationItself).
         [Test]
         public void TitleToIntroToHomeFlow_RemainsUnchanged()
         {
             var root = BuildTree();
             var title = root.Q<VisualElement>("title");
             Assert.IsNotNull(title, "Expected a 'title' screen.");
-            Assert.IsNotNull(title.Q<Button>("go-intro"), "Title must keep its 'go-intro' CTA.");
 
             var intro = root.Q<VisualElement>("intro");
             Assert.IsNotNull(intro, "Expected an 'intro' screen.");

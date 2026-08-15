@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Mikey.UI.Progression;
+using Mikey.UI.Audio;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,39 +9,44 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Home
 {
     /// <summary>
-    /// Drives the Home ("menu") screen's progression-aware UI: the single dynamic
-    /// primary CTA (label + destination change with <see cref="TutorialProgressState"/>,
-    /// see <see cref="TutorialProgressPresenter"/>) and the Map/Techniques dock
-    /// tabs' locked state (dimmed, non-navigating, with a "COMPLETE LVL 0" badge on
-    /// Map) before Level 1 unlocks. The CTA and the two gated tabs are deliberately
-    /// NOT "go-" navigators — ScreenManager must not statically wire them, since
-    /// their behavior depends on progression state — mirroring how
-    /// MapLevelPreviewController/PracticeController own their own local,
-    /// controller-bound actions. The Profile tab stays a plain, always-available
-    /// "go-profile" navigator, unaffected by this controller.
+    /// Drives the Main Menu ("menu") screen — the cinematic PLAY / PLANS / SETTINGS
+    /// / QUIT navigation shown over the full-bleed menu video. PLAY is a plain
+    /// ScreenManager screen-navigator button targeting the Map screen (no gating,
+    /// so it needs no controller code of its own); this controller owns the two
+    /// local overlays (Plans/Settings, shown on top of
+    /// the menu without leaving the screen — the menu video/music underneath is
+    /// untouched by BackgroundMediaController/AudioController, which both key off
+    /// the screen id alone), the Settings sliders' two-way binding to
+    /// <see cref="IAudioSettings"/>, and QUIT's platform-specific behavior. Formerly
+    /// the old Home dashboard's controller (dynamic CTA + Map/Techniques dock
+    /// locking); that entire old design is retired with this rebuild.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class HomeController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>The screen id this controller reacts to (Home's own entry re-renders the CTA/lock state).</summary>
+        /// <summary>The screen id this controller reacts to (Main Menu's own entry resets any open modal).</summary>
         public const string ScreenId = "menu";
 
-        private const string LockedClass = "home-tab--locked";
-
-        private Button _cta;
-        private Label _ctaText;
-        private VisualElement _navMap;
-        private VisualElement _navTechniques;
-        private VisualElement _devBar;
+        private VisualElement _plansModal;
+        private VisualElement _settingsModal;
+        private Button _plansOpenButton;
+        private Button _plansCloseButton;
+        private Button _settingsOpenButton;
+        private Button _settingsCloseButton;
+        private Button _quitButton;
+        private Slider _musicSlider;
+        private Slider _sfxSlider;
+        private Slider _trainerVoiceSlider;
 
         private IScreenNavigator _navigator;
-        private ITutorialProgress _progress;
+        private IAudioSettings _audioSettings;
 
-        private EventCallback<ClickEvent> _navMapClickCallback;
-        private EventCallback<ClickEvent> _navTechniquesClickCallback;
-        private readonly List<ButtonBinding> _devButtonBindings = new List<ButtonBinding>();
+        private EventCallback<ChangeEvent<float>> _musicChangedCallback;
+        private EventCallback<ChangeEvent<float>> _sfxChangedCallback;
+        private EventCallback<ChangeEvent<float>> _trainerVoiceChangedCallback;
+        private readonly List<ButtonBinding> _buttonBindings = new List<ButtonBinding>();
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -63,16 +68,16 @@ namespace Mikey.UI.Home
 
             if (_bound)
             {
-                if (_cta != null)
-                    _cta.clicked -= OnCtaClicked;
-                if (_navMap != null && _navMapClickCallback != null)
-                    _navMap.UnregisterCallback(_navMapClickCallback);
-                if (_navTechniques != null && _navTechniquesClickCallback != null)
-                    _navTechniques.UnregisterCallback(_navTechniquesClickCallback);
+                for (int i = 0; i < _buttonBindings.Count; i++)
+                    _buttonBindings[i].Unbind();
+                _buttonBindings.Clear();
 
-                for (int i = 0; i < _devButtonBindings.Count; i++)
-                    _devButtonBindings[i].Unbind();
-                _devButtonBindings.Clear();
+                if (_musicSlider != null && _musicChangedCallback != null)
+                    _musicSlider.UnregisterValueChangedCallback(_musicChangedCallback);
+                if (_sfxSlider != null && _sfxChangedCallback != null)
+                    _sfxSlider.UnregisterValueChangedCallback(_sfxChangedCallback);
+                if (_trainerVoiceSlider != null && _trainerVoiceChangedCallback != null)
+                    _trainerVoiceSlider.UnregisterValueChangedCallback(_trainerVoiceChangedCallback);
             }
 
             if (_navigator != null)
@@ -81,19 +86,20 @@ namespace Mikey.UI.Home
                 _navigator = null;
             }
 
-            if (_progress != null)
-            {
-                _progress.Changed -= Render;
-                _progress = null;
-            }
-
-            _cta = null;
-            _ctaText = null;
-            _navMap = null;
-            _navTechniques = null;
-            _devBar = null;
-            _navMapClickCallback = null;
-            _navTechniquesClickCallback = null;
+            _audioSettings = null;
+            _plansModal = null;
+            _settingsModal = null;
+            _plansOpenButton = null;
+            _plansCloseButton = null;
+            _settingsOpenButton = null;
+            _settingsCloseButton = null;
+            _quitButton = null;
+            _musicSlider = null;
+            _sfxSlider = null;
+            _trainerVoiceSlider = null;
+            _musicChangedCallback = null;
+            _sfxChangedCallback = null;
+            _trainerVoiceChangedCallback = null;
             _bound = false;
         }
 
@@ -106,7 +112,7 @@ namespace Mikey.UI.Home
             {
                 if (++frames > MaxRootResolveFrames)
                 {
-                    Debug.LogError("[HomeController] UIDocument root unavailable; Home screen not bound.", this);
+                    Debug.LogError("[HomeController] UIDocument root unavailable; Main Menu not bound.", this);
                     _bindRoutine = null;
                     yield break;
                 }
@@ -115,145 +121,109 @@ namespace Mikey.UI.Home
 
             VisualElement root = document.rootVisualElement;
 
-            _cta = root.Q<Button>("home-cta");
-            _navMap = root.Q<VisualElement>("home-nav-map");
-            _navTechniques = root.Q<VisualElement>("home-nav-techniques");
+            _plansModal = root.Q<VisualElement>("menu-plans-modal");
+            _settingsModal = root.Q<VisualElement>("menu-settings-modal");
+            _plansOpenButton = root.Q<Button>("menu-plans-open");
+            _plansCloseButton = root.Q<Button>("menu-plans-close");
+            _settingsOpenButton = root.Q<Button>("menu-settings-open");
+            _settingsCloseButton = root.Q<Button>("menu-settings-close");
+            _quitButton = root.Q<Button>("menu-quit");
+            _musicSlider = root.Q<Slider>("menu-settings-music");
+            _sfxSlider = root.Q<Slider>("menu-settings-sfx");
+            _trainerVoiceSlider = root.Q<Slider>("menu-settings-trainer");
 
-            if (_cta == null || _navMap == null || _navTechniques == null)
+            if (_plansModal == null || _settingsModal == null || _plansOpenButton == null || _plansCloseButton == null
+                || _settingsOpenButton == null || _settingsCloseButton == null || _quitButton == null)
             {
-                Debug.LogError("[HomeController] Home screen elements missing; screen not bound.", this);
+                Debug.LogError("[HomeController] Main Menu elements missing; screen not bound.", this);
                 _bindRoutine = null;
                 yield break;
             }
 
-            _ctaText = _cta.Q<Label>(className: "home-cta__text");
+            BindButton(_plansOpenButton, () => ShowModal(_plansModal));
+            BindButton(_plansCloseButton, () => HideModal(_plansModal));
+            BindButton(_settingsOpenButton, () => ShowModal(_settingsModal));
+            BindButton(_settingsCloseButton, () => HideModal(_settingsModal));
+            BindButton(_quitButton, OnQuitClicked);
 
-            _cta.clicked += OnCtaClicked;
-
-            _navMapClickCallback = _ => OnNavMapClicked();
-            _navMap.RegisterCallback(_navMapClickCallback);
-
-            _navTechniquesClickCallback = _ => OnNavTechniquesClicked();
-            _navTechniques.RegisterCallback(_navTechniquesClickCallback);
+            _audioSettings = GetComponent<IAudioSettings>();
+            WireSlider(_musicSlider, _audioSettings,
+                (settings, v) => settings.MusicVolume = v,
+                settings => settings.MusicVolume,
+                callback => _musicChangedCallback = callback);
+            WireSlider(_sfxSlider, _audioSettings,
+                (settings, v) => settings.SfxVolume = v,
+                settings => settings.SfxVolume,
+                callback => _sfxChangedCallback = callback);
+            WireSlider(_trainerVoiceSlider, _audioSettings,
+                (settings, v) => settings.TrainerVoiceVolume = v,
+                settings => settings.TrainerVoiceVolume,
+                callback => _trainerVoiceChangedCallback = callback);
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
                 _navigator.ScreenChanged += OnScreenEntered;
 
-            _progress = GetComponent<ITutorialProgress>();
-            if (_progress != null)
-                _progress.Changed += Render;
-
-            _devBar = root.Q<VisualElement>("home-devbar");
-            WireDevControls(root);
+            HideModal(_plansModal);
+            HideModal(_settingsModal);
 
             _bound = true;
             _bindRoutine = null;
-
-            Render();
         }
 
-        /// <summary>
-        /// Compact, visually separate tutorial-progression state switcher, visible
-        /// only in the Editor or a Development Build (absent from production
-        /// builds) — mirrors CombineScreenController's dev-switcher gate. Covers
-        /// only the currently reachable states; no 30-day Vow simulation yet.
-        /// </summary>
-        private void WireDevControls(VisualElement root)
+        private void BindButton(Button button, Action onClick)
         {
-            bool allowed = false;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            allowed = true;
-#endif
-            if (_devBar != null)
-                _devBar.style.display = allowed ? DisplayStyle.Flex : DisplayStyle.None;
-
-            if (!allowed || _progress == null)
-                return;
-
-            BindDevButton(root, "home-dev-reset", () => _progress.Reset());
-            BindDevButton(root, "home-dev-new-player", () => _progress.SetState(TutorialProgressState.NewPlayer));
-            BindDevButton(root, "home-dev-combine-started", () => _progress.SetState(TutorialProgressState.CombineStarted));
-            BindDevButton(root, "home-dev-level1-unlocked", () => _progress.SetState(TutorialProgressState.Level1Unlocked));
-            BindDevButton(root, "home-dev-lesson-started", () => _progress.SetState(TutorialProgressState.LessonStarted));
-            BindDevButton(root, "home-dev-lesson-completed", () => _progress.SetState(TutorialProgressState.LessonCompleted));
-        }
-
-        private void BindDevButton(VisualElement root, string name, Action onClick)
-        {
-            var button = root.Q<Button>(name);
-            if (button == null)
-                return;
-
             button.clicked += onClick;
-            _devButtonBindings.Add(new ButtonBinding(button, onClick));
+            _buttonBindings.Add(new ButtonBinding(button, onClick));
         }
 
-        private void OnCtaClicked()
+        private static void WireSlider(
+            Slider slider,
+            IAudioSettings settings,
+            Action<IAudioSettings, float> apply,
+            Func<IAudioSettings, float> read,
+            Action<EventCallback<ChangeEvent<float>>> storeCallback)
         {
-            if (_progress == null || _navigator == null)
+            if (slider == null || settings == null)
                 return;
 
-            HomeCtaSpec spec = TutorialProgressPresenter.HomeCtaFor(_progress.State);
-            _navigator.Show(spec.Destination);
+            slider.value = read(settings);
+
+            EventCallback<ChangeEvent<float>> callback = evt => apply(settings, evt.newValue);
+            slider.RegisterValueChangedCallback(callback);
+            storeCallback(callback);
         }
 
-        private void OnNavMapClicked()
+        private static void ShowModal(VisualElement modal)
         {
-            if (_progress == null || _navigator == null)
-                return;
-            if (!TutorialProgressPresenter.IsMapUnlocked(_progress.State))
-                return; // Locked: Combine (LVL0) must be completed first.
-
-            _navigator.Show("map");
+            if (modal != null)
+                modal.style.display = DisplayStyle.Flex;
         }
 
-        private void OnNavTechniquesClicked()
+        private static void HideModal(VisualElement modal)
         {
-            if (_progress == null || _navigator == null)
-                return;
-            if (!TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))
-                return; // Locked: Combine (LVL0) must be completed first.
-
-            _navigator.Show("techniques");
+            if (modal != null)
+                modal.style.display = DisplayStyle.None;
         }
 
-        /// <summary>Re-renders whenever Home is (re)entered, so a state change made elsewhere is always reflected.</summary>
+        /// <summary>Main Menu is Mobile-first (Android) but QUIT is never platform-hidden — only its behavior differs.</summary>
+        private void OnQuitClicked()
+        {
+#if UNITY_EDITOR
+            Debug.Log("[HomeController] Quit requested — no-op in the Editor.");
+#else
+            Application.Quit();
+#endif
+        }
+
+        /// <summary>Re-entering Main Menu always resets any modal left open on a previous visit.</summary>
         private void OnScreenEntered(string screenId)
         {
-            if (screenId == ScreenId)
-                Render();
-        }
-
-        private void Render()
-        {
-            if (_progress == null)
+            if (screenId != ScreenId)
                 return;
 
-            TutorialProgressState state = _progress.State;
-
-            if (_ctaText != null)
-                _ctaText.text = TutorialProgressPresenter.HomeCtaFor(state).Label;
-
-            SetLocked(_navMap, !TutorialProgressPresenter.IsMapUnlocked(state));
-            SetLocked(_navTechniques, !TutorialProgressPresenter.IsTechniquesUnlocked(state));
-        }
-
-        private static void SetLocked(VisualElement tab, bool locked)
-        {
-            if (tab == null)
-                return;
-
-            if (locked)
-                tab.AddToClassList(LockedClass);
-            else
-                tab.RemoveFromClassList(LockedClass);
-
-            // The "COMPLETE LVL 0" badge (Map only) mirrors the lock state; Techniques
-            // has no badge element, so this is a safe no-op there.
-            Label badge = tab.Q<Label>(className: "home-tab__badge");
-            if (badge != null)
-                badge.style.display = locked ? DisplayStyle.Flex : DisplayStyle.None;
+            HideModal(_plansModal);
+            HideModal(_settingsModal);
         }
 
         private readonly struct ButtonBinding

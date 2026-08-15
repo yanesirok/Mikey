@@ -1,10 +1,8 @@
 {
-    "name": "Mikey.UI.Home",
-    "rootNamespace": "Mikey.UI.Home",
+    "name": "Mikey.UI.Audio",
+    "rootNamespace": "Mikey.UI.Audio",
     "references": [
-        "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression",
-        "Mikey.UI.Audio"
+        "Mikey.UI.SafeArea"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

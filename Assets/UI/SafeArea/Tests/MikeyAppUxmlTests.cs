@@ -12,8 +12,9 @@ namespace Mikey.UI.SafeArea.Tests
     /// screens (the six post-consolidation entry/Combine screens plus the
     /// Techniques hub, Practice slice and Map progression screen), one dedicated
     /// ".safe-area-content" per screen, full-bleed elements outside the wrappers,
-    /// the mapped foreground elements inside them, the Title CTA route to Intro,
-    /// and the untouched Home → Combine flow.
+    /// the mapped foreground elements inside them, Logo Intro's button-free
+    /// contract (TitleController drives navigation itself), and the untouched
+    /// combineIntro → camTest → combine flow.
     /// </summary>
     public class MikeyAppUxmlTests
     {
@@ -70,57 +71,33 @@ namespace Mikey.UI.SafeArea.Tests
                 "Legacy 'splash' screen must be removed.");
         }
 
-        // 4
+        // 4 — Title has no CTA button anymore: TitleController advances to Intro
+        // itself (auto-advance timer + tap-anywhere), so no "go-intro" navigator
+        // exists anywhere in production.
         [Test]
-        public void GoIntroNavigator_ExistsOnTitleScreen()
+        public void GoIntroNavigator_NoLongerExists_TitleDrivesNavigationItself()
         {
             var root = BuildTree();
-            var title = root.Q<VisualElement>("title");
-            Assert.IsNotNull(title, "Expected a 'title' screen.");
-            var goIntroOnTitle = title.Query<VisualElement>(name: "go-intro").ToList();
-            Assert.AreEqual(1, goIntroOnTitle.Count,
-                "Title must carry exactly one 'go-intro' production CTA.");
+            Assert.IsEmpty(root.Query<VisualElement>(name: "go-intro").ToList(),
+                "Title has no CTA — TitleController advances to Intro itself, not a 'go-' navigator.");
 
-            // ...and there must be no stray 'go-intro' elsewhere in production.
-            var goIntroAnywhere = root.Query<VisualElement>(name: "go-intro").ToList();
-            Assert.AreEqual(1, goIntroAnywhere.Count,
-                "'go-intro' must exist only as the Title CTA (no leftover Splash navigator).");
-        }
-
-        // 5
-        [Test]
-        public void GoIntroNavigator_TargetsExistingIntroScreen()
-        {
-            var root = BuildTree();
-            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
-            Assert.IsNotEmpty(root.Query<VisualElement>(name: "go-intro").ToList(),
-                "Expected a 'go-intro' navigator.");
             var intro = root.Q<VisualElement>("intro");
-            Assert.IsNotNull(intro, "'go-intro' must target an existing 'intro' screen.");
+            Assert.IsNotNull(intro, "The 'intro' screen TitleController advances to must still exist.");
             Assert.IsTrue(intro.ClassListContains("screen"), "'intro' target must be a screen.");
         }
 
-        // 8
+        // 8 + 9 — Logo Intro is minimal by design: no buttons, just the centered
+        // Mikey logo mark (see Assets/UI/Title/Tests for TitleController's own
+        // timer/tap-skip contract).
         [Test]
-        public void TitleCta_UsesMinimumTouchTargetClass()
-        {
-            var cta = BuildTree().Q<VisualElement>("title")?.Q<Button>("go-intro");
-            Assert.IsNotNull(cta, "Title must expose its CTA as a 'go-intro' Button.");
-            Assert.IsTrue(cta.ClassListContains("tap-target"),
-                "Title CTA must carry the .tap-target minimum-touch-target class.");
-        }
-
-        // 9
-        [Test]
-        public void TitleCta_Icon_UsesExplicitNonShrinkingSizingClass()
+        public void TitleScreen_HasNoButtons_OnlyTheLogo()
         {
             var title = BuildTree().Q<VisualElement>("title");
-            var icons = ByClass(title, "title-icon");
-            Assert.IsNotEmpty(icons,
-                "Title CTA must include a visible .title-icon arrow with explicit sizing.");
-            foreach (var icon in icons)
-                Assert.IsTrue(icon.ClassListContains("title-icon--cta"),
-                    "Title CTA icon must use the explicit non-shrinking .title-icon--cta sizing modifier.");
+            Assert.IsNotNull(title, "Expected a 'title' screen.");
+            Assert.IsEmpty(title.Query<Button>().ToList(),
+                "Logo Intro must have no buttons — auto-advance timer + tap-anywhere only.");
+            Assert.IsNotNull(title.Q<VisualElement>(className: "title-logo"),
+                "Title must show the centered Mikey logo mark.");
         }
 
         [Test]
@@ -137,20 +114,17 @@ namespace Mikey.UI.SafeArea.Tests
                 "Retired Combine result navigator must be removed.");
         }
 
-        // 17 — Home → Combine flow remains unchanged.
+        // 17 — combineIntro → camTest → combine → menu remains structurally
+        // unchanged, even though Main Menu's PLAY no longer routes through it (PLAY
+        // goes straight to Map now — see HomeScreenUxmlTests). These screens and
+        // their internal routes are untouched, just no longer reachable from the
+        // rebuilt Main Menu.
         [Test]
-        public void HomeToCombineFlow_RemainsUnchanged()
+        public void CombineIntroToCamTestToCombineFlow_RemainsUnchanged()
         {
             var root = BuildTree();
 
-            // menu → combineIntro (via the dynamic 'home-cta', whose NewPlayer/
-            // IntroCompleted-state destination is combineIntro; see HomeController
-            // / TutorialProgressPresenter and HomeScreenUxmlTests for the full
-            // per-state contract).
-            var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "Expected a 'menu' (Home) screen.");
-            Assert.IsNotNull(menu.Q<Button>("home-cta"),
-                "Home must keep its dynamic 'home-cta' CTA.");
+            Assert.IsNotNull(root.Q<VisualElement>("menu"), "Expected a 'menu' (Main Menu) screen.");
 
             // combineIntro → camTest
             var combineIntro = root.Q<VisualElement>("combineIntro");
@@ -243,7 +217,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-block", "title-name", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
+            foreach (var className in new[] { "title-block", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
                 "map-layout", "map-stage", "map-detail", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
             {
@@ -257,19 +231,18 @@ namespace Mikey.UI.SafeArea.Tests
             }
         }
 
-        // 30 — existing Title → Intro → Home entry route remains unchanged.
+        // 30 — Intro → Home route remains unchanged (Title's own route into Intro
+        // is driven by TitleController, not a "go-" navigator — see
+        // GoIntroNavigator_NoLongerExists_TitleDrivesNavigationItself).
         [Test]
-        public void TitleToIntroToHomeRoute_RemainsUnchanged()
+        public void IntroToHomeRoute_RemainsUnchanged()
         {
             var root = BuildTree();
 
-            // title → intro (go-intro lives on the Title screen, targets the intro screen)
-            var title = root.Q<VisualElement>("title");
-            Assert.IsNotNull(title, "Expected a 'title' screen.");
-            Assert.IsNotNull(title.Q<Button>("go-intro"), "Title must keep its 'go-intro' CTA.");
-            Assert.IsNotNull(root.Q<VisualElement>("intro"), "'go-intro' must target an existing 'intro' screen.");
+            Assert.IsNotNull(root.Q<VisualElement>("title"), "Expected a 'title' screen.");
+            Assert.IsNotNull(root.Q<VisualElement>("intro"), "Expected an 'intro' screen.");
 
-            // intro → menu (Enter the Dojo / Skip both navigate Home)
+            // intro → menu (CONTINUE / Skip both navigate Home)
             var intro = root.Q<VisualElement>("intro");
             Assert.IsNotEmpty(intro.Query<VisualElement>(name: "go-menu").ToList(),
                 "Intro must keep a 'go-menu' route to Home.");
