@@ -1029,7 +1029,7 @@ git ls-files Assets/Fight/character
 - Modify: настройки импорта клипов в `Assets/Fight/animations/*.fbx.meta` и `Assets/Characters/Karate/UAL1_Standard.fbx.meta` (правит скрипт, не руками)
 
 **Interfaces:**
-- Consumes: собственные мокапы `Assets/Fight/animations/video_*_BoyFBX.fbx` (клипы `FightIdle`, `OiZuki`, `Uraken_Swing`, `YokoGeri_High`, `AgeUke`, `Knockdown_GetUp`) и CC0-набор `Assets/Characters/Karate/UAL1_Standard.fbx` (клипы `Walk_Loop`, `Hit_Chest`).
+- Consumes: собственные мокапы `Assets/Fight/animations/video_*_BoyFBX.fbx` (клипы `FightIdle`, `OiZuki`, `Uraken_Swing`, `YokoGeri_High`, `AgeUke`, `Knockdown_GetUp`) и CC0-набор `Assets/Characters/Karate/UAL1_Standard.fbx` (клипы `Armature|Walk_Loop`, `Armature|Hit_Chest` — префикс у них настоящий, пак оставлен как его записал экспортёр).
 - Produces: `Fighter.controller`, у которого каждое состояние имеет non-null motion, ни одно не ссылается на UAL2, а `Kick` играет ёко гери.
 
 - [ ] **Step 1: Написать падающий тест**
@@ -1174,15 +1174,21 @@ namespace Mikey.FightEditor
         const string Mocap = "Assets/Fight/animations/";
         const string Ual1 = "Assets/Characters/Karate/UAL1_Standard.fbx";
 
-        /// <summary>state name -> (model asset, clip name inside it).</summary>
+        /// <summary>state name -> (model asset, clip name inside it).
+        ///
+        /// The two UAL1 clips carry an "Armature|" prefix and the mocap clips do not: the mocap
+        /// files were renamed at import time, the CC0 pack was left as its exporter wrote it.
+        /// These are the names of the actual AnimationClip assets — verified against the
+        /// importers' own clip lists — and a mismatch here throws rather than silently skipping.
+        /// </summary>
         static readonly (string State, string Model, string Clip)[] Wiring =
         {
             ("Idle",     Mocap + "video_2026-08-06_08-08-32_BoyFBX.fbx", "FightIdle"),
-            ("Walk",     Ual1,                                           "Walk_Loop"),
+            ("Walk",     Ual1,                                           "Armature|Walk_Loop"),
             ("Punch",    Mocap + "video_2026-08-06_08-08-18_BoyFBX.fbx", "OiZuki"),
             ("PunchB",   Mocap + "video_2026-08-06_08-08-25_BoyFBX.fbx", "Uraken_Swing"),
             ("Kick",     Mocap + "video_2026-08-06_08-08-14_BoyFBX.fbx", "YokoGeri_High"),
-            ("Hit",      Ual1,                                           "Hit_Chest"),
+            ("Hit",      Ual1,                                           "Armature|Hit_Chest"),
             ("BlockHit", Mocap + "video_2026-08-06_08-08-22_BoyFBX.fbx", "AgeUke"),
             ("Blocking", Mocap + "video_2026-08-06_08-08-22_BoyFBX.fbx", "AgeUke"),
             ("Death",    Mocap + "video_2026-08-06_08-08-28_BoyFBX.fbx", "Knockdown_GetUp"),
@@ -1192,7 +1198,7 @@ namespace Mikey.FightEditor
         /// trigger and hand control back.</summary>
         static readonly HashSet<string> Looping = new HashSet<string>
         {
-            "FightIdle", "Walk_Loop", "AgeUke",
+            "FightIdle", "Armature|Walk_Loop", "AgeUke",
         };
 
         [MenuItem("Mikey/Setup Fighter Clips")]
@@ -1276,11 +1282,11 @@ namespace Mikey.FightEditor
 | Состояние | Клип | Файл |
 |---|---|---|
 | Idle | `FightIdle` | `Assets/Fight/animations/video_2026-08-06_08-08-32_BoyFBX.fbx` |
-| Walk | `Walk_Loop` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
+| Walk | `Armature\|Walk_Loop` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
 | Punch | `OiZuki` | `Assets/Fight/animations/video_2026-08-06_08-08-18_BoyFBX.fbx` |
 | PunchB | `Uraken_Swing` | `Assets/Fight/animations/video_2026-08-06_08-08-25_BoyFBX.fbx` |
 | Kick | `YokoGeri_High` | `Assets/Fight/animations/video_2026-08-06_08-08-14_BoyFBX.fbx` |
-| Hit | `Hit_Chest` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
+| Hit | `Armature\|Hit_Chest` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
 | BlockHit | `AgeUke` | `Assets/Fight/animations/video_2026-08-06_08-08-22_BoyFBX.fbx` |
 | Blocking | `AgeUke` | `Assets/Fight/animations/video_2026-08-06_08-08-22_BoyFBX.fbx` |
 | Death | `Knockdown_GetUp` | `Assets/Fight/animations/video_2026-08-06_08-08-28_BoyFBX.fbx` |
