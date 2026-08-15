@@ -9,9 +9,13 @@ namespace Mikey.FightEditor
     /// <summary>Wires the fighter's animator states to the project's own karate mocap.
     ///
     /// Done in code rather than by hand because the clips need two import settings that are
-    /// easy to lose and invisible when lost: without Bake Into Pose on the root's XZ the
-    /// fighter walks away from the position Fighter.cs holds for them, and without Loop Time
-    /// the three looping states play once and freeze.
+    /// easy to lose and invisible when lost. Bake Into Pose on the root's XZ is set here, but
+    /// on this project's own mocap it does not actually rewrite the RootT curves — confirmed
+    /// experimentally (typed API, SerializedObject, ForceUpdate reimport all leave the same
+    /// curve), not assumed. The fighter stays put anyway, for an unrelated reason: the scene
+    /// has Animator.applyRootMotion off, so nothing ever reads that curve. That invariant is
+    /// guarded by a scene-level test, not by anything in this file. Without Loop Time the
+    /// three looping states play once and freeze.
     /// </summary>
     public static class FighterClipSetup
     {
