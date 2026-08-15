@@ -120,4 +120,104 @@ namespace Mikey.Fight.Tests
             Assert.AreEqual(TextureImporterType.NormalMap, importer.textureType);
         }
     }
+
+    /// <summary>The controller is the contract between Fighter.cs and the art. A state with a
+    /// null motion plays the bind pose and looks like a frozen fighter, not like an error — so
+    /// it has to fail here rather than in someone's play session. Every clip reference in this
+    /// controller was dangling when these tests were written; that is the failure they lock out.</summary>
+    public class FighterClipsTests
+    {
+        const string ControllerPath = "Assets/Fight/Fighter.controller";
+
+        static UnityEditor.Animations.AnimatorState[] States()
+        {
+            var ac = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(
+                ControllerPath);
+            Assert.IsNotNull(ac, ControllerPath + " is missing");
+            return ac.layers
+                .SelectMany(l => l.stateMachine.states)
+                .Select(c => c.state)
+                .ToArray();
+        }
+
+        static UnityEditor.Animations.AnimatorState State(string name)
+        {
+            var s = States().FirstOrDefault(x => x.name == name);
+            Assert.IsNotNull(s, "no state named " + name);
+            return s;
+        }
+
+        [Test]
+        public void EveryState_HasMotion()
+        {
+            foreach (var s in States())
+                Assert.IsNotNull(s.motion, "state " + s.name + " has no motion");
+        }
+
+        /// <summary>Fighter.cs drives position itself, so a clip that carries root motion walks
+        /// the fighter out of the spot the code put them in. These clips are video mocap and do
+        /// carry root translation, so the importer has to bake it into the pose; this asserts
+        /// that setting was actually applied.</summary>
+        [Test]
+        public void EveryClip_StaysInPlace()
+        {
+            foreach (var s in States())
+            {
+                var clip = s.motion as AnimationClip;
+                if (clip == null)
+                    continue;
+                foreach (var binding in AnimationUtility.GetCurveBindings(clip))
+                {
+                    if (binding.propertyName != "RootT.x" && binding.propertyName != "RootT.z")
+                        continue;
+                    var curve = AnimationUtility.GetEditorCurve(clip, binding);
+                    float min = float.MaxValue, max = float.MinValue;
+                    foreach (var key in curve.keys)
+                    {
+                        min = Mathf.Min(min, key.value);
+                        max = Mathf.Max(max, key.value);
+                    }
+                    Assert.Less(max - min, 0.15f,
+                        clip.name + " drifts " + (max - min) + " m on " + binding.propertyName);
+                }
+            }
+        }
+
+        /// <summary>Kick used to play Punch_Cross and Blocking used to borrow UAL2's shield
+        /// stance, because the CC0 pack had neither a kick nor an unarmed block. Both are paid
+        /// off by the project's own karate mocap. UAL1 is deliberately still allowed — Walk and
+        /// Hit legitimately come from it; UAL2 was only ever the weapon-stance stopgap.</summary>
+        [Test]
+        public void NoState_StillUsesTheWeaponStopgaps()
+        {
+            foreach (var s in States())
+            {
+                var path = AssetDatabase.GetAssetPath(s.motion);
+                Assert.IsFalse(path.Contains("UAL2_Standard"),
+                    "state " + s.name + " still plays a weapon-pack stopgap: " + path);
+            }
+        }
+
+        /// <summary>Asserted on the asset path and clip name rather than on a generic "not a
+        /// punch" check: every technique here is a named karate move, so the test can say which
+        /// one it expects. Yoko geri is the kick the project kept — spec 2026-07-29 drops mae
+        /// geri, so a Kick that plays MaeGeri is a regression, not a near miss.</summary>
+        [Test]
+        public void Kick_PlaysYokoGeri()
+        {
+            var motion = State("Kick").motion;
+            Assert.IsNotNull(motion, "Kick has no motion");
+            Assert.IsTrue(motion.name.Contains("YokoGeri"),
+                "Kick plays " + motion.name + " instead of yoko geri");
+        }
+
+        [Test]
+        public void Blocking_PlaysAgeUke()
+        {
+            var motion = State("Blocking").motion;
+            Assert.IsNotNull(motion, "Blocking has no motion");
+            Assert.IsTrue(motion.name.Contains("AgeUke"),
+                "Blocking plays " + motion.name + " instead of age uke");
+        }
+    }
 }
