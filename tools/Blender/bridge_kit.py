@@ -455,4 +455,5 @@ def main():
     print(f'bridge_kit: OK — {len(lows)} деталей, {total} трисов, атлас {ATLAS}')
 
 
-main()
+if __name__ == '__main__':
+    main()
