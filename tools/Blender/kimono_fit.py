@@ -23,8 +23,8 @@ import bpy
 import mathutils
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from bridge_kit import (ATLAS, apply_mods, bake_pair, fill, reset_scene,
-                        save_png, tri_count)
+from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
+                        bake_pair, fill, reset_scene, save_png, tri_count)
 
 
 def parse_args():
@@ -204,6 +204,77 @@ def bake(low, high, out_dir):
     save_png(ao, os.path.join(out_dir, 'T_Kimono_AO.png'))
 
 
+# Кости, чью геометрию закрывает ткань, и кости, которые остаются наружу.
+# KEEP проверяется первым: mixamorig:ForeArm содержит и Arm, и — по смыслу —
+# запястье, но кисть обязана уцелеть.
+# Buttock и Breast есть именно в скелете mixamo_unity (64 кости против 52 у
+# обычного mixamo); без них ягодицы и грудь остались бы под тканью целыми.
+COVERED = ('Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg',
+           'Buttock', 'Breast')
+KEEP = ('Head', 'Neck', 'Hand', 'Foot', 'Toe')
+
+
+def transfer_weights(low, body, arm):
+    """Веса берём с уже отскиненного тела, а не автоматические.
+
+    Тело отскинено правильно и кимоно лежит ровно по нему, поэтому перенос
+    ближайшей гранью точнее, чем parent_set(ARMATURE_AUTO), и не требует
+    ручной покраски.
+    """
+    for vg in body.vertex_groups:
+        if vg.name not in low.vertex_groups:
+            low.vertex_groups.new(name=vg.name)
+    mod = low.modifiers.new('weights', 'DATA_TRANSFER')
+    mod.object = body
+    mod.use_vert_data = True
+    mod.data_types_verts = {'VGROUP_WEIGHTS'}
+    mod.vert_mapping = 'POLYINTERP_NEAREST'
+    apply_mods(low)
+
+    armmod = low.modifiers.new('Armature', 'ARMATURE')
+    armmod.object = arm
+    low.parent = arm
+    low.matrix_parent_inverse = arm.matrix_world.inverted()
+
+
+def strip_covered(body):
+    """Тело под тканью удаляем: иначе на ударе ногой оно пробьёт штанину."""
+    import bmesh
+    name_of = {g.index: g.name for g in body.vertex_groups}
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    layer = bm.verts.layers.deform.verify()
+    doomed = []
+    for v in bm.verts:
+        w = v[layer]
+        if not w:
+            continue
+        name = name_of.get(max(w.keys(), key=lambda k: w[k]), '')
+        if any(k in name for k in KEEP):
+            continue
+        if any(c in name for c in COVERED):
+            doomed.append(v)
+    bmesh.ops.delete(bm, geom=doomed, context='VERTS')
+    bm.to_mesh(body.data)
+    body.data.update()
+    bm.free()
+    return len(doomed)
+
+
+def export(path, objs):
+    _install_deterministic_fbx_uuids()
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.export_scene.fbx(
+        filepath=path, use_selection=True,
+        object_types={'MESH', 'ARMATURE'}, add_leaf_bones=False,
+        bake_anim=False, apply_scale_options='FBX_SCALE_UNITS',
+        bake_space_transform=True, axis_forward='-Z', axis_up='Y',
+        use_mesh_modifiers=True)
+
+
 def main():
     a = parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -229,8 +300,28 @@ def main():
         f'(ниже порога {UV_COVERAGE_MIN:.0%}, см. UV_COVERAGE_MIN)')
 
     bake(low, kimono, a.out)
+
+    # High-poly больше не нужен. Удаляем сразу: в экспорт по
+    # object_types={'MESH'} он уехал бы молча, и вместо 12k в Unity
+    # приехало бы 305k.
+    bpy.data.objects.remove(kimono, do_unlink=True)
+
+    body = max(body_meshes, key=tri_count)
+    transfer_weights(low, body, arm)
+    removed = strip_covered(body)
+    assert removed > 0, 'ни одна вершина тела не вырезана — имена костей не mixamorig?'
+    assert tri_count(body) > 0, 'вырезано всё тело — COVERED слишком широк'
+
+    skinned = sum(1 for v in low.data.vertices if v.groups)
+    assert skinned == len(low.data.vertices), (
+        f'{len(low.data.vertices) - skinned} вершин кимоно без весов — '
+        'ткань останется висеть в воздухе')
+
+    fbx = os.path.join(a.out, '..', 'KimonoFighter.fbx')
+    export(os.path.normpath(fbx), [arm, low] + body_meshes)
     print(f'kimono_fit: подгонка scale={scale:.4f}, '
-          f'{high_tris} -> {got} трисов, карты в {a.out}')
+          f'{high_tris} -> {got} трисов, вырезано {removed} вершин тела, '
+          f'экспорт {os.path.normpath(fbx)}')
 
 
 if __name__ == '__main__':
