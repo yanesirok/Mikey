@@ -1,16 +1,16 @@
 /* ============================================================
    Logo Intro — startup/logo screen ("title"). The app's very first screen:
-   a full-screen near-black background with the centered Mikey logo mark and
-   nothing else (TitleController auto-advances to Lore after a short beat, or
-   immediately on a tap/click anywhere). Palette custom properties (--base …)
-   cascade in from .mikey-app in theme.uss; this file only adds Title-specific
-   structure, same pattern as Home/Home.uss, Intro/Intro.uss.
+   the final logo_intro.mp4 animation, played once full-bleed against a
+   near-black backdrop (TitleController advances to Lore when the video
+   ends, or immediately on a tap/click anywhere). Palette custom properties
+   (--base …) cascade in from .mikey-app in theme.uss; this file only adds
+   Title-specific structure, same pattern as Home/Home.uss, Intro/Intro.uss.
 
-   Deliberately minimal: no CTA, no subtitle, no background art/video (the
-   retired title_loop.mp4 / ember-sun treatment is gone — see MikeyApp.uxml).
-   When a dedicated logo-animation video (logo_intro.mp4) exists, only
-   .title-logo needs to become a video target; the timer/tap-skip behavior in
-   TitleController does not change.
+   Deliberately minimal: no CTA, no subtitle, no static logo image — the
+   video itself is the logo mark. .safe-area-content is still present (every
+   screen has exactly one, see MikeyAppUxmlTests) but stays empty: a
+   full-bleed cinematic has no foreground content that needs to dodge device
+   safe-area insets.
    ============================================================ */
 
 .title-screen {
@@ -18,10 +18,13 @@
     background-color: var(--base);
 }
 
-/* ---------- full-bleed background ----------
+/* ---------- full-bleed backdrop + logo video ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .intro-bg / .home-bg / .combine-bg on the other screens. Solid near-black:
-   no art, no glow, no scrim — the screen IS the background. */
+   .intro-bg / .home-bg / .combine-bg on the other screens. .title-bg's solid
+   near-black is both the "black background immediately" backdrop shown
+   before playback starts and the letterbox color around the video once it
+   plays. .title-video sits on top of it with scale-to-fit, so the animation
+   fills the screen without ever stretching, distorting or being cropped. */
 .title-bg {
     position: absolute;
     top: 0;
@@ -31,19 +34,11 @@
     background-color: var(--base);
 }
 
-/* ---------- centered logo mark (inside the safe area) ---------- */
-.title-block {
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-}
-
-.title-logo {
-    width: 300px;
-    height: 300px;
-    max-width: 70%;
-    max-height: 70%;
-    background-image: url("/Assets/UI/Media/Images/mikey_logo.png");
+.title-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     -unity-background-scale-mode: scale-to-fit;
 }

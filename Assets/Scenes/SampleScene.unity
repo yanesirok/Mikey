@@ -663,7 +663,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee3995047e30c4a41bb8e8e0d3249785, type: 3}
   m_Name:
   m_EditorClassIdentifier: Mikey.UI.Title::Mikey.UI.Title.TitleController
-  autoAdvanceSeconds: 2.75
+  logoIntroClip: {fileID: 32900000, guid: 45b92510ca7e33f45b211e49b74c35c5, type: 3}
 --- !u!114 &1720403631
 MonoBehaviour:
   m_ObjectHideFlags: 0
