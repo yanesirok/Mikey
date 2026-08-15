@@ -3,6 +3,7 @@
     "rootNamespace": "Mikey.UI.Map.Tests",
     "references": [
         "Mikey.UI.Map",
+        "Mikey.UI.Progression",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

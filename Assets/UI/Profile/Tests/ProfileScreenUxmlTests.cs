@@ -133,22 +133,25 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void Map_ExistingNavigationStatesRemainIntact_AndHasNoProfileTab()
+        public void Map_ExistingNavigationStatesRemainIntact_AndLinksToProfileAsStats()
         {
             var root = BuildTree();
 
-            // Map's full-viewport selected-level presentation has no large 4-tab
-            // dock (see approved design correction): it exposes only a minimal Home
-            // action, not a go-profile tab. Okinawa no longer routes directly to
-            // Techniques: selecting it opens the docked level-detail panel
-            // (map-node-okinawa), whose own "START LESSON" action (map-detail-start)
-            // is what routes to Techniques.
+            // Map's mobile rebuild (frontend/rebuild-map-mobile) replaced the
+            // old single Okinawa checkpoint with LVL0/LVL1 hotspots, each with
+            // its own per-checkpoint Start CTA — map-node-okinawa/map-detail-start
+            // no longer exist. Its top quick-access bar deliberately DOES expose
+            // a go-profile navigator now (labelled "STATS", reusing the existing
+            // Profile screen) — the opposite of the old dashboard-era invariant
+            // this test used to assert, per that rebuild's explicit spec.
             var map = Screen(root, "map");
             Assert.IsNotNull(map.Q<Button>("go-menu"));
-            Assert.IsNotNull(map.Q<Button>("map-node-okinawa"), "Okinawa must exist as a checkpoint action.");
-            Assert.IsNotNull(map.Q<Button>("map-detail-start"), "Okinawa's level-detail panel must route to Techniques.");
-            Assert.IsNull(map.Q<VisualElement>("go-profile"),
-                "Map's full-viewport selected-level view must not reintroduce a dock go-profile tab.");
+            Assert.IsNotNull(map.Q<Button>("map-node-lvl0"), "LVL 0 must exist as a checkpoint action.");
+            Assert.IsNotNull(map.Q<Button>("map-node-lvl1"), "LVL 1 must exist as a checkpoint action.");
+            Assert.IsNotNull(map.Q<Button>("map-detail-start-lvl0"), "LVL 0's panel must route to the Combine briefing.");
+            Assert.IsNotNull(map.Q<Button>("map-detail-start-lvl1"), "LVL 1's panel must route to Techniques.");
+            Assert.IsNotNull(map.Q<Button>("go-profile"),
+                "Map's top bar STATS tab must link to Profile (go-profile).");
         }
 
         [Test]
@@ -297,10 +300,11 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));
-            // Map's Okinawa checkpoint routes to Techniques indirectly via its
-            // level-detail panel's Start Lesson action (see
-            // HomeAndMap_ExistingNavigationStatesRemainIntact for the direct check).
-            Assert.IsNotNull(Screen(root, "map").Q<Button>("map-detail-start"));
+            // Map's LVL0/LVL1 checkpoints route onward via their own per-checkpoint
+            // Start CTAs (see Map_ExistingNavigationStatesRemainIntact_AndLinksToProfileAsStats
+            // for the direct check).
+            Assert.IsNotNull(Screen(root, "map").Q<Button>("map-detail-start-lvl0"));
+            Assert.IsNotNull(Screen(root, "map").Q<Button>("map-detail-start-lvl1"));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator));
         }

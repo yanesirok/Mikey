@@ -5,13 +5,17 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Media.Tests
 {
     /// <summary>
-    /// Structural contract for the background-media layer on the three screens
-    /// with a bound video/image in MikeyApp.uxml (menu/combine/map): each screen's
-    /// existing full-bleed "&lt;x&gt;-bg" layer gets exactly one ".bg-media" element
-    /// (the runtime video/image target), still outside .safe-area-content, and
-    /// each screen keeps a legibility scrim so foreground content stays readable
-    /// over the background media. Logo Intro ("title") deliberately has neither —
-    /// it is a static near-black background + the centered logo, nothing else.
+    /// Structural contract for the background-media layer on the two screens
+    /// with a BackgroundMediaController-bound video in MikeyApp.uxml (menu/
+    /// combine): each screen's existing full-bleed "&lt;x&gt;-bg" layer gets
+    /// exactly one ".bg-media" element (the runtime video target), still outside
+    /// .safe-area-content, and each screen keeps a legibility scrim so
+    /// foreground content stays readable over the background media. Logo Intro
+    /// ("title") and Map ("map") deliberately have neither: Title is a static
+    /// near-black background + the centered logo, nothing else; Map's reused
+    /// artwork now lives directly inside its own pannable ".map-canvas" (see
+    /// Assets/UI/Map/Map.uss), with its own ".map-stage__scrim" legibility
+    /// layer, not the shared BackgroundMediaController media model.
     /// </summary>
     public class BackgroundMediaUxmlTests
     {
@@ -36,7 +40,6 @@ namespace Mikey.UI.Media.Tests
 
         [TestCase("menu", "home-bg", "home-bg-media")]
         [TestCase("combine", "combine-bg", "combine-bg-media")]
-        [TestCase("map", "map-bg", "map-bg-media")]
         public void Screen_HasBgMediaElement_InsideBackgroundLayer_OutsideSafeArea(
             string screenId, string bgClass, string mediaName)
         {
@@ -57,7 +60,6 @@ namespace Mikey.UI.Media.Tests
 
         [TestCase("menu", "home-scrim")]
         [TestCase("combine", "combine-scrim")]
-        [TestCase("map", "map-scrim")]
         public void Screen_HasLegibilityScrim_OutsideSafeArea(string screenId, string scrimClass)
         {
             var root = BuildTree();

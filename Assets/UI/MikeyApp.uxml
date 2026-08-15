@@ -533,146 +533,212 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 9 - MAP (full-viewport cinematic Map presentation rebuilt from the
-             approved reference: checkpoints drawn directly over the map; Okinawa
-             is the only playable destination for this MVP, so its docked,
-             full-height right-side cinematic preview panel is already open and
-             its preview already selected the moment the screen is entered —
-             title/description/stats/CTA laid directly over the video itself) -->
+        <!-- 9 - MAP (mobile-first fullscreen rebuild): a top quick-access bar,
+             then the pannable/zoomable map canvas fills all remaining space —
+             the map is the main focus, never squeezed by a permanently-reserved
+             side column. LVL 0 (the Combine assessment, always unlocked) and
+             LVL 1 (Techniques, locked until Level1Unlocked) are real UI Toolkit
+             hotspot markers over the reused asia_map.jpeg ink-wash artwork — no
+             more baked Okinawa/Tohokku/Kanto text. The detail panel is a
+             right-docked OVERLAY, hidden by default; tapping a hotspot opens
+             it, tapping the same hotspot again or tapping outside closes it.
+             Pan/zoom transform mechanics live in MapPanZoomController; hotspot
+             selection/panel/top-bar/Settings wiring lives in
+             MapLevelPreviewController. -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
-            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper.
-                 map-bg-media is disabled for this screen (see Map.uss
-                 "#map-bg-media") — the flattened MVP map artwork (.map-art)
-                 is now the only visible map image; the old full-screen
-                 asia_map background must not show a second map behind it.
-                 The element (and BackgroundMediaController's binding) is kept
-                 so the shared background-media system stays untouched for
-                 Title/Home/Combine; only its visibility on Map is disabled.
-                 Only the (now-invisible) static image + legibility scrim
-                 remain: the old translucent red/green "territory shape"
-                 glows were removed earlier — they never matched the approved
-                 reference's dark, monochrome fog treatment. -->
-            <ui:VisualElement class="map-bg" picking-mode="Ignore">
-                <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
-                <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
-            </ui:VisualElement>
+            <!-- full-bleed neutral backdrop, OUTSIDE the safe-area wrapper —
+                 visible only at the pannable canvas's zoomed-out/panned-away
+                 edges. Map no longer uses BackgroundMediaController: the
+                 reused artwork is now part of the pannable .map-canvas itself
+                 (see below), not an externally-assigned full-bleed target. -->
+            <ui:VisualElement class="map-bg" picking-mode="Ignore" />
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-layout">
 
-                <!-- LEFT: the map stage (~61.7%) — MVP: the approved reference's
-                     route/checkpoint composition is a single flattened static
-                     image (Assets/UI/Media/Images/japan_route_map_mvp.png), not
-                     separately-rendered dots/labels/route segments. Scaled to
-                     fit without altering its internal 790x720 crop or aspect
-                     ratio (never stretched, never cropped differently at
-                     different viewport sizes). -->
-                <ui:VisualElement class="map-stage">
-
-                    <!-- map-artboard: preserves the approved reference's exact
-                         790:720 aspect ratio, sized to the maximum that fits
-                         inside the map stage and centered — never stretched,
-                         never cropped. The map artwork AND the Okinawa hotspot
-                         are both children of this SAME box, so the hotspot's
-                         percentage position stays aligned with the visible
-                         artwork even when the stage itself pillarboxes at a
-                         wider-than-790:720 aspect ratio (e.g. 2400x1080). -->
-                    <ui:VisualElement class="map-artboard">
-                        <ui:VisualElement class="map-art" picking-mode="Ignore" />
-
-                        <!-- transparent Okinawa interaction hotspot: no visible
-                             background, border or label of its own — the visible
-                             red Okinawa marker is baked into the map artwork;
-                             this is purely a click target, positioned at the
-                             marker's normalized coordinate WITHIN THE ARTBOARD
-                             (see Map.uss ".map-node-okinawa"), with a larger
-                             invisible tap area than the visible dot for
-                             usability. Local checkpoint-select action (NOT a
-                             "go-" navigator): MapLevelPreviewController opens
-                             the docked cinematic panel and starts the inline
-                             preview; the panel's own "START LESSON" action is
-                             what routes to the Techniques hub. Locked points
-                             (Tonokku / Kanto / future) have no separate
-                             interactive element for this MVP — they are part
-                             of the flattened artwork and simply cannot be
-                             clicked. -->
-                        <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
-                    </ui:VisualElement>
-
-                    <!-- one minimal, unobtrusive way back to Home: plain text, no
-                         pill/box styling, so it never competes with the map.
-                         Fixed to the stage's own corner (not the artboard), so
-                         it stays put regardless of any pillarboxing. -->
-                    <ui:Button name="go-menu" class="map-home tap-target">
-                        <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
-                    </ui:Button>
-                </ui:VisualElement>
-
-                <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush
-                     against the top, right and bottom edges. One full-height video
-                     with layered dark overlays over its lower portion — title,
-                     description, stats and the CTA sit directly on top of the video
-                     (there is no separate solid-black content panel below it).
-                     MVP: Okinawa is the only playable destination, so this panel
-                     stays visible for the whole Map screen visit (Map.uss ".map-detail"
-                     has no display:none) — the 61.7/38.3 split is always structurally
-                     present, never collapsing to a full-width stage. On entering the
-                     "map" screen, MapLevelPreviewController automatically selects
-                     Okinawa and starts its inline preview (no click required); the
-                     transparent hotspot on the map stage remains for re-selection, but
-                     is not required to open this panel. No close action: Home/back is
-                     the only way to leave Map for this MVP. Drives the inline video's
-                     lifecycle independently of the map background (see
-                     Media/BackgroundMediaController.cs for the separate full-bleed
-                     system that stays untouched here). -->
-                <ui:VisualElement name="map-detail" class="map-detail">
-                    <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
-
-                    <!-- layered dark overlays approximating the reference's gradient
-                         (USS has no linear-gradient support): a subtle overall tint
-                         plus two stronger bands anchored to the bottom, so scenery
-                         stays visible behind the upper portion of the video while the
-                         lower information area stays readable. -->
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--1" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--2" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--3" picking-mode="Ignore" />
-
-                    <!-- safe static fallback: shown instead of the video if it cannot load -->
-                    <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
-
-                    <!-- title / subtitle / description / stats / CTA — real UI
-                         Toolkit elements laid directly over the video + overlays,
-                         anchored to the lower portion of the panel. -->
-                    <ui:VisualElement class="map-detail__content">
-                        <ui:Label text="OKINAWA" class="map-detail__title" />
-                        <ui:Label text="Where it all began" class="map-detail__subtitle" />
-                        <ui:Label text="Here you will master stance, breathing, and the first strike." class="map-detail__desc" />
-
-                        <ui:VisualElement class="map-detail__stats">
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="LESSONS" class="map-detail__stat-label" />
-                                <ui:Label text="4" class="map-detail__stat-value" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
-                                <ui:Label text="3" class="map-detail__stat-value" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="2 / 4 COMPLETED" class="map-detail__stat-value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-
-                        <!-- local controller-bound action (NOT a "go-" navigator):
-                             MapLevelPreviewController routes this through the existing
-                             IScreenNavigator to the 'techniques' screen. -->
-                        <ui:Button name="map-detail-start" class="map-detail__cta tap-target-lg">
-                            <ui:Label text="START LESSON" class="map-detail__cta-text" picking-mode="Ignore" />
+                <!-- top quick-access bar: Home + MAP / TECHNIQUES / STATS on
+                     the left, Settings + Level/XP (mock) on the right. -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__tabs">
+                        <!-- one minimal way back to Home -->
+                        <ui:Button name="go-menu" class="map-topbar__home tap-target">
+                            <ui:Label text="‹" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- MAP: already here, so a plain self-navigating go-map
+                             is a safe no-op (ScreenManager never re-notifies on
+                             re-request); marked active in markup. -->
+                        <ui:Button name="go-map" class="map-topbar__tab map-topbar__tab--active tap-target">
+                            <ui:Label text="MAP" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- TECHNIQUES: progression-gated (MapLevelPreviewController),
+                             NOT a "go-" navigator — mirrors the LVL 1 hotspot's own
+                             gate. Markup default (locked) matches the safe
+                             NewPlayer state. -->
+                        <ui:Button name="map-topbar-techniques" class="map-topbar__tab map-topbar__tab--locked tap-target">
+                            <ui:Label text="TECHNIQUES" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- STATS: reuses the existing Profile screen (always
+                             available), a plain navigator. -->
+                        <ui:Button name="go-profile" class="map-topbar__tab tap-target">
+                            <ui:Label text="STATS" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
+                    <ui:VisualElement class="map-topbar__right">
+                        <!-- local overlay (NOT a "go-" navigator); MapLevelPreviewController opens it -->
+                        <ui:Button name="map-settings-open" class="map-topbar__settings tap-target">
+                            <ui:Label text="⚙" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:VisualElement class="map-topbar__progress" picking-mode="Ignore">
+                            <!-- markup default matches the safe NewPlayer state
+                                 (LEVEL 0); MapLevelPreviewController refreshes
+                                 it from real progression. -->
+                            <ui:Label name="map-topbar-level" text="LEVEL 0" class="map-topbar__level" />
+                            <!-- mock: no real XP system yet -->
+                            <ui:Label text="420 / 1000 XP" class="map-topbar__xp" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- pan/zoom map stage: always fills the remaining space. -->
+                <ui:VisualElement class="map-stage">
+
+                    <!-- pannable/zoomable content layer (MapPanZoomController):
+                         the artwork and both hotspot markers are children of
+                         this SAME element, so they move/scale together. -->
+                    <ui:VisualElement class="map-canvas">
+                        <ui:VisualElement class="map-canvas-art" picking-mode="Ignore" />
+
+                        <!-- LVL 0 — The Combine assessment. Always unlocked
+                             (it's the starting point): tapping opens its
+                             panel; CTA routes to the existing combineIntro
+                             briefing. Local checkpoint-select action (NOT a
+                             "go-" navigator). -->
+                        <ui:Button name="map-node-lvl0" class="map-node map-node--lvl0 tap-target-lg">
+                            <ui:VisualElement class="map-node__badge" picking-mode="Ignore">
+                                <ui:Label text="測" class="map-node__glyph" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 0" class="map-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- LVL 1 — Techniques. Visible but locked until LVL 0
+                             completes (Level1Unlocked); tapping still opens
+                             its panel, but the CTA shows locked/unavailable
+                             until then. Markup default (locked) matches the
+                             safe NewPlayer state. -->
+                        <ui:Button name="map-node-lvl1" class="map-node map-node--lvl1 map-node--locked tap-target-lg">
+                            <ui:VisualElement class="map-node__badge" picking-mode="Ignore">
+                                <ui:Label text="技" class="map-node__glyph" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 1" class="map-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <!-- legibility darkening over the map canvas; ignores
+                         picking so it never blocks panning/zooming or taps. -->
+                    <ui:VisualElement class="map-stage__scrim" picking-mode="Ignore" />
+
+                    <!-- LVL0/LVL1 detail panel: an OVERLAY docked right,
+                         hidden by default (display:none is the safe markup
+                         default; see Map.uss ".map-detail"). Tapping a
+                         hotspot opens it for that checkpoint; tapping the
+                         same hotspot again or tapping outside closes it
+                         (MapLevelPreviewController). -->
+                    <ui:VisualElement name="map-detail" class="map-detail">
+                        <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
+
+                        <ui:VisualElement class="map-detail__overlay map-detail__overlay--1" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-detail__overlay map-detail__overlay--2" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-detail__overlay map-detail__overlay--3" picking-mode="Ignore" />
+
+                        <!-- safe static fallback: shown instead of the video
+                             if it cannot load, or if no preview clip is bound
+                             for the selected checkpoint (LVL 0 has none). -->
+                        <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
+
+                        <!-- LVL 0 content block (one of two pre-authored
+                             variants; MapLevelPreviewController toggles which
+                             is visible — mirrors Combine's loading/empty/
+                             ready/error state-switching). Hidden by default. -->
+                        <ui:VisualElement name="map-detail-content-lvl0" class="map-detail__content">
+                            <ui:Label text="LVL 0" class="map-detail__title" />
+                            <ui:Label text="The Combine" class="map-detail__subtitle" />
+                            <ui:Label text="Measure your baseline — four honest tests, no technique yet. Your fighter starts here." class="map-detail__desc" />
+
+                            <ui:VisualElement class="map-detail__stats">
+                                <ui:VisualElement class="map-detail__stat">
+                                    <ui:Label text="TESTS" class="map-detail__stat-label" />
+                                    <ui:Label text="4" class="map-detail__stat-value" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="map-detail__stat">
+                                    <ui:Label text="STATUS" class="map-detail__stat-label" />
+                                    <ui:Label text="READY" class="map-detail__stat-value" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+
+                            <!-- local controller-bound action (NOT a "go-"
+                                 navigator): routes to the existing combineIntro
+                                 briefing. Always unlocked. -->
+                            <ui:Button name="map-detail-start-lvl0" class="map-detail__cta tap-target-lg">
+                                <ui:Label text="START LVL 0" class="map-detail__cta-text" picking-mode="Ignore" />
+                            </ui:Button>
+                        </ui:VisualElement>
+
+                        <!-- LVL 1 content block. Hidden by default. -->
+                        <ui:VisualElement name="map-detail-content-lvl1" class="map-detail__content">
+                            <ui:Label text="LVL 1" class="map-detail__title" />
+                            <ui:Label text="Okinawa · Foundations" class="map-detail__subtitle" />
+                            <ui:Label text="Where it all began. Master stance, breathing, and the first strike." class="map-detail__desc" />
+
+                            <ui:VisualElement class="map-detail__stats">
+                                <ui:VisualElement class="map-detail__stat">
+                                    <ui:Label text="LESSONS" class="map-detail__stat-label" />
+                                    <ui:Label text="4" class="map-detail__stat-value" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="map-detail__stat">
+                                    <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
+                                    <ui:Label text="3" class="map-detail__stat-value" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+
+                            <!-- local controller-bound action (NOT a "go-"
+                                 navigator): routes to the existing Techniques
+                                 hub once LVL 0 completes (Level1Unlocked).
+                                 Markup default (locked) matches the safe
+                                 NewPlayer state. -->
+                            <ui:Button name="map-detail-start-lvl1" class="map-detail__cta map-detail__cta--locked tap-target-lg">
+                                <ui:Label text="START LVL 1" class="map-detail__cta-text" picking-mode="Ignore" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
                 </ui:VisualElement>
 
             </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Settings overlay: Music / Sound Effects / Trainer Voice
+                 volume, two-way bound to IAudioSettings (PlayerPrefs) —
+                 mirrors the Main Menu's Settings overlay. Hidden by default. -->
+            <ui:VisualElement name="map-settings-modal" class="map-modal">
+                <ui:VisualElement class="map-modal__card">
+                    <ui:Label text="SETTINGS" class="map-modal__title" />
+
+                    <ui:VisualElement class="map-setting">
+                        <ui:Label text="MUSIC" class="map-setting__label" />
+                        <ui:Slider name="map-settings-music" low-value="0" high-value="1" value="0.70" class="map-setting__slider" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-setting">
+                        <ui:Label text="SOUND EFFECTS" class="map-setting__label" />
+                        <ui:Slider name="map-settings-sfx" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-setting">
+                        <ui:Label text="TRAINER VOICE" class="map-setting__label" />
+                        <ui:Slider name="map-settings-trainer" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="map-settings-close" text="CLOSE" class="btn primary sm map-modal__close tap-target" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

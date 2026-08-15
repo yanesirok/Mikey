@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Mikey.UI.Audio;
 using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
@@ -10,63 +11,95 @@ using UnityEngine.Video;
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Drives the Map screen's right-side Okinawa level-detail panel. MVP: Okinawa
-    /// is the only playable destination, so entering the "map" screen automatically
-    /// selects it (opens the panel, marks it selected, starts its inline looping
-    /// preview video) without requiring a click — the transparent hotspot remains
-    /// for re-selection but isn't required. "START LESSON" routes through the
-    /// existing <see cref="IScreenNavigator"/> to the Techniques hub, and leaving
-    /// the Map screen pauses playback so no inline preview keeps running
-    /// off-screen. Deliberately separate from BackgroundMediaController — that
-    /// drives full-bleed screen backgrounds (the Map screen's own full-bleed
-    /// background media is disabled in Map.uss now that the flattened map artwork
-    /// is the only visible map image); this only owns the small in-panel preview,
-    /// never a full-screen video. Coexists with ScreenManager and
-    /// BackgroundMediaController on the shared UI GameObject, mirroring
-    /// PracticeController's bind/entry/unsubscribe pattern.
+    /// Drives the mobile Map screen's LVL0/LVL1 hotspot markers, their shared
+    /// detail panel (hidden by default; tapping a hotspot opens it, tapping the
+    /// same hotspot again or tapping outside closes it), the top quick-access
+    /// bar's progression-gated Techniques tab and Settings overlay, and the
+    /// Level/XP readout. LVL0 (the Combine assessment) is always unlocked; LVL1
+    /// is visible but its CTA stays locked until <see cref="TutorialProgressState.Level1Unlocked"/>
+    /// (mirrors the Techniques tab's own gate — both reuse
+    /// <see cref="TutorialProgressPresenter.IsTechniquesUnlocked"/>). Each
+    /// checkpoint's own content block and Start CTA are pre-authored in UXML
+    /// (mirrors Combine's loading/empty/ready/error state-switching); this
+    /// controller only toggles which one is visible. Pan/zoom is a separate,
+    /// independent concern owned by <see cref="MapPanZoomController"/>. Formerly
+    /// the single always-open Okinawa preview panel; that MVP-only design is
+    /// retired with this rebuild.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class MapLevelPreviewController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>The screen id this controller reacts to (leaving it pauses preview playback).</summary>
+        /// <summary>The screen id this controller reacts to (leaving it pauses preview playback and resets the panel).</summary>
         public const string ScreenId = "map";
 
-        /// <summary>Where "START LESSON" navigates today (an existing production screen).</summary>
-        public const string StartLessonTarget = "techniques";
+        /// <summary>Where the top bar's STATS tab navigates (frontend mock data lives on the existing Profile screen).</summary>
+        public const string StatsTarget = "profile";
 
-        private const string OpenClass = "map-detail--open";
+        /// <summary>Where the top bar's TECHNIQUES tab navigates once unlocked.</summary>
+        public const string TechniquesTarget = "techniques";
+
         private const string SelectedNodeClass = "map-node--selected";
-        private const string FallbackVisibleClass = "map-detail__video-fallback--visible";
+        private const string LockedNodeClass = "map-node--locked";
         private const string LockedCtaClass = "map-detail__cta--locked";
+        private const string LockedTabClass = "map-topbar__tab--locked";
+        private const string PanelOpenClass = "map-detail--open";
 
         [Serializable]
-        public struct CheckpointPreviewBinding
+        public struct CheckpointBinding
         {
-            [Tooltip("Name of the checkpoint node Button on the Map screen (e.g. 'map-node-okinawa').")]
+            [Tooltip("Name of the checkpoint marker Button on the Map canvas (e.g. 'map-node-lvl0').")]
             public string nodeElementName;
 
-            [Tooltip("Inline looping preview clip shown in the detail panel for this checkpoint.")]
+            [Tooltip("Name of this checkpoint's content block inside the detail panel (e.g. 'map-detail-content-lvl0').")]
+            public string contentElementName;
+
+            [Tooltip("Name of this checkpoint's Start CTA Button inside its content block.")]
+            public string ctaElementName;
+
+            [Tooltip("Screen id this checkpoint's CTA navigates to once unlocked.")]
+            public string navigationTarget;
+
+            [Tooltip("Minimum tutorial progression state required to unlock this checkpoint's CTA. NewPlayer means always unlocked.")]
+            public TutorialProgressState requiredState;
+
+            [Tooltip("Optional inline looping preview clip shown in the detail panel for this checkpoint.")]
             public VideoClip previewClip;
         }
 
-        [SerializeField] private CheckpointPreviewBinding[] checkpoints = Array.Empty<CheckpointPreviewBinding>();
+        [SerializeField] private CheckpointBinding[] checkpoints = Array.Empty<CheckpointBinding>();
 
         private VisualElement _root;
+        private VisualElement _mapScreen;
         private VisualElement _detailPanel;
         private VisualElement _videoTarget;
         private VisualElement _videoFallback;
-        private Button _closeButton;
-        private Button _startButton;
+        private Button _techniquesTab;
+        private Button _settingsOpenButton;
+        private Button _settingsCloseButton;
+        private VisualElement _settingsModal;
+        private Label _levelLabel;
+        private Slider _musicSlider;
+        private Slider _sfxSlider;
+        private Slider _trainerVoiceSlider;
 
         private readonly Dictionary<string, Button> _checkpointButtons = new Dictionary<string, Button>();
-        private readonly Dictionary<string, Action> _checkpointClickHandlers = new Dictionary<string, Action>();
+        private readonly Dictionary<string, VisualElement> _checkpointContent = new Dictionary<string, VisualElement>();
+        private readonly Dictionary<string, Button> _checkpointCtas = new Dictionary<string, Button>();
+        private readonly Dictionary<string, EventCallback<ClickEvent>> _checkpointClickCallbacks = new Dictionary<string, EventCallback<ClickEvent>>();
+        private readonly List<ActionBinding> _actionBindings = new List<ActionBinding>();
         private readonly Dictionary<string, VideoPlayer> _players = new Dictionary<string, VideoPlayer>();
         private readonly Dictionary<string, RenderTexture> _renderTextures = new Dictionary<string, RenderTexture>();
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
+        private IAudioSettings _audioSettings;
+        private EventCallback<PointerDownEvent> _outsideClickCallback;
+        private EventCallback<ChangeEvent<float>> _musicChangedCallback;
+        private EventCallback<ChangeEvent<float>> _sfxChangedCallback;
+        private EventCallback<ChangeEvent<float>> _trainerVoiceChangedCallback;
+
         private string _selectedNodeName;
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -88,17 +121,26 @@ namespace Mikey.UI.Map
 
             if (_bound)
             {
-                foreach (KeyValuePair<string, Button> kvp in _checkpointButtons)
+                foreach (KeyValuePair<string, EventCallback<ClickEvent>> kvp in _checkpointClickCallbacks)
                 {
-                    if (_checkpointClickHandlers.TryGetValue(kvp.Key, out Action handler))
-                        kvp.Value.clicked -= handler;
+                    if (_checkpointButtons.TryGetValue(kvp.Key, out Button node))
+                        node.UnregisterCallback(kvp.Value);
                 }
-                _checkpointClickHandlers.Clear();
+                _checkpointClickCallbacks.Clear();
 
-                if (_closeButton != null)
-                    _closeButton.clicked -= ClosePanel;
-                if (_startButton != null)
-                    _startButton.clicked -= StartLesson;
+                for (int i = 0; i < _actionBindings.Count; i++)
+                    _actionBindings[i].Unbind();
+                _actionBindings.Clear();
+
+                if (_mapScreen != null && _outsideClickCallback != null)
+                    _mapScreen.UnregisterCallback(_outsideClickCallback);
+
+                if (_musicSlider != null && _musicChangedCallback != null)
+                    _musicSlider.UnregisterValueChangedCallback(_musicChangedCallback);
+                if (_sfxSlider != null && _sfxChangedCallback != null)
+                    _sfxSlider.UnregisterValueChangedCallback(_sfxChangedCallback);
+                if (_trainerVoiceSlider != null && _trainerVoiceChangedCallback != null)
+                    _trainerVoiceSlider.UnregisterValueChangedCallback(_trainerVoiceChangedCallback);
             }
 
             if (_navigator != null)
@@ -109,7 +151,7 @@ namespace Mikey.UI.Map
 
             if (_progress != null)
             {
-                _progress.Changed -= RefreshStartLessonLock;
+                _progress.Changed -= RefreshProgressionUi;
                 _progress = null;
             }
 
@@ -134,12 +176,21 @@ namespace Mikey.UI.Map
             _renderTextures.Clear();
 
             _checkpointButtons.Clear();
+            _checkpointContent.Clear();
+            _checkpointCtas.Clear();
             _root = null;
+            _mapScreen = null;
             _detailPanel = null;
             _videoTarget = null;
             _videoFallback = null;
-            _closeButton = null;
-            _startButton = null;
+            _techniquesTab = null;
+            _settingsOpenButton = null;
+            _settingsCloseButton = null;
+            _settingsModal = null;
+            _levelLabel = null;
+            _musicSlider = null;
+            _sfxSlider = null;
+            _trainerVoiceSlider = null;
             _selectedNodeName = null;
             _bound = false;
         }
@@ -153,7 +204,7 @@ namespace Mikey.UI.Map
             {
                 if (++frames > MaxRootResolveFrames)
                 {
-                    Debug.LogError("[MapLevelPreviewController] UIDocument root unavailable; Map level panel not bound.", this);
+                    Debug.LogError("[MapLevelPreviewController] UIDocument root unavailable; Map not bound.", this);
                     _bindRoutine = null;
                     yield break;
                 }
@@ -161,87 +212,139 @@ namespace Mikey.UI.Map
             }
 
             _root = document.rootVisualElement;
-
+            _mapScreen = _root.Q<VisualElement>(ScreenId);
             _detailPanel = _root.Q<VisualElement>("map-detail");
             _videoTarget = _root.Q<VisualElement>("map-detail-video");
             _videoFallback = _root.Q<VisualElement>("map-detail-video-fallback");
-            _closeButton = _root.Q<Button>("map-detail-close");
-            _startButton = _root.Q<Button>("map-detail-start");
+            _techniquesTab = _root.Q<Button>("map-topbar-techniques");
+            _settingsOpenButton = _root.Q<Button>("map-settings-open");
+            _settingsCloseButton = _root.Q<Button>("map-settings-close");
+            _settingsModal = _root.Q<VisualElement>("map-settings-modal");
+            _levelLabel = _root.Q<Label>("map-topbar-level");
+            _musicSlider = _root.Q<Slider>("map-settings-music");
+            _sfxSlider = _root.Q<Slider>("map-settings-sfx");
+            _trainerVoiceSlider = _root.Q<Slider>("map-settings-trainer");
 
-            if (_detailPanel == null || _videoTarget == null || _startButton == null)
+            if (_mapScreen == null || _detailPanel == null || _videoTarget == null)
             {
-                Debug.LogError("[MapLevelPreviewController] Map detail panel elements missing; panel not bound.", this);
+                Debug.LogError("[MapLevelPreviewController] Map screen/panel elements missing; not bound.", this);
                 _bindRoutine = null;
                 yield break;
             }
 
-            foreach (CheckpointPreviewBinding binding in checkpoints)
+            foreach (CheckpointBinding binding in checkpoints)
             {
                 if (string.IsNullOrEmpty(binding.nodeElementName))
                     continue;
 
                 Button node = _root.Q<Button>(binding.nodeElementName);
-                if (node == null)
+                VisualElement content = _root.Q<VisualElement>(binding.contentElementName);
+                Button cta = _root.Q<Button>(binding.ctaElementName);
+                if (node == null || content == null || cta == null)
                     continue;
 
                 _checkpointButtons[binding.nodeElementName] = node;
+                _checkpointContent[binding.nodeElementName] = content;
+                _checkpointCtas[binding.nodeElementName] = cta;
 
                 string nodeName = binding.nodeElementName;
-                Action handler = () => SelectCheckpoint(nodeName);
-                _checkpointClickHandlers[nodeName] = handler;
-                node.clicked += handler;
+                EventCallback<ClickEvent> nodeCallback = _ => SelectCheckpoint(nodeName);
+                _checkpointClickCallbacks[nodeName] = nodeCallback;
+                node.RegisterCallback(nodeCallback);
+
+                CheckpointBinding capturedBinding = binding;
+                Action ctaAction = () => StartCheckpoint(capturedBinding);
+                cta.clicked += ctaAction;
+                _actionBindings.Add(new ActionBinding(cta, ctaAction));
+
+                content.style.display = DisplayStyle.None;
             }
 
-            if (_closeButton != null)
-                _closeButton.clicked += ClosePanel;
-            _startButton.clicked += StartLesson;
+            BindAction(_techniquesTab, OnTechniquesTabClicked);
+            BindAction(_settingsOpenButton, () => SetModalOpen(_settingsModal, true));
+            BindAction(_settingsCloseButton, () => SetModalOpen(_settingsModal, false));
+
+            _outsideClickCallback = OnScreenPointerDown;
+            _mapScreen.RegisterCallback(_outsideClickCallback);
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
-            {
                 _navigator.ScreenChanged += OnScreenChanged;
-                // If Map is already the active screen when binding finishes,
-                // treat it as an entry so Okinawa is selected immediately
-                // (mirrors BackgroundMediaController's same defensive check).
-                if (_navigator.CurrentScreen == ScreenId)
-                    SelectDefaultCheckpoint();
-            }
+
+            _audioSettings = GetComponent<IAudioSettings>();
+            WireSlider(_musicSlider, _audioSettings, (s, v) => s.MusicVolume = v, s => s.MusicVolume, cb => _musicChangedCallback = cb);
+            WireSlider(_sfxSlider, _audioSettings, (s, v) => s.SfxVolume = v, s => s.SfxVolume, cb => _sfxChangedCallback = cb);
+            WireSlider(_trainerVoiceSlider, _audioSettings, (s, v) => s.TrainerVoiceVolume = v, s => s.TrainerVoiceVolume, cb => _trainerVoiceChangedCallback = cb);
 
             _progress = GetComponent<ITutorialProgress>();
             if (_progress != null)
-                _progress.Changed += RefreshStartLessonLock;
-            RefreshStartLessonLock();
+                _progress.Changed += RefreshProgressionUi;
+
+            ClosePanel();
+            SetModalOpen(_settingsModal, false);
+            RefreshProgressionUi();
 
             _bound = true;
             _bindRoutine = null;
         }
 
+        private void BindAction(Button button, Action onClick)
+        {
+            if (button == null)
+                return;
+            button.clicked += onClick;
+            _actionBindings.Add(new ActionBinding(button, onClick));
+        }
+
+        private static void WireSlider(
+            Slider slider,
+            IAudioSettings settings,
+            Action<IAudioSettings, float> apply,
+            Func<IAudioSettings, float> read,
+            Action<EventCallback<ChangeEvent<float>>> storeCallback)
+        {
+            if (slider == null || settings == null)
+                return;
+
+            slider.value = read(settings);
+            EventCallback<ChangeEvent<float>> callback = evt => apply(settings, evt.newValue);
+            slider.RegisterValueChangedCallback(callback);
+            storeCallback(callback);
+        }
+
         /// <summary>
-        /// Opens the detail panel for the given checkpoint node, marks it the active
-        /// (red) checkpoint, and starts/resumes its inline preview. Falls back to the
-        /// safe static "preview unavailable" state if no clip is bound for it (the
-        /// same fallback a runtime video error also lands on).
+        /// Opens the panel for the given checkpoint; tapping the ALREADY-selected
+        /// checkpoint again closes it instead (toggle). Switches which pre-authored
+        /// content block is visible and starts/resumes its inline preview (or the
+        /// safe fallback if none is bound).
         /// </summary>
         public void SelectCheckpoint(string nodeElementName)
         {
-            if (!TryFindBinding(nodeElementName, out CheckpointPreviewBinding binding))
+            if (!_checkpointButtons.ContainsKey(nodeElementName))
                 return;
 
-            if (_selectedNodeName != nodeElementName)
+            if (_selectedNodeName == nodeElementName)
             {
-                if (_selectedNodeName != null && _checkpointButtons.TryGetValue(_selectedNodeName, out Button previous))
-                    previous.RemoveFromClassList(SelectedNodeClass);
-
-                _selectedNodeName = nodeElementName;
-                if (_checkpointButtons.TryGetValue(nodeElementName, out Button current))
-                    current.AddToClassList(SelectedNodeClass);
+                ClosePanel();
+                return;
             }
 
-            _detailPanel?.AddToClassList(OpenClass);
-
-            if (binding.previewClip == null)
+            if (_selectedNodeName != null)
             {
-                ShowFallback(nodeElementName);
+                if (_checkpointButtons.TryGetValue(_selectedNodeName, out Button previousNode))
+                    previousNode.RemoveFromClassList(SelectedNodeClass);
+                if (_checkpointContent.TryGetValue(_selectedNodeName, out VisualElement previousContent))
+                    previousContent.style.display = DisplayStyle.None;
+            }
+
+            _selectedNodeName = nodeElementName;
+            _checkpointButtons[nodeElementName].AddToClassList(SelectedNodeClass);
+            _checkpointContent[nodeElementName].style.display = DisplayStyle.Flex;
+            _detailPanel?.AddToClassList(PanelOpenClass);
+
+            if (!TryFindBinding(nodeElementName, out CheckpointBinding binding) || binding.previewClip == null)
+            {
+                ShowFallback();
                 return;
             }
 
@@ -258,81 +361,137 @@ namespace Mikey.UI.Map
             }
         }
 
-        /// <summary>Hides the panel, pauses the active preview and deselects the checkpoint node.</summary>
+        /// <summary>Hides the panel (its default state on Map entry), pauses the active preview and deselects the checkpoint node.</summary>
         public void ClosePanel()
         {
-            _detailPanel?.RemoveFromClassList(OpenClass);
+            _detailPanel?.RemoveFromClassList(PanelOpenClass);
             PausePlayback();
 
-            if (_selectedNodeName != null && _checkpointButtons.TryGetValue(_selectedNodeName, out Button node))
-                node.RemoveFromClassList(SelectedNodeClass);
+            if (_selectedNodeName != null)
+            {
+                if (_checkpointButtons.TryGetValue(_selectedNodeName, out Button node))
+                    node.RemoveFromClassList(SelectedNodeClass);
+                if (_checkpointContent.TryGetValue(_selectedNodeName, out VisualElement content))
+                    content.style.display = DisplayStyle.None;
+            }
             _selectedNodeName = null;
         }
 
-        /// <summary>
-        /// Routes "START LESSON" through the existing screen navigator — unless
-        /// Level 1 hasn't unlocked yet (Combine not completed), in which case this
-        /// is a safe no-op: reached-via-developer-route Map visits before Level 1
-        /// unlocks must not let Okinawa's Start Lesson jump straight to Techniques.
-        /// </summary>
-        public void StartLesson()
+        /// <summary>Routes a checkpoint's CTA through the existing navigator, unless it's still locked (safe no-op — the CTA is also visibly disabled).</summary>
+        private void StartCheckpoint(CheckpointBinding binding)
         {
-            if (_progress != null && !TutorialProgressPresenter.IsMapUnlocked(_progress.State))
+            if (_progress != null && _progress.State < binding.requiredState)
+                return;
+            _navigator?.Show(binding.navigationTarget);
+        }
+
+        private void OnTechniquesTabClicked()
+        {
+            if (_progress != null && !TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))
+                return;
+            _navigator?.Show(TechniquesTarget);
+        }
+
+        private static void SetModalOpen(VisualElement modal, bool open)
+        {
+            if (modal != null)
+                modal.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>Closes the panel when a tap lands outside it and outside every hotspot (which handle their own taps via SelectCheckpoint).</summary>
+        private void OnScreenPointerDown(PointerDownEvent evt)
+        {
+            if (_selectedNodeName == null)
                 return;
 
-            _navigator?.Show(StartLessonTarget);
+            var target = evt.target as VisualElement;
+            if (target == null)
+                return;
+
+            if (_detailPanel != null && IsSelfOrDescendant(_detailPanel, target))
+                return;
+
+            foreach (Button hotspot in _checkpointButtons.Values)
+            {
+                if (IsSelfOrDescendant(hotspot, target))
+                    return;
+            }
+
+            ClosePanel();
+        }
+
+        private static bool IsSelfOrDescendant(VisualElement ancestor, VisualElement node)
+        {
+            for (VisualElement p = node; p != null; p = p.parent)
+            {
+                if (p == ancestor)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>
-        /// Reflects the Level-1-unlock gate on the Start Lesson CTA: disabled and
-        /// dimmed (".map-detail__cta--locked") before Level 1 unlocks, normal once
-        /// it has. Refreshed on bind, on entering the Map screen, and whenever
-        /// progression state changes (e.g. a developer control used while already
-        /// on Map) — no Map layout, composition, or asset change, only this
-        /// existing button's enabled/locked state.
+        /// Refreshes every progression-gated affordance: each checkpoint's
+        /// hotspot dimming + CTA lock, the top bar's Techniques tab lock, and the
+        /// Level readout. Run on bind, on entering the Map screen, and whenever
+        /// progression state changes.
         /// </summary>
-        private void RefreshStartLessonLock()
+        private void RefreshProgressionUi()
         {
-            if (_startButton == null)
-                return;
+            TutorialProgressState state = _progress?.State ?? TutorialProgressState.NewPlayer;
 
-            bool unlocked = _progress == null || TutorialProgressPresenter.IsMapUnlocked(_progress.State);
-            _startButton.SetEnabled(unlocked);
+            foreach (CheckpointBinding binding in checkpoints)
+            {
+                bool unlocked = state >= binding.requiredState;
 
-            if (unlocked)
-                _startButton.RemoveFromClassList(LockedCtaClass);
-            else
-                _startButton.AddToClassList(LockedCtaClass);
+                if (_checkpointButtons.TryGetValue(binding.nodeElementName, out Button node))
+                {
+                    if (unlocked)
+                        node.RemoveFromClassList(LockedNodeClass);
+                    else
+                        node.AddToClassList(LockedNodeClass);
+                }
+
+                if (_checkpointCtas.TryGetValue(binding.nodeElementName, out Button cta))
+                {
+                    cta.SetEnabled(unlocked);
+                    if (unlocked)
+                        cta.RemoveFromClassList(LockedCtaClass);
+                    else
+                        cta.AddToClassList(LockedCtaClass);
+                }
+            }
+
+            bool techniquesUnlocked = TutorialProgressPresenter.IsTechniquesUnlocked(state);
+            if (_techniquesTab != null)
+            {
+                _techniquesTab.SetEnabled(techniquesUnlocked);
+                if (techniquesUnlocked)
+                    _techniquesTab.RemoveFromClassList(LockedTabClass);
+                else
+                    _techniquesTab.AddToClassList(LockedTabClass);
+            }
+
+            if (_levelLabel != null)
+            {
+                int level = state >= TutorialProgressState.Level1Unlocked ? 1 : 0;
+                _levelLabel.text = $"LEVEL {level}";
+            }
         }
 
-        /// <summary>
-        /// Entering the Map screen auto-selects the default checkpoint (Okinawa)
-        /// so the approved 61.7/38.3 selected-level layout is shown immediately,
-        /// on first entry and on every return visit. Leaving the Map screen pauses
-        /// the active inline preview so no hidden video keeps playing behind
-        /// another screen.
-        /// </summary>
+        /// <summary>Entering Map always starts with the panel and Settings overlay closed (their safe default state).</summary>
         private void OnScreenChanged(string screenId)
         {
             if (screenId == ScreenId)
             {
-                SelectDefaultCheckpoint();
-                RefreshStartLessonLock();
+                ClosePanel();
+                SetModalOpen(_settingsModal, false);
+                RefreshProgressionUi();
             }
             else
+            {
                 PausePlayback();
-        }
-
-        /// <summary>
-        /// MVP: Okinawa is the only playable destination, so it's also the default
-        /// (first) checkpoint binding — selecting it opens the panel and starts its
-        /// preview without requiring the user to click the transparent hotspot.
-        /// </summary>
-        private void SelectDefaultCheckpoint()
-        {
-            if (checkpoints.Length == 0)
-                return;
-            SelectCheckpoint(checkpoints[0].nodeElementName);
+            }
         }
 
         private void PausePlayback()
@@ -343,9 +502,9 @@ namespace Mikey.UI.Map
                 player.Pause();
         }
 
-        private bool TryFindBinding(string nodeElementName, out CheckpointPreviewBinding binding)
+        private bool TryFindBinding(string nodeElementName, out CheckpointBinding binding)
         {
-            foreach (CheckpointPreviewBinding candidate in checkpoints)
+            foreach (CheckpointBinding candidate in checkpoints)
             {
                 if (candidate.nodeElementName == nodeElementName)
                 {
@@ -357,7 +516,7 @@ namespace Mikey.UI.Map
             return false;
         }
 
-        private VideoPlayer GetOrCreatePlayer(string nodeElementName, CheckpointPreviewBinding binding)
+        private VideoPlayer GetOrCreatePlayer(string nodeElementName, CheckpointBinding binding)
         {
             if (_players.TryGetValue(nodeElementName, out VideoPlayer existing) && existing != null)
                 return existing;
@@ -413,7 +572,7 @@ namespace Mikey.UI.Map
 
                 Debug.LogWarning($"[MapLevelPreviewController] '{kvp.Key}' preview video error: {message}. Falling back to the static placeholder.");
                 if (kvp.Key == _selectedNodeName)
-                    ShowFallback(kvp.Key);
+                    ShowFallback();
                 return;
             }
         }
@@ -424,16 +583,34 @@ namespace Mikey.UI.Map
                 _videoTarget.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(rt));
         }
 
-        private void ShowFallback(string nodeElementName)
+        private void ShowFallback()
         {
             if (_videoTarget != null)
                 _videoTarget.style.backgroundImage = StyleKeyword.Null;
-            _videoFallback?.AddToClassList(FallbackVisibleClass);
+            _videoFallback?.AddToClassList("map-detail__video-fallback--visible");
         }
 
         private void HideFallback()
         {
-            _videoFallback?.RemoveFromClassList(FallbackVisibleClass);
+            _videoFallback?.RemoveFromClassList("map-detail__video-fallback--visible");
+        }
+
+        private readonly struct ActionBinding
+        {
+            private readonly Button _button;
+            private readonly Action _callback;
+
+            public ActionBinding(Button button, Action callback)
+            {
+                _button = button;
+                _callback = callback;
+            }
+
+            public void Unbind()
+            {
+                if (_button != null && _callback != null)
+                    _button.clicked -= _callback;
+            }
         }
     }
 }

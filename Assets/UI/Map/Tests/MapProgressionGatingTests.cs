@@ -4,17 +4,16 @@ using NUnit.Framework;
 namespace Mikey.UI.Map.Tests
 {
     /// <summary>
-    /// Contract for Map's Level-1-unlock gate on Okinawa's "START LESSON" action
-    /// (Phase 7): before Level 1 unlocks, a Map visit reached by any means (e.g.
-    /// developer controls forcing an earlier state, or an Editor-only direct
-    /// screen jump) must not let Start Lesson jump straight to Techniques — the
-    /// button is disabled and dimmed instead. This is defense-in-depth alongside
-    /// Home's and Profile's own Level1Unlocked navigation gates (see
-    /// HomeController / ProfileController), which already stop a normal
-    /// production player from reaching Map this early. Verified by reading the
-    /// source, mirroring MapLevelPreviewControllerTests' established technique
-    /// for MonoBehaviour internals not practical to drive through a live panel
-    /// in EditMode.
+    /// Contract for Map's progression gates: LVL 0 (the Combine assessment) is
+    /// always reachable, LVL 1 stays visible but its CTA and the top bar's
+    /// TECHNIQUES tab stay locked/dimmed until <see cref="Mikey.UI.Progression.TutorialProgressState.Level1Unlocked"/>
+    /// — both reuse the same <c>TutorialProgressPresenter.IsTechniquesUnlocked</c>
+    /// check, so they can never disagree. This is defense-in-depth: a Map visit
+    /// reached by any means (developer controls, an Editor-only direct screen
+    /// jump) must never let a locked checkpoint's CTA jump straight to its
+    /// target. Verified by reading the source, mirroring
+    /// MapLevelPreviewControllerTests' established technique for MonoBehaviour
+    /// internals not practical to drive through a live panel in EditMode.
     /// </summary>
     public class MapProgressionGatingTests
     {
@@ -22,62 +21,93 @@ namespace Mikey.UI.Map.Tests
         private const string UssPath = "Assets/UI/Map/Map.uss";
 
         [Test]
-        public void StartLesson_IsANoOp_WhenLevel1NotYetUnlocked()
+        public void RefreshProgressionUi_LocksCheckpointsBelowTheirRequiredState()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("public void StartLesson()", source);
-            StringAssert.Contains("if (_progress != null && !TutorialProgressPresenter.IsMapUnlocked(_progress.State))", source);
-            StringAssert.Contains("_navigator?.Show(StartLessonTarget);", source,
-                "Start Lesson must still route through the existing navigator once unlocked.");
+            StringAssert.Contains("private void RefreshProgressionUi()", source);
+            StringAssert.Contains("bool unlocked = state >= binding.requiredState;", source);
+            StringAssert.Contains("cta.SetEnabled(unlocked);", source);
+            StringAssert.Contains("node.AddToClassList(LockedNodeClass);", source);
+            StringAssert.Contains("cta.AddToClassList(LockedCtaClass);", source);
         }
 
         [Test]
-        public void RefreshStartLessonLock_DisablesAndDimsTheExistingCta()
+        public void TechniquesTab_UsesTheSameUnlockCheck_AsGatedCheckpoints()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private void RefreshStartLessonLock()", source);
-            StringAssert.Contains("_startButton.SetEnabled(unlocked);", source);
-            StringAssert.Contains("_startButton.AddToClassList(LockedCtaClass);", source);
+            // Both the top bar's Techniques tab and any checkpoint gated on
+            // Level1Unlocked (LVL 1) must reuse the shared presenter helper —
+            // never a second, independently-drifting condition.
+            StringAssert.Contains("private void OnTechniquesTabClicked()", source);
+            StringAssert.Contains("TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State)", source);
+            StringAssert.Contains("bool techniquesUnlocked = TutorialProgressPresenter.IsTechniquesUnlocked(state);", source);
         }
 
         [Test]
-        public void LockRefresh_RunsOnBind_OnMapEntry_AndOnProgressChange()
+        public void StartCheckpoint_NeverNavigates_WhenLocked()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_progress.Changed += RefreshStartLessonLock;", source,
-                "A progression change made while already on Map (e.g. a developer control) must refresh the CTA lock.");
 
-            // Called once unconditionally right after binding, and again inside
-            // OnScreenChanged's Map-entry branch (alongside SelectDefaultCheckpoint).
+            int methodStart = source.IndexOf("private void StartCheckpoint(CheckpointBinding binding)", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(methodStart, 0, "Expected a StartCheckpoint(CheckpointBinding) method.");
+            int methodEnd = source.IndexOf("private void OnTechniquesTabClicked()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart, "Expected OnTechniquesTabClicked() to follow StartCheckpoint() in source.");
+            string methodBody = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("if (_progress != null && _progress.State < binding.requiredState)", methodBody);
+            StringAssert.Contains("return;", methodBody);
+            StringAssert.Contains("_navigator?.Show(binding.navigationTarget);", methodBody,
+                "StartCheckpoint must still route through the existing navigator once unlocked.");
+        }
+
+        [Test]
+        public void ProgressionUiRefresh_RunsOnBind_OnMapEntry_AndOnProgressChange()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_progress.Changed += RefreshProgressionUi;", source,
+                "A progression change made while already on Map (e.g. a developer control) must refresh every gated affordance.");
+
             int occurrences = 0;
             int index = 0;
-            while ((index = source.IndexOf("RefreshStartLessonLock();", index, System.StringComparison.Ordinal)) >= 0)
+            while ((index = source.IndexOf("RefreshProgressionUi();", index, System.StringComparison.Ordinal)) >= 0)
             {
                 occurrences++;
                 index += 1;
             }
             Assert.GreaterOrEqual(occurrences, 2,
-                "RefreshStartLessonLock() must be called both after binding and on entering the Map screen.");
+                "RefreshProgressionUi() must be called both after binding and on entering the Map screen.");
         }
 
         [Test]
         public void OnDisable_UnsubscribesFromProgressChanged_NoLeak()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_progress.Changed -= RefreshStartLessonLock;", source);
+            StringAssert.Contains("_progress.Changed -= RefreshProgressionUi;", source);
         }
 
-        // No Map layout, composition, or asset change — only a new, additive
-        // dimming rule for the gating behavior (mirrors .tq-lesson--locked's
-        // opacity-only idiom). The pre-existing ".map-detail__cta {" rule itself
-        // (checked exhaustively by MapScreenUxmlTests) is untouched.
+        // No Map layout/composition change — only additive, opacity-only
+        // dimming rules for the locked states (mirrors .tq-lesson--locked's idiom).
         [Test]
-        public void LockedCtaStyle_IsAdditiveOpacityOnly()
+        public void LockedStyles_AreAdditiveOpacityOnly()
         {
             Assert.IsTrue(File.Exists(UssPath), $"Expected stylesheet at {UssPath}.");
             string uss = File.ReadAllText(UssPath);
-            StringAssert.Contains(".map-detail__cta--locked {", uss);
-            StringAssert.Contains("opacity: 0.5;", uss);
+            foreach (var selector in new[] { ".map-detail__cta--locked", ".map-node--locked", ".map-topbar__tab--locked" })
+            {
+                string block = ExtractRuleBlock(uss, selector + " {");
+                Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+                StringAssert.Contains("opacity:", block, $"'{selector}' must dim via opacity only.");
+            }
+        }
+
+        private static string ExtractRuleBlock(string uss, string header)
+        {
+            int start = uss.IndexOf(header, System.StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+            int open = start + header.Length;
+            int close = uss.IndexOf('}', open);
+            return close < 0 ? null : uss.Substring(open, close - open);
         }
     }
 }
