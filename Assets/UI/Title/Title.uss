@@ -11,27 +11,33 @@
    screen has exactly one, see MikeyAppUxmlTests) but stays empty: a
    full-bleed cinematic has no foreground content that needs to dodge device
    safe-area insets.
+
+   Title intentionally uses pure #000000 here instead of the shared --base
+   near-black: on wider landscape screens scale-to-fit letterboxes the 16:9
+   video, and --base's faint blue-gray tint reads as a visible bar next to
+   the video's own black. Pure black blends the letterbox seamlessly into
+   the animation instead.
    ============================================================ */
 
 .title-screen {
     padding: 0;
-    background-color: var(--base);
+    background-color: #000000;
 }
 
 /* ---------- full-bleed backdrop + logo video ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
    .intro-bg / .home-bg / .combine-bg on the other screens. .title-bg's solid
-   near-black is both the "black background immediately" backdrop shown
-   before playback starts and the letterbox color around the video once it
-   plays. .title-video sits on top of it with scale-to-fit, so the animation
-   fills the screen without ever stretching, distorting or being cropped. */
+   black is both the "black background immediately" backdrop shown before
+   playback starts and the letterbox color around the video once it plays.
+   .title-video sits on top of it with scale-to-fit, so the animation fills
+   the screen without ever stretching, distorting or being cropped. */
 .title-bg {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--base);
+    background-color: #000000;
 }
 
 .title-video {
