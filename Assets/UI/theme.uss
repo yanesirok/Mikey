@@ -19,6 +19,9 @@
     flex-grow: 1;
     background-color: var(--base);
     color: var(--bone);
+    /* Global app font. Inherited by every descendant TextElement (Label,
+       Button, etc.) — screens should not redeclare font-family locally. */
+    -unity-font-definition: url("/Assets/UI/Fonts/mikey_ui.otf");
 }
 
 /* ---------- screens ---------- */
