@@ -700,16 +700,23 @@ git ls-files Assets/Fight/character
 
 ---
 
-### Task 5: Импорт бойца в Unity как Humanoid
+### Task 5: Импорт бойца как Humanoid и материалы
+
+Unity ассет ещё ни разу не импортировала — `KimonoFighter.fbx.meta` не существует. Редактор не запущен, а кликать в инспекторе исполнитель не может, поэтому и настройка импорта, и материалы делаются кодом, одним одноразовым Editor-скриптом, и запускаются headless через Unity CLI.
+
+Две вещи, которые пришлось уточнить против первой редакции плана:
+
+- **У `Character.shader` нет входа для AO.** Его свойства: `_BaseMap`, `_BumpMap`, `_BaseColor`, `_AlbedoGamma`, `_BumpScale`, `_Smoothness`, `_SpecStrength`, `_RimColor`, `_RimPower`, `_RimStrength`. Поэтому запечённый AO идёт в `_BaseMap`, а цвет ги задаётся через `_BaseColor`. Для одноцветной ткани без текстуры это и есть правильный albedo: AO, помноженный на тинт, даёт складкам глубину, и шейдер трогать не нужно. `_AlbedoGamma` при этом выставляется в 1: его дефолт 0.45 существует, чтобы вытягивать почти чёрный диффуз старого персонажа, а карту AO он бы просто пересветил.
+- **Мешей у бойца два, а не один** — тело и кимоно. Из-под ткани видны голова, шея, кисти и стопы, им нужен свой материал кожи. Кожа у игрока и врага одна и та же, различаются только ги и пояс, поэтому материалов три, а не четыре.
 
 **Files:**
+- Create: `Assets/Editor/FighterImportSetup.cs`
 - Create: `Assets/Fight/Tests/FighterModelTests.cs`
-- Create: `Assets/Fight/character/M_Player_Kimono.mat`, `Assets/Fight/character/M_Enemy_Kimono.mat`
-- Modify: `Assets/Fight/character/KimonoFighter.fbx.meta` (через инспектор импорта)
+- Создаются скриптом: `Assets/Fight/character/M_Fighter_Skin.mat`, `M_Player_Kimono.mat`, `M_Enemy_Kimono.mat`
 
 **Interfaces:**
-- Consumes: `Assets/Fight/character/KimonoFighter.fbx` из Task 4.
-- Produces: константа пути `FighterModelTests.ModelPath = "Assets/Fight/character/KimonoFighter.fbx"`; два материала на `Character.shader` — светлое ги игрока и тёмное ги врага.
+- Consumes: `Assets/Fight/character/KimonoFighter.fbx` из Task 4, карты `Assets/Fight/character/kimono/T_Kimono_Normal.png` и `T_Kimono_AO.png` из Task 3, шейдер `Assets/Fight/character/Character.shader`.
+- Produces: константа `FighterModelTests.ModelPath = "Assets/Fight/character/KimonoFighter.fbx"`; три материала по путям выше; модель, импортированная как Humanoid с аватаром из самой модели. Task 7 назначает эти материалы в сцене.
 
 - [ ] **Step 1: Написать падающий тест**
 
@@ -772,50 +779,242 @@ namespace Mikey.Fight.Tests
                 Object.DestroyImmediate(instance);
             }
         }
+
+        /// <summary>Body and cloth are separate meshes and must not share a material: the body
+        /// shows only where the kimono does not cover it — head, neck, hands, feet — so one
+        /// material for both would paint bare skin in gi colours.</summary>
+        [Test]
+        public void Model_HasSeparateBodyAndClothMeshes()
+        {
+            var go = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            Assert.IsNotNull(go);
+            var skins = go.GetComponentsInChildren<SkinnedMeshRenderer>();
+            Assert.AreEqual(2, skins.Length,
+                "expected body and kimono, got " + string.Join(", ", skins.Select(s => s.name)));
+        }
+
+        [Test]
+        public void Materials_ExistOnTheCharacterShader()
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(
+                "Assets/Fight/character/Character.shader");
+            Assert.IsNotNull(shader, "Character.shader is missing");
+
+            foreach (var path in new[]
+                     {
+                         "Assets/Fight/character/M_Fighter_Skin.mat",
+                         "Assets/Fight/character/M_Player_Kimono.mat",
+                         "Assets/Fight/character/M_Enemy_Kimono.mat",
+                     })
+            {
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                Assert.IsNotNull(mat, path + " is missing");
+                Assert.AreEqual(shader, mat.shader, path + " is on the wrong shader");
+            }
+        }
+
+        /// <summary>The kimono has no albedo texture at all — its five materials are flat
+        /// colours — so the baked AO doubles as the base map and the normal map carries the
+        /// folds. Losing either reduces the garment to a flat silhouette, which is the whole
+        /// failure this asset pipeline exists to avoid.</summary>
+        [Test]
+        public void KimonoMaterials_CarryTheBakedMaps()
+        {
+            foreach (var path in new[]
+                     {
+                         "Assets/Fight/character/M_Player_Kimono.mat",
+                         "Assets/Fight/character/M_Enemy_Kimono.mat",
+                     })
+            {
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+                Assert.IsNotNull(mat, path + " is missing");
+                Assert.IsNotNull(mat.GetTexture("_BumpMap"), path + " has no normal map");
+                Assert.IsNotNull(mat.GetTexture("_BaseMap"), path + " has no base map");
+            }
+        }
+
+        /// <summary>A normal map imported as a plain colour texture reads as coloured noise on
+        /// the surface instead of relief — a silent, purely visual failure that no other test
+        /// here would catch.</summary>
+        [Test]
+        public void NormalMap_IsImportedAsNormalMap()
+        {
+            var importer = AssetImporter.GetAtPath(
+                "Assets/Fight/character/kimono/T_Kimono_Normal.png") as TextureImporter;
+            Assert.IsNotNull(importer, "normal map is not in the project");
+            Assert.AreEqual(TextureImporterType.NormalMap, importer.textureType);
+        }
     }
 }
 ```
 
-- [ ] **Step 2: Прогнать тест и убедиться, что падает**
+- [ ] **Step 2: Прогнать тесты и убедиться, что падают**
+
+Прогон тестов запускает редактор, а он же импортирует ассеты — до этого шага `KimonoFighter.fbx.meta` в проекте нет вовсе.
 
 ```bash
 unity test --mode EditMode --filter FighterModelTests --output test-results.xml
 ```
 
-Ожидание: FAIL — `Model_ImportsAsHumanoid` валится на `is not in the project` либо на `animationType`, потому что Unity по умолчанию импортирует FBX как Generic.
+Ожидание: FAIL. `Model_ImportsAsHumanoid` валится на `animationType` — Unity импортирует FBX как Generic по умолчанию. Материалов не существует, поэтому `Materials_ExistOnTheCharacterShader` и `KimonoMaterials_CarryTheBakedMaps` тоже падают.
 
-- [ ] **Step 3: Выставить импорт**
+Если тест не находит модель вовсе — значит редактор ещё не импортировал ассет; повторный прогон после первого импорта это лечит.
 
-Выделить `Assets/Fight/character/KimonoFighter.fbx` в Project. Вкладка Rig: `Animation Type` → **Humanoid**, `Avatar Definition` → **Create From This Model**. Apply.
+- [ ] **Step 3: Написать Editor-скрипт настройки**
 
-- [ ] **Step 4: Прогнать тест и убедиться, что проходит**
+Создать `Assets/Editor/FighterImportSetup.cs`:
+
+```csharp
+using UnityEditor;
+using UnityEngine;
+
+namespace Mikey.FightEditor
+{
+    /// <summary>One-shot setup for the kimono fighter: import settings and materials.
+    ///
+    /// This exists as a script rather than as inspector clicks because the settings have to be
+    /// reproducible — the fighter's FBX is regenerated by a Blender script whenever the body or
+    /// the garment changes, and a regenerated asset comes back as Generic with no materials.
+    /// Re-running this method restores the whole setup.
+    /// </summary>
+    public static class FighterImportSetup
+    {
+        const string CharacterDir = "Assets/Fight/character";
+        const string ModelPath = CharacterDir + "/KimonoFighter.fbx";
+        const string ShaderPath = CharacterDir + "/Character.shader";
+        const string NormalPath = CharacterDir + "/kimono/T_Kimono_Normal.png";
+        const string AoPath = CharacterDir + "/kimono/T_Kimono_AO.png";
+
+        [MenuItem("Mikey/Setup Kimono Fighter")]
+        public static void Run()
+        {
+            SetUpModel();
+            SetUpNormalMap();
+            CreateMaterials();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("FighterImportSetup: done");
+        }
+
+        static void SetUpModel()
+        {
+            var importer = AssetImporter.GetAtPath(ModelPath) as ModelImporter;
+            if (importer == null)
+                throw new System.IO.FileNotFoundException(ModelPath + " is not in the project");
+
+            importer.animationType = ModelImporterAnimationType.Human;
+            importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            importer.importAnimation = false;   // clips come from the mocap files, not from here
+            importer.SaveAndReimport();
+        }
+
+        /// <summary>Without this the relief reads as coloured noise rather than folds.</summary>
+        static void SetUpNormalMap()
+        {
+            var importer = AssetImporter.GetAtPath(NormalPath) as TextureImporter;
+            if (importer == null)
+                throw new System.IO.FileNotFoundException(NormalPath + " is not in the project");
+            if (importer.textureType == TextureImporterType.NormalMap)
+                return;
+
+            importer.textureType = TextureImporterType.NormalMap;
+            importer.SaveAndReimport();
+        }
+
+        static void CreateMaterials()
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
+            if (shader == null)
+                throw new System.IO.FileNotFoundException(ShaderPath + " is not in the project");
+
+            var normal = AssetDatabase.LoadAssetAtPath<Texture>(NormalPath);
+            var ao = AssetDatabase.LoadAssetAtPath<Texture>(AoPath);
+
+            // Skin is shared: player and enemy are the same body and differ only in cloth.
+            var skin = Material(shader, CharacterDir + "/M_Fighter_Skin.mat");
+            skin.SetColor("_BaseColor", new Color(0.78f, 0.60f, 0.48f));
+            skin.SetFloat("_AlbedoGamma", 1f);
+            skin.SetFloat("_Smoothness", 0.22f);
+
+            Kimono(shader, CharacterDir + "/M_Player_Kimono.mat", normal, ao,
+                   new Color(0.91f, 0.89f, 0.85f), new Color(0.23f, 0.29f, 0.62f));
+            Kimono(shader, CharacterDir + "/M_Enemy_Kimono.mat", normal, ao,
+                   new Color(0.16f, 0.16f, 0.19f), new Color(0.48f, 0.12f, 0.16f));
+        }
+
+        /// <summary>The kimono has no albedo texture — all five of its source materials are flat
+        /// colours — so the baked AO serves as the base map and the tint supplies the colour.
+        /// _AlbedoGamma is forced to 1: its 0.45 default exists to lift the near-black diffuse of
+        /// the previous character and would wash an AO map out.
+        ///
+        /// The belt is a separate submesh in the source garment, but the export merges the cloth
+        /// into one mesh, so the belt colour is carried as the rim rather than as a second
+        /// material — one draw call instead of two on a mobile target.
+        /// </summary>
+        static void Kimono(Shader shader, string path, Texture normal, Texture ao,
+                           Color cloth, Color accent)
+        {
+            var mat = Material(shader, path);
+            mat.SetTexture("_BaseMap", ao);
+            mat.SetTexture("_BumpMap", normal);
+            mat.SetColor("_BaseColor", cloth);
+            mat.SetColor("_RimColor", accent);
+            mat.SetFloat("_AlbedoGamma", 1f);
+            mat.SetFloat("_BumpScale", 1.4f);
+            mat.SetFloat("_Smoothness", 0.12f);   // cotton, not silk
+        }
+
+        static Material Material(Shader shader, string path)
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.shader = shader;
+            return mat;
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Выполнить скрипт headless**
+
+Скрипт надо выполнить в редакторе, не открывая его руками. Используй навык `unity-cli` — он знает, как запустить проект в batch-режиме и выполнить статический метод; целевой метод здесь `Mikey.FightEditor.FighterImportSetup.Run`, он `public static` намеренно, потому что из CLI не видно ни `internal`, ни приватных членов.
+
+Ожидание: в логе редактора строка `FighterImportSetup: done` и exit 0.
+
+- [ ] **Step 5: Прогнать тесты и убедиться, что проходят**
 
 ```bash
 unity test --mode EditMode --filter FighterModelTests --output test-results.xml
 ```
 
-Ожидание: PASS, три теста.
+Ожидание: PASS, семь тестов.
 
-- [ ] **Step 5: Сделать материалы**
-
-Создать два материала на существующем `Assets/Fight/character/Character.shader`. Цвета взяты от тех, что сцена уже использует для тонировки тел (игрок — индиго, враг — тёмно-багровый, спека 2026-07-11), но сдвинуты в сторону ткани: белое ги читается на закатной арене, а пояс несёт опознавательный цвет.
-
-- `M_Player_Kimono.mat` — ги `#E8E4DA`, пояс `#3B4A9E` (индиго игрока);
-- `M_Enemy_Kimono.mat` — ги `#2A2A30`, пояс `#7A1F28` (багровый врага).
-
-В обоих подключить `T_Kimono_Normal.png` как normal map и `T_Kimono_AO.png` как AO. Базовый цвет плоский: в `kimono.glb` текстур нет вовсе, весь рельеф идёт из запечённой нормали.
-
-`T_Kimono_Normal.png` в импортере должен стоять `Texture Type` → **Normal map**, иначе рельеф будет читаться как цветной шум.
+Если валится `Model_HasSeparateBodyAndClothMeshes` с числом, отличным от 2, — значит Blender-экспорт слил меши или наоборот оставил лишний; это дефект Task 4, о нём надо сообщить, а не подгонять тест под факт.
 
 - [ ] **Step 6: Коммит**
 
 ```bash
-git add Assets/Fight/Tests/FighterModelTests.cs Assets/Fight/character
-git commit -m "feat: боец импортируется как Humanoid, материалы ги игрока и врага
+git add Assets/Editor/FighterImportSetup.cs Assets/Editor/FighterImportSetup.cs.meta Assets/Fight/Tests/FighterModelTests.cs Assets/Fight/Tests/FighterModelTests.cs.meta Assets/Fight/character Assets/Fight/character.meta
+git commit -m "feat: боец импортируется как Humanoid, материалы кожи и ги
+
+Настройка сделана скриптом, а не кликами: FBX бойца пересобирается
+Blender-скриптом при каждой правке тела или ткани и возвращается
+Generic'ом без материалов, так что настройку нужно уметь повторить.
+
+AO уходит в _BaseMap, а не в отдельный слот: у Character.shader входа
+для AO нет, а у кимоно нет альбедо-текстуры вовсе — все пять исходных
+материалов плоские цвета. AO под тинтом и есть правильный albedo.
 
 Тесты закрывают ровно тот отказ, который проект уже ловил: аватар,
 переживший round trip через Blender, но приехавший сплющенным."
+git ls-files Assets/Fight/character
 ```
+
+Ожидание: `git ls-files` показывает три `.mat`, их `.meta`, модель и карты.
 
 ---
 
@@ -1009,7 +1208,9 @@ Root Transform Position (XZ) = Bake Into Pose: Fighter.cs двигает бой�
 
 - [ ] **Step 1: Заменить модели бойцов**
 
-В `Assets/Scenes/FightSandbox.unity` у обоих бойцов заменить меш-иерархию `Ch15_nonPBR` на `KimonoFighter`. Компоненты `Fighter`, `PlayerFighterInput`, `EnemyFighterAI`, `FootIK`, `Animator` и их настройки сохранить как есть. Материалы: игроку `M_Player_Kimono`, врагу `M_Enemy_Kimono`.
+В `Assets/Scenes/FightSandbox.unity` у обоих бойцов заменить меш-иерархию `Ch15_nonPBR` на `KimonoFighter`. Компоненты `Fighter`, `PlayerFighterInput`, `EnemyFighterAI`, `FootIK`, `Animator` и их настройки сохранить как есть.
+
+Материалов у каждого бойца два, потому что мешей два. На меш тела — общий `M_Fighter_Skin` у обоих: из-под ткани видны только голова, шея, кисти и стопы, и они у игрока и врага одинаковые. На меш кимоно — `M_Player_Kimono` игроку и `M_Enemy_Kimono` врагу. Различаются бойцы только этим.
 
 - [ ] **Step 2: Запустить сцену и прочитать диагностику рига**
 
