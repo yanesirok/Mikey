@@ -2,19 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Заменить офисного `Ch15_nonPBR` на бойца в кимоно — тело с Mixamo, кимоно из `kimono.glb`, сшитое в Blender, — и закрыть два анимационных долга: настоящий удар ногой и безоружный блок.
+**Goal:** Заменить офисного `Ch15_nonPBR` на бойца в кимоно — тело генерируется MPFB2, кимоно из `kimono.glb` шьётся в Blender — и закрыть два анимационных долга настоящим карате из собственных мокапов: ёко гери вместо удара рукой и аге-укэ вместо щитовой стойки.
 
-**Architecture:** Готового бесплатного бойца в ги не существует, поэтому тело и кимоно берутся из разных мест и сшиваются headless-скриптом Blender. Скрипт переиспользует из `bridge_kit.py` детерминированный FBX-экспорт и запек high→low: у кимоно 305k трисов и ноль текстур, весь вид держится на складках, поэтому децимация возможна только вместе с запеком нормалей. Unity-сторона не меняет ни одного контракта — тот же Humanoid-аватар, тот же `Fighter.controller`, те же имена состояний.
+**Architecture:** Готового бесплатного бойца в ги не существует, поэтому тело и кимоно берутся из разных мест и сшиваются headless-скриптом Blender. Тело генерируется MPFB2 прямо в Blender со скелетом `mixamo_unity`; клипы берутся из уже лежащих в репозитории мокапов. Скрипт кимоно переиспользует из `bridge_kit.py` детерминированный FBX-экспорт и запек high→low: у кимоно 305k трисов и ноль текстур, весь вид держится на складках, поэтому децимация возможна только вместе с запеком нормалей. Unity-сторона не меняет ни одного контракта — тот же Humanoid-аватар, тот же `Fighter.controller`, те же имена состояний.
 
-**Tech Stack:** Blender 5.1 (bpy, Cycles CPU), Unity 6000.3.18f1 (Humanoid retarget, Mecanim), Unity CLI 1.0.0-beta.3, NUnit EditMode, Mixamo (Adobe-аккаунт).
+**Tech Stack:** Blender 5.1 (bpy, Cycles CPU, аддон MPFB2), Unity 6000.3.18f1 (Humanoid retarget, Mecanim), Unity CLI 1.0.0-beta.3, NUnit EditMode.
 
-**Spec:** `docs/superpowers/specs/2026-08-15-kimono-fighters-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-15-kimono-fighters-design.md` (ревизия от 2026-08-15 — Mixamo мёртв, источник ассетов заменён)
 
 ## Global Constraints
 
-- Blender: `C:\Program Files\Blender Foundation\Blender 5.1\blender.exe`, всегда `--background --factory-startup`.
+- Blender: `C:\Program Files\Blender Foundation\Blender 5.1\blender.exe`.
+- **`--factory-startup` нельзя в скриптах, которым нужен MPFB2** — он выключает аддоны. То же касается `bpy.ops.wm.read_factory_settings()`: он убивает MPFB прямо в запущенной сессии. Скрипт генерации тела чистит сцену вручную (`bpy.data.objects.remove`). Скрипты, которым MPFB не нужен (`bridge_kit.py`, `kimono_fit.py`), запускаются с `--factory-startup` как раньше.
+- MPFB2 установлен и включён (`bl_ext.blender_org.mpfb`). Определения скелетов лежат в `%APPDATA%\Blender Foundation\Blender\5.1\extensions\blender_org\mpfb\data\rigs\standard\`.
 - Unity: 6000.3.18f1. Тесты — только через Unity CLI: `unity test --mode EditMode`, не сырой `Unity.exe`.
-- **Все клипы Mixamo — строго In Place и Without Skin.** Root motion не используется: `Fighter.cs:59` двигает бойца через `transform.position`.
+- **Root motion не используется:** `Fighter.cs:59` двигает бойца через `transform.position`. Клипы — мокап с видео, они несут смещение корня, поэтому гасится оно настройкой импорта Root Transform Position (XZ) → Bake Into Pose.
 - Бюджет кимоно — **12 000 треугольников**, атлас **2048²**.
 - Детерминизм: два прогона Blender-скрипта дают побайтно одинаковый FBX. Конвенция репо, зафиксирована в шапке `bridge_kit.py`.
 - Контракт аниматора не меняется: `float MoveSpeed`; триггеры `Punch`/`PunchB`/`Kick`/`Hit`/`BlockHit`; `bool Blocking`, `bool Dead`. Состояния: Idle, Walk, Punch, PunchB, Kick, Hit, BlockHit, Blocking, Death.
@@ -98,160 +100,202 @@ git commit -m "refactor: bridge_kit импортируем — main() под gua
 
 ---
 
-### Task 2: Забрать тело и клипы с Mixamo
+### Task 2: Сгенерировать базовое тело в Blender (MPFB2)
 
-Работа в браузере под Adobe-аккаунтом пользователя. Персонаж выбирается по лицу и телосложению: из-под кимоно наружу торчат только голова, кисти и стопы, одежда самой модели роли не играет.
+Mixamo мёртв (см. спеку, раздел «Смена источника ассетов»), поэтому тело не скачивается, а генерируется. Рецепт проверен на живом Blender 5.1 до написания плана: `create_human` даёт меш 19158 вершин со 152 вертексными группами, `load_rig` вешает арматуру на 64 кости с префиксом `mixamorig:`, меш приезжает уже со скиннингом и модификатором `Armature`, рост 1.659 м в T-позе.
+
+Тело базовое, без одежды — так и задумано: ткань садится на него чисто, а всё закрытое кимоно скрипт Task 4 всё равно вырезает.
 
 **Files:**
-- Create: `Assets/Fight/character/mixamo/Fighter_Body.fbx`
-- Create: `Assets/Fight/animations/mixamo/*.fbx` — девять клипов
-- Create: `Assets/Fight/animations/mixamo/MANIFEST.md`
-- Create: `tools/check_mixamo_assets.py`
+- Create: `tools/Blender/make_body.py`
+- Create: `tools/Blender/build_body.ps1`
 
 **Interfaces:**
 - Consumes: ничего.
-- Produces: `Assets/Fight/character/mixamo/Fighter_Body.fbx` — Humanoid-тело в T-позе со скелетом `mixamorig:*`; девять клипов с именами файлов ровно `Idle.fbx`, `Walk.fbx`, `Punch.fbx`, `PunchB.fbx`, `Kick.fbx`, `Hit.fbx`, `BlockHit.fbx`, `Blocking.fbx`, `Death.fbx` — имена файлов равны именам состояний `Fighter.controller`, Task 6 опирается на это соответствие.
+- Produces: `Assets/Fight/character/body/Fighter_Body.fbx` — Humanoid-совместимое тело в T-позе, скелет `mixamorig:*` из `rig.mixamo_unity.json`. Task 3 читает этот путь.
 
 - [ ] **Step 1: Написать падающую проверку**
 
-Создать `tools/check_mixamo_assets.py`:
+Создать `tools/check_body.py`:
 
 ```python
-"""Проверка комплектности ассетов Mixamo.
+"""Проверка сгенерированного тела: файл есть, в нём меш и скелет mixamorig.
 
-Клипы качаются Without Skin, поэтому меша в них быть не должно: FBX без
-скина не содержит объектов Geometry. Тело, наоборот, обязано его содержать.
-In Place здесь не проверяется — это делает C#-тест RootMotion_StaysInPlace,
-которому доступны разобранные Unity кривые RootT.
+FBX бинарный, поэтому проверяем по именам костей в байтах: они лежат там
+как обычные строки. Так проверка не зависит ни от Blender, ни от Unity.
 """
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BODY = os.path.join(ROOT, 'Assets/Fight/character/mixamo/Fighter_Body.fbx')
-CLIPS = os.path.join(ROOT, 'Assets/Fight/animations/mixamo')
-STATES = ['Idle', 'Walk', 'Punch', 'PunchB', 'Kick', 'Hit', 'BlockHit',
-          'Blocking', 'Death']
+BODY = os.path.join(ROOT, 'Assets/Fight/character/body/Fighter_Body.fbx')
+
+# Кости, на которые опирается kimono_fit.py: fit() ищет Neck и LeftToeBase,
+# strip_covered() отбирает по Spine/UpLeg/Shoulder и щадит Head/Hand/Foot.
+REQUIRED = [b'mixamorig:Hips', b'mixamorig:Neck', b'mixamorig:LeftToeBase',
+            b'mixamorig:Spine', b'mixamorig:LeftUpLeg', b'mixamorig:LeftShoulder',
+            b'mixamorig:Head', b'mixamorig:LeftHand', b'mixamorig:LeftFoot']
 
 fails = []
-
-
-def has_geometry(path):
-    with open(path, 'rb') as f:
-        return b'Geometry' in f.read()
-
-
 if not os.path.isfile(BODY):
     fails.append(f'нет тела: {BODY}')
-elif not has_geometry(BODY):
-    fails.append('тело скачано без скина — нужен меш')
-
-for state in STATES:
-    p = os.path.join(CLIPS, state + '.fbx')
-    if not os.path.isfile(p):
-        fails.append(f'нет клипа: {state}.fbx')
-    elif has_geometry(p):
-        fails.append(f'{state}.fbx скачан со скином — нужен Without Skin')
-
-manifest = os.path.join(CLIPS, 'MANIFEST.md')
-if not os.path.isfile(manifest):
-    fails.append('нет MANIFEST.md')
 else:
-    text = open(manifest, encoding='utf-8').read()
-    for state in STATES:
-        if state not in text:
-            fails.append(f'MANIFEST.md не описывает {state}')
+    data = open(BODY, 'rb').read()
+    if b'Geometry' not in data:
+        fails.append('в теле нет меша')
+    for bone in REQUIRED:
+        if bone not in data:
+            fails.append(f'нет кости {bone.decode()}')
+    size_mb = len(data) / 1024 / 1024
+    if size_mb > 25:
+        fails.append(f'тело весит {size_mb:.1f} МБ — похоже, уехали хелперы MPFB')
 
 if fails:
     print('\n'.join('FAIL ' + f for f in fails))
     sys.exit(1)
-print('MIXAMO_OK')
+print('BODY_OK')
 ```
 
 - [ ] **Step 2: Прогнать и убедиться, что падает**
 
 ```bash
-python tools/check_mixamo_assets.py
+python tools/check_body.py
 ```
 
-Ожидание: FAIL, десять строк — нет тела, нет девяти клипов, нет манифеста.
+Ожидание: FAIL, одна строка — нет тела.
 
-- [ ] **Step 3: Выбрать персонажа**
+- [ ] **Step 3: Написать генератор**
 
-Открыть `https://www.mixamo.com/#/?type=Character` в браузере. Отобрать 3–5 кандидатов атлетичного сложения и **показать их пользователю до скачивания** — выбор лица за ним, не за исполнителем.
+Создать `tools/Blender/make_body.py`:
 
-Скачать выбранного: Format `FBX Binary (.fbx)`, Pose `T-pose`. Положить в `Assets/Fight/character/mixamo/Fighter_Body.fbx`.
+```python
+"""Базовое тело бойца: MPFB2 + скелет mixamo_unity.
 
-- [ ] **Step 4: Скачать девять клипов**
+Запуск (headless):
+  blender --background --python make_body.py -- --out <file.fbx>
 
-Для каждого — вкладка Animations, поиск по кандидатам из таблицы, экспорт с настройками: Format `FBX Binary (.fbx)`, Skin **Without Skin**, FPS `30`, Keyframe Reduction `none`, галка **In Place** включена везде, где она есть.
+БЕЗ --factory-startup и без read_factory_settings: и то и другое выключает
+аддоны, то есть убивает MPFB прямо в этой сессии. Сцену чистим руками.
 
-| Файл | Что ищем | Кандидаты в поиске |
-|---|---|---|
-| `Idle.fbx` | боевая стойка, петля | Fighting Idle, Boxing Idle |
-| `Walk.fbx` | шаг в стойке, петля | Fighting Walk, Strafe |
-| `Punch.fbx` | прямой рукой | Cross Punch, Jab |
-| `PunchB.fbx` | второй удар рукой, визуально отличимый | Hook Punch, Uppercut |
-| `Kick.fbx` | удар ногой | Mma Kick, Roundhouse Kick, Side Kick |
-| `Hit.fbx` | реакция на пропущенный удар | Head Hit, Hit Reaction |
-| `BlockHit.fbx` | приём удара в блок | Center Block, Body Block |
-| `Blocking.fbx` | безоружная защитная стойка, петля | Blocking, Guard Idle |
-| `Death.fbx` | падение назад | Falling Back Death, Dying |
+Скелет берётся именно mixamo_unity: его 64 кости несут префикс mixamorig:,
+на который опирается kimono_fit.py — fit() ищет mixamorig:Neck и
+mixamorig:LeftToeBase, strip_covered() отбирает вершины по именам костей.
+Возьми другой риг — и оба сломаются молча.
+"""
+import argparse
+import os
+import sys
 
-Если у клипа нет галки In Place — брать другой клип из кандидатов, а не «поправим потом»: Task 6 такой клип завалит.
+import bpy
 
-- [ ] **Step 5: Записать MANIFEST.md**
 
-Создать `Assets/Fight/animations/mixamo/MANIFEST.md`. Mixamo в maintenance-режиме и Adobe его не развивает — без этого файла через месяц нельзя понять, что откуда взялось.
+def parse_args():
+    argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    p = argparse.ArgumentParser()
+    p.add_argument('--out', required=True)
+    return p.parse_args(argv)
 
-```markdown
-# Ассеты Mixamo
 
-Скачано: 2026-08-15. Настройки экспорта одинаковы для всех клипов:
-FBX Binary, Without Skin, 30 fps, Keyframe Reduction none, In Place.
+def rigs_dir():
+    ext = os.path.join(os.path.dirname(bpy.utils.user_resource('EXTENSIONS')),
+                       'extensions', 'blender_org', 'mpfb', 'data', 'rigs', 'standard')
+    assert os.path.isdir(ext), f'MPFB2 не установлен: нет {ext}'
+    return ext
 
-Тело: FBX Binary, T-pose, со скином.
 
-| Файл | Имя на Mixamo |
-|---|---|
-| `character/mixamo/Fighter_Body.fbx` | <имя персонажа> |
-| `Idle.fbx` | <имя клипа> |
-| `Walk.fbx` | <имя клипа> |
-| `Punch.fbx` | <имя клипа> |
-| `PunchB.fbx` | <имя клипа> |
-| `Kick.fbx` | <имя клипа> |
-| `Hit.fbx` | <имя клипа> |
-| `BlockHit.fbx` | <имя клипа> |
-| `Blocking.fbx` | <имя клипа> |
-| `Death.fbx` | <имя клипа> |
+def main():
+    a = parse_args()
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
 
-Удары Mixamo — MMA и кикбоксинг, не шотокан. Хрестоматийного yoko geri
-здесь нет; для pose-анализа источником остаются собственные мокапы
-`Assets/Fight/animations/video_*_BoyFBX.fbx`.
+    for o in list(bpy.data.objects):
+        bpy.data.objects.remove(o, do_unlink=True)
+
+    assert hasattr(bpy.ops, 'mpfb'), 'аддон MPFB2 не включён в этой сессии Blender'
+    bpy.ops.mpfb.create_human()
+
+    mesh = next((o for o in bpy.data.objects if o.type == 'MESH'), None)
+    assert mesh is not None, 'MPFB не создал меш'
+
+    bpy.context.view_layer.objects.active = mesh
+    mesh.select_set(True)
+    bpy.ops.mpfb.load_rig(filepath=os.path.join(rigs_dir(), 'rig.mixamo_unity.json'))
+
+    arm = next((o for o in bpy.data.objects if o.type == 'ARMATURE'), None)
+    assert arm is not None, 'скелет не создан'
+    bones = {b.name for b in arm.data.bones}
+    for want in ('mixamorig:Hips', 'mixamorig:Neck', 'mixamorig:LeftToeBase'):
+        assert want in bones, f'в скелете нет {want} — загрузился не тот риг'
+
+    # T-поза, рост человека: если тут не так, дальше сломается подгонка кимоно.
+    assert 1.5 < mesh.dimensions.z < 2.0, f'рост {mesh.dimensions.z:.3f} м вне человеческого'
+    assert mesh.dimensions.x > mesh.dimensions.y, 'руки не разведены — это не T-поза'
+
+    bpy.ops.object.select_all(action='DESELECT')
+    mesh.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    # use_mesh_modifiers применяет маску 'Hide helpers' — вспомогательная
+    # геометрия MPFB для примерки одежды в экспорт не уезжает.
+    bpy.ops.export_scene.fbx(
+        filepath=os.path.abspath(a.out), use_selection=True,
+        object_types={'MESH', 'ARMATURE'}, add_leaf_bones=False,
+        bake_anim=False, apply_scale_options='FBX_SCALE_UNITS',
+        bake_space_transform=True, axis_forward='-Z', axis_up='Y',
+        use_mesh_modifiers=True)
+
+    print(f'make_body: {len(mesh.data.vertices)} вершин, {len(bones)} костей, '
+          f'рост {mesh.dimensions.z:.3f} м -> {os.path.abspath(a.out)}')
+
+
+if __name__ == '__main__':
+    main()
 ```
 
-Угловые скобки заменить настоящими именами — файл без них бесполезен.
+- [ ] **Step 4: Написать обёртку запуска**
+
+Создать `tools/Blender/build_body.ps1`:
+
+```powershell
+# Прогоняет Blender headless и падает, если скрипт упал.
+# Без --factory-startup: он выключает MPFB2, без которого генерировать нечего.
+$blender = "C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"
+$root = Join-Path $PSScriptRoot "..\.."
+$out = Join-Path $root "Assets\Fight\character\body\Fighter_Body.fbx"
+& $blender --background --python (Join-Path $PSScriptRoot "make_body.py") -- --out $out
+exit $LASTEXITCODE
+```
+
+- [ ] **Step 5: Прогнать генератор**
+
+```bash
+powershell -ExecutionPolicy Bypass -File tools/Blender/build_body.ps1
+```
+
+Ожидание: exit 0 и строка вида `make_body: 19158 вершин, 64 костей, рост 1.659 м -> ...`.
+
+Если падает на `аддон MPFB2 не включён` — проверь, что в команде нет `--factory-startup`.
 
 - [ ] **Step 6: Прогнать проверку и убедиться, что проходит**
 
 ```bash
-python tools/check_mixamo_assets.py
+python tools/check_body.py
 ```
 
-Ожидание: PASS, в выводе `MIXAMO_OK`.
+Ожидание: PASS, в выводе `BODY_OK`.
 
-- [ ] **Step 7: Коммит и сверка, что бинарники реально легли**
+- [ ] **Step 7: Коммит и сверка, что бинарник реально лёг**
 
 ```bash
-git add Assets/Fight/character/mixamo Assets/Fight/animations/mixamo tools/check_mixamo_assets.py
-git commit -m "assets: тело и девять клипов с Mixamo, In Place без скина
+git add tools/Blender/make_body.py tools/Blender/build_body.ps1 tools/check_body.py Assets/Fight/character/body
+git commit -m "feat: базовое тело бойца генерируется MPFB2, скелет mixamo_unity
 
-Kick и Blocking закрывают долги спеки 2026-07-11: удар ногой вместо
-Punch_Cross и безоружный блок вместо щитовой стойки UAL2."
-git ls-files Assets/Fight/character/mixamo Assets/Fight/animations/mixamo
+Mixamo не грузится ни у кого (три.js не поставляется, js/three*.js отдают
+404), поэтому тело не качается, а генерируется на месте. rig.mixamo_unity
+даёт кости с префиксом mixamorig:, на который опирается kimono_fit.py."
+git ls-files Assets/Fight/character/body
 ```
 
-Ожидание: `git ls-files` перечисляет тело, девять клипов и манифест. Если список пуст или неполон — бинарники не легли, и это надо чинить сейчас: в этом репозитории арт регулярно остаётся вне git, и `git status` этого не показывает.
+Ожидание: `git ls-files` показывает `Fighter_Body.fbx`. Пустой вывод означает, что бинарник не лёг — в этом репозитории арт регулярно остаётся вне git, и `git status` этого не показывает.
 
 ---
 
@@ -264,7 +308,7 @@ git ls-files Assets/Fight/character/mixamo Assets/Fight/animations/mixamo
 - Create: `tools/Blender/build_kimono.ps1`
 
 **Interfaces:**
-- Consumes: `bridge_kit` из Task 1 — `_install_deterministic_fbx_uuids()`, `bake_pair`, `fill`, `save_png`, `tri_count`, `apply_mods`, `reset_scene`, `ATLAS`; тело `Fighter_Body.fbx` из Task 2.
+- Consumes: `bridge_kit` из Task 1 — `bake_pair`, `fill`, `save_png`, `tri_count`, `apply_mods`, `reset_scene`, `ATLAS`; тело `Assets/Fight/character/body/Fighter_Body.fbx` из Task 2.
 - Produces: функции `parse_args()`, `world_bbox(objs) -> (Vector, Vector)`, `import_body(path) -> (armature, [mesh])`, `import_kimono(path) -> object`, `upright(o)`, `fit(kimono, arm, meshes, scale_mul, offset_z) -> float`, `make_low(high, target_tris) -> (object, int)`, `bake(low, high, out_dir)`. Task 4 достраивает этот же файл функциями скиннинга и экспорта.
 
 - [ ] **Step 1: Написать скрипт с самопроверками**
@@ -457,7 +501,7 @@ $blender = "C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"
 $root = Join-Path $PSScriptRoot "..\.."
 $out = Join-Path $root "Assets\Fight\character\kimono"
 & $blender --background --factory-startup --python (Join-Path $PSScriptRoot "kimono_fit.py") -- `
-    --body (Join-Path $root "Assets\Fight\character\mixamo\Fighter_Body.fbx") `
+    --body (Join-Path $root "Assets\Fight\character\body\Fighter_Body.fbx") `
     --kimono (Join-Path $root "Assets\Characters\Clothes\kimono.glb") `
     --out $out @args
 exit $LASTEXITCODE
@@ -516,7 +560,10 @@ from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
 # Кости, чью геометрию закрывает ткань, и кости, которые остаются наружу.
 # KEEP проверяется первым: mixamorig:ForeArm содержит и Arm, и — по смыслу —
 # запястье, но кисть обязана уцелеть.
-COVERED = ('Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg')
+# Buttock и Breast есть именно в скелете mixamo_unity (64 кости против 52 у
+# обычного mixamo); без них ягодицы и грудь остались бы под тканью целыми.
+COVERED = ('Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg',
+           'Buttock', 'Breast')
 KEEP = ('Head', 'Neck', 'Hand', 'Foot', 'Toe')
 
 
@@ -770,15 +817,18 @@ git commit -m "feat: боец импортируется как Humanoid, мат
 
 ---
 
-### Task 6: Перевесить `Fighter.controller` на клипы Mixamo
+### Task 6: Пересобрать `Fighter.controller` на клипах из репозитория
+
+Не «перевесить», а «проставить заново»: все семь GUID клипов в контроллере сейчас висячие, ни один не разрешается ни в один `.meta` проекта. Контроллер не играет ничего. Внешних загрузок не требуется — карате-техники лежат в собственных мокапах, недостающие бытовые движения в CC0-наборе Quaternius.
 
 **Files:**
 - Modify: `Assets/Fight/Fighter.controller`
 - Modify: `Assets/Fight/Tests/FighterModelTests.cs` (добавить класс `FighterClipsTests`)
+- Modify: настройки импорта клипов в `Assets/Fight/animations/*.fbx.meta` и `Assets/Characters/Karate/UAL1_Standard.fbx.meta`
 
 **Interfaces:**
-- Consumes: девять клипов из Task 2, имена файлов которых равны именам состояний.
-- Produces: `Fighter.controller`, у которого ни одно состояние не ссылается на UAL1/UAL2.
+- Consumes: собственные мокапы `Assets/Fight/animations/video_*_BoyFBX.fbx` (клипы `FightIdle`, `OiZuki`, `Uraken_Swing`, `YokoGeri_High`, `AgeUke`, `Knockdown_GetUp`) и CC0-набор `Assets/Characters/Karate/UAL1_Standard.fbx` (клипы `Walk_Loop`, `Hit_Chest`).
+- Produces: `Fighter.controller`, у которого каждое состояние имеет non-null motion, ни одно не ссылается на UAL2, а `Kick` играет ёко гери.
 
 - [ ] **Step 1: Написать падающий тест**
 
@@ -787,7 +837,8 @@ git commit -m "feat: боец импортируется как Humanoid, мат
 ```csharp
     /// <summary>The controller is the contract between Fighter.cs and the art. A state with a
     /// null motion plays the bind pose and looks like a frozen fighter, not like an error — so
-    /// it has to fail here rather than in someone's play session.</summary>
+    /// it has to fail here rather than in someone's play session. Every clip reference in this
+    /// controller was dangling when these tests were written; that is the failure they lock out.</summary>
     public class FighterClipsTests
     {
         const string ControllerPath = "Assets/Fight/Fighter.controller";
@@ -803,6 +854,13 @@ git commit -m "feat: боец импортируется как Humanoid, мат
                 .ToArray();
         }
 
+        static UnityEditor.Animations.AnimatorState State(string name)
+        {
+            var s = States().FirstOrDefault(x => x.name == name);
+            Assert.IsNotNull(s, "no state named " + name);
+            return s;
+        }
+
         [Test]
         public void EveryState_HasMotion()
         {
@@ -811,8 +869,9 @@ git commit -m "feat: боец импортируется как Humanoid, мат
         }
 
         /// <summary>Fighter.cs drives position itself, so a clip that carries root motion walks
-        /// the fighter out of the spot the code put them in. Mixamo's In Place export is the fix;
-        /// this asserts the export setting was actually used.</summary>
+        /// the fighter out of the spot the code put them in. These clips are video mocap and do
+        /// carry root translation, so the importer has to bake it into the pose; this asserts
+        /// that setting was actually applied.</summary>
         [Test]
         public void EveryClip_StaysInPlace()
         {
@@ -838,24 +897,41 @@ git commit -m "feat: боец импортируется как Humanoid, мат
             }
         }
 
-        /// <summary>Blocking used to borrow UAL2's shield stance because the CC0 pack had no
-        /// unarmed block, and Kick used to play a punch. Both are paid off by the Mixamo clips;
-        /// this keeps them paid.</summary>
+        /// <summary>Kick used to play Punch_Cross and Blocking used to borrow UAL2's shield
+        /// stance, because the CC0 pack had neither a kick nor an unarmed block. Both are paid
+        /// off by the project's own karate mocap. UAL1 is deliberately still allowed — Walk and
+        /// Hit legitimately come from it; UAL2 was only ever the weapon-stance stopgap.</summary>
         [Test]
-        public void NoState_StillUsesTheCC0Stopgaps()
+        public void NoState_StillUsesTheWeaponStopgaps()
         {
             foreach (var s in States())
             {
                 var path = AssetDatabase.GetAssetPath(s.motion);
-                Assert.IsFalse(path.Contains("UAL1_Standard") || path.Contains("UAL2_Standard"),
-                    "state " + s.name + " still plays a CC0 stopgap: " + path);
-                // Asserted on the asset path, not the motion name: every Mixamo clip is
-                // internally called "mixamo.com", so a name check here would pass no matter
-                // what the state actually plays.
-                if (s.name == "Kick")
-                    Assert.IsTrue(path.EndsWith("/Kick.fbx"),
-                        "Kick plays " + path + " instead of the Mixamo kick");
+                Assert.IsFalse(path.Contains("UAL2_Standard"),
+                    "state " + s.name + " still plays a weapon-pack stopgap: " + path);
             }
+        }
+
+        /// <summary>Asserted on the asset path and clip name rather than on a generic "not a
+        /// punch" check: every technique here is a named karate move, so the test can say which
+        /// one it expects. Yoko geri is the kick the project kept — spec 2026-07-29 drops mae
+        /// geri, so a Kick that plays MaeGeri is a regression, not a near miss.</summary>
+        [Test]
+        public void Kick_PlaysYokoGeri()
+        {
+            var motion = State("Kick").motion;
+            Assert.IsNotNull(motion, "Kick has no motion");
+            Assert.IsTrue(motion.name.Contains("YokoGeri"),
+                "Kick plays " + motion.name + " instead of yoko geri");
+        }
+
+        [Test]
+        public void Blocking_PlaysAgeUke()
+        {
+            var motion = State("Blocking").motion;
+            Assert.IsNotNull(motion, "Blocking has no motion");
+            Assert.IsTrue(motion.name.Contains("AgeUke"),
+                "Blocking plays " + motion.name + " instead of age uke");
         }
     }
 ```
@@ -866,31 +942,56 @@ git commit -m "feat: боец импортируется как Humanoid, мат
 unity test --mode EditMode --filter FighterClipsTests --output test-results.xml
 ```
 
-Ожидание: FAIL на `NoState_StillUsesTheCC0Stopgaps` — `Blocking` играет `Idle_Shield_Loop` из UAL2, `Kick` играет `Punch_Cross`.
+Ожидание: FAIL, и падает почти всё. `EveryState_HasMotion` валится первым — ссылки на клипы висячие, `motion` равен null у каждого состояния. `Kick_PlaysYokoGeri` и `Blocking_PlaysAgeUke` валятся по той же причине.
 
-- [ ] **Step 3: Перевесить состояния**
+- [ ] **Step 3: Настроить импорт клипов**
 
-Открыть `Assets/Fight/Fighter.controller` в окне Animator. Для каждого из девяти состояний в поле Motion выставить одноимённый клип из `Assets/Fight/animations/mixamo/`: Idle → `Idle.fbx`, Walk → `Walk.fbx`, и так далее по всем девяти.
+Клипы — мокап с видео. До того как их вешать, у каждого используемого клипа в инспекторе модели выставить:
+
+- **Root Transform Position (XZ) → Bake Into Pose**, `Based Upon: Original`. Без этого клип уводит бойца от позиции, которую держит `Fighter.cs`, и `EveryClip_StaysInPlace` это поймает.
+- **Loop Time** — включить только у `FightIdle`, `Walk_Loop` и `AgeUke`. Эти три играются как состояния-петли; остальные проигрываются один раз по триггеру.
+
+- [ ] **Step 4: Проставить клипы в состояния**
+
+Открыть `Assets/Fight/Fighter.controller` в окне Animator. В поле Motion каждого состояния проставить:
+
+| Состояние | Клип | Файл |
+|---|---|---|
+| Idle | `FightIdle` | `Assets/Fight/animations/video_2026-08-06_08-08-32_BoyFBX.fbx` |
+| Walk | `Walk_Loop` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
+| Punch | `OiZuki` | `Assets/Fight/animations/video_2026-08-06_08-08-18_BoyFBX.fbx` |
+| PunchB | `Uraken_Swing` | `Assets/Fight/animations/video_2026-08-06_08-08-25_BoyFBX.fbx` |
+| Kick | `YokoGeri_High` | `Assets/Fight/animations/video_2026-08-06_08-08-14_BoyFBX.fbx` |
+| Hit | `Hit_Chest` | `Assets/Characters/Karate/UAL1_Standard.fbx` |
+| BlockHit | `AgeUke` | `Assets/Fight/animations/video_2026-08-06_08-08-22_BoyFBX.fbx` |
+| Blocking | `AgeUke` | `Assets/Fight/animations/video_2026-08-06_08-08-22_BoyFBX.fbx` |
+| Death | `Knockdown_GetUp` | `Assets/Fight/animations/video_2026-08-06_08-08-28_BoyFBX.fbx` |
+
+`MaeGeri_High` и `MaeGeri_Mid` не использовать: проект выпиливает маэ гери, спека 2026-07-29 оставляет гибкость только по ёко гери.
 
 Параметры, переходы и их условия не трогать: контракт `Fighter.cs` не меняется.
 
-- [ ] **Step 4: Прогнать тесты и убедиться, что проходят**
+- [ ] **Step 5: Прогнать тесты и убедиться, что проходят**
 
 ```bash
 unity test --mode EditMode --filter FighterClipsTests --output test-results.xml
 ```
 
-Ожидание: PASS, три теста. Если валится `EveryClip_StaysInPlace` — соответствующий клип скачан без галки In Place, вернуться к Task 2 Step 4 и перекачать именно его.
+Ожидание: PASS, пять тестов. Если валится `EveryClip_StaysInPlace` — у соответствующего клипа не выставлен Bake Into Pose, вернуться к Step 3.
 
-- [ ] **Step 5: Коммит**
+- [ ] **Step 6: Коммит**
 
 ```bash
-git add Assets/Fight/Fighter.controller Assets/Fight/Tests/FighterModelTests.cs
-git commit -m "feat: контроллер бойца на клипах Mixamo
+git add Assets/Fight/Fighter.controller Assets/Fight/Tests/FighterModelTests.cs Assets/Fight/animations Assets/Characters/Karate
+git commit -m "feat: контроллер бойца пересобран на своих карате-мокапах
 
-Kick перестал быть Punch_Cross, Blocking перестал быть щитовой стойкой
-UAL2 — оба долга спеки 2026-07-11 закрыты. Тест StaysInPlace держит
-экспортную настройку In Place: Fighter.cs двигает бойца сам."
+Все семь ссылок на клипы были висячими — контроллер не играл ничего.
+Kick получил настоящее ёко гери вместо удара рукой, Blocking и BlockHit —
+настоящий аге-укэ вместо щитовой стойки и парирования мечом из UAL2.
+Оба долга спеки 2026-07-11 закрыты, причём карате настоящим, а не MMA.
+
+Клипы — мокап с видео и несут смещение корня, поэтому импортируются с
+Root Transform Position (XZ) = Bake Into Pose: Fighter.cs двигает бойца сам."
 ```
 
 ---
