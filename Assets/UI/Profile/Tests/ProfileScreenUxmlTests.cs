@@ -21,7 +21,7 @@ namespace Mikey.UI.Profile.Tests
         private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "profile" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile" };
 
         private static VisualElement BuildTree()
         {
@@ -53,12 +53,12 @@ namespace Mikey.UI.Profile.Tests
         private static List<Label> Labels(VisualElement el) => el.Query<Label>().ToList();
 
         [Test]
-        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsTen()
+        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsEleven()
         {
             var root = BuildTree();
             var screens = root.Query<VisualElement>(className: "screen").ToList();
             Assert.AreEqual(1, screens.Count(s => s.name == "profile"), "There must be exactly one profile screen.");
-            Assert.AreEqual(10, screens.Count, "There must be exactly ten production screens.");
+            Assert.AreEqual(11, screens.Count, "There must be exactly eleven production screens.");
             CollectionAssert.AreEquivalent(ExpectedScreenIds, screens.Select(s => s.name).ToList());
         }
 
@@ -137,18 +137,28 @@ namespace Mikey.UI.Profile.Tests
         {
             var root = BuildTree();
 
-            // Map's full-viewport selected-level presentation has no large 4-tab
-            // dock (see approved design correction): it exposes only a minimal Home
-            // action, not a go-profile tab. Okinawa no longer routes directly to
-            // Techniques: selecting it opens the docked level-detail panel
-            // (map-node-okinawa), whose own "START LESSON" action (map-detail-start)
-            // is what routes to Techniques.
+            // The Japan world map ("map") has no large 4-tab dock: its top bar
+            // exposes a Stats action (routes to 'profile') and a minimal 'go-menu'
+            // way back to the Main Menu, not a dock go-profile tab. Okinawa
+            // (chapter-node-okinawa) no longer routes directly to Techniques:
+            // selecting it opens the chapter detail panel, whose "ENTER CHAPTER"
+            // action (chapter-panel-cta) enters the Okinawa chapter map
+            // ("mapOkinawa"), where each level's own popup CTA is what finally
+            // routes to Techniques/combineIntro.
             var map = Screen(root, "map");
             Assert.IsNotNull(map.Q<Button>("go-menu"));
-            Assert.IsNotNull(map.Q<Button>("map-node-okinawa"), "Okinawa must exist as a checkpoint action.");
-            Assert.IsNotNull(map.Q<Button>("map-detail-start"), "Okinawa's level-detail panel must route to Techniques.");
+            Assert.IsNotNull(map.Q<Button>("chapter-node-okinawa"), "Okinawa must exist as a chapter action.");
+            Assert.IsNotNull(map.Q<Button>("chapter-panel-cta"), "Okinawa's chapter panel must expose an Enter Chapter action.");
+            Assert.IsNotNull(map.Q<Button>("map-topbar-stats"), "Map's top bar Stats action must route to Profile.");
             Assert.IsNull(map.Q<VisualElement>("go-profile"),
-                "Map's full-viewport selected-level view must not reintroduce a dock go-profile tab.");
+                "Map must not reintroduce a dock go-profile tab.");
+
+            var mapOkinawa = Screen(root, "mapOkinawa");
+            Assert.IsNotNull(mapOkinawa.Q<Button>("go-menu"));
+            Assert.IsNotNull(mapOkinawa.Q<Button>("level-node-0"), "LVL 0 must exist as a level action.");
+            Assert.IsNotNull(mapOkinawa.Q<Button>("level-panel-cta"), "LVL 0's popup must expose a Begin action.");
+            Assert.IsNull(mapOkinawa.Q<VisualElement>("go-profile"),
+                "The Okinawa chapter map must not reintroduce a dock go-profile tab.");
         }
 
         [Test]
@@ -297,10 +307,12 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));
-            // Map's Okinawa checkpoint routes to Techniques indirectly via its
-            // level-detail panel's Start Lesson action (see
-            // HomeAndMap_ExistingNavigationStatesRemainIntact for the direct check).
-            Assert.IsNotNull(Screen(root, "map").Q<Button>("map-detail-start"));
+            // Map's Okinawa chapter routes into the Okinawa chapter map via its
+            // chapter panel's Enter Chapter action (see
+            // Map_ExistingNavigationStatesRemainIntact_AndHasNoProfileTab for the
+            // direct check, including the chapter map's own level popup CTA).
+            Assert.IsNotNull(Screen(root, "map").Q<Button>("chapter-panel-cta"));
+            Assert.IsNotNull(Screen(root, "mapOkinawa").Q<Button>("go-menu"));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator));
         }

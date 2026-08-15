@@ -8,9 +8,9 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Verifies the MikeyApp.uxml structural contract: exactly ten production
+    /// Verifies the MikeyApp.uxml structural contract: exactly eleven production
     /// screens (the six post-consolidation entry/Combine screens plus the
-    /// Techniques hub, Practice slice and Map progression screen), one dedicated
+    /// Techniques hub, Practice slice and the two-tier Map flow), one dedicated
     /// ".safe-area-content" per screen, full-bleed elements outside the wrappers,
     /// the mapped foreground elements inside them, Logo Intro's button-free
     /// contract (TitleController drives navigation itself), and the untouched
@@ -42,22 +42,22 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The ten production screens: the six post-consolidation entry/Combine
+        // The eleven production screens: the six post-consolidation entry/Combine
         // screens plus the Techniques lesson hub, the Practice training slice and
-        // the Map progression screen.
+        // the two-tier Map flow (the Japan world map plus the Okinawa chapter map).
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "profile" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile" };
 
         // 1
         [Test]
-        public void HasExactlyTenScreens()
+        public void HasExactlyElevenScreens()
         {
-            Assert.AreEqual(10, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(11, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheTenProductionScreens()
+        public void ScreenIds_AreExactlyTheElevenProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);
@@ -219,7 +219,7 @@ namespace Mikey.UI.SafeArea.Tests
             var root = BuildTree();
             foreach (var className in new[] { "title-block", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
-                "map-layout", "map-stage", "map-detail", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
+                "map-root", "pan-stage", "detail-panel", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");

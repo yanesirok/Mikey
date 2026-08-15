@@ -541,134 +541,273 @@
              title/description/stats/CTA laid directly over the video itself) -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
-            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper.
-                 map-bg-media is disabled for this screen (see Map.uss
-                 "#map-bg-media") — the flattened MVP map artwork (.map-art)
-                 is now the only visible map image; the old full-screen
-                 asia_map background must not show a second map behind it.
-                 The element (and BackgroundMediaController's binding) is kept
-                 so the shared background-media system stays untouched for
-                 Title/Home/Combine; only its visibility on Map is disabled.
-                 Only the (now-invisible) static image + legibility scrim
-                 remain: the old translucent red/green "territory shape"
-                 glows were removed earlier — they never matched the approved
-                 reference's dark, monochrome fog treatment. -->
+            <!-- full-bleed background layer, OUTSIDE the safe-area wrapper —
+                 same shared shape as every other screen with bound media
+                 (see BackgroundMediaUxmlTests). map-bg-media is disabled here
+                 (Map.uss "#map-bg-media") since the pan/zoom canvas art below
+                 is the only visible map image; the element + its
+                 BackgroundMediaController binding are kept so the shared
+                 background-media wiring stays untouched for Title/Home/Combine. -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
                 <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="map-layout">
+            <ui:VisualElement class="map-root">
 
-                <!-- LEFT: the map stage (~61.7%) — MVP: the approved reference's
-                     route/checkpoint composition is a single flattened static
-                     image (Assets/UI/Media/Images/japan_route_map_mvp.png), not
-                     separately-rendered dots/labels/route segments. Scaled to
-                     fit without altering its internal 790x720 crop or aspect
-                     ratio (never stretched, never cropped differently at
-                     different viewport sizes). -->
-                <ui:VisualElement class="map-stage">
-
-                    <!-- map-artboard: preserves the approved reference's exact
-                         790:720 aspect ratio, sized to the maximum that fits
-                         inside the map stage and centered — never stretched,
-                         never cropped. The map artwork AND the Okinawa hotspot
-                         are both children of this SAME box, so the hotspot's
-                         percentage position stays aligned with the visible
-                         artwork even when the stage itself pillarboxes at a
-                         wider-than-790:720 aspect ratio (e.g. 2400x1080). -->
-                    <ui:VisualElement class="map-artboard">
-                        <ui:VisualElement class="map-art" picking-mode="Ignore" />
-
-                        <!-- transparent Okinawa interaction hotspot: no visible
-                             background, border or label of its own — the visible
-                             red Okinawa marker is baked into the map artwork;
-                             this is purely a click target, positioned at the
-                             marker's normalized coordinate WITHIN THE ARTBOARD
-                             (see Map.uss ".map-node-okinawa"), with a larger
-                             invisible tap area than the visible dot for
-                             usability. Local checkpoint-select action (NOT a
-                             "go-" navigator): MapLevelPreviewController opens
-                             the docked cinematic panel and starts the inline
-                             preview; the panel's own "START LESSON" action is
-                             what routes to the Techniques hub. Locked points
-                             (Tonokku / Kanto / future) have no separate
-                             interactive element for this MVP — they are part
-                             of the flattened artwork and simply cannot be
-                             clicked. -->
-                        <ui:Button name="map-node-okinawa" class="map-node-okinawa tap-target" />
+                <!-- top quick-access bar: a minimal way back to the Main Menu,
+                     then Settings / Map / Techniques / Stats + current
+                     Level/XP. Visible on both the Japan and Okinawa map
+                     screens (see JapanMapController). -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__left">
+                        <ui:Button name="go-menu" class="map-topbar__icon-btn tap-target">
+                            <ui:Label text="MENU" class="map-topbar__icon-glyph" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-settings" class="map-topbar__icon-btn tap-target">
+                            <ui:Label text="SET" class="map-topbar__icon-glyph" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-map" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="MAP" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="TECHNIQUES" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="STATS" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
-
-                    <!-- one minimal, unobtrusive way back to Home: plain text, no
-                         pill/box styling, so it never competes with the map.
-                         Fixed to the stage's own corner (not the artboard), so
-                         it stays put regardless of any pillarboxing. -->
-                    <ui:Button name="go-menu" class="map-home tap-target">
-                        <ui:Label text="‹ Home" class="map-home__icon" picking-mode="Ignore" />
-                    </ui:Button>
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="map-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="map-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- RIGHT: Okinawa cinematic preview panel (~38.3%), docked flush
-                     against the top, right and bottom edges. One full-height video
-                     with layered dark overlays over its lower portion — title,
-                     description, stats and the CTA sit directly on top of the video
-                     (there is no separate solid-black content panel below it).
-                     MVP: Okinawa is the only playable destination, so this panel
-                     stays visible for the whole Map screen visit (Map.uss ".map-detail"
-                     has no display:none) — the 61.7/38.3 split is always structurally
-                     present, never collapsing to a full-width stage. On entering the
-                     "map" screen, MapLevelPreviewController automatically selects
-                     Okinawa and starts its inline preview (no click required); the
-                     transparent hotspot on the map stage remains for re-selection, but
-                     is not required to open this panel. No close action: Home/back is
-                     the only way to leave Map for this MVP. Drives the inline video's
-                     lifecycle independently of the map background (see
-                     Media/BackgroundMediaController.cs for the separate full-bleed
-                     system that stays untouched here). -->
-                <ui:VisualElement name="map-detail" class="map-detail">
-                    <ui:VisualElement name="map-detail-video" picking-mode="Ignore" class="map-detail__video" />
+                <!-- Japan world map: full-bleed pannable/zoomable canvas
+                     (japan_map_final.jpg) with real UI Toolkit chapter/city
+                     marker buttons — never baked into the art, never a
+                     permanently reserved side column. See
+                     MapPanZoomController(screenId="map", viewport="map-stage",
+                     canvas="map-canvas") and JapanMapController. -->
+                <ui:VisualElement name="map-stage" class="pan-stage">
+                    <ui:VisualElement name="map-canvas" class="pan-canvas">
+                        <ui:VisualElement class="map-canvas-art" picking-mode="Ignore" />
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
-                    <!-- layered dark overlays approximating the reference's gradient
-                         (USS has no linear-gradient support): a subtle overall tint
-                         plus two stronger bands anchored to the bottom, so scenery
-                         stays visible behind the upper portion of the video while the
-                         lower information area stays readable. -->
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--1" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--2" picking-mode="Ignore" />
-                    <ui:VisualElement class="map-detail__overlay map-detail__overlay--3" picking-mode="Ignore" />
-
-                    <!-- safe static fallback: shown instead of the video if it cannot load -->
-                    <ui:Label name="map-detail-video-fallback" text="Preview unavailable" class="map-detail__video-fallback" picking-mode="Ignore" />
-
-                    <!-- title / subtitle / description / stats / CTA — real UI
-                         Toolkit elements laid directly over the video + overlays,
-                         anchored to the lower portion of the panel. -->
-                    <ui:VisualElement class="map-detail__content">
-                        <ui:Label text="OKINAWA" class="map-detail__title" />
-                        <ui:Label text="Where it all began" class="map-detail__subtitle" />
-                        <ui:Label text="Here you will master stance, breathing, and the first strike." class="map-detail__desc" />
-
-                        <ui:VisualElement class="map-detail__stats">
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="LESSONS" class="map-detail__stat-label" />
-                                <ui:Label text="4" class="map-detail__stat-value" />
+                        <!-- Chapter 0: unlocked, current starting chapter. -->
+                        <ui:Button name="chapter-node-okinawa" class="chapter-node chapter-node--okinawa tap-target-lg">
+                            <ui:VisualElement class="chapter-node__badge" picking-mode="Ignore">
+                                <ui:VisualElement class="chapter-node__badge-dot" picking-mode="Ignore" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="TECHNIQUES" class="map-detail__stat-label" />
-                                <ui:Label text="3" class="map-detail__stat-value" />
+                            <ui:Label text="OKINAWA" class="chapter-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Chapter 1: visible, tappable, locked for now. -->
+                        <ui:Button name="chapter-node-tohoku" class="chapter-node chapter-node--tohoku chapter-node--locked tap-target-lg">
+                            <ui:VisualElement class="chapter-node__badge" picking-mode="Ignore">
+                                <ui:VisualElement class="chapter-node__badge-dot" picking-mode="Ignore" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="map-detail__stat">
-                                <ui:Label text="2 / 4 COMPLETED" class="map-detail__stat-value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
+                            <ui:Label text="TOHOKU" class="chapter-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <!-- toggled to picking-mode:Position only while the chapter
+                         panel is open, so a tap "elsewhere" on the map closes it
+                         (JapanMapController). -->
+                    <ui:VisualElement name="map-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
+                </ui:VisualElement>
+
+                <!-- chapter detail OVERLAY panel: slides in over the map on
+                     marker selection (see Map.uss ".detail-panel"). Never a
+                     permanently reserved column, never auto-selected on entry.
+                     Content (title/desc/CTA/video) is updated per selection by
+                     JapanMapController. -->
+                <ui:VisualElement name="chapter-panel" class="detail-panel" picking-mode="Ignore">
+                    <ui:VisualElement name="chapter-panel-video" picking-mode="Ignore" class="detail-panel__video" />
+                    <ui:VisualElement class="detail-panel__overlay detail-panel__overlay--1" picking-mode="Ignore" />
+                    <ui:VisualElement class="detail-panel__overlay detail-panel__overlay--2" picking-mode="Ignore" />
+                    <ui:Label name="chapter-panel-video-fallback" text="Preview unavailable" class="detail-panel__video-fallback" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="detail-panel__content">
+                        <ui:Label name="chapter-panel-eyebrow" text="CHAPTER 0" class="detail-panel__eyebrow" />
+                        <ui:Label name="chapter-panel-title" text="OKINAWA" class="detail-panel__title" />
+                        <ui:Label name="chapter-panel-desc" text="Your journey begins here. Establish your baseline, learn the foundations, and unlock the path ahead." class="detail-panel__desc" />
+                        <ui:Label name="chapter-panel-meta" text="6 LEVELS" class="detail-panel__meta" />
 
                         <!-- local controller-bound action (NOT a "go-" navigator):
-                             MapLevelPreviewController routes this through the existing
-                             IScreenNavigator to the 'techniques' screen. -->
-                        <ui:Button name="map-detail-start" class="map-detail__cta tap-target-lg">
-                            <ui:Label text="START LESSON" class="map-detail__cta-text" picking-mode="Ignore" />
+                             JapanMapController plays the ink-fade transition then
+                             routes to the "mapOkinawa" screen. Only enabled for
+                             an unlocked, selected chapter. -->
+                        <ui:Button name="chapter-panel-cta" class="detail-panel__cta tap-target-lg">
+                            <ui:Label name="chapter-panel-cta-text" text="ENTER CHAPTER" class="detail-panel__cta-text" picking-mode="Ignore" />
                         </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- brief ink-fade used only for the Japan -> Okinawa chapter
+                     transition (JapanMapController). -->
+                <ui:VisualElement name="map-transition-overlay" class="map-transition-overlay" picking-mode="Ignore" />
+
+                <!-- minimal map-local Settings modal: reuses IAudioSettings
+                     directly rather than duplicating Home's whole settings
+                     system (see MapSettingsModalBinder). Hidden by default. -->
+                <ui:VisualElement name="map-settings-modal" class="map-settings-modal">
+                    <ui:VisualElement class="map-settings-modal__card">
+                        <ui:Label text="SETTINGS" class="map-settings-modal__title" />
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="MUSIC" class="map-setting__label" />
+                            <ui:Slider name="map-settings-music" low-value="0" high-value="1" value="0.70" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="SOUND EFFECTS" class="map-setting__label" />
+                            <ui:Slider name="map-settings-sfx" low-value="0" high-value="1" value="1.00" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="TRAINER VOICE" class="map-setting__label" />
+                            <ui:Slider name="map-settings-trainer" low-value="0" high-value="1" value="1.00" />
+                        </ui:VisualElement>
+                        <ui:Button name="map-settings-close" text="CLOSE" class="btn primary sm map-settings-modal__close tap-target" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 9b - MAP / OKINAWA CHAPTER MAP (landscape mobile). Reached via
+             "ENTER CHAPTER" from the Japan world map. LVL 0-5 level nodes over
+             the full-bleed pannable okinawa_map_final.jpg; the top bar's Map
+             button returns to the Japan world map. See
+             MapPanZoomController(screenId="mapOkinawa", viewport="okinawa-stage",
+             canvas="okinawa-canvas") and OkinawaMapController. -->
+        <ui:VisualElement name="mapOkinawa" class="screen map-screen">
+            <Style src="Map/Map.uss" />
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="map-root">
+
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__left">
+                        <ui:Button name="go-menu" class="map-topbar__icon-btn tap-target">
+                            <ui:Label text="MENU" class="map-topbar__icon-glyph" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__icon-btn tap-target">
+                            <ui:Label text="SET" class="map-topbar__icon-glyph" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- plain "go-" navigator: returning to Japan from Okinawa
+                             never needs the extra reset-in-place behavior the
+                             Japan screen's own Map button has. -->
+                        <ui:Button name="go-map" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="MAP" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="TECHNIQUES" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="STATS" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="okinawa-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="okinawa-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="okinawa-stage" class="pan-stage">
+                    <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
+                        <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
+
+                        <!-- LVL 0: unlocked (existing starting assessment flow). -->
+                        <ui:Button name="level-node-0" class="level-node level-node--0 tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="0" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 0" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- LVL 1: visible but locked until Level1Unlocked. -->
+                        <ui:Button name="level-node-1" class="level-node level-node--1 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="1" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 1" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- LVL 2-5: visible but always locked for now; no
+                             gameplay built for these yet. -->
+                        <ui:Button name="level-node-2" class="level-node level-node--2 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="2" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 2" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-3" class="level-node level-node--3 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="3" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 3" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-4" class="level-node level-node--4 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="4" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 4" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-5" class="level-node level-node--5 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__badge" picking-mode="Ignore">
+                                <ui:Label text="5" class="level-node__badge-index" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="LVL 5" class="level-node__label" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="okinawa-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
+                </ui:VisualElement>
+
+                <!-- level detail OVERLAY popup: same shared ".detail-panel"
+                     component as the Japan chapter panel, content swapped per
+                     selection by OkinawaMapController. -->
+                <ui:VisualElement name="level-panel" class="detail-panel" picking-mode="Ignore">
+                    <ui:VisualElement class="detail-panel__content">
+                        <ui:Label name="level-panel-eyebrow" text="LEVEL" class="detail-panel__eyebrow" />
+                        <ui:Label name="level-panel-title" text="LVL 0" class="detail-panel__title" />
+                        <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="detail-panel__subtitle" />
+                        <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="detail-panel__desc" />
+
+                        <!-- local controller-bound action (NOT a "go-" navigator):
+                             OkinawaMapController routes LVL 0 to "combineIntro"
+                             and LVL 1 to the existing lesson/techniques flow;
+                             disabled while locked. -->
+                        <ui:Button name="level-panel-cta" class="detail-panel__cta tap-target-lg">
+                            <ui:Label name="level-panel-cta-text" text="BEGIN" class="detail-panel__cta-text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- starts opaque; OkinawaMapController fades it out on entry,
+                     completing the ink-fade begun by the Japan screen. -->
+                <ui:VisualElement name="okinawa-transition-overlay" class="map-transition-overlay map-transition-overlay--visible" picking-mode="Ignore" />
+
+                <ui:VisualElement name="okinawa-settings-modal" class="map-settings-modal">
+                    <ui:VisualElement class="map-settings-modal__card">
+                        <ui:Label text="SETTINGS" class="map-settings-modal__title" />
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="MUSIC" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-music" low-value="0" high-value="1" value="0.70" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="SOUND EFFECTS" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-sfx" low-value="0" high-value="1" value="1.00" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="map-setting">
+                            <ui:Label text="TRAINER VOICE" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-trainer" low-value="0" high-value="1" value="1.00" />
+                        </ui:VisualElement>
+                        <ui:Button name="okinawa-settings-close" text="CLOSE" class="btn primary sm map-settings-modal__close tap-target" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
