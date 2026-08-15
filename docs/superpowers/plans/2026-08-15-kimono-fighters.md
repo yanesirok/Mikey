@@ -1277,7 +1277,11 @@ unity test --mode EditMode --filter FighterClipsTests --output test-results.xml
 - [ ] **Step 6: Коммит**
 
 ```bash
-git add Assets/Editor/FighterClipSetup.cs Assets/Editor/FighterClipSetup.cs.meta Assets/Fight/Fighter.controller Assets/Fight/Tests/FighterModelTests.cs Assets/Fight/animations Assets/Characters/Karate
+# Каталогами добавлять нельзя: в animations лежат тестовые леса
+# (AC_TestMocap.controller, ClipLabel.cs, TestMocapScene.unity) и
+# неиспользуемые дубли мокапов, в Karate — весь CC0-пак целиком.
+# Перечисляем только то, на что ссылается контроллер.
+git add Assets/Editor/FighterClipSetup.cs Assets/Editor/FighterClipSetup.cs.meta         Assets/Fight/Fighter.controller Assets/Fight/Fighter.controller.meta         Assets/Fight/Tests/FighterModelTests.cs         Assets/Characters/Karate/UAL1_Standard.fbx Assets/Characters/Karate/UAL1_Standard.fbx.meta         Assets/Fight/animations/video_2026-08-06_08-08-14_BoyFBX.fbx{,.meta}         Assets/Fight/animations/video_2026-08-06_08-08-18_BoyFBX.fbx{,.meta}         Assets/Fight/animations/video_2026-08-06_08-08-22_BoyFBX.fbx{,.meta}         Assets/Fight/animations/video_2026-08-06_08-08-25_BoyFBX.fbx{,.meta}         Assets/Fight/animations/video_2026-08-06_08-08-28_BoyFBX.fbx{,.meta}         Assets/Fight/animations/video_2026-08-06_08-08-32_BoyFBX.fbx{,.meta}
 git commit -m "feat: контроллер бойца пересобран на своих карате-мокапах
 
 Все семь ссылок на клипы были висячими — контроллер не играл ничего.
