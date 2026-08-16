@@ -171,6 +171,31 @@ namespace Mikey.Fight.Tests
             Assert.AreEqual(TextureImporterType.NormalMap, importer.textureType);
         }
 
+        /// <summary>Same failure as the test above, on the maps that arrive with the bodies. They
+        /// come out of Mixamo as plain PNGs, so Unity types them Default and decodes them as
+        /// sRGB — which bends X and Y around 0.5 and leaves relief of the wrong magnitude on the
+        /// skin, the face and the hair. Unity will never correct this on its own: Default is a
+        /// legitimate setting for a PNG, and nothing about the file says otherwise, so the value
+        /// survives every reimport. Only FighterImportSetup.SetUpNormalMaps flips it, and this
+        /// test is what says whether it was run after the maps last changed.
+        ///
+        /// Listed by path rather than swept by name: a sweep would pass on an empty folder.</summary>
+        [Test]
+        public void BodyNormalMaps_AreImportedAsNormalMaps()
+        {
+            foreach (var path in new[]
+                     {
+                         "Assets/Fight/character/body/Ch28_1001_Normal.png",
+                         "Assets/Fight/character/body/Remy_Body_Normal.png",
+                         "Assets/Fight/character/body/Remy_Hair_Normal.png",
+                     })
+            {
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                Assert.IsNotNull(importer, path + " is not in the project");
+                Assert.AreEqual(TextureImporterType.NormalMap, importer.textureType, path);
+            }
+        }
+
         /// <summary>bake() writes T_Kimono_AO.png with is_data=True — linear values. Importing
         /// it as sRGB (Unity's default for a new PNG) decodes it a second time and crushes the
         /// midtones before _AlbedoGamma even applies — a silent, purely visual failure.</summary>

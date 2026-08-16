@@ -19,12 +19,23 @@ namespace Mikey.FightEditor
         const string NormalPath = CharacterDir + "/kimono/T_Kimono_Normal.png";
         const string AoPath = CharacterDir + "/kimono/T_Kimono_AO.png";
 
+        /// <summary>Every normal map the fighters sample, kimono and bodies alike. The body maps
+        /// arrive with the model as plain PNGs and Unity types them Default, exactly as it did
+        /// with the kimono map before this script existed.</summary>
+        static readonly string[] NormalMapPaths =
+        {
+            NormalPath,
+            CharacterDir + "/body/Ch28_1001_Normal.png",   // Ch28_body, Ch28_hair
+            CharacterDir + "/body/Remy_Body_Normal.png",   // Bodymat, Eyelashmat
+            CharacterDir + "/body/Remy_Hair_Normal.png",   // Hairmat
+        };
+
         [MenuItem("Mikey/Setup Kimono Fighter")]
         public static void Run()
         {
             SetUpModel(PlayerModelPath);
             SetUpModel(EnemyModelPath);
-            SetUpNormalMap();
+            SetUpNormalMaps();
             SetUpAoMap();
             CreateMaterials();
             AssetDatabase.SaveAssets();
@@ -48,17 +59,22 @@ namespace Mikey.FightEditor
             // Models_BodyMeshCarriesItsDiffuse for what a body without them looks like.
         }
 
-        /// <summary>Without this the relief reads as coloured noise rather than folds.</summary>
-        static void SetUpNormalMap()
+        /// <summary>Without this the relief reads as coloured noise rather than folds: a map left
+        /// as a colour texture is gamma-decoded, which skews X and Y around 0.5 and gives relief
+        /// of the wrong magnitude everywhere it is sampled.</summary>
+        static void SetUpNormalMaps()
         {
-            var importer = AssetImporter.GetAtPath(NormalPath) as TextureImporter;
-            if (importer == null)
-                throw new System.IO.FileNotFoundException(NormalPath + " is not in the project");
-            if (importer.textureType == TextureImporterType.NormalMap)
-                return;
+            foreach (var path in NormalMapPaths)
+            {
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null)
+                    throw new System.IO.FileNotFoundException(path + " is not in the project");
+                if (importer.textureType == TextureImporterType.NormalMap)
+                    continue;
 
-            importer.textureType = TextureImporterType.NormalMap;
-            importer.SaveAndReimport();
+                importer.textureType = TextureImporterType.NormalMap;
+                importer.SaveAndReimport();
+            }
         }
 
         /// <summary>bake() writes this map with is_data=True — linear values, not sRGB. Unity
