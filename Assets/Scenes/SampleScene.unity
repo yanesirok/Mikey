@@ -455,6 +455,7 @@ GameObject:
   - component: {fileID: 1720403629}
   - component: {fileID: 1720403630}
   - component: {fileID: 1720403631}
+  - component: {fileID: 1720403632}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -584,10 +585,6 @@ MonoBehaviour:
     targetElementName: combine-bg-media
     clip: {fileID: 32900000, guid: e40462fad4fbd9243980ee3922018ce8, type: 3}
     staticImage: {fileID: 0}
-  - screenId: map
-    targetElementName: map-bg-media
-    clip: {fileID: 0}
-    staticImage: {fileID: 2800000, guid: 508aafca3ea2f0a43a8b8eda518fce40, type: 3}
 --- !u!114 &1720403625
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -601,7 +598,17 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapLevelPreviewController
   checkpoints:
-  - nodeElementName: map-node-okinawa
+  - nodeElementName: map-node-lvl0
+    contentElementName: map-detail-content-lvl0
+    ctaElementName: map-detail-start-lvl0
+    navigationTarget: combineIntro
+    requiredState: 0
+    previewClip: {fileID: 0}
+  - nodeElementName: map-node-lvl1
+    contentElementName: map-detail-content-lvl1
+    ctaElementName: map-detail-start-lvl1
+    navigationTarget: techniques
+    requiredState: 4
     previewClip: {fileID: 32900000, guid: 3dfc5e1dfbad4f27a408c0b32699fdfd, type: 3}
 --- !u!114 &1720403626
 MonoBehaviour:
@@ -678,6 +685,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Mikey.UI.Audio::Mikey.UI.Audio.AudioController
   menuMusicClip: {fileID: 8300000, guid: 23cdc616676a6714da8c7efc3db76f48, type: 3}
   uiClickClip: {fileID: 8300000, guid: 692bb875ccbbc4446be6f2166f1648ee, type: 3}
+--- !u!114 &1720403632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba2bf9d6c129236448186e56ebbc4111, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapPanZoomController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
