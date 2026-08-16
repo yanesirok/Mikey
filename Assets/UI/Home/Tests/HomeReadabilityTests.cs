@@ -129,59 +129,143 @@ namespace Mikey.UI.Home.Tests
             StringAssert.Contains("-unity-background-scale-mode: scale-to-fit", block, "Must preserve aspect ratio.");
         }
 
-        // ---------- 4: right-side readability treatment ----------
+        // ---------- 4: individual per-item brushstroke backings ----------
+        // (replaces the removed shared right-side gradient bands)
 
         [Test]
-        public void RightSideGradientBands_Exist()
+        public void SharedRightSideBands_AreCompletelyGone()
         {
             var screen = MenuScreen(BuildTree());
-            var bands = screen.Query<VisualElement>(className: "home-nav-scrim").ToList();
-            Assert.AreEqual(3, bands.Count, "Expected three layered bands approximating a soft right-side gradient.");
+            Assert.IsEmpty(screen.Query<VisualElement>(className: "home-nav-scrim").ToList(),
+                "The old shared right-side gradient/band treatment must not remain.");
+
+            string uss = File.ReadAllText(HomeUssPath);
+            StringAssert.DoesNotContain(".home-nav-scrim", uss, "No trace of the retired shared-band classes may remain in Home.uss.");
         }
 
         [Test]
-        public void GradientBands_AreRightAnchored_NarrowingAndDarkeningTowardTheNav()
+        public void ExactlyFourIndividualBrushstrokes_OneBehindEachNavItem()
+        {
+            var root = BuildTree();
+            foreach (var (buttonName, strokeClass) in new[]
+            {
+                ("go-map", "home-nav__stroke--play"),
+                ("menu-plans-open", "home-nav__stroke--plans"),
+                ("menu-settings-open", "home-nav__stroke--settings"),
+                ("menu-quit", "home-nav__stroke--quit"),
+            })
+            {
+                var button = MenuScreen(root).Q<Button>(buttonName);
+                Assert.IsNotNull(button, $"Expected button '{buttonName}'.");
+                var stroke = button.Q<VisualElement>(className: strokeClass);
+                Assert.IsNotNull(stroke, $"Expected an individual brushstroke ('{strokeClass}') behind '{buttonName}'.");
+                Assert.IsTrue(stroke.ClassListContains("home-nav__stroke"),
+                    "Each item's stroke must use the shared reusable base class, not a one-off implementation.");
+            }
+
+            // Exactly four in the whole screen — one per item, never a shared one.
+            Assert.AreEqual(4, MenuScreen(root).Query<VisualElement>(className: "home-nav__stroke").ToList().Count);
+        }
+
+        [Test]
+        public void EachBrushstroke_IsBuiltFromThreeLayeredStrips()
+        {
+            var root = BuildTree();
+            foreach (var strokeClass in new[] { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" })
+            {
+                var stroke = MenuScreen(root).Q<VisualElement>(className: strokeClass);
+                var layers = stroke.Query<VisualElement>(className: "home-nav__stroke-layer").ToList();
+                Assert.AreEqual(3, layers.Count, $"'{strokeClass}' must be built from three overlapping strips.");
+            }
+        }
+
+        [Test]
+        public void StrokeLayers_VaryInSizeOffsetAndRotation_SoItReadsAsIrregularNotARectangle()
         {
             string uss = File.ReadAllText(HomeUssPath);
-            string b1 = ExtractRuleBlock(uss, "\n.home-nav-scrim--1 {");
-            string b2 = ExtractRuleBlock(uss, "\n.home-nav-scrim--2 {");
-            string b3 = ExtractRuleBlock(uss, "\n.home-nav-scrim--3 {");
-            Assert.IsNotNull(b1);
-            Assert.IsNotNull(b2);
-            Assert.IsNotNull(b3);
+            string layer1 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--1 {");
+            string layer2 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--2 {");
+            string layer3 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--3 {");
+            Assert.IsNotNull(layer1);
+            Assert.IsNotNull(layer2);
+            Assert.IsNotNull(layer3);
 
-            string baseBlock = ExtractRuleBlock(uss, "\n.home-nav-scrim {");
-            StringAssert.Contains("right: 0", baseBlock, "Bands must anchor to the right edge, behind the nav.");
+            float w1 = ExtractPercent(layer1, "width");
+            float w2 = ExtractPercent(layer2, "width");
+            float w3 = ExtractPercent(layer3, "width");
+            Assert.AreNotEqual(w1, w2, "Layers must differ in width so they don't look like one flat rectangle.");
+            Assert.AreNotEqual(w2, w3);
 
-            float width1 = ExtractPercent(b1, "width");
-            float width2 = ExtractPercent(b2, "width");
-            float width3 = ExtractPercent(b3, "width");
-            Assert.Greater(width1, width2, "Each band nearer the nav must be narrower — that's what reads as a soft gradient.");
-            Assert.Greater(width2, width3);
-
-            float alpha1 = ExtractAlpha(b1);
-            float alpha2 = ExtractAlpha(b2);
-            float alpha3 = ExtractAlpha(b3);
-            Assert.Less(alpha1, alpha2, "Each narrower/closer band must be darker — darkest right behind the menu text.");
-            Assert.Less(alpha2, alpha3);
-            Assert.Less(alpha3, 0.30f, "Even the darkest band must stay subtle/understated — never a strong opaque rectangle.");
+            // At least one layer must be rotated — the "painted", not
+            // machine-drawn, quality — and never a rounded pill/capsule.
+            StringAssert.Contains("rotate:", layer2 + layer3);
+            foreach (var layer in new[] { layer1, layer2, layer3 })
+                StringAssert.DoesNotContain("border-radius", layer, "Strips must keep square/irregular edges — no rounded pill.");
         }
 
         [Test]
-        public void GradientBands_IgnorePicking_PurelyVisual()
+        public void StrokeLayers_StayWithinTheRequestedOpacityRange_25To40Percent()
         {
-            var screen = MenuScreen(BuildTree());
-            foreach (var band in screen.Query<VisualElement>(className: "home-nav-scrim").ToList())
-                Assert.AreEqual(PickingMode.Ignore, band.pickingMode);
+            string uss = File.ReadAllText(HomeUssPath);
+            foreach (var selector in new[] { "\n.home-nav__stroke-layer--1 {", "\n.home-nav__stroke-layer--2 {", "\n.home-nav__stroke-layer--3 {" })
+            {
+                float alpha = ExtractAlpha(ExtractRuleBlock(uss, selector));
+                Assert.GreaterOrEqual(alpha, 0.25f, $"'{selector}' must stay within 25-40% opacity.");
+                Assert.LessOrEqual(alpha, 0.40f, $"'{selector}' must stay within 25-40% opacity.");
+            }
         }
 
         [Test]
-        public void FullScreenScrim_StaysSubtle_TheGradientIsAdditionalNotAReplacementForAnOpaqueOverlay()
+        public void EachWordsStroke_HasItsOwnWidth_NotAUniformSize()
+        {
+            string uss = File.ReadAllText(HomeUssPath);
+            float play = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--play {"), "width");
+            float plans = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--plans {"), "width");
+            float settings = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--settings {"), "width");
+            float quit = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--quit {"), "width");
+
+            // "SETTINGS" is by far the longest word; "PLAY"/"QUIT" the shortest.
+            Assert.Greater(settings, plans);
+            Assert.Greater(plans, play);
+            Assert.Greater(play, quit);
+        }
+
+        [Test]
+        public void Brushstroke_AnchorsUnderTheRightAlignedLabel_NotCenteredOnTheWiderPaddedButton()
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-nav__stroke {");
+            Assert.IsNotNull(block);
+            // Matches .home-nav__item's own right padding (26px), so it
+            // centers under the text despite the button's asymmetric
+            // (46px left / 26px right) padding.
+            StringAssert.Contains("right: 26px", block);
+        }
+
+        [Test]
+        public void StrokeAndLayers_IgnorePicking_ButtonsRemainClickable()
+        {
+            var root = BuildTree();
+            foreach (var strokeClass in new[] { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" })
+            {
+                var stroke = MenuScreen(root).Q<VisualElement>(className: strokeClass);
+                Assert.AreEqual(PickingMode.Ignore, stroke.pickingMode);
+                foreach (var layer in stroke.Query<VisualElement>(className: "home-nav__stroke-layer").ToList())
+                    Assert.AreEqual(PickingMode.Ignore, layer.pickingMode);
+            }
+
+            // The Button elements themselves are untouched, so their default
+            // (clickable) picking mode and existing click wiring are intact.
+            foreach (var name in new[] { "go-map", "menu-plans-open", "menu-settings-open", "menu-quit" })
+                Assert.IsNotNull(MenuScreen(root).Q<Button>(name));
+        }
+
+        [Test]
+        public void FullScreenScrim_RemainsUnchanged()
         {
             string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-scrim {");
             Assert.IsNotNull(block, "The existing full-bleed legibility scrim must remain (unchanged).");
             float alpha = ExtractAlpha(block);
-            Assert.Less(alpha, 0.40f, "The whole-video scrim must stay understated — the readability fix is the right-side gradient, not a darker blanket overlay.");
+            Assert.AreEqual(0.32f, alpha, 0.001f);
         }
 
         // ---------- 5: no per-item bubbles ----------

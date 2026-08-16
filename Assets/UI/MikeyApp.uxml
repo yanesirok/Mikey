@@ -70,13 +70,6 @@
             <ui:VisualElement class="home-bg">
                 <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
-                <!-- soft right-side readability treatment behind the nav (see
-                     Home.uss ".home-nav-scrim*") — layered bands approximating
-                     a gradient, darkest nearest the menu, fading well before
-                     the left/center of the frame. -->
-                <ui:VisualElement class="home-nav-scrim home-nav-scrim--1" picking-mode="Ignore" />
-                <ui:VisualElement class="home-nav-scrim home-nav-scrim--2" picking-mode="Ignore" />
-                <ui:VisualElement class="home-nav-scrim home-nav-scrim--3" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
@@ -85,22 +78,45 @@
                 <!-- upper-left brand mark -->
                 <ui:VisualElement class="home-logo" picking-mode="Ignore" />
 
-                <!-- right-side vertical navigation: spacing + typography, no cards -->
+                <!-- right-side vertical navigation: spacing + typography, no cards.
+                     Each item carries its OWN individual brushstroke backing (see
+                     Home.uss ".home-nav__stroke") — never one shared panel/band
+                     behind the whole nav. -->
                 <ui:VisualElement class="home-nav">
                     <!-- PLAY: plain ScreenManager navigator straight to the Map hub -->
                     <ui:Button name="go-map" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--play" picking-mode="Ignore">
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--1" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--2" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--3" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="PLAY" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
                     <!-- PLANS: local overlay (NOT a "go-" navigator); HomeController opens it -->
                     <ui:Button name="menu-plans-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--plans" picking-mode="Ignore">
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--1" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--2" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--3" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="PLANS" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
                     <!-- SETTINGS: local overlay (NOT a "go-" navigator); HomeController opens it -->
                     <ui:Button name="menu-settings-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--settings" picking-mode="Ignore">
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--1" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--2" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--3" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="SETTINGS" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
                     <!-- QUIT: lowest-priority action visually, never platform-hidden -->
                     <ui:Button name="menu-quit" class="home-nav__item home-nav__item--quit tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--quit" picking-mode="Ignore">
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--1" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--2" picking-mode="Ignore" />
+                            <ui:VisualElement class="home-nav__stroke-layer home-nav__stroke-layer--3" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="QUIT" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
                 </ui:VisualElement>
