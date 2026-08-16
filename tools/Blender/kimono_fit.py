@@ -34,6 +34,8 @@ def parse_args():
     p.add_argument('--body', required=True)
     p.add_argument('--kimono', required=True)
     p.add_argument('--out', required=True)
+    p.add_argument('--name', required=True,
+                   help='имя выходного FBX без расширения, например KimonoFighter_Player')
     p.add_argument('--scale-mul', type=float, default=1.0,
                    help='ручная поправка к масштабу, выведенному из костей')
     p.add_argument('--offset-z', type=float, default=0.0,
@@ -52,14 +54,79 @@ def world_bbox(objs):
     return mn, mx
 
 
+# Меши собственной одежды и обуви персонажа Mixamo. Под кимоно они не нужны, а
+# карате босое, поэтому обувь уходит обязательно. Лицо остаётся: Hair, Eyes,
+# Eyelashes не входят в этот список намеренно.
+# Проверено импортом обеих моделей: у Ch28 это Hoody/Pants/Sneakers, у Remy —
+# Tops/Bottoms/Shoes. Меш тела при этом полный, от стоп до макушки (Ch28_Body
+# z 0.064..1.764, Body z 0.094..3.742), поэтому под снятой одеждой дыр нет.
+CHARACTER_CLOTHING = ('hoody', 'pants', 'sneakers', 'tops', 'bottoms', 'shoes')
+
+# Оба бойца приводятся к одному росту: они дерутся друг с другом, а приходят
+# в разном масштабе — 1.767 м у Ch28 и 3.784 м у Remy.
+TARGET_HEIGHT = 1.75
+
+
+def bone_by_suffix(arm, suffix):
+    """Кость по окончанию имени, а не по точному совпадению.
+
+    Mixamo нумерует префикс, когда персонаж выгружался в сессии с несколькими
+    моделями: в одном файле кость зовётся mixamorig:Neck, в другом
+    mixamorig10:Neck. Точное сравнение ломается на второй же выгрузке, причём
+    молча — fit() просто не найдёт кость и упадёт с StopIteration.
+    """
+    hits = [b for b in arm.pose.bones if b.name.endswith(suffix)]
+    assert hits, (f'в скелете нет кости, оканчивающейся на {suffix!r}; '
+                  f'есть, например: {[b.name for b in arm.pose.bones][:5]}')
+    assert len(hits) == 1, f'{suffix!r} неоднозначно: {[b.name for b in hits]}'
+    return hits[0]
+
+
+def normalize_height(arm, meshes):
+    """Приводит персонажа к TARGET_HEIGHT. Возвращает применённый множитель.
+
+    Масштабируются только объекты без родителя: у импорта Mixamo меши обычно
+    дети арматуры, и масштабировать их отдельно значило бы применить масштаб
+    дважды.
+    """
+    mn, mx = world_bbox(meshes)
+    height = mx.z - mn.z
+    assert height > 0.1, f'высота персонажа {height:.3f} м — импорт пустой?'
+    k = TARGET_HEIGHT / height
+    for o in {arm, *meshes}:
+        if o.parent is None:
+            o.scale = (o.scale.x * k, o.scale.y * k, o.scale.z * k)
+    bpy.context.view_layer.update()
+
+    mn, mx = world_bbox(meshes)
+    got = mx.z - mn.z
+    assert abs(got - TARGET_HEIGHT) < 0.02, (
+        f'после нормализации рост {got:.3f} м вместо {TARGET_HEIGHT} — '
+        'масштаб применился не ко всем корневым объектам')
+    return k
+
+
 def import_body(path):
+    """Готовый персонаж Mixamo: снимаем его одежду и приводим к общему росту."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.fbx(filepath=path, automatic_bone_orientation=True)
     new = [o for o in bpy.data.objects if o not in before]
     arm = next((o for o in new if o.type == 'ARMATURE'), None)
-    assert arm is not None, f'в {path} нет арматуры — тело экспортировано без скелета?'
+    assert arm is not None, f'в {path} нет арматуры — это не персонаж Mixamo?'
+
     meshes = [o for o in new if o.type == 'MESH']
-    assert meshes, 'в теле нет ни одного меша — скачано Without Skin?'
+    assert meshes, f'в {path} нет ни одного меша'
+
+    doomed = [o for o in meshes
+              if any(c in o.name.lower() for c in CHARACTER_CLOTHING)]
+    for o in doomed:
+        bpy.data.objects.remove(o, do_unlink=True)
+    meshes = [o for o in meshes if o not in doomed]
+    assert meshes, 'после снятия одежды не осталось ни одного меша'
+
+    k = normalize_height(arm, meshes)
+    print(f'kimono_fit: персонаж {os.path.basename(path)} — снято мешей одежды '
+          f'{len(doomed)}, осталось {len(meshes)}, масштаб {k:.4f}')
     return arm, meshes
 
 
@@ -70,7 +137,10 @@ def import_body(path):
 # масштаб по макушке манекена, что её собственный докстринг прямо запрещает
 # (кимоно кончается у воротника). Подтверждено импортом: реальные материалы
 # на пяти мешах — Belts_1, Jacket_1, Pants_1, Shirt_1, default.
-KIMONO_PARTS = ('Belts', 'Jacket', 'Pants', 'Shirt')
+# BELT_PART назван отдельно и подставлен в KIMONO_PARTS, а не продублирован:
+# по нему же capture_belt_mask отбирает полигоны пояса в отдельный сабмеш.
+BELT_PART = 'Belts'
+KIMONO_PARTS = (BELT_PART, 'Jacket', 'Pants', 'Shirt')
 
 
 def import_kimono_parts(path):
@@ -117,6 +187,10 @@ def weld_seams_and_fix_normals(k):
     mn, mx = world_bbox([k])
     weld_threshold = (mx - mn).length * 5e-5
 
+    # bpy.ops.mesh.* работают с активным объектом. До этой строки функция
+    # держалась на том, что join() в import_kimono_parts() оставил активным
+    # именно k — вызови её отдельно, и правки уехали бы в чужой меш.
+    bpy.context.view_layer.objects.active = k
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
 
@@ -154,8 +228,8 @@ def upright(o):
         bpy.context.view_layer.update()
 
 
-def bone_head_z(arm, name):
-    return (arm.matrix_world @ arm.pose.bones[name].head).z
+def bone_head_z(arm, suffix):
+    return (arm.matrix_world @ bone_by_suffix(arm, suffix).head).z
 
 
 def fit(kimono, arm, meshes, scale_mul, offset_z):
@@ -164,8 +238,8 @@ def fit(kimono, arm, meshes, scale_mul, offset_z):
     По высоте головы масштабировать нельзя — кимоно кончается у воротника,
     а не на макушке.
     """
-    neck = bone_head_z(arm, 'mixamorig:Neck')
-    toe = bone_head_z(arm, 'mixamorig:LeftToeBase')
+    neck = bone_head_z(arm, ':Neck')
+    toe = bone_head_z(arm, ':LeftToeBase')
     kmn, kmx = world_bbox([kimono])
     s = (neck - toe) / (kmx.z - kmn.z) * scale_mul
     kimono.scale = (s, s, s)
@@ -211,7 +285,8 @@ def capture_belt_mask(low):
     runs and reapplied after — see apply_belt_split().
     """
     names = [m.name if m else '' for m in low.data.materials]
-    return [names[p.material_index].startswith('Belts') for p in low.data.polygons]
+    return [names[p.material_index].startswith(BELT_PART)
+            for p in low.data.polygons]
 
 
 def apply_belt_split(low, is_belt):
@@ -223,6 +298,16 @@ def apply_belt_split(low, is_belt):
     belts in different colours, which needs its own submesh: the shader's _RimColor is a
     fresnel highlight over the whole silhouette, not a belt.
     """
+    # zip() усекается по короткому: разъехавшаяся маска молча раскрасила бы
+    # часть полигонов и оставила остальные нулевыми, а пустая — вообще ничего.
+    # Отказ всплыл бы только в Unity как «один сабмеш вместо двух» и был бы
+    # неотличим от «забыли перегнать пайплайн».
+    assert len(is_belt) == len(low.data.polygons), (
+        f'маска пояса на {len(is_belt)} полигонов при {len(low.data.polygons)} '
+        'в меше — снята не с этого меша?')
+    assert any(is_belt), (
+        f'в маске пояса нет ни одного полигона — материал {BELT_PART!r} '
+        'не доехал до low или переименован в kimono.glb')
     low.data.materials.clear()
     low.data.materials.append(bpy.data.materials.new('Kimono_Cloth'))
     low.data.materials.append(bpy.data.materials.new('Kimono_Belt'))
@@ -280,15 +365,34 @@ def _baked_mask(px, background):
     return np.any(np.abs(px[:, :3] - bg) > 0.01, axis=1)
 
 
-# Пороги измерены на реальном негодном запеке (найден финальным ревью ветки, C2,
-# коммит перед починкой C1, где в склейку кимоно уезжал манекен): по текселям,
-# которые бейк реально тронул, AO — среднее 0.24, медиана 0.02 (половина ткани чистый
-# чёрный); синий канал нормалей — среднее 0.59 при σ 0.37 (шум, а не складки). Пороги
-# ниже заведомо ловят оба этих состояния; после починки C1 должны пройти (см. отчёт).
-AO_MEAN_MIN = 0.35
-AO_MEDIAN_MIN = 0.20
-NORMAL_BLUE_MEAN_MIN = 0.85
-NORMAL_BLUE_STD_MAX = 0.15
+# Пороги переоткалиброваны по первому реальному прогону этого пайплайна (Ch28,
+# атлас 2048, манекен отфильтрован). Прежние 0.35/0.20/0.85/0.15 были выведены из
+# отчёта о ЗАВЕДОМО ПЛОХОМ запеке, а на годном не измерялись ни разу — и роняли
+# каждый прогон. Измерено на годном (см. task-2-report.md):
+#   AO по маске:      среднее 0.234, медиана 0.031, p90 0.812
+#   синий нормалей:   среднее 0.520, σ 0.381
+#
+# Врал порог, не запек. Контроль: выпуклая сфера в этой же машинерии печётся
+# ровно в AO 1.000, то есть bake_pair исправен. Кимоно же многослойное —
+# горизонтальный луч сквозь грудь пересекает 20 поверхностей ткани, а 72%
+# площади low-poly это изнанка и внутренности рукавов, у которых AO честно
+# нулевой. Отсюда чёрная медиана при совершенно нормальной лицевой стороне
+# (проверено рендером: силуэт кимоно со складками, а не чёрный мешок).
+#
+# Два порога сняты совсем, потому что мерили артефакт, а не запек:
+#   * медиана AO — 53.8% замаскированных текселей ниже 0.05, медиана стоит на
+#     обрыве и прыгает между 0 и 0.05 от любой мелочи в раскладке атласа;
+#   * σ синего — _baked_mask по определению выбрасывает плоские тексели (они и
+#     есть заливка (0.5, 0.5, 1.0)), так что оставшаяся выборка не может быть
+#     узкой: требовать от неё σ < 0.15 — противоречие, а любой проходимый
+#     порог (σ < 0.5) вакуумный, потому что σ значений из 0..1 больше 0.5 не
+#     бывает.
+# Оба числа по-прежнему печатаются в сводке запека — просто больше не роняют
+# прогон. Регресс «манекен снова в склейке» ловит не эта пара, а прямой
+# assert len(kept) == 4 в import_kimono_parts: по AO два состояния
+# неразличимы (0.24/0.02 с манекеном против 0.234/0.031 без него).
+AO_MEAN_MIN = 0.10
+NORMAL_BLUE_MEAN_MIN = 0.30
 
 
 def check_ao_content(ao):
@@ -298,24 +402,22 @@ def check_ao_content(ao):
     lit = px[_baked_mask(px, (1.0, 1.0, 1.0)), 0]
     assert lit.size > 0, 'AO не запёкся ни на одном текселе'
     mean, median = float(lit.mean()), float(np.median(lit))
-    assert mean > AO_MEAN_MIN and median > AO_MEDIAN_MIN, (
-        f'AO негодный: среднее {mean:.3f}, медиана {median:.3f} по запечённым текселям '
-        f'(нужно среднее > {AO_MEAN_MIN}, медиана > {AO_MEDIAN_MIN}) — '
-        'похоже, в запек попала лишняя геометрия')
+    assert mean > AO_MEAN_MIN, (
+        f'AO негодный: среднее {mean:.3f} по запечённым текселям '
+        f'(нужно > {AO_MEAN_MIN}) — запек чёрный целиком')
     return mean, median
 
 
 def check_normal_content(normal):
-    """Синий канал tangent-space карты обязан группироваться у 1 (смотрит прямо наружу)
-    — иначе поверхность на экране читается как цветной шум, а не как рельеф ткани."""
+    """Синий канал tangent-space карты обязан быть заметно положительным: при нулевом
+    среднем карта не рельеф, а мусор."""
     px = _pixel_array(normal)
     blue = px[_baked_mask(px, (0.5, 0.5, 1.0)), 2]
     assert blue.size > 0, 'нормали не запеклись ни на одном текселе'
     mean, std = float(blue.mean()), float(blue.std())
-    assert mean > NORMAL_BLUE_MEAN_MIN and std < NORMAL_BLUE_STD_MAX, (
-        f'карта нормалей — шум: синий канал среднее {mean:.3f}, σ {std:.3f} '
-        f'(нужно среднее > {NORMAL_BLUE_MEAN_MIN}, σ < {NORMAL_BLUE_STD_MAX}) — '
-        'похоже, в запек попала лишняя геометрия')
+    assert mean > NORMAL_BLUE_MEAN_MIN, (
+        f'карта нормалей — мусор: синий канал среднее {mean:.3f} '
+        f'(нужно > {NORMAL_BLUE_MEAN_MIN})')
     return mean, std
 
 
@@ -328,26 +430,18 @@ def bake(low, high, out_dir):
     fill(ao, (1.0, 1.0, 1.0, 1.0))
     bake_pair(low, high, normal, ao)
 
+    # Запись ДО проверок намеренно: запек стоит минут, а проверки роняют прогон
+    # assert'ом. Упади они раньше save_png — на диск не легло бы ни одной PNG,
+    # то есть ровно того артефакта, по которому и видно, врёт порог или врёт
+    # запек. Негодная карта на диске безобиднее: прогон всё равно упал, а
+    # FighterImportSetup её не подхватит, пока пайплайн не пройдёт целиком.
+    save_png(normal, os.path.join(out_dir, 'T_Kimono_Normal.png'))
+    save_png(ao, os.path.join(out_dir, 'T_Kimono_AO.png'))
+
     ao_mean, ao_median = check_ao_content(ao)
     n_mean, n_std = check_normal_content(normal)
     print(f'kimono_fit: запек — AO среднее {ao_mean:.3f} медиана {ao_median:.3f}, '
           f'нормали синий среднее {n_mean:.3f} sigma {n_std:.3f}')
-
-    save_png(normal, os.path.join(out_dir, 'T_Kimono_Normal.png'))
-    save_png(ao, os.path.join(out_dir, 'T_Kimono_AO.png'))
-
-
-# Кости, чью геометрию закрывает ткань, и кости, которые остаются наружу.
-# KEEP проверяется первым: mixamorig:ForeArm содержит и Arm, и — по смыслу —
-# запястье, но кисть обязана уцелеть.
-# Buttock и Breast есть именно в скелете mixamo_unity (64 кости против 52 у
-# обычного mixamo); без них ягодицы и грудь остались бы под тканью целыми.
-# Hips — 218 из 13380 вершин доминантно весят на неё: геометрия таза и паха,
-# ровно там, где сходятся пояс куртки и верх штанов. Без Hips в COVERED эта
-# геометрия переживала вырезание и уезжала внутрь готового FBX.
-COVERED = ('Spine', 'Chest', 'Arm', 'Shoulder', 'UpLeg', 'Leg',
-           'Buttock', 'Breast', 'Hips')
-KEEP = ('Head', 'Neck', 'Hand', 'Foot', 'Toe')
 
 
 def transfer_weights(low, body, arm):
@@ -387,30 +481,6 @@ def transfer_weights(low, body, arm):
     bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
 
-def strip_covered(body):
-    """Тело под тканью удаляем: иначе на ударе ногой оно пробьёт штанину."""
-    import bmesh
-    name_of = {g.index: g.name for g in body.vertex_groups}
-    bm = bmesh.new()
-    bm.from_mesh(body.data)
-    layer = bm.verts.layers.deform.verify()
-    doomed = []
-    for v in bm.verts:
-        w = v[layer]
-        if not w:
-            continue
-        name = name_of.get(max(w.keys(), key=lambda k: w[k]), '')
-        if any(k in name for k in KEEP):
-            continue
-        if any(c in name for c in COVERED):
-            doomed.append(v)
-    bmesh.ops.delete(bm, geom=doomed, context='VERTS')
-    bm.to_mesh(body.data)
-    body.data.update()
-    bm.free()
-    return len(doomed)
-
-
 def export(path, objs):
     _install_deterministic_fbx_uuids()
     bpy.ops.object.select_all(action='DESELECT')
@@ -442,6 +512,13 @@ def verify_export(path):
     new = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
     kimono = next((o for o in new if o.name == 'Kimono_low'), None)
     assert kimono is not None, f'в {path} нет меша Kimono_low — экспорт переименовал его?'
+    # Сабмеш = слот материала, и Unity читает их тем же счётом. Без этой
+    # проверки разделение пояса ловится только тестом в Unity, то есть задачей
+    # позже: FBX уже лежал бы на диске с одним сабмешем, и пояс красился бы
+    # заодно с тканью.
+    assert len(kimono.data.materials) == 2, (
+        f'в готовом FBX у Kimono_low {len(kimono.data.materials)} сабмешей '
+        'вместо двух (ткань, пояс) — разделение не пережило экспорт')
     body = [o for o in new if o is not kimono]
     bmn, bmx = world_bbox(body)
     kmn, kmx = world_bbox([kimono])
@@ -461,6 +538,11 @@ def verify_export(path):
 
 def main():
     a = parse_args()
+    # Image.save() при относительном filepath_raw возвращает успех и не пишет
+    # ничего (проверено: EXISTS False, исключения нет). До этой строки карты
+    # доезжали до диска только потому, что build_kimono.ps1 звал скрипт с
+    # абсолютным --out; ручной прогон из корня репозитория молча терял обе PNG.
+    a.out = os.path.abspath(a.out)
     os.makedirs(a.out, exist_ok=True)
     reset_scene()
 
@@ -495,20 +577,17 @@ def main():
 
     body = max(body_meshes, key=tri_count)
     transfer_weights(low, body, arm)
-    removed = strip_covered(body)
-    assert removed > 0, 'ни одна вершина тела не вырезана — имена костей не mixamorig?'
-    assert tri_count(body) > 0, 'вырезано всё тело — COVERED слишком широк'
 
     skinned = sum(1 for v in low.data.vertices if v.groups)
     assert skinned == len(low.data.vertices), (
         f'{len(low.data.vertices) - skinned} вершин кимоно без весов — '
         'ткань останется висеть в воздухе')
 
-    fbx = os.path.join(a.out, '..', 'KimonoFighter.fbx')
+    fbx = os.path.join(a.out, '..', a.name + '.fbx')
     export(os.path.normpath(fbx), [arm, low] + body_meshes)
     verify_export(os.path.normpath(fbx))
     print(f'kimono_fit: подгонка scale={scale:.4f}, '
-          f'{high_tris} -> {got} трисов, вырезано {removed} вершин тела, '
+          f'{high_tris} -> {got} трисов, '
           f'экспорт {os.path.normpath(fbx)}')
 
 
