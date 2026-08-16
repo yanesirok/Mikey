@@ -558,6 +558,26 @@ def transfer_weights(low, body, arm):
     bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
 
+# path_mode='COPY' + embed_textures=True — то есть текстуры тела уезжают ВНУТРЬ
+# нашего FBX. Без этой пары экспортёр переносит только пути, а пути у Mixamo
+# абсолютные и ведут во временный каталог их сервера
+# (C:\Users\user\home\app\mixamo-mini\tmp\skins_<uuid>.fbm\), которого на этой
+# машине нет и не было. Пиксели при этом в исходнике есть: импортёр Blender
+# распаковывает вшитые PNG в память (packed_file), поэтому встраивать есть что.
+# Цена ошибки была ровно та, ради которой затевалась вся ревизия 2: материалы
+# тела приезжали в Unity без diffuse, и головы снова читались болванками.
+#
+# Выбрано встраивание, а не распаковка текстур в проект с относительными
+# путями. Байт выходит столько же: экспортёр склеивает дубликаты по пути (у Ch28
+# один и тот же Diffuse висит на трёх датаблоках, а в файл уезжает один раз), а
+# кода — одна строка против каталога новых ассетов, переписывания путей и
+# сопровождающих .meta. Реимпорт при этом ничего не разворачивает на диск:
+# проверено, картинки приходят packed, каталог .fbm рядом с файлом не создаётся.
+#
+# Размеры после встраивания: Player 46.7 МБ (4096² diffuse/normal/gloss/specular
+# у Ch28), Enemy 15.1 МБ (2048² тело + 1024²/512² волосы у Remy). Оба уезжают в
+# Git LFS. Запечённые карты кимоно сюда НЕ попадают: Kimono_Cloth и Kimono_Belt
+# — пустые материалы без нод, Unity подхватывает их PNG отдельными ассетами.
 def export(path, objs):
     _install_deterministic_fbx_uuids()
     bpy.ops.object.select_all(action='DESELECT')
@@ -569,6 +589,7 @@ def export(path, objs):
         object_types={'MESH', 'ARMATURE'}, add_leaf_bones=False,
         bake_anim=False, apply_scale_options='FBX_SCALE_UNITS',
         bake_space_transform=True, axis_forward='-Z', axis_up='Y',
+        path_mode='COPY', embed_textures=True,
         use_mesh_modifiers=True)
 
 
@@ -598,6 +619,18 @@ def verify_export(path):
         f'в готовом FBX у Kimono_low полигоны ссылаются на {len(used)} материал(ов) '
         f'{sorted(used)} вместо двух (ткань, пояс) — разделение не пережило экспорт')
     body = [o for o in new if o is not kimono]
+
+    # Пиксели, а не ссылки. Этот дефект дважды прошёл ревью незамеченным, потому
+    # что в Blender сцена выглядит правильной: картинки на месте, просто лежат в
+    # памяти, а в файл уезжают одни пути. Ловится только чтением записанного FBX.
+    used = {n.image for o in body for m in o.data.materials if m and m.node_tree
+            for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image}
+    assert used, f'в {path} у мешей тела нет ни одной текстуры'
+    loose = sorted(i.name for i in used if not i.packed_file)
+    assert not loose, (
+        f'в {path} текстуры тела не встроены, уехали только ссылки: {loose} — '
+        'потерян path_mode=COPY / embed_textures в export()')
+
     bmn, bmx = world_bbox(body)
     kmn, kmx = world_bbox([kimono])
     height = bmx.z - bmn.z
