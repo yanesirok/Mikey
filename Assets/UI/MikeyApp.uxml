@@ -70,6 +70,13 @@
             <ui:VisualElement class="home-bg">
                 <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
+                <!-- soft right-side readability treatment behind the nav (see
+                     Home.uss ".home-nav-scrim*") — layered bands approximating
+                     a gradient, darkest nearest the menu, fading well before
+                     the left/center of the frame. -->
+                <ui:VisualElement class="home-nav-scrim home-nav-scrim--1" picking-mode="Ignore" />
+                <ui:VisualElement class="home-nav-scrim home-nav-scrim--2" picking-mode="Ignore" />
+                <ui:VisualElement class="home-nav-scrim home-nav-scrim--3" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">

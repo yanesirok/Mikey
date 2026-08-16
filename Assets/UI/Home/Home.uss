@@ -36,6 +36,33 @@
     background-color: rgba(8, 10, 12, 0.32);
 }
 
+/* Soft right-side dark "gradient" behind the nav, layered on top of
+   .home-scrim above. USS has no linear-gradient support, so this
+   approximates one the same way this app already does elsewhere (see the
+   old Map detail panel's layered overlays): a few right-anchored,
+   decreasing-width, increasing-opacity bands, darkest right behind the
+   menu text and fading to nothing well before the left/center of the
+   frame — never a single flat rectangle, never opaque, video stays clearly
+   visible throughout. Ignores picking; purely a visual treatment. */
+.home-nav-scrim {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+.home-nav-scrim--1 {
+    width: 62%;
+    background-color: rgba(6, 8, 10, 0.1);
+}
+.home-nav-scrim--2 {
+    width: 42%;
+    background-color: rgba(6, 8, 10, 0.14);
+}
+.home-nav-scrim--3 {
+    width: 24%;
+    background-color: rgba(6, 8, 10, 0.18);
+}
+
 /* ---------- touch-target kit (Home-scoped) ---------- */
 .tap-target {
     min-width: 48px;
@@ -72,8 +99,8 @@
     position: absolute;
     top: 20px;
     left: 6px;
-    width: 104px;
-    height: 104px;
+    width: 156px;
+    height: 156px;
     background-image: url("/Assets/UI/Media/Images/mikey_logo.png");
     -unity-background-scale-mode: scale-to-fit;
 }
@@ -92,7 +119,7 @@
     border-right-width: 3px;
     border-right-color: transparent;
     border-radius: 0;
-    margin: 6px 0;
+    margin: 10px 0;
     padding: 8px 26px 8px 46px;
     color: rgba(237, 230, 216, 0.78);
 }
