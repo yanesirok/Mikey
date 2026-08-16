@@ -129,8 +129,13 @@ namespace Mikey.UI.Home.Tests
             StringAssert.Contains("-unity-background-scale-mode: scale-to-fit", block, "Must preserve aspect ratio.");
         }
 
-        // ---------- 4: individual per-item brushstroke backings ----------
-        // (replaces the removed shared right-side gradient bands)
+        // ---------- 4: individual per-item real-PNG brushstroke backings ----------
+        // (replaces both the removed shared right-side gradient bands AND the
+        // earlier fake USS-layered brushstroke approximation)
+
+        private const string BrushstrokeAssetPath = "/Assets/UI/Media/Images/MainMenu/menu_brushstroke.png";
+        private static readonly string[] StrokeClasses =
+            { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" };
 
         [Test]
         public void SharedRightSideBands_AreCompletelyGone()
@@ -141,6 +146,17 @@ namespace Mikey.UI.Home.Tests
 
             string uss = File.ReadAllText(HomeUssPath);
             StringAssert.DoesNotContain(".home-nav-scrim", uss, "No trace of the retired shared-band classes may remain in Home.uss.");
+        }
+
+        [Test]
+        public void FakeLayeredStrokesAreGone_OnlyTheRealPngRemains()
+        {
+            string uss = File.ReadAllText(HomeUssPath);
+            StringAssert.DoesNotContain(".home-nav__stroke-layer", uss,
+                "The earlier three-strip fake-brushstroke approximation must be fully removed now that the real PNG is used.");
+
+            var screen = MenuScreen(BuildTree());
+            Assert.IsEmpty(screen.Query<VisualElement>(className: "home-nav__stroke-layer").ToList());
         }
 
         [Test]
@@ -168,51 +184,67 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void EachBrushstroke_IsBuiltFromThreeLayeredStrips()
+        public void AllFourBrushstrokes_UseTheSameSourceTexture()
         {
-            var root = BuildTree();
-            foreach (var strokeClass in new[] { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" })
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-nav__stroke {");
+            Assert.IsNotNull(block, "Expected the shared '.home-nav__stroke' base recipe.");
+            StringAssert.Contains(BrushstrokeAssetPath, block,
+                "All four items must share one recipe pointing at the same real brushstroke PNG (Assets/UI/Media/Images/MainMenu/menu_brushstroke.png).");
+            StringAssert.Contains("background-repeat: no-repeat", block);
+        }
+
+        [Test]
+        public void Opacity_IsExactly0_35_AppliedAtPresentationLevel()
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-nav__stroke {");
+            Assert.IsNotNull(block);
+            var match = System.Text.RegularExpressions.Regex.Match(block, @"opacity\s*:\s*(0(\.\d+)?)\s*;");
+            Assert.IsTrue(match.Success, "Expected an 'opacity: 0.35;' declaration on the shared stroke recipe.");
+            float opacity = float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.AreEqual(0.35f, opacity, 0.001f,
+                "Opacity must be applied at the presentation level (USS), not baked into the PNG bytes.");
+        }
+
+        [Test]
+        public void SharedStrokeHeightAndVerticalCrop_AreIdenticalForAllFour()
+        {
+            // Height and background-position-y live on the ONE shared base
+            // class, not per-word — structurally guaranteeing every stroke
+            // reads at the same visual height, since only X-axis values are
+            // allowed to vary per word.
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-nav__stroke {");
+            Assert.IsNotNull(block);
+            StringAssert.Contains("height:", block);
+            StringAssert.Contains("background-position-y:", block);
+
+            foreach (var strokeClass in StrokeClasses)
             {
-                var stroke = MenuScreen(root).Q<VisualElement>(className: strokeClass);
-                var layers = stroke.Query<VisualElement>(className: "home-nav__stroke-layer").ToList();
-                Assert.AreEqual(3, layers.Count, $"'{strokeClass}' must be built from three overlapping strips.");
+                string modifier = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n." + strokeClass + " {");
+                StringAssert.DoesNotContain("height:", modifier, $"'{strokeClass}' must not override the shared height.");
+                StringAssert.DoesNotContain("background-position-y", modifier, $"'{strokeClass}' must not override the shared vertical crop.");
             }
         }
 
         [Test]
-        public void StrokeLayers_VaryInSizeOffsetAndRotation_SoItReadsAsIrregularNotARectangle()
+        public void PerWordBackgroundSize_SharesTheSameHeightButDifferentWidths()
         {
             string uss = File.ReadAllText(HomeUssPath);
-            string layer1 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--1 {");
-            string layer2 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--2 {");
-            string layer3 = ExtractRuleBlock(uss, "\n.home-nav__stroke-layer--3 {");
-            Assert.IsNotNull(layer1);
-            Assert.IsNotNull(layer2);
-            Assert.IsNotNull(layer3);
-
-            float w1 = ExtractPercent(layer1, "width");
-            float w2 = ExtractPercent(layer2, "width");
-            float w3 = ExtractPercent(layer3, "width");
-            Assert.AreNotEqual(w1, w2, "Layers must differ in width so they don't look like one flat rectangle.");
-            Assert.AreNotEqual(w2, w3);
-
-            // At least one layer must be rotated — the "painted", not
-            // machine-drawn, quality — and never a rounded pill/capsule.
-            StringAssert.Contains("rotate:", layer2 + layer3);
-            foreach (var layer in new[] { layer1, layer2, layer3 })
-                StringAssert.DoesNotContain("border-radius", layer, "Strips must keep square/irregular edges — no rounded pill.");
-        }
-
-        [Test]
-        public void StrokeLayers_StayWithinTheRequestedOpacityRange_25To40Percent()
-        {
-            string uss = File.ReadAllText(HomeUssPath);
-            foreach (var selector in new[] { "\n.home-nav__stroke-layer--1 {", "\n.home-nav__stroke-layer--2 {", "\n.home-nav__stroke-layer--3 {" })
+            float? sharedHeight = null;
+            var widths = new System.Collections.Generic.List<float>();
+            foreach (var strokeClass in StrokeClasses)
             {
-                float alpha = ExtractAlpha(ExtractRuleBlock(uss, selector));
-                Assert.GreaterOrEqual(alpha, 0.25f, $"'{selector}' must stay within 25-40% opacity.");
-                Assert.LessOrEqual(alpha, 0.40f, $"'{selector}' must stay within 25-40% opacity.");
+                string block = ExtractRuleBlock(uss, "\n." + strokeClass + " {");
+                var match = System.Text.RegularExpressions.Regex.Match(block, @"background-size\s*:\s*(\d+(\.\d+)?)px\s+(\d+(\.\d+)?)px");
+                Assert.IsTrue(match.Success, $"'{strokeClass}' must declare a two-value background-size (width height).");
+                float w = float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                float h = float.Parse(match.Groups[3].Value, System.Globalization.CultureInfo.InvariantCulture);
+                widths.Add(w);
+                if (sharedHeight == null)
+                    sharedHeight = h;
+                else
+                    Assert.AreEqual(sharedHeight.Value, h, 0.01f, "The canvas scale's vertical component must be identical for every word — only horizontal length is tuned per label.");
             }
+            Assert.AreEqual(4, widths.Distinct().Count(), "Each word's canvas scale width must differ — never a uniform fixed width.");
         }
 
         [Test]
@@ -242,15 +274,13 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void StrokeAndLayers_IgnorePicking_ButtonsRemainClickable()
+        public void Stroke_IgnoresPicking_ButtonsRemainClickable()
         {
             var root = BuildTree();
-            foreach (var strokeClass in new[] { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" })
+            foreach (var strokeClass in StrokeClasses)
             {
                 var stroke = MenuScreen(root).Q<VisualElement>(className: strokeClass);
                 Assert.AreEqual(PickingMode.Ignore, stroke.pickingMode);
-                foreach (var layer in stroke.Query<VisualElement>(className: "home-nav__stroke-layer").ToList())
-                    Assert.AreEqual(PickingMode.Ignore, layer.pickingMode);
             }
 
             // The Button elements themselves are untouched, so their default

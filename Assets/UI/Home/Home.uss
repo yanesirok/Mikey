@@ -112,67 +112,66 @@
 }
 
 /* ---------- individual per-item brushstroke backings ----------
-   Each nav item gets its OWN separate ink-swipe backing — never one shared
-   panel/band behind the whole nav. One reusable recipe (this block plus the
-   three ".home-nav__stroke-layer--n" children) shared by all four items;
-   only each item's overall width is tuned per word via a small modifier
-   class below, since USS can't measure rendered text width. Anchored to the
-   item's own right padding (26px) so it centers under the right-aligned
-   label regardless of the button's wider, asymmetric left padding — not
-   centered on the button itself. Declared before the label in the markup,
-   so it paints underneath it (later siblings paint on top); ignores
-   picking, so it never affects the button's own click area. */
+   Each nav item gets its OWN separate real ink-swipe backing (the supplied
+   menu_brushstroke.png) — never one shared panel/band behind the whole nav.
+   One reusable recipe (this base class) shared by all four items; only each
+   item's width/crop is tuned per word via a small modifier class below,
+   since USS can't measure rendered text width.
+
+   The source PNG is a square 2500x2500 canvas with the actual painted swipe
+   sitting in a horizontal band roughly through its vertical middle
+   (opaque bounds measured at x:[77,2371] y:[977,1412]). Rather than editing
+   the PNG bytes, each modifier crops straight to that ink band using
+   background-size (scales the whole canvas up/down, non-uniformly — wider
+   for longer words, same height for every item) plus background-position
+   (shifts the scaled canvas so the ink band's top-left lands on the
+   element's own top-left corner) — the same technique as a CSS
+   "background-size: cover" crop, computed by hand per word. Horizontal
+   scale varies per word (stretching sideways is expected/fine); vertical
+   scale is identical for all four so every stroke reads at the same
+   height and is never stretched taller/shorter than the others.
+
+   Anchored to the item's own right padding (26px) so it centers under the
+   right-aligned label regardless of the button's wider, asymmetric left
+   padding — not centered on the button itself. Declared before the label
+   in the markup, so it paints underneath it (later siblings paint on top);
+   ignores picking, so it never affects the button's own click area. */
 .home-nav__stroke {
     position: absolute;
     top: 50%;
     right: 26px;
-    height: 100%;
+    height: 44px;
     translate: 0 -50%;
+    background-image: url("/Assets/UI/Media/Images/MainMenu/menu_brushstroke.png");
+    background-repeat: no-repeat;
+    background-position-y: top -99px;
+    opacity: 0.35;
 }
 
-/* Three overlapping strips per stroke — different widths, heights, vertical
-   offsets, opacity and a slight rotation on two of them — so it reads as an
-   irregular painted swipe, not a clean rectangle. Square edges (no
-   border-radius) and modest opacity (25-40%) throughout. */
-.home-nav__stroke-layer {
-    position: absolute;
-    top: 50%;
-    right: 0;
-}
-.home-nav__stroke-layer--1 {
-    width: 100%;
-    height: 46%;
-    translate: 0 -50%;
-    background-color: rgba(10, 9, 8, 0.32);
-}
-.home-nav__stroke-layer--2 {
-    width: 84%;
-    height: 62%;
-    translate: -8% -60%;
-    rotate: -1.3deg;
-    background-color: rgba(10, 9, 8, 0.26);
-}
-.home-nav__stroke-layer--3 {
-    width: 66%;
-    height: 40%;
-    translate: 5% -36%;
-    rotate: 0.9deg;
-    background-color: rgba(10, 9, 8, 0.38);
-}
-
-/* Per-word overall width — approximately 1.5-2x each word's own rendered
-   width at this size/weight (tuned by eye, since USS can't measure text). */
+/* Per-word crop: background-size scales the full 2500x2500 canvas so the
+   ink band's height always maps to the shared 44px above; background-size's
+   width and background-position-x vary per word to control how much of the
+   canvas's horizontal ink width is visible (and therefore the stroke's
+   overall on-screen width) while cropping the same relative left margin. */
 .home-nav__stroke--play {
     width: 170px;
+    background-size: 185px 253px;
+    background-position-x: left -6px;
 }
 .home-nav__stroke--plans {
     width: 210px;
+    background-size: 229px 253px;
+    background-position-x: left -7px;
 }
 .home-nav__stroke--settings {
     width: 320px;
+    background-size: 349px 253px;
+    background-position-x: left -11px;
 }
 .home-nav__stroke--quit {
     width: 150px;
+    background-size: 163px 253px;
+    background-position-x: left -5px;
 }
 
 /* QUIT is deliberately the lowest-priority action: same typography kit as
