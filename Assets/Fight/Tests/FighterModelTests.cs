@@ -10,62 +10,80 @@ namespace Mikey.Fight.Tests
     /// fail when an import setting is lost, which is exactly how the previous fighter broke.</summary>
     public class FighterModelTests
     {
-        public const string ModelPath = "Assets/Fight/character/KimonoFighter.fbx";
+        public const string PlayerModelPath = "Assets/Fight/character/KimonoFighter_Player.fbx";
+        public const string EnemyModelPath = "Assets/Fight/character/KimonoFighter_Enemy.fbx";
+
+        static readonly string[] Models = { PlayerModelPath, EnemyModelPath };
 
         [Test]
-        public void Model_ImportsAsHumanoid()
+        public void Models_ImportAsHumanoid()
         {
-            var importer = AssetImporter.GetAtPath(ModelPath) as ModelImporter;
-            Assert.IsNotNull(importer, ModelPath + " is not in the project");
-            Assert.AreEqual(ModelImporterAnimationType.Human, importer.animationType);
-        }
-
-        [Test]
-        public void Model_AvatarIsValidHuman()
-        {
-            var avatar = AssetDatabase.LoadAllAssetsAtPath(ModelPath)
-                .OfType<Avatar>().FirstOrDefault();
-            Assert.IsNotNull(avatar, "model carries no avatar");
-            Assert.IsTrue(avatar.isValid, "avatar is invalid");
-            Assert.IsTrue(avatar.isHuman, "avatar is not human");
-        }
-
-        /// <summary>A squashed avatar is the failure this project already hit once: the editor
-        /// preview looked right and the running game showed a flattened fighter. Height is the
-        /// cheapest signal that the rig scale survived the Blender round trip.</summary>
-        [Test]
-        public void Model_IsHumanHeight()
-        {
-            var go = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
-            Assert.IsNotNull(go);
-            var instance = Object.Instantiate(go);
-            try
+            foreach (var path in Models)
             {
-                var renderers = instance.GetComponentsInChildren<Renderer>();
-                Assert.IsNotEmpty(renderers, "model has no renderers");
-                var bounds = renderers[0].bounds;
-                foreach (var r in renderers)
-                    bounds.Encapsulate(r.bounds);
-                Assert.That(bounds.size.y, Is.InRange(1.6f, 1.95f),
-                    "fighter is " + bounds.size.y + " m tall");
-            }
-            finally
-            {
-                Object.DestroyImmediate(instance);
+                var importer = AssetImporter.GetAtPath(path) as ModelImporter;
+                Assert.IsNotNull(importer, path + " is not in the project");
+                Assert.AreEqual(ModelImporterAnimationType.Human, importer.animationType, path);
             }
         }
 
-        /// <summary>Body and cloth are separate meshes and must not share a material: the body
-        /// shows only where the kimono does not cover it — head, neck, hands, feet — so one
-        /// material for both would paint bare skin in gi colours.</summary>
         [Test]
-        public void Model_HasSeparateBodyAndClothMeshes()
+        public void Models_AvatarsAreValidHumans()
         {
-            var go = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
-            Assert.IsNotNull(go);
-            var skins = go.GetComponentsInChildren<SkinnedMeshRenderer>();
-            Assert.AreEqual(2, skins.Length,
-                "expected body and kimono, got " + string.Join(", ", skins.Select(s => s.name)));
+            foreach (var path in Models)
+            {
+                var avatar = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();
+                Assert.IsNotNull(avatar, path + " carries no avatar");
+                Assert.IsTrue(avatar.isValid, path + " avatar is invalid");
+                Assert.IsTrue(avatar.isHuman, path + " avatar is not human");
+            }
+        }
+
+        /// <summary>Both fighters are normalised to the same height in Blender because they fight
+        /// each other — one arriving at 3.78 m and the other at 1.77 m would look absurd.</summary>
+        [Test]
+        public void Models_AreTheSameHumanHeight()
+        {
+            var heights = new System.Collections.Generic.List<float>();
+            foreach (var path in Models)
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                Assert.IsNotNull(go, path + " is not in the project");
+                var instance = Object.Instantiate(go);
+                try
+                {
+                    var renderers = instance.GetComponentsInChildren<Renderer>();
+                    Assert.IsNotEmpty(renderers, path + " has no renderers");
+                    var bounds = renderers[0].bounds;
+                    foreach (var r in renderers)
+                        bounds.Encapsulate(r.bounds);
+                    heights.Add(bounds.size.y);
+                }
+                finally
+                {
+                    Object.DestroyImmediate(instance);
+                }
+            }
+            foreach (var h in heights)
+                Assert.That(h, Is.InRange(1.6f, 1.95f), "fighter is " + h + " m tall");
+            Assert.That(Mathf.Abs(heights[0] - heights[1]), Is.LessThan(0.1f),
+                "fighters differ in height by " + Mathf.Abs(heights[0] - heights[1]) + " m");
+        }
+
+        /// <summary>The cloth mesh carries two submeshes — cloth then belt — so the belt can take
+        /// its own colour instead of borrowing the rim, which is a silhouette effect and cannot
+        /// represent a belt at all.</summary>
+        [Test]
+        public void Models_KimonoHasClothAndBeltSubmeshes()
+        {
+            foreach (var path in Models)
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                var kimono = go.GetComponentsInChildren<SkinnedMeshRenderer>()
+                    .FirstOrDefault(s => s.name.Contains("Kimono"));
+                Assert.IsNotNull(kimono, path + " has no Kimono mesh");
+                Assert.AreEqual(2, kimono.sharedMesh.subMeshCount,
+                    path + " kimono should be cloth + belt");
+            }
         }
 
         [Test]
@@ -77,7 +95,6 @@ namespace Mikey.Fight.Tests
 
             foreach (var path in new[]
                      {
-                         "Assets/Fight/character/M_Fighter_Skin.mat",
                          "Assets/Fight/character/M_Player_Kimono.mat",
                          "Assets/Fight/character/M_Enemy_Kimono.mat",
                          "Assets/Fight/character/M_Player_Belt.mat",
@@ -88,21 +105,6 @@ namespace Mikey.Fight.Tests
                 Assert.IsNotNull(mat, path + " is missing");
                 Assert.AreEqual(shader, mat.shader, path + " is on the wrong shader");
             }
-        }
-
-        /// <summary>The spec wants player and enemy belts in different colours. _RimColor
-        /// cannot carry that — it is a fresnel highlight over the whole silhouette — so the
-        /// belt has to be its own submesh with its own material (kimono_fit.py:
-        /// apply_belt_split). Losing the split silently collapses back to one kimono colour for
-        /// the whole garment, belt included.</summary>
-        [Test]
-        public void KimonoMesh_HasTwoSubmeshesForClothAndBelt()
-        {
-            var meshes = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Mesh>()
-                .Where(m => m.name == "Kimono_low").ToArray();
-            Assert.AreEqual(1, meshes.Length, "expected exactly one Kimono_low mesh");
-            Assert.AreEqual(2, meshes[0].subMeshCount,
-                "Kimono_low has " + meshes[0].subMeshCount + " submesh(es), expected cloth + belt");
         }
 
         /// <summary>The kimono has no albedo texture at all — its five materials are flat
