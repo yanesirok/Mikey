@@ -336,9 +336,12 @@ namespace Mikey.UI.Map
 
         private void OnTopbarMapClicked()
         {
-            // Already on Japan: Show() is a safe no-op if nothing changed, but
-            // the reset must still happen explicitly here since ScreenChanged
-            // only fires on a genuine screen change.
+            // The explicit "return to world map" action: always resets context
+            // to Japan, even if it was already Japan. Already on Japan: Show()
+            // is a safe no-op if nothing changed, but the reset must still
+            // happen explicitly here since ScreenChanged only fires on a
+            // genuine screen change.
+            MapNavigationState.Current = MapContext.JapanWorld;
             ResetToDefaultState();
             _navigator?.Show(ScreenId);
         }
@@ -368,6 +371,17 @@ namespace Mikey.UI.Map
         {
             if (screenId == ScreenId)
             {
+                // Returning to Map from another screen (Stats, Techniques,
+                // Settings...) while the player was last in the Okinawa chapter
+                // must restore Okinawa, not throw them back to the Japan world
+                // map. Context only resets to Japan via an explicit world-map
+                // action (OnTopbarMapClicked) or Okinawa's own "MAP" button.
+                if (MapNavigationState.Current == MapContext.OkinawaChapter)
+                {
+                    _navigator?.Show(OkinawaChapterScreenId);
+                    return;
+                }
+
                 ResetToDefaultState();
                 RefreshTechniquesGate();
             }

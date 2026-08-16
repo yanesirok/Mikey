@@ -106,12 +106,16 @@ namespace Mikey.UI.Map.Tests
         public void MapButton_ReturnsToJapanWorldMap()
         {
             var screen = OkinawaScreen(BuildTree());
-            var mapButton = screen.Q<Button>("go-map");
-            Assert.IsNotNull(mapButton, "Okinawa's top bar Map button must be a 'go-map' navigator back to the Japan world map.");
+            // Custom-wired (OkinawaMapController), not a plain "go-" navigator —
+            // it must reset the session map context to Japan before navigating
+            // (see MapNavigationState), so it can't rely on ScreenManager's
+            // generic click wiring alone.
+            var mapButton = screen.Q<Button>("okinawa-topbar-map");
+            Assert.IsNotNull(mapButton, "Okinawa's top bar Map button must exist as 'okinawa-topbar-map'.");
 
             var root = BuildTree();
             Assert.IsTrue(root.Q<VisualElement>("map").ClassListContains("screen"),
-                "The 'map' screen 'go-map' targets must exist.");
+                "The Japan world map 'okinawa-topbar-map' returns to must exist.");
         }
 
         [Test]

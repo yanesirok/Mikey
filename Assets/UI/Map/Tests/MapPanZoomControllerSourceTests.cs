@@ -64,6 +64,18 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void ChangingZoom_ReClampsTheExistingPan()
+        {
+            // The allowed pan range depends on the current zoom
+            // (MapPanZoomMath.MaxPanForZoom) — zooming out must immediately
+            // re-clamp any existing pan against the new, smaller range, or a
+            // stale pan offset from a higher zoom would expose background.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private void SetZoom(float zoom)", source);
+            StringAssert.Contains("SetPan(_panX, _panY);", source);
+        }
+
+        [Test]
         public void EnteringItsConfiguredScreen_ResetsPanAndZoom()
         {
             string source = File.ReadAllText(SourcePath);

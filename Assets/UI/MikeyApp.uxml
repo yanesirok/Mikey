@@ -697,10 +697,11 @@
                         <ui:Button name="okinawa-topbar-settings" class="map-topbar__icon-btn tap-target">
                             <ui:Label text="SET" class="map-topbar__icon-glyph" picking-mode="Ignore" />
                         </ui:Button>
-                        <!-- plain "go-" navigator: returning to Japan from Okinawa
-                             never needs the extra reset-in-place behavior the
-                             Japan screen's own Map button has. -->
-                        <ui:Button name="go-map" class="map-topbar__nav-btn tap-target">
+                        <!-- Custom-wired (not a plain "go-" navigator): OkinawaMapController
+                             must reset the session map context to Japan BEFORE navigating,
+                             so this can't rely on ScreenManager's generic click wiring, whose
+                             ordering relative to a second handler isn't guaranteed. -->
+                        <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="MAP" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">

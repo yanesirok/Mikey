@@ -278,8 +278,8 @@ namespace Mikey.UI.Map
             float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
             float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
 
-            _panX = MapPanZoomMath.ClampPan(x, viewportWidth);
-            _panY = MapPanZoomMath.ClampPan(y, viewportHeight);
+            _panX = MapPanZoomMath.ClampPan(x, _zoom, viewportWidth);
+            _panY = MapPanZoomMath.ClampPan(y, _zoom, viewportHeight);
 
             if (_canvas != null)
                 _canvas.transform.position = new Vector3(_panX, _panY, 0f);
@@ -289,6 +289,11 @@ namespace Mikey.UI.Map
         {
             _zoom = MapPanZoomMath.ClampZoom(zoom);
             ApplyZoom();
+            // The allowed pan range shrinks/grows with zoom (see
+            // MapPanZoomMath.MaxPanForZoom) — re-clamp the existing pan against
+            // the new zoom so zooming out never leaves a stale, now-too-large
+            // pan offset exposing background at the canvas's edge.
+            SetPan(_panX, _panY);
         }
 
         private void ApplyZoom()

@@ -82,6 +82,36 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void EnteringOkinawaScreen_RecordsOkinawaAsTheCurrentMapContext()
+        {
+            // So a later temporary trip to Stats/Techniques/Settings and back
+            // restores Okinawa instead of the Japan world map (see
+            // JapanMapController.OnScreenChanged).
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("MapNavigationState.Current = MapContext.OkinawaChapter;", source);
+        }
+
+        [Test]
+        public void TopbarMapButton_IsTheExplicitReturnToWorldAction_ResetsContextToJapan_BeforeNavigating()
+        {
+            // Custom-wired (not a plain "go-" navigator): the context write
+            // must happen deterministically before Show() is called, which a
+            // second handler on ScreenManager's generically-wired click
+            // couldn't guarantee the ordering of.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private void OnTopbarMapClicked()", source);
+            StringAssert.Contains("MapNavigationState.Current = MapContext.JapanWorld;", source);
+            StringAssert.Contains("_navigator?.Show(JapanMapScreenId);", source);
+        }
+
+        [Test]
+        public void NeverCallsIntoMapPanZoomController_SoPopupSelectionCannotResetPanOrZoom()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("MapPanZoomController", source);
+        }
+
+        [Test]
         public void AlreadyActiveOnBind_StillFadesOutTransitionOverlay()
         {
             // Mirrors the codebase's established defensive check (e.g.

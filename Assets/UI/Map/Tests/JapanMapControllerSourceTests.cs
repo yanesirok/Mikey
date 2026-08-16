@@ -89,6 +89,49 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void TopbarMapButton_IsTheExplicitReturnToWorldAction_ResetsContextToJapan()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("MapNavigationState.Current = MapContext.JapanWorld;", source);
+        }
+
+        [Test]
+        public void ReturningToMapScreen_WhileContextIsOkinawa_RedirectsBackToOkinawa_InsteadOfResettingToJapan()
+        {
+            // Returning to Map from Stats/Techniques/Settings must restore the
+            // Okinawa chapter, not throw the player back to the Japan world map.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("if (MapNavigationState.Current == MapContext.OkinawaChapter)", source);
+            StringAssert.Contains("_navigator?.Show(OkinawaChapterScreenId);", source);
+        }
+
+        [Test]
+        public void ReturningToMapScreen_WhileContextIsJapan_RestoresJapanDefaults()
+        {
+            // The Japan-context branch (the "else" of the Okinawa redirect)
+            // still runs the normal reset — leaving Japan temporarily and
+            // coming back restores the Japan world map, not a stale panel.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("if (screenId == ScreenId)", source);
+            StringAssert.Contains("ResetToDefaultState();", source);
+        }
+
+        [Test]
+        public void NeverCallsIntoMapPanZoomController_SoPopupSelectionCannotResetPanOrZoom()
+        {
+            // Marker selection / panel open-close is purely local UI state; it
+            // must never touch pan/zoom, which only resets on a genuine
+            // ScreenManager screen change (MapPanZoomController's own
+            // ScreenChanged subscription), not on in-screen interactions. (A
+            // bare mention in the class doc-comment, as a "see also" cross-
+            // reference, is fine — only real coupling is disallowed.)
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("GetComponent<MapPanZoomController>", source);
+            StringAssert.DoesNotContain("MapPanZoomController _", source);
+            StringAssert.DoesNotContain("MapPanZoomController.", source);
+        }
+
+        [Test]
         public void TechniquesButton_ReusesExistingProgressionGating()
         {
             string source = File.ReadAllText(SourcePath);

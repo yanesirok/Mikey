@@ -50,6 +50,7 @@ namespace Mikey.UI.Map
         private VisualElement _transitionOverlay;
 
         private Button _topbarSettings;
+        private Button _topbarMap;
         private Button _topbarTechniques;
         private Button _topbarStats;
         private VisualElement _settingsModal;
@@ -87,6 +88,8 @@ namespace Mikey.UI.Map
                 }
                 _outsideCatcher.UnregisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
                 _panelCta.clicked -= OnLevelCtaClicked;
+                if (_topbarMap != null)
+                    _topbarMap.clicked -= OnTopbarMapClicked;
                 if (_topbarTechniques != null)
                     _topbarTechniques.clicked -= OnTopbarTechniquesClicked;
                 if (_topbarStats != null)
@@ -145,6 +148,7 @@ namespace Mikey.UI.Map
             _transitionOverlay = _root.Q<VisualElement>("okinawa-transition-overlay");
 
             _topbarSettings = _root.Q<Button>("okinawa-topbar-settings");
+            _topbarMap = _root.Q<Button>("okinawa-topbar-map");
             _topbarTechniques = _root.Q<Button>("okinawa-topbar-techniques");
             _topbarStats = _root.Q<Button>("okinawa-topbar-stats");
             _settingsModal = _root.Q<VisualElement>("okinawa-settings-modal");
@@ -169,6 +173,8 @@ namespace Mikey.UI.Map
 
             _outsideCatcher?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
             _panelCta.clicked += OnLevelCtaClicked;
+            if (_topbarMap != null)
+                _topbarMap.clicked += OnTopbarMapClicked;
             if (_topbarTechniques != null)
                 _topbarTechniques.clicked += OnTopbarTechniquesClicked;
             if (_topbarStats != null)
@@ -331,6 +337,15 @@ namespace Mikey.UI.Map
 
         private void OnProgressChanged() => RefreshLevelLockStates();
 
+        private void OnTopbarMapClicked()
+        {
+            // The explicit "return to world map" action from inside Okinawa —
+            // the one case where context must reset to Japan even though the
+            // player is deliberately leaving Okinawa (see MapNavigationState).
+            MapNavigationState.Current = MapContext.JapanWorld;
+            _navigator?.Show(JapanMapScreenId);
+        }
+
         private void OnTopbarTechniquesClicked()
         {
             if (_progress != null && !TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))
@@ -361,6 +376,7 @@ namespace Mikey.UI.Map
         /// <summary>No selection, popup closed, and the ink-fade begun on the Japan screen finishes here.</summary>
         private void OnEnteredScreen()
         {
+            MapNavigationState.Current = MapContext.OkinawaChapter;
             ClosePanel();
             MapSettingsModalBinder.Close(_settingsModal);
             RefreshLevelLockStates();
