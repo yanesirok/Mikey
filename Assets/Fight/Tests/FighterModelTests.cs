@@ -80,12 +80,29 @@ namespace Mikey.Fight.Tests
                          "Assets/Fight/character/M_Fighter_Skin.mat",
                          "Assets/Fight/character/M_Player_Kimono.mat",
                          "Assets/Fight/character/M_Enemy_Kimono.mat",
+                         "Assets/Fight/character/M_Player_Belt.mat",
+                         "Assets/Fight/character/M_Enemy_Belt.mat",
                      })
             {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
                 Assert.IsNotNull(mat, path + " is missing");
                 Assert.AreEqual(shader, mat.shader, path + " is on the wrong shader");
             }
+        }
+
+        /// <summary>The spec wants player and enemy belts in different colours. _RimColor
+        /// cannot carry that — it is a fresnel highlight over the whole silhouette — so the
+        /// belt has to be its own submesh with its own material (kimono_fit.py:
+        /// apply_belt_split). Losing the split silently collapses back to one kimono colour for
+        /// the whole garment, belt included.</summary>
+        [Test]
+        public void KimonoMesh_HasTwoSubmeshesForClothAndBelt()
+        {
+            var meshes = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Mesh>()
+                .Where(m => m.name == "Kimono_low").ToArray();
+            Assert.AreEqual(1, meshes.Length, "expected exactly one Kimono_low mesh");
+            Assert.AreEqual(2, meshes[0].subMeshCount,
+                "Kimono_low has " + meshes[0].subMeshCount + " submesh(es), expected cloth + belt");
         }
 
         /// <summary>The kimono has no albedo texture at all — its five materials are flat
@@ -118,6 +135,18 @@ namespace Mikey.Fight.Tests
                 "Assets/Fight/character/kimono/T_Kimono_Normal.png") as TextureImporter;
             Assert.IsNotNull(importer, "normal map is not in the project");
             Assert.AreEqual(TextureImporterType.NormalMap, importer.textureType);
+        }
+
+        /// <summary>bake() writes T_Kimono_AO.png with is_data=True — linear values. Importing
+        /// it as sRGB (Unity's default for a new PNG) decodes it a second time and crushes the
+        /// midtones before _AlbedoGamma even applies — a silent, purely visual failure.</summary>
+        [Test]
+        public void AoMap_IsImportedAsLinear()
+        {
+            var importer = AssetImporter.GetAtPath(
+                "Assets/Fight/character/kimono/T_Kimono_AO.png") as TextureImporter;
+            Assert.IsNotNull(importer, "AO map is not in the project");
+            Assert.IsFalse(importer.sRGBTexture, "AO map is imported as sRGB");
         }
     }
 
