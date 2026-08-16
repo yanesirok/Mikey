@@ -12,7 +12,7 @@ namespace Mikey.UI.Home.Tests
     /// linear-gradient support) behind the nav rather than a flat full-screen
     /// overlay or per-item bubbles, and mobile-target typography/spacing —
     /// all presentation-only (Home.uss / MikeyApp.uxml), no controller
-    /// changes, no behavior change to Play/Plans/Settings/Quit.
+    /// changes, no behavior change to Play/Vow/Settings/Quit.
     /// </summary>
     public class HomeReadabilityTests
     {
@@ -67,24 +67,24 @@ namespace Mikey.UI.Home.Tests
             return float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        // ---------- 1: Play/Plans/Settings/Quit still present ----------
+        // ---------- 1: Play/Vow/Settings/Quit still present ----------
 
         [Test]
-        public void PlayPlansSettingsQuit_AllStillPresent()
+        public void PlayVowSettingsQuit_AllStillPresent()
         {
             var screen = MenuScreen(BuildTree());
             Assert.IsNotNull(screen.Q<Button>("go-map"), "PLAY must still exist.");
-            Assert.IsNotNull(screen.Q<Button>("menu-plans-open"), "PLANS must still exist.");
+            Assert.IsNotNull(screen.Q<Button>("menu-vow-open"), "VOW must still exist.");
             Assert.IsNotNull(screen.Q<Button>("menu-settings-open"), "SETTINGS must still exist.");
             Assert.IsNotNull(screen.Q<Button>("menu-quit"), "QUIT must still exist.");
         }
 
         [Test]
-        public void NoLabelTextWasRenamed_ThisPassIsPresentationOnly()
+        public void PlaySettingsQuitLabels_AreUnchanged_OnlyPlansWasRenamedToVow()
         {
             var screen = MenuScreen(BuildTree());
             Assert.AreEqual("PLAY", screen.Q<Button>("go-map").Q<Label>(className: "home-nav__label")?.text);
-            Assert.AreEqual("PLANS", screen.Q<Button>("menu-plans-open").Q<Label>(className: "home-nav__label")?.text);
+            Assert.AreEqual("VOW", screen.Q<Button>("menu-vow-open").Q<Label>(className: "home-nav__label")?.text);
             Assert.AreEqual("SETTINGS", screen.Q<Button>("menu-settings-open").Q<Label>(className: "home-nav__label")?.text);
             Assert.AreEqual("QUIT", screen.Q<Button>("menu-quit").Q<Label>(className: "home-nav__label")?.text);
         }
@@ -135,7 +135,7 @@ namespace Mikey.UI.Home.Tests
 
         private const string BrushstrokeAssetPath = "/Assets/UI/Media/Images/MainMenu/menu_brushstroke.png";
         private static readonly string[] StrokeClasses =
-            { "home-nav__stroke--play", "home-nav__stroke--plans", "home-nav__stroke--settings", "home-nav__stroke--quit" };
+            { "home-nav__stroke--play", "home-nav__stroke--vow", "home-nav__stroke--settings", "home-nav__stroke--quit" };
 
         [Test]
         public void SharedRightSideBands_AreCompletelyGone()
@@ -166,7 +166,7 @@ namespace Mikey.UI.Home.Tests
             foreach (var (buttonName, strokeClass) in new[]
             {
                 ("go-map", "home-nav__stroke--play"),
-                ("menu-plans-open", "home-nav__stroke--plans"),
+                ("menu-vow-open", "home-nav__stroke--vow"),
                 ("menu-settings-open", "home-nav__stroke--settings"),
                 ("menu-quit", "home-nav__stroke--quit"),
             })
@@ -252,14 +252,14 @@ namespace Mikey.UI.Home.Tests
         {
             string uss = File.ReadAllText(HomeUssPath);
             float play = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--play {"), "width");
-            float plans = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--plans {"), "width");
+            float vow = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--vow {"), "width");
             float settings = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--settings {"), "width");
             float quit = ExtractPx(ExtractRuleBlock(uss, "\n.home-nav__stroke--quit {"), "width");
 
-            // "SETTINGS" is by far the longest word; "PLAY"/"QUIT" the shortest.
-            Assert.Greater(settings, plans);
-            Assert.Greater(plans, play);
-            Assert.Greater(play, quit);
+            // "SETTINGS" is by far the longest word; "VOW"/"QUIT" the shortest.
+            Assert.Greater(settings, play);
+            Assert.Greater(play, vow);
+            Assert.Greater(vow, quit);
         }
 
         [Test]
@@ -285,7 +285,7 @@ namespace Mikey.UI.Home.Tests
 
             // The Button elements themselves are untouched, so their default
             // (clickable) picking mode and existing click wiring are intact.
-            foreach (var name in new[] { "go-map", "menu-plans-open", "menu-settings-open", "menu-quit" })
+            foreach (var name in new[] { "go-map", "menu-vow-open", "menu-settings-open", "menu-quit" })
                 Assert.IsNotNull(MenuScreen(root).Q<Button>(name));
         }
 
@@ -331,7 +331,7 @@ namespace Mikey.UI.Home.Tests
         public void NavItems_KeepAtLeast48pxTouchTargets()
         {
             var screen = MenuScreen(BuildTree());
-            foreach (var name in new[] { "go-map", "menu-plans-open", "menu-settings-open", "menu-quit" })
+            foreach (var name in new[] { "go-map", "menu-vow-open", "menu-settings-open", "menu-quit" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsTrue(button.ClassListContains("tap-target-lg"), $"'{name}' must keep its >= 56px touch target class.");

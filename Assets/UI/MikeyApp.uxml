@@ -89,10 +89,10 @@
                         <ui:VisualElement class="home-nav__stroke home-nav__stroke--play" picking-mode="Ignore" />
                         <ui:Label text="PLAY" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
-                    <!-- PLANS: local overlay (NOT a "go-" navigator); HomeController opens it -->
-                    <ui:Button name="menu-plans-open" class="home-nav__item tap-target-lg sfx-click">
-                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--plans" picking-mode="Ignore" />
-                        <ui:Label text="PLANS" class="home-nav__label" picking-mode="Ignore" />
+                    <!-- VOW: local overlay (NOT a "go-" navigator); HomeController opens it -->
+                    <ui:Button name="menu-vow-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--vow" picking-mode="Ignore" />
+                        <ui:Label text="VOW" class="home-nav__label" picking-mode="Ignore" />
                     </ui:Button>
                     <!-- SETTINGS: local overlay (NOT a "go-" navigator); HomeController opens it -->
                     <ui:Button name="menu-settings-open" class="home-nav__item tap-target-lg sfx-click">
@@ -109,15 +109,55 @@
             </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- PLANS overlay: lightweight "coming soon" modal over the Main Menu.
-                 Hidden by default (display:none is the safe markup default; see
-                 Home.uss ".menu-modal"); HomeController toggles it. The menu
-                 video/music underneath keep playing while this is open. -->
-            <ui:VisualElement name="menu-plans-modal" class="menu-modal">
-                <ui:VisualElement class="menu-modal__card">
-                    <ui:Label text="PLANS" class="menu-modal__title" />
-                    <ui:Label text="Coming soon." class="menu-modal__body" />
-                    <ui:Button name="menu-plans-close" text="CLOSE" class="btn primary sm menu-modal__close tap-target sfx-click" />
+            <!-- VOW overlay: the premium "choose your path" membership overlay
+                 over the Main Menu — frontend presentation only, no payment/
+                 backend hookup. Hidden by default (display:none is the safe
+                 markup default; see Home.uss ".vow-modal"); HomeController
+                 toggles it exactly like the old Plans overlay did (never a
+                 CSS-class toggle — that pattern is reserved for the shared,
+                 multi-entry-point Settings modal). The menu video/music
+                 underneath keep playing while this is open. -->
+            <ui:VisualElement name="menu-vow-modal" class="vow-modal">
+                <ui:VisualElement class="vow-modal__card">
+                    <ui:Button name="menu-vow-close" text="Close" class="vow-modal__close tap-target sfx-click" />
+
+                    <ui:VisualElement class="vow-header" picking-mode="Ignore">
+                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
+                        <ui:Label text="The Vow" class="vow-header__title" picking-mode="Ignore" />
+                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label text="Choose how far you are willing to walk the path." class="vow-header__subtitle" picking-mode="Ignore" />
+                    <ui:Label text="Your training begins with commitment." class="vow-header__tagline" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="vow-list" picking-mode="Ignore">
+                        <ui:Button name="vow-option-initiate" class="vow-option tap-target-lg sfx-click">
+                            <ui:Label text="Initiate" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Free" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Begin the path. Learn the foundations and discover Mikey." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Current Path" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <ui:Button name="vow-option-disciple" class="vow-option vow-option--recommended tap-target-lg sfx-click">
+                            <ui:Label text="Recommended" class="vow-option__badge" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__accent" picking-mode="Ignore" />
+                            <ui:Label text="Disciple" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Monthly" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Unlock the full training journey, progression, and technique library." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <ui:Button name="vow-option-master" class="vow-option tap-target-lg sfx-click">
+                            <ui:Label text="Master" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Yearly" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Commit to the path with complete access and the best long-term value." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <ui:Label name="vow-inline-message" text="" class="vow-inline-message" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
 

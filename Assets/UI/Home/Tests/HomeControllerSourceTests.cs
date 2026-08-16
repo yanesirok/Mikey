@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace Mikey.UI.Home.Tests
 {
     /// <summary>
-    /// Contract for the rebuilt HomeController's wiring: PLANS opens a local
+    /// Contract for the rebuilt HomeController's wiring: VOW opens a local
     /// overlay (not ScreenManager navigation; SETTINGS is no longer
     /// HomeController's concern at all — see
     /// Mikey.UI.Settings.SettingsModalController), QUIT's platform-specific
@@ -22,13 +22,42 @@ namespace Mikey.UI.Home.Tests
         private const string SourcePath = "Assets/UI/Home/HomeController.cs";
 
         [Test]
-        public void Plans_OpensLocalOverlay_ViaDisplayStyle()
+        public void Vow_OpensLocalOverlay_ViaDisplayStyle()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ShowModal(_plansModal)", source);
-            StringAssert.Contains("HideModal(_plansModal)", source);
+            StringAssert.Contains("ShowModal(_vowModal)", source);
+            StringAssert.Contains("HideModal(_vowModal)", source);
             StringAssert.Contains("modal.style.display = DisplayStyle.Flex;", source);
             StringAssert.Contains("modal.style.display = DisplayStyle.None;", source);
+        }
+
+        [Test]
+        public void Vow_SelectionIsVisualOnly_NeverTouchesPlayerPrefsOrPersistence()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("PlayerPrefs", source,
+                "Vow membership selection is presentation-only for now — must never be persisted.");
+        }
+
+        [Test]
+        public void Vow_DiscipleIsTheDefaultSelection_OnEveryFreshOpen()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private void ResetVowSelection() => SelectVow(_vowOptionDisciple, showEnrollmentMessage: false);", source);
+        }
+
+        [Test]
+        public void Vow_PressingDiscipleOrMaster_ShowsEnrollmentNotice_NeverFakesActivation()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("() => SelectVow(_vowOptionDisciple, showEnrollmentMessage: true)", source);
+            StringAssert.Contains("() => SelectVow(_vowOptionMaster, showEnrollmentMessage: true)", source);
+            StringAssert.Contains("() => SelectVow(_vowOptionInitiate, showEnrollmentMessage: false)", source);
+            StringAssert.Contains("VowEnrollmentMessage = \"Enrollment will open soon.\"", source);
+            StringAssert.DoesNotContain("purchase", source);
+            StringAssert.DoesNotContain("Purchase", source);
+            StringAssert.DoesNotContain("IAP", source);
+            StringAssert.DoesNotContain("Billing", source);
         }
 
         [Test]
