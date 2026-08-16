@@ -126,10 +126,11 @@ namespace Mikey.UI.Map.Tests
             string uss = File.ReadAllText(UssPath);
             string block = ExtractRuleBlock(uss, "\n.map-topbar {");
             Assert.IsNotNull(block);
-            // Darkened for readability over the busier Profile background art
-            // (0.35-0.50 -> 0.55-0.62) — still a translucent glass tint, never opaque.
-            StringAssert.IsMatch(@"background-color:\s*rgba\(\d+,\s*\d+,\s*\d+,\s*0\.(5[5-9]|6[0-2])\)", block,
-                "Expected an rgba(...) tint with alpha roughly 0.55-0.62, not an opaque background.");
+            // Darkened further for reliable readability over the brighter parts of
+            // the Profile background art (0.55-0.62 -> 0.72-0.78) — still a
+            // translucent glass tint, never opaque.
+            StringAssert.IsMatch(@"background-color:\s*rgba\(\d+,\s*\d+,\s*\d+,\s*0\.7[2-8]\)", block,
+                "Expected an rgba(...) tint with alpha roughly 0.72-0.78, not an opaque background.");
         }
 
         // ---------- 4: top bar height upgraded ----------

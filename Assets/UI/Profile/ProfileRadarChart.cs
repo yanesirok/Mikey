@@ -123,7 +123,9 @@ namespace Mikey.UI.Profile
             {
                 Vector2 anchor = ProfileRadarMath.LabelAnchor(i, radius, center, LabelOutset);
                 PlaceLabel(_axisLabels[i], anchor, -10f);
-                PlaceLabel(_valueLabels[i], anchor, 12f);
+                // Nudged out slightly (12 -> 16) so the now-larger, bolder value
+                // text doesn't crowd the axis name above it.
+                PlaceLabel(_valueLabels[i], anchor, 16f);
             }
         }
 

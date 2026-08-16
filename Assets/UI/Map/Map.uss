@@ -108,7 +108,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 28px;
-    background-color: rgba(11, 14, 17, 0.58);
+    background-color: rgba(11, 14, 17, 0.74);
     border-bottom-width: 1px;
     border-bottom-color: rgba(237, 230, 216, 0.12);
 }
@@ -149,21 +149,74 @@
     opacity: 0.5;
 }
 
-/* The single active-section indicator: brighter text with a restrained
-   atmospheric red glow (text-shadow — no extra layers/elements needed) plus
-   a small painted brushstroke underline (".map-topbar__nav-btn-underline",
+/* The single active-section indicator: brighter text sitting in front of a
+   layered crimson BACKLIGHT (see ".map-topbar__nav-btn-halo" below) plus a
+   small painted brushstroke underline (".map-topbar__nav-btn-underline",
    added only inside the currently-active button's own markup per screen —
    see MikeyApp.uxml) — never a surrounding bubble, never a flat 2px CSS
    line. "Map" carries this statically on both map screens; "Profile" on
    Profile; "Techniques" on Techniques (the player is always somewhere in
-   that flow while its HUD is visible). Glow color is literal rgba (matches
-   --crimson, #C62828) rather than var(--crimson) because USS can't blend a
-   custom-property color into an rgba()'s alpha channel. Blur/alpha bumped up
-   (10px/0.55 -> 14px/0.75) so the active tab is unmistakable at a glance,
-   while staying a soft glow rather than solid-red text. */
+   that flow while its HUD is visible).
+
+   Deliberately NOT text-shadow: a glyph shadow outlines the letters
+   themselves (a halo traced around each character), which read as a hard
+   red outline rather than "soft light behind the word" no matter how the
+   blur/alpha were tuned — several passes confirmed this is the wrong tool
+   for the job, not a tuning problem. The halo below is real geometry
+   (layered, low-alpha, increasingly-opaque-toward-center ellipses painted
+   BEHIND the label — same technique already used for the radar polygon's
+   glow) so it reads as atmospheric light, not letter outlines. */
 .map-topbar__nav-btn--active .map-topbar__nav-btn-text {
     color: var(--bone);
-    text-shadow: 0 0 14px rgba(198, 40, 40, 0.75);
+}
+
+/* Layered backlight behind the active label. Sized per word (roughly the
+   word's width plus room to breathe) via the same per-label modifier
+   pattern as the underline below. Ellipses (percentage border-radius, so
+   width != height still yields fully-round edges — never a rectangle/pill
+   with visible corners) at low, increasing-toward-center opacity fake a
+   soft glow without a blur filter (UI Toolkit has none for arbitrary
+   elements). Declared BEFORE the label in markup so it paints underneath
+   it; ignores picking throughout so it never affects the button's hit
+   target. */
+.map-topbar__nav-btn-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    height: 60px;
+}
+.map-topbar__nav-btn-halo--map {
+    width: 88px;
+}
+.map-topbar__nav-btn-halo--profile {
+    width: 140px;
+}
+.map-topbar__nav-btn-halo--techniques {
+    width: 184px;
+}
+.map-topbar__nav-btn-halo__layer {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background-color: #C62828;
+}
+.map-topbar__nav-btn-halo__layer--outer {
+    width: 100%;
+    height: 100%;
+    opacity: 0.05;
+}
+.map-topbar__nav-btn-halo__layer--middle {
+    width: 72%;
+    height: 72%;
+    opacity: 0.1;
+}
+.map-topbar__nav-btn-halo__layer--inner {
+    width: 46%;
+    height: 46%;
+    opacity: 0.16;
 }
 
 /* Small inked underline beneath the active label. NOT the Main-Menu

@@ -501,6 +501,11 @@
                         <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:Button>
                     <ui:VisualElement class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--techniques" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--techniques" picking-mode="Ignore">
                             <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
@@ -720,6 +725,11 @@
                             <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                            </ui:VisualElement>
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                             <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
                                 <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
@@ -857,6 +867,11 @@
                              so this can't rely on ScreenManager's generic click wiring, whose
                              ordering relative to a second handler isn't guaranteed. -->
                         <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                            </ui:VisualElement>
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                             <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
                                 <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
@@ -930,6 +945,11 @@
                         <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:VisualElement>
                     <ui:VisualElement name="nav-profile" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--profile" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                        </ui:VisualElement>
                         <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--profile" picking-mode="Ignore">
                             <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />

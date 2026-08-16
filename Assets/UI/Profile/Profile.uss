@@ -193,10 +193,13 @@
     -unity-text-align: middle-center;
     white-space: nowrap;
 }
+/* Made noticeably stronger than the axis names (24px vs 22px, off-white
+   vs off-white but bold vs normal) since these numbers were reading as too
+   secondary — still zero glow/shadow, matching the axis labels above. */
 .profile-radar-label--value {
-    font-size: 17px;
-    -unity-font-style: normal;
-    color: var(--muted);
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: var(--bone);
 }
 
 /* ---------- RIGHT: current journey ---------- */
@@ -299,10 +302,10 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(6, 6, 7, 0.55);
+    background-color: rgba(0, 0, 0, 0.85);
 }
 .profile-popup__card {
-    background-color: rgba(9, 7, 7, 0.88);
+    background-color: rgba(7, 7, 9, 0.97);
     border-width: 1px;
     border-color: rgba(198, 40, 40, 0.4);
     border-radius: 18px;

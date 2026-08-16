@@ -124,21 +124,73 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(expectedActiveLabel, activeText, $"'{screenId}' HUD's active item must be '{expectedActiveLabel}'.");
         }
 
-        // ---------- 7: restrained red glow on the active label ----------
+        // ---------- 7: layered crimson backlight on the active label, not text-shadow ----------
 
+        // A glyph text-shadow outlines each LETTER (a hard red trace around the
+        // character shapes) rather than reading as soft light behind the whole
+        // word — several blur/alpha tuning passes on text-shadow confirmed this
+        // is the wrong technique, not a tuning problem. Replaced with real
+        // layered geometry (three low-alpha ellipses, increasingly opaque toward
+        // the center, painted behind the label) — same "no blur filter available,
+        // fake it with stacked low-alpha shapes" technique already used for the
+        // radar polygon's glow.
         [Test]
-        public void ActiveNavText_HasARestrainedRedGlow()
+        public void ActiveNavText_HasNoTextShadow()
         {
             string uss = File.ReadAllText(UssPath);
             string block = ExtractRuleBlock(uss, "\n.map-topbar__nav-btn--active .map-topbar__nav-btn-text {");
-            Assert.IsNotNull(block, "Expected the active-label glow rule.");
-            StringAssert.Contains("text-shadow", block, "Expected a text-shadow glow, not an extra bubble/overlay element.");
+            Assert.IsNotNull(block, "Expected the active-label rule.");
+            StringAssert.DoesNotContain("text-shadow", block, "Text-shadow must be fully removed — replaced by a layered halo behind the text.");
+        }
 
-            var blur = Regex.Match(block, @"text-shadow:\s*[\d.\-]+(?:px)?\s+[\d.\-]+(?:px)?\s+(\d+(\.\d+)?)px");
-            Assert.IsTrue(blur.Success, "Expected a blurred text-shadow (offset offset blur color).");
-            float blurPx = float.Parse(blur.Groups[1].Value, CultureInfo.InvariantCulture);
-            Assert.GreaterOrEqual(blurPx, 6f);
-            Assert.LessOrEqual(blurPx, 24f, "Glow blur radius should stay restrained, not read as a huge neon halo.");
+        [Test]
+        public void ActiveNavHalo_IsThreeLayeredEllipses_LowOpacity_IncreasingTowardCenter_NoHardEdges()
+        {
+            string uss = File.ReadAllText(UssPath);
+
+            string layerBase = ExtractRuleBlock(uss, "\n.map-topbar__nav-btn-halo__layer {");
+            Assert.IsNotNull(layerBase, "Expected a shared '.map-topbar__nav-btn-halo__layer' rule.");
+            StringAssert.Contains("border-radius: 50%", layerBase, "Layers must be ellipses (round edges), never a rectangle/pill with visible corners.");
+            StringAssert.Contains("#C62828", layerBase, "Halo must be the true-red brand accent.");
+            StringAssert.DoesNotContain("border-width", layerBase, "Must be a soft filled shape, not an outlined box.");
+
+            float outer = ExtractOpacity(uss, "\n.map-topbar__nav-btn-halo__layer--outer {");
+            float middle = ExtractOpacity(uss, "\n.map-topbar__nav-btn-halo__layer--middle {");
+            float inner = ExtractOpacity(uss, "\n.map-topbar__nav-btn-halo__layer--inner {");
+
+            Assert.Less(outer, middle, "Outer layer must be the faintest.");
+            Assert.Less(middle, inner, "Opacity must increase toward the center (soft light falloff), not be flat.");
+            Assert.LessOrEqual(inner, 0.25f, "Even the innermost layer must stay restrained, never neon-solid.");
+        }
+
+        [TestCase("map")]
+        [TestCase("mapOkinawa")]
+        [TestCase("techniques")]
+        [TestCase("profile")]
+        public void EveryHudScreen_ActiveItemCarriesTheHalo_BehindTheLabel(string screenId)
+        {
+            var active = Screen(BuildTree(), screenId).Q<VisualElement>(className: "map-topbar__nav-btn--active");
+            Assert.IsNotNull(active);
+
+            var children = active.Children().ToList();
+            int haloIndex = children.FindIndex(c => c.ClassListContains("map-topbar__nav-btn-halo"));
+            int labelIndex = children.FindIndex(c => c.ClassListContains("map-topbar__nav-btn-text"));
+            Assert.GreaterOrEqual(haloIndex, 0, $"'{screenId}' active item must carry the halo.");
+            Assert.GreaterOrEqual(labelIndex, 0, $"'{screenId}' active item must carry the label.");
+            Assert.Less(haloIndex, labelIndex, $"'{screenId}' halo must be declared BEFORE the label so it paints behind it.");
+
+            var halo = children[haloIndex];
+            Assert.AreEqual(3, halo.Query<VisualElement>(className: "map-topbar__nav-btn-halo__layer").ToList().Count,
+                $"'{screenId}' halo must carry all three layers (outer/middle/inner).");
+        }
+
+        private static float ExtractOpacity(string uss, string header)
+        {
+            string block = ExtractRuleBlock(uss, header);
+            Assert.IsNotNull(block, $"Expected a rule for '{header}'.");
+            var match = Regex.Match(block, @"opacity:\s*(\d+(\.\d+)?)");
+            Assert.IsTrue(match.Success, $"Expected an 'opacity: <n>' declaration in: {block}");
+            return float.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
         }
 
         // ---------- 8: brushstroke underline, reusing the existing asset ----------

@@ -309,6 +309,59 @@ namespace Mikey.UI.Profile.Tests
             StringAssert.Contains("0.7765f, 0.1569f, 0.1569f", source, "Polygon fill/stroke/glow must use the true-red (#C62828) value.");
         }
 
+        [Test]
+        public void RadarValues_AreNoticeablyLarger_CleanOffWhite_StillGlowFree()
+        {
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            string block = ExtractRuleBlock(uss, ".profile-radar-label--value {");
+            Assert.IsNotNull(block, "Expected a '.profile-radar-label--value' rule.");
+            var size = System.Text.RegularExpressions.Regex.Match(block, @"font-size:\s*(\d+(\.\d+)?)px");
+            Assert.IsTrue(size.Success);
+            float px = float.Parse(size.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.GreaterOrEqual(px, 23f);
+            Assert.LessOrEqual(px, 25f, "Target ~24px (23-25px acceptable).");
+            StringAssert.Contains("var(--bone)", block, "Values must read as clean off-white.");
+            StringAssert.DoesNotContain("text-shadow", block, "Values must stay glow-free — only the polygon glows.");
+        }
+
+        [Test]
+        public void AttributePopup_IsMuchDarker_CardAndScrimBothStrongOpacity()
+        {
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            string cardBlock = ExtractRuleBlock(uss, ".profile-popup__card {");
+            string scrimBlock = ExtractRuleBlock(uss, ".profile-popup__scrim {");
+            Assert.IsNotNull(cardBlock);
+            Assert.IsNotNull(scrimBlock);
+
+            var cardAlpha = System.Text.RegularExpressions.Regex.Match(cardBlock, @"rgba\(\d+,\s*\d+,\s*\d+,\s*(\d+(\.\d+)?)\)");
+            Assert.IsTrue(cardAlpha.Success);
+            float cardOpacity = float.Parse(cardAlpha.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.GreaterOrEqual(cardOpacity, 0.96f);
+            Assert.LessOrEqual(cardOpacity, 0.98f);
+
+            var scrimAlpha = System.Text.RegularExpressions.Regex.Match(scrimBlock, @"rgba\(\d+,\s*\d+,\s*\d+,\s*(\d+(\.\d+)?)\)");
+            Assert.IsTrue(scrimAlpha.Success);
+            float scrimOpacity = float.Parse(scrimAlpha.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.GreaterOrEqual(scrimOpacity, 0.82f);
+            Assert.LessOrEqual(scrimOpacity, 0.88f);
+        }
+
+        [Test]
+        public void EditIcon_UsesTheReplacedAssetContents_Untinted()
+        {
+            // Path unchanged, contents manually replaced (now a white outline +
+            // crimson pencil that's already legible on the dark HUD) — still
+            // referenced by path only, no tint override, so Unity's own reimport
+            // of the changed PNG bytes is all that's needed for the new art to
+            // show up; nothing in this stylesheet needed to change.
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            string block = ExtractRuleBlock(uss, ".profile-name-edit-icon {");
+            Assert.IsNotNull(block, "Expected a '.profile-name-edit-icon' rule.");
+            StringAssert.Contains("Media/Images/edit_icon.png", block);
+            StringAssert.DoesNotContain("-unity-background-image-tint-color", block,
+                "Left untinted so the new asset's own colors show through unmodified.");
+        }
+
         private static string ExtractRuleBlock(string uss, string header)
         {
             int start = uss.IndexOf(header, System.StringComparison.Ordinal);
