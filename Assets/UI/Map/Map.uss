@@ -85,86 +85,144 @@
     flex-direction: column;
 }
 
-/* ---------- top quick-access bar ----------
-   Visible on both the Japan and Okinawa map screens. Left: Settings icon +
-   Map/Techniques/Stats. Right: current Level/XP. Sized generously for
-   landscape Android (>= 48px targets, >= 15px text) — the previous Map's
-   text was reported unreadable on device. */
+/* ---------- top quick-access HUD ----------
+   An overlay strip OVER the pan/zoom stage (absolute, not a normal-flow row
+   that pushes the map down) — translucent dark-glass tint so the map stays
+   subtly visible through it, never an opaque black bar. Declared after the
+   stage/panels/transition overlay in the map screen's markup (see
+   MikeyApp.uxml) so it always paints above them — UI Toolkit hit-tests in
+   reverse document order, so this also means a tap on the HUD is never
+   swallowed by the map/panel beneath it, with no extra picking-mode work
+   needed — but before the Settings modal, so an open modal still covers it.
+   Visible on both the Japan and Okinawa map screens, >= 48px targets,
+   Title Case text (never a wall of all-caps) — the previous Map's text was
+   reported both unreadable on device and too "heavy black bar with
+   individual button bubbles". */
 .map-topbar {
-    flex-shrink: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 84px;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    height: 64px;
-    padding: 0 4px;
+    padding: 0 22px;
+    background-color: rgba(11, 14, 17, 0.42);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(237, 230, 216, 0.12);
 }
-.map-topbar__left {
+.map-topbar__nav {
     flex-direction: row;
     align-items: center;
 }
-.map-topbar__right {
-    flex-direction: row;
-    align-items: center;
-}
-.map-topbar__icon-btn {
-    width: 48px;
-    height: 48px;
-    margin-right: 6px;
-    border-radius: 24px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(18, 22, 27, 0.82);
-}
-.map-topbar__icon-glyph {
-    font-size: 11px;
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: var(--bone);
-}
+
+/* Clean text navigation — deliberately no pill/capsule/bubble background per
+   nav item. The button's own box stays a comfortable, larger-than-the-text
+   touch target (>= 48px tall via .tap-target); only the label itself reads
+   as a button. */
 .map-topbar__nav-btn {
-    height: 48px;
-    margin-right: 8px;
-    padding: 0 16px;
-    border-radius: 24px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(18, 22, 27, 0.82);
+    height: 100%;
+    margin-right: 34px;
+    padding: 0;
+    min-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    align-items: center;
+    justify-content: center;
 }
 .map-topbar__nav-btn-text {
-    font-size: 15px;
-    letter-spacing: 1px;
+    font-size: 26px;
+    letter-spacing: 0.5px;
     -unity-font-style: bold;
-    color: var(--bone);
+    color: rgba(237, 230, 216, 0.72);
 }
-.map-topbar__nav-btn:hover {
-    border-color: var(--bone);
+.map-topbar__nav-btn:hover .map-topbar__nav-btn-text {
+    color: var(--bone);
 }
 .map-topbar__nav-btn--locked {
     opacity: 0.5;
 }
+
+/* The single active-section indicator: brighter text + a thin restrained
+   underline accent — never a surrounding bubble. "Map" carries this
+   statically on both screens (see MikeyApp.uxml): the player is always
+   somewhere in the Map flow while this HUD is visible. */
+.map-topbar__nav-btn--active {
+    border-bottom-width: 2px;
+    border-bottom-color: var(--seal);
+}
+.map-topbar__nav-btn--active .map-topbar__nav-btn-text {
+    color: var(--bone);
+}
+
+.map-topbar__right {
+    flex-direction: row;
+    align-items: center;
+}
 .map-topbar__status {
     flex-direction: column;
     align-items: flex-end;
-    padding: 0 6px 0 16px;
+    padding: 0 22px 0 18px;
+    flex-shrink: 0;
 }
 .map-topbar__level {
-    font-size: 16px;
+    font-size: 24px;
     -unity-font-style: bold;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     color: var(--seal);
 }
 .map-topbar__xp {
-    font-size: 13px;
+    font-size: 20px;
     color: var(--muted);
     margin-top: 2px;
 }
 
+/* Settings: the one genuine icon button in the HUD — a simple, font-
+   independent ring+dot glyph (never relies on a gear glyph existing in the
+   display font) so it renders identically everywhere. Transparent by
+   default, matching the "clean text navigation" language rather than
+   another button bubble; the ring brightens on hover/press. */
+.map-topbar__settings-btn {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 0;
+}
+.map-topbar__settings-icon {
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+}
+.map-topbar__settings-ring {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    border-width: 2px;
+    border-color: rgba(237, 230, 216, 0.75);
+}
+.map-topbar__settings-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: rgba(237, 230, 216, 0.75);
+}
+.map-topbar__settings-btn:hover .map-topbar__settings-ring {
+    border-color: var(--bone);
+}
+.map-topbar__settings-btn:hover .map-topbar__settings-dot {
+    background-color: var(--bone);
+}
+
 /* ---------- pan/zoom stage (shared by Japan + Okinawa) ----------
-   Always fills the remaining space below the top bar — the map is the main
-   focus, full-bleed/dominant, never squeezed by a permanently-reserved side
-   column, never a floating centered rectangle. overflow:hidden clips the
-   pannable/zoomable canvas so it never paints outside the stage while
-   panned/zoomed. */
+   Fills the whole map-root, edge to edge — the HUD now overlays on top of
+   it (see ".map-topbar") rather than sitting in its own row above it, so
+   the map is always the main, full-bleed/dominant focus, never squeezed by
+   a permanently-reserved side column or top row, never a floating centered
+   rectangle. overflow:hidden clips the pannable/zoomable canvas so it never
+   paints outside the stage while panned/zoomed. */
 .pan-stage {
     position: relative;
     flex-grow: 1;
@@ -366,12 +424,12 @@
    off-screen. */
 .detail-panel {
     position: absolute;
-    top: 0;
+    top: 84px; /* below the HUD band (.map-topbar), never fighting it for the same pixels */
     right: 0;
     bottom: 0;
-    width: 46%;
-    min-width: 360px;
-    max-width: 500px;
+    width: 48%;
+    min-width: 400px;
+    max-width: 540px;
     background-color: var(--base-2);
     border-left-width: 1px;
     border-left-color: var(--line);
@@ -433,47 +491,47 @@
     flex-grow: 1;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 0 34px 44px 34px;
+    padding: 0 40px 48px 40px;
 }
 .detail-panel__eyebrow {
-    font-size: 15px;
-    letter-spacing: 3px;
+    font-size: 22px;
+    letter-spacing: 2px;
     color: var(--seal);
 }
 .detail-panel__title {
-    font-size: 44px;
+    font-size: 40px;
     -unity-font-style: bold;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     color: var(--bone);
-    margin-top: 4px;
+    margin-top: 8px;
 }
 .detail-panel__subtitle {
-    font-size: 17px;
+    font-size: 22px;
     letter-spacing: 1px;
     color: var(--muted);
-    margin-top: 4px;
+    margin-top: 8px;
 }
 .detail-panel__desc {
-    font-size: 18px;
+    font-size: 20px;
     color: rgba(237, 230, 216, 0.85);
     white-space: normal;
-    margin-top: 16px;
+    margin-top: 22px;
 }
 .detail-panel__meta {
-    font-size: 14px;
+    font-size: 18px;
     letter-spacing: 1px;
     color: var(--muted);
-    margin-top: 14px;
+    margin-top: 18px;
 }
 .detail-panel__cta {
     align-self: flex-start;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    min-width: 220px;
-    height: 64px;
-    margin-top: 26px;
-    padding: 0 22px;
+    min-width: 230px;
+    height: 60px;
+    margin-top: 32px;
+    padding: 0 28px;
     border-radius: 8px;
     border-width: 1px;
     border-color: var(--seal);
@@ -483,9 +541,9 @@
     background-color: #D95A3C;
 }
 .detail-panel__cta-text {
-    font-size: 18px;
+    font-size: 24px;
     -unity-font-style: bold;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     color: var(--bone);
 }
 .detail-panel__cta--locked {
@@ -514,11 +572,14 @@
     opacity: 1;
 }
 
-/* ---------- minimal map-local settings modal ----------
-   Deliberately small: reuses IAudioSettings (Mikey.UI.Audio) directly rather
-   than duplicating Home's whole settings system. Same three sliders as
-   Home's Settings overlay, Map-scoped markup/classes so this stays
-   decoupled from HomeController. Hidden by default. */
+/* ---------- map-local settings modal ----------
+   Reuses IAudioSettings (Mikey.UI.Audio) directly rather than duplicating
+   Home's whole settings system. Same three sliders as Home's Settings
+   overlay, Map-scoped markup/classes so this stays decoupled from
+   HomeController. A large, centered dark-glass panel matching the HUD's
+   visual language (translucent dark surface, subtle border, no nested
+   bubbles) — a premium game settings overlay, not a small dense desktop
+   popup. Hidden by default. */
 .map-settings-modal {
     display: none;
     position: absolute;
@@ -534,30 +595,72 @@
     display: flex;
 }
 .map-settings-modal__card {
-    width: 420px;
-    max-width: 86%;
-    padding: 28px;
-    border-radius: 16px;
+    width: 60%;
+    min-width: 480px;
+    max-width: 760px;
+    padding: 44px;
+    border-radius: 20px;
     border-width: 1px;
-    border-color: var(--line);
-    background-color: var(--base-3);
+    border-color: rgba(237, 230, 216, 0.14);
+    background-color: rgba(15, 18, 22, 0.9);
 }
 .map-settings-modal__title {
-    font-size: 22px;
+    font-size: 40px;
     -unity-font-style: bold;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     color: var(--bone);
-    margin-bottom: 16px;
+    margin-bottom: 30px;
 }
 .map-setting {
-    margin-bottom: 14px;
+    margin-bottom: 32px;
 }
 .map-setting__label {
-    font-size: 13px;
-    letter-spacing: 1px;
+    font-size: 24px;
+    letter-spacing: 0.5px;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 12px;
 }
+
+/* Bigger track/thumb + a taller row so every control is easy to grab with a
+   finger — touch usability over compactness. unity-base-slider__tracker /
+   __dragger are UI Toolkit's own built-in Slider part names. */
+.map-setting__slider {
+    height: 32px;
+}
+.map-setting__slider .unity-base-slider__tracker {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--line);
+}
+.map-setting__slider .unity-base-slider__dragger {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    margin-top: -11px;
+    background-color: var(--seal);
+    border-width: 0;
+}
+
+/* Fully self-contained (not the shared ".btn.primary.sm" from theme.uss) so
+   it matches this modal's own dark-glass language without fighting that
+   class's specificity. */
 .map-settings-modal__close {
-    margin-top: 10px;
+    align-self: center;
+    margin-top: 14px;
+    min-width: 200px;
+    height: 56px;
+    padding: 0 32px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(237, 230, 216, 0.06);
+    font-size: 24px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+}
+.map-settings-modal__close:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.12);
 }

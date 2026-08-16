@@ -556,36 +556,6 @@
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-root">
 
-                <!-- top quick-access bar: a minimal way back to the Main Menu,
-                     then Settings / Map / Techniques / Stats + current
-                     Level/XP. Visible on both the Japan and Okinawa map
-                     screens (see JapanMapController). -->
-                <ui:VisualElement class="map-topbar">
-                    <ui:VisualElement class="map-topbar__left">
-                        <ui:Button name="go-menu" class="map-topbar__icon-btn tap-target">
-                            <ui:Label text="MENU" class="map-topbar__icon-glyph" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="map-topbar-settings" class="map-topbar__icon-btn tap-target">
-                            <ui:Label text="SET" class="map-topbar__icon-glyph" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="map-topbar-map" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="MAP" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="TECHNIQUES" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="STATS" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-topbar__right">
-                        <ui:VisualElement class="map-topbar__status">
-                            <ui:Label name="map-topbar-level" text="LVL 1" class="map-topbar__level" />
-                            <ui:Label name="map-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
                 <!-- Japan world map: full-bleed pannable/zoomable canvas
                      (japan_map_final.jpg) with real UI Toolkit chapter/city
                      marker buttons — never baked into the art, never a
@@ -651,25 +621,65 @@
                      transition (JapanMapController). -->
                 <ui:VisualElement name="map-transition-overlay" class="map-transition-overlay" picking-mode="Ignore" />
 
-                <!-- minimal map-local Settings modal: reuses IAudioSettings
-                     directly rather than duplicating Home's whole settings
-                     system (see MapSettingsModalBinder). Hidden by default. -->
+                <!-- top quick-access HUD: translucent dark-glass overlay ON
+                     TOP of the map stage (see Map.uss ".map-topbar"), not a
+                     row that pushes it down — declared after the stage/
+                     panels/transition overlay so it always paints above
+                     them, but before the Settings modal so an open modal
+                     still covers it. Clean text navigation (Menu / Map /
+                     Techniques / Stats), no pill/bubble styling; "Map"
+                     carries the active-section accent since the player is
+                     always somewhere in the Map flow here. Settings is the
+                     one genuine icon button. Visible on both the Japan and
+                     Okinawa map screens (see JapanMapController). -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__nav">
+                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Stats" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="map-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="map-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        </ui:VisualElement>
+                        <ui:Button name="map-topbar-settings" class="map-topbar__settings-btn tap-target">
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- map-local Settings modal: reuses IAudioSettings directly
+                     rather than duplicating Home's whole settings system
+                     (see MapSettingsModalBinder). Hidden by default. -->
                 <ui:VisualElement name="map-settings-modal" class="map-settings-modal">
                     <ui:VisualElement class="map-settings-modal__card">
-                        <ui:Label text="SETTINGS" class="map-settings-modal__title" />
+                        <ui:Label text="Settings" class="map-settings-modal__title" />
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="MUSIC" class="map-setting__label" />
-                            <ui:Slider name="map-settings-music" low-value="0" high-value="1" value="0.70" />
+                            <ui:Label text="Music" class="map-setting__label" />
+                            <ui:Slider name="map-settings-music" low-value="0" high-value="1" value="0.70" class="map-setting__slider" />
                         </ui:VisualElement>
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="SOUND EFFECTS" class="map-setting__label" />
-                            <ui:Slider name="map-settings-sfx" low-value="0" high-value="1" value="1.00" />
+                            <ui:Label text="Sound Effects" class="map-setting__label" />
+                            <ui:Slider name="map-settings-sfx" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
                         </ui:VisualElement>
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="TRAINER VOICE" class="map-setting__label" />
-                            <ui:Slider name="map-settings-trainer" low-value="0" high-value="1" value="1.00" />
+                            <ui:Label text="Trainer Voice" class="map-setting__label" />
+                            <ui:Slider name="map-settings-trainer" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
                         </ui:VisualElement>
-                        <ui:Button name="map-settings-close" text="CLOSE" class="btn primary sm map-settings-modal__close tap-target" />
+                        <ui:Button name="map-settings-close" text="Close" class="map-settings-modal__close tap-target" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -688,36 +698,6 @@
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="map-root">
-
-                <ui:VisualElement class="map-topbar">
-                    <ui:VisualElement class="map-topbar__left">
-                        <ui:Button name="go-menu" class="map-topbar__icon-btn tap-target">
-                            <ui:Label text="MENU" class="map-topbar__icon-glyph" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__icon-btn tap-target">
-                            <ui:Label text="SET" class="map-topbar__icon-glyph" picking-mode="Ignore" />
-                        </ui:Button>
-                        <!-- Custom-wired (not a plain "go-" navigator): OkinawaMapController
-                             must reset the session map context to Japan BEFORE navigating,
-                             so this can't rely on ScreenManager's generic click wiring, whose
-                             ordering relative to a second handler isn't guaranteed. -->
-                        <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="MAP" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="TECHNIQUES" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="STATS" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-topbar__right">
-                        <ui:VisualElement class="map-topbar__status">
-                            <ui:Label name="okinawa-topbar-level" text="LVL 1" class="map-topbar__level" />
-                            <ui:Label name="okinawa-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
 
                 <ui:VisualElement name="okinawa-stage" class="pan-stage">
                     <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
@@ -793,22 +773,59 @@
                      completing the ink-fade begun by the Japan screen. -->
                 <ui:VisualElement name="okinawa-transition-overlay" class="map-transition-overlay map-transition-overlay--visible" picking-mode="Ignore" />
 
+                <!-- top quick-access HUD: same translucent dark-glass overlay
+                     system as the Japan world map (see Map.uss ".map-topbar"
+                     and the "map" screen's own copy of this block for the
+                     full explanation). -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__nav">
+                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- Custom-wired (not a plain "go-" navigator): OkinawaMapController
+                             must reset the session map context to Japan BEFORE navigating,
+                             so this can't rely on ScreenManager's generic click wiring, whose
+                             ordering relative to a second handler isn't guaranteed. -->
+                        <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Stats" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="okinawa-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="okinawa-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        </ui:VisualElement>
+                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__settings-btn tap-target">
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
                 <ui:VisualElement name="okinawa-settings-modal" class="map-settings-modal">
                     <ui:VisualElement class="map-settings-modal__card">
-                        <ui:Label text="SETTINGS" class="map-settings-modal__title" />
+                        <ui:Label text="Settings" class="map-settings-modal__title" />
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="MUSIC" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-music" low-value="0" high-value="1" value="0.70" />
+                            <ui:Label text="Music" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-music" low-value="0" high-value="1" value="0.70" class="map-setting__slider" />
                         </ui:VisualElement>
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="SOUND EFFECTS" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-sfx" low-value="0" high-value="1" value="1.00" />
+                            <ui:Label text="Sound Effects" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-sfx" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
                         </ui:VisualElement>
                         <ui:VisualElement class="map-setting">
-                            <ui:Label text="TRAINER VOICE" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-trainer" low-value="0" high-value="1" value="1.00" />
+                            <ui:Label text="Trainer Voice" class="map-setting__label" />
+                            <ui:Slider name="okinawa-settings-trainer" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
                         </ui:VisualElement>
-                        <ui:Button name="okinawa-settings-close" text="CLOSE" class="btn primary sm map-settings-modal__close tap-target" />
+                        <ui:Button name="okinawa-settings-close" text="Close" class="map-settings-modal__close tap-target" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
