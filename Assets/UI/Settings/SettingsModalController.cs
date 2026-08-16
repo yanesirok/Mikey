@@ -8,8 +8,9 @@ namespace Mikey.UI.Settings
 {
     /// <summary>
     /// Drives the one shared Settings modal (Music/SFX/Trainer Voice, see
-    /// Settings.uss ".settings-modal") reachable from Main Menu and both map
-    /// screens. Deliberately screen-agnostic: it knows nothing about
+    /// Settings.uss ".settings-modal") reachable from Main Menu and every
+    /// screen carrying the shared top HUD (Map, Okinawa, Techniques, Profile —
+    /// see Map/Map.uss ".map-topbar"). Deliberately screen-agnostic: it knows nothing about
     /// ScreenManager or which screen is currently active — it just shows/
     /// hides one overlay and two-way-binds its three sliders directly to the
     /// shared <see cref="IAudioSettings"/> instance, once. Because every
@@ -31,13 +32,15 @@ namespace Mikey.UI.Settings
         private Slider _sfxSlider;
         private Slider _trainerVoiceSlider;
 
-        private readonly Button[] _openButtons = new Button[3];
         private static readonly string[] OpenButtonNames =
         {
             "menu-settings-open",
             "map-topbar-settings",
             "okinawa-topbar-settings",
+            "techniques-topbar-settings",
+            "profile-topbar-settings",
         };
+        private readonly Button[] _openButtons = new Button[OpenButtonNames.Length];
 
         private IAudioSettings _audioSettings;
         private EventCallback<ChangeEvent<float>> _musicChangedCallback;

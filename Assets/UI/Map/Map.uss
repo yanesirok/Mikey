@@ -107,7 +107,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 0 22px;
+    padding: 0 28px;
     background-color: rgba(11, 14, 17, 0.42);
     border-bottom-width: 1px;
     border-bottom-color: rgba(237, 230, 216, 0.12);
@@ -120,10 +120,14 @@
 /* Clean text navigation — deliberately no pill/capsule/bubble background per
    nav item. The button's own box stays a comfortable, larger-than-the-text
    touch target (>= 48px tall via .tap-target); only the label itself reads
-   as a button. */
+   as a button. Generous inter-item spacing so this reads as premium
+   navigation rather than a compressed toolbar; position:relative so the
+   active item's brushstroke underline (".map-topbar__nav-btn-underline")
+   can anchor to this box rather than the row. */
 .map-topbar__nav-btn {
+    position: relative;
     height: 100%;
-    margin-right: 34px;
+    margin-right: 52px;
     padding: 0;
     min-width: 0;
     background-color: rgba(0, 0, 0, 0);
@@ -145,16 +149,56 @@
     opacity: 0.5;
 }
 
-/* The single active-section indicator: brighter text + a thin restrained
-   underline accent — never a surrounding bubble. "Map" carries this
-   statically on both screens (see MikeyApp.uxml): the player is always
-   somewhere in the Map flow while this HUD is visible. */
-.map-topbar__nav-btn--active {
-    border-bottom-width: 2px;
-    border-bottom-color: var(--seal);
-}
+/* The single active-section indicator: brighter text with a restrained
+   atmospheric red glow (text-shadow — no extra layers/elements needed) plus
+   a small painted brushstroke underline (".map-topbar__nav-btn-underline",
+   added only inside the currently-active button's own markup per screen —
+   see MikeyApp.uxml) — never a surrounding bubble, never a flat 2px CSS
+   line. "Map" carries this statically on both map screens; "Profile" on
+   Profile; "Techniques" on Techniques (the player is always somewhere in
+   that flow while its HUD is visible). */
 .map-topbar__nav-btn--active .map-topbar__nav-btn-text {
     color: var(--bone);
+    text-shadow: 0 0 14px rgba(200, 71, 46, 0.75);
+}
+
+/* Small inked underline beneath the active label — a cropped, red-tinted
+   slice of the existing Main-Menu brushstroke asset (never new art), reusing
+   the exact same crop technique as ".home-nav__stroke" (see Home.uss). The
+   source crop (approx. 500x85px window starting at 150,975 in the 2500x2500
+   sheet) sits right at the top of the stroke's alpha bounds, where the ink
+   is naturally ragged/frayed rather than a clean rectangle. Width is tuned
+   per label so it reads as "about the width of the word", never touching
+   neighboring nav items (".map-topbar__nav-btn" already reserves >= 52px of
+   margin). Ignores picking so it never affects the button's hit target. */
+.map-topbar__nav-btn-underline {
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    height: 14px;
+    translate: -50% 0;
+    background-image: url("/Assets/UI/Media/Images/MainMenu/menu_brushstroke.png");
+    background-repeat: no-repeat;
+    -unity-background-image-tint-color: var(--seal);
+    opacity: 0.9;
+}
+.map-topbar__nav-btn-underline--map {
+    width: 70px;
+    background-size: 350px 350px;
+    background-position-x: left -21px;
+    background-position-y: top -137px;
+}
+.map-topbar__nav-btn-underline--profile {
+    width: 120px;
+    background-size: 600px 600px;
+    background-position-x: left -36px;
+    background-position-y: top -234px;
+}
+.map-topbar__nav-btn-underline--techniques {
+    width: 160px;
+    background-size: 800px 800px;
+    background-position-x: left -48px;
+    background-position-y: top -312px;
 }
 
 .map-topbar__right {
@@ -164,7 +208,7 @@
 .map-topbar__status {
     flex-direction: column;
     align-items: flex-end;
-    padding: 0 22px 0 18px;
+    padding: 0 26px 0 22px;
     flex-shrink: 0;
 }
 .map-topbar__level {

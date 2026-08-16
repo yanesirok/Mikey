@@ -1,7 +1,10 @@
 /* ============================================================
-   Profile dashboard - landscape read-only player overview.
-   Translates the authoritative Profile hub into a useful static frontend
-   dashboard without adding account, backend, purchase, or edit behavior.
+   Profile — landscape three-region redesign (identity / capability radar /
+   current journey), sharing the app's top nav visual system (".map-topbar",
+   see Map/Map.uss, linked into this screen in MikeyApp.uxml) instead of its
+   own bottom dock. Read-only frontend mock data throughout — every number
+   here is centralized in ProfileController, not computed (see that file's
+   header comment for the exact REAL vs PLACEHOLDER split).
    ============================================================ */
 
 /* ---------- full-bleed background ---------- */
@@ -34,389 +37,210 @@
     background-color: rgba(43, 217, 168, 0.025);
 }
 
-/* ---------- reusable icons and touch targets ---------- */
-.profile-icon {
-    flex-shrink: 0;
-    align-self: center;
-    -unity-text-align: middle-center;
-    -unity-font-style: normal;
-}
-.profile-icon--avatar {
-    width: 96px;
-    height: 96px;
-    border-radius: 48px;
-    font-size: 48px;
-    color: var(--bone);
-    background-color: rgba(200, 71, 46, 0.26);
-    border-width: 2px;
-    border-color: var(--seal);
-}
-.profile-icon--rank {
-    font-size: 50px;
-}
-.profile-icon--stat {
-    font-size: 36px;
-}
-.profile-icon--badge {
-    font-size: 48px;
-}
-.profile-icon--activity {
-    font-size: 34px;
-}
-.profile-icon--nav {
-    font-size: 42px;
-}
-
-.tap-target {
-    min-width: 48px;
-    min-height: 48px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
-}
-.tap-target:active {
-    scale: 0.97;
-}
-.tap-target-lg {
-    min-width: 56px;
-    min-height: 56px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
-}
-.tap-target-lg:active {
-    scale: 0.97;
-}
-
-/* ---------- responsive dashboard ---------- */
-.profile-dashboard {
+/* ---------- three-region layout ----------
+   Top offset clears the shared ".map-topbar" (Map.uss, ~84px) the same way
+   Techniques' own layout does. Lots of intentional dark space between
+   columns rather than a grid of small cards. */
+.profile-layout {
     flex-grow: 1;
     width: 100%;
-    max-width: 1540px;
+    max-width: 1680px;
     align-self: center;
     flex-direction: row;
-    flex-wrap: wrap;
     align-items: stretch;
+    padding-top: 108px;
+}
+.profile-column {
+    flex-direction: column;
+    min-width: 0;
+}
+.profile-column--identity {
+    flex-grow: 1;
+    flex-basis: 0;
+    max-width: 420px;
+    justify-content: center;
+    padding-right: 36px;
+}
+.profile-column--radar {
+    flex-grow: 2;
+    flex-basis: 0;
+    align-items: center;
     justify-content: center;
 }
-.profile-card {
-    min-width: 0;
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 16px;
-    background-color: rgba(18, 22, 27, 0.72);
-    padding: 20px;
-    margin: 8px;
+.profile-column--journey {
+    flex-grow: 1;
+    flex-basis: 0;
+    max-width: 420px;
+    justify-content: center;
+    padding-left: 36px;
+    border-left-width: 1px;
+    border-left-color: rgba(237, 230, 216, 0.1);
 }
 
-/* ---------- identity ---------- */
-.profile-identity {
-    flex-grow: 2;
-    flex-shrink: 1;
-    flex-basis: 600px;
-    flex-direction: row;
-    align-items: center;
+/* ---------- LEFT: identity / progression ---------- */
+.profile-kicker {
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: var(--ember);
 }
-.profile-identity__mark {
-    margin-right: 22px;
-}
-.profile-identity__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-    flex-direction: column;
-}
-.profile-title {
-    font-size: 42px;
+.profile-name {
+    font-size: 44px;
     -unity-font-style: bold;
     color: var(--bone);
-    white-space: normal;
-}
-.profile-meta {
-    font-size: 14px;
-    letter-spacing: 1px;
-    color: var(--jade);
     margin-top: 4px;
     white-space: normal;
 }
-.profile-copy {
-    font-size: 16px;
-    color: var(--muted);
-    margin-top: 12px;
-    white-space: normal;
-}
-
-/* ---------- shared card text ---------- */
-.profile-card__title {
-    font-size: 24px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    white-space: normal;
-}
-.profile-card__sub {
-    font-size: 12px;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin-top: 2px;
-    white-space: normal;
-}
-.profile-section-head {
+.profile-role-row {
     flex-direction: row;
-    align-items: center;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 10px;
 }
-.profile-section-head__glyph {
-    color: var(--bone);
-    margin-right: 14px;
+.profile-role {
+    font-size: 22px;
+    color: var(--muted);
 }
-.profile-section-head__body {
-    flex-shrink: 1;
-    min-width: 0;
+.profile-role-level {
+    font-size: 34px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: var(--seal);
 }
 
-/* ---------- rank / discipline ---------- */
-.profile-rank {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 360px;
-    flex-direction: column;
-}
-.profile-meter {
-    height: 10px;
-    border-radius: 5px;
-    background-color: rgba(255, 90, 31, 0.14);
+.profile-xp-bar {
+    height: 14px;
+    border-radius: 7px;
+    background-color: rgba(255, 90, 31, 0.12);
     border-width: 1px;
     border-color: var(--line);
-    margin-top: 18px;
+    margin-top: 16px;
     overflow: hidden;
 }
-.profile-meter__fill {
-    width: 10%;
+.profile-xp-bar__fill {
+    width: 64%;
     height: 100%;
-    border-radius: 5px;
+    border-radius: 7px;
     background-color: var(--ember);
 }
-.profile-rank__grid {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 14px;
+.profile-xp-label {
+    font-size: 18px;
+    color: var(--muted);
+    margin-top: 8px;
+    align-self: flex-end;
 }
-.profile-rank__item {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 150px;
-    min-width: 0;
-    margin: 4px 10px 0 0;
+
+.profile-identity-facts {
+    flex-direction: column;
+    margin-top: 28px;
 }
-.profile-mini-label {
-    font-size: 11px;
-    letter-spacing: 1px;
+.profile-identity-fact {
+    padding: 12px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(237, 230, 216, 0.1);
+}
+.profile-identity-fact__text {
+    font-size: 20px;
+    color: rgba(237, 230, 216, 0.85);
+    white-space: normal;
+}
+
+/* ---------- CENTER: capability radar (hero element) ---------- */
+.profile-radar-mount {
+    width: 100%;
+    height: 100%;
+    min-width: 440px;
+    min-height: 440px;
+    max-width: 620px;
+    max-height: 620px;
+    align-self: center;
+}
+
+/* Applied by ProfileRadarChart to the five Label vertices it positions
+   itself (absolute, centered on each computed vertex anchor point). */
+.profile-radar-label {
+    position: absolute;
+    font-size: 20px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: rgba(237, 230, 216, 0.85);
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+.profile-radar-label--value {
+    font-size: 15px;
+    -unity-font-style: normal;
     color: var(--muted);
 }
-.profile-mini-value {
-    font-size: 15px;
+
+/* ---------- RIGHT: current journey ---------- */
+.profile-section-title {
+    font-size: 26px;
     -unity-font-style: bold;
     color: var(--bone);
     white-space: normal;
 }
-
-/* ---------- stats ---------- */
-.profile-stats {
-    flex-grow: 2;
-    flex-shrink: 1;
-    flex-basis: 560px;
-    flex-direction: column;
+.profile-section-title--spaced {
+    margin-top: 30px;
 }
-.profile-stat-grid {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 14px;
-}
-.profile-stat {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 180px;
-    min-width: 0;
-    flex-direction: row;
-    align-items: center;
-    padding: 12px 14px;
-    margin: 0 10px 10px 0;
-    border-radius: 12px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.42);
-}
-.profile-stat__glyph {
-    color: var(--ember);
-    margin-right: 12px;
-}
-.profile-stat__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-}
-.profile-stat__label {
-    font-size: 13px;
+.profile-section-title--muted {
     color: var(--muted);
-    white-space: normal;
+    font-size: 22px;
 }
-.profile-stat__value {
+
+.profile-journey-kicker {
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-top: 10px;
+}
+.profile-journey-row {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+.profile-journey-value {
     font-size: 28px;
     -unity-font-style: bold;
     color: var(--bone);
 }
-
-/* ---------- badges ---------- */
-.profile-achievements {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 560px;
-    flex-direction: column;
+.profile-journey-meta {
+    font-size: 16px;
+    color: var(--muted);
 }
-.profile-badge-row {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 14px;
-}
-.profile-badge {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 160px;
-    min-width: 0;
-    align-items: center;
-    padding: 14px 12px;
-    margin: 0 10px 10px 0;
-    border-radius: 14px;
+.profile-journey-bar {
+    height: 8px;
+    border-radius: 4px;
+    background-color: rgba(255, 90, 31, 0.12);
     border-width: 1px;
     border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.42);
+    margin-top: 12px;
+    overflow: hidden;
 }
-.profile-badge__glyph {
-    color: var(--jade);
-}
-.profile-badge__glyph--seal {
-    color: var(--seal);
-}
-.profile-badge__title {
-    font-size: 17px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    margin-top: 8px;
-    -unity-text-align: middle-center;
-    white-space: normal;
-}
-.profile-badge__sub {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 3px;
-    -unity-text-align: middle-center;
-    white-space: normal;
-}
-.profile-badge--disabled {
-    opacity: 0.65;
-}
-.profile-disabled-label {
-    font-size: 10px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
-    border-radius: 6px;
-    padding: 2px 8px;
-    margin-top: 8px;
+.profile-journey-bar__fill {
+    width: 16%;
+    height: 100%;
+    border-radius: 4px;
+    background-color: var(--seal);
 }
 
-/* ---------- recent progress ---------- */
-.profile-activity {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 420px;
-    flex-direction: column;
-}
-.profile-activity-list {
+.profile-training-list {
     flex-direction: column;
     margin-top: 12px;
 }
-.profile-activity-item {
-    flex-direction: row;
-    align-items: center;
-    min-width: 0;
-    padding: 10px 0;
+.profile-training-item {
+    font-size: 19px;
+    color: rgba(237, 230, 216, 0.85);
+    padding: 8px 0;
     border-bottom-width: 1px;
     border-bottom-color: rgba(237, 230, 216, 0.08);
-}
-.profile-activity-item__glyph {
-    color: var(--muted);
-    margin-right: 14px;
-}
-.profile-activity-item--current .profile-activity-item__glyph {
-    color: var(--ember);
-}
-.profile-activity-item__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-}
-.profile-activity-item__title {
-    font-size: 17px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    white-space: normal;
-}
-.profile-activity-item__sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 2px;
-    white-space: normal;
-}
-.profile-activity-note {
-    font-size: 13px;
-    color: var(--jade);
-    margin-top: 14px;
     white-space: normal;
 }
 
-/* ---------- persistent bottom navigation dock ---------- */
-.profile-dock {
-    flex-direction: row;
-    width: 100%;
-    max-width: 1100px;
-    align-self: center;
-    justify-content: center;
-    margin-top: 8px;
-}
-.profile-tab {
-    flex-grow: 1;
-    flex-basis: 0;
-    max-width: 240px;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 8px;
-    margin: 0 6px;
-    border-radius: 14px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.5);
-}
-.profile-tab__glyph {
-    color: rgba(237, 230, 216, 0.6);
-}
-.profile-tab__label {
-    font-size: 13px;
+.profile-milestone-value {
+    font-size: 22px;
     -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: rgba(237, 230, 216, 0.6);
-    margin-top: 4px;
-}
-.profile-tab--active {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.12);
-    border-top-width: 3px;
-    border-top-color: var(--ember);
-}
-.profile-tab--active .profile-tab__glyph {
-    color: var(--ember);
-}
-.profile-tab--active .profile-tab__label {
-    color: var(--bone);
+    color: var(--jade);
+    margin-top: 6px;
+    white-space: normal;
 }

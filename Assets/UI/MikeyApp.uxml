@@ -386,6 +386,11 @@
         <!-- 7 - TECHNIQUES / LESSONS (landscape lesson hub) -->
         <ui:VisualElement name="techniques" class="screen techniques-screen">
             <Style src="Techniques/Techniques.uss" />
+            <!-- shared top-nav visual system (".map-topbar", see Map/Map.uss) is
+                 reused here exactly as-is, the same way the Japan and Okinawa map
+                 screens already both link Map.uss for it — no duplicated
+                 stylesheet, no renamed classes. -->
+            <Style src="Map/Map.uss" />
             <!-- full-bleed lesson-hub background, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="tq-bg" picking-mode="Ignore">
                 <ui:VisualElement class="tq-glow" picking-mode="Ignore" />
@@ -477,6 +482,46 @@
                 </ui:VisualElement>
 
             </ui:VisualElement>
+
+            <!-- shared top quick-access HUD (see Map/Map.uss ".map-topbar" and the
+                 "map"/"mapOkinawa" screens' own copies for the full explanation) —
+                 declared last so it paints above ".tq-layout"; ".tq-layout" gains a
+                 top offset (Techniques.uss) so its own heading is never covered.
+                 "Techniques" carries the active-section accent. Map/Profile are
+                 plain "go-" navigators (see ScreenManager): reaching Techniques
+                 already implies Map is unlocked at the same TutorialProgressState
+                 threshold, and Profile is never gated anywhere else in the app
+                 either, so no controller/gating code is needed for either link. -->
+            <ui:VisualElement class="map-topbar">
+                <ui:VisualElement class="map-topbar__nav">
+                    <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="go-map" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:VisualElement class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--techniques" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Button name="go-profile" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement class="map-topbar__right">
+                    <ui:VisualElement class="map-topbar__status">
+                        <ui:Label name="techniques-topbar-level" text="LVL 1" class="map-topbar__level" />
+                        <ui:Label name="techniques-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                    </ui:VisualElement>
+                    <ui:Button name="techniques-topbar-settings" class="map-topbar__settings-btn tap-target">
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -672,12 +717,13 @@
                         </ui:Button>
                         <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="Stats" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="map-topbar__right">
@@ -804,12 +850,13 @@
                              ordering relative to a second handler isn't guaranteed. -->
                         <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="Stats" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="map-topbar__right">
@@ -838,6 +885,9 @@
         <!-- 10 - PROFILE / PLAYER DASHBOARD (landscape, read-only frontend data) -->
         <ui:VisualElement name="profile" class="screen profile-screen">
             <Style src="Profile/Profile.uss" />
+            <!-- shared top-nav visual system (".map-topbar"), reused exactly as-is
+                 — see the same note on the "techniques" screen above. -->
+            <Style src="Map/Map.uss" />
             <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="profile-bg" picking-mode="Ignore">
                 <ui:VisualElement class="profile-glow" picking-mode="Ignore" />
@@ -845,148 +895,109 @@
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="profile-dashboard">
 
-                <!-- identity / current standing from the reference Profile hub -->
-                <ui:VisualElement class="profile-identity profile-card">
-                    <ui:Label text="人" class="profile-identity__mark profile-icon profile-icon--avatar" picking-mode="Ignore" />
-                    <ui:VisualElement class="profile-identity__body">
-                        <ui:Label text="Your dojo" class="profile-title" />
-                        <ui:Label text="1-DAY STREAK · LEVEL 1 · $10.00 BANKED" class="profile-meta" />
-                        <ui:Label text="White belt. Restoring the Heian base form and the foundation lifts." class="profile-copy" />
+            <!-- shared top quick-access HUD, exactly the same system as Map/
+                 Okinawa/Techniques (see Map/Map.uss ".map-topbar"). Reuses the
+                 SAME element names the old bottom dock used
+                 (go-menu/profile-nav-map/profile-nav-techniques/nav-profile) —
+                 only relocated + restyled — so ProfileController's existing
+                 Map/Techniques progression-gating (see ProfileProgressionTests)
+                 needs no code changes at all. "Profile" carries the active
+                 accent. Settings opens the one shared modal
+                 (SettingsModalController — "profile-topbar-settings"). -->
+            <ui:VisualElement class="map-topbar">
+                <ui:VisualElement class="map-topbar__nav">
+                    <ui:VisualElement name="go-menu" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="profile-nav-map" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="profile-nav-techniques" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="nav-profile" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--profile" picking-mode="Ignore" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
-                <!-- rank / belt / discipline summary -->
-                <ui:VisualElement class="profile-rank profile-card">
-                    <ui:VisualElement class="profile-section-head">
-                        <ui:Label text="白" class="profile-icon profile-icon--rank profile-section-head__glyph" picking-mode="Ignore" />
-                        <ui:VisualElement class="profile-section-head__body">
-                            <ui:Label text="White Belt" class="profile-card__title" />
-                            <ui:Label text="LADDER RUNG 1 · DOJO" class="profile-card__sub" />
-                        </ui:VisualElement>
+                <ui:VisualElement class="map-topbar__right">
+                    <ui:VisualElement class="map-topbar__status">
+                        <ui:Label name="profile-topbar-level" text="LVL 1" class="map-topbar__level" />
+                        <ui:Label name="profile-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="profile-meter">
-                        <ui:VisualElement class="profile-meter__fill" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="profile-rank__grid">
-                        <ui:VisualElement class="profile-rank__item">
-                            <ui:Label text="DISCIPLINE" class="profile-mini-label" />
-                            <ui:Label text="Japan · Karate" class="profile-mini-value" />
+                    <ui:Button name="profile-topbar-settings" class="map-topbar__settings-btn tap-target">
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-rank__item">
-                            <ui:Label text="FORM" class="profile-mini-label" />
-                            <ui:Label text="Heian — form restored 10%" class="profile-mini-value" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
+                    </ui:Button>
                 </ui:VisualElement>
+            </ui:VisualElement>
 
-                <!-- training statistics from the local stat model reference -->
-                <ui:VisualElement class="profile-stats profile-card">
-                    <ui:Label text="Stats" class="profile-card__title" />
-                    <ui:Label text="Your fighter's attributes" class="profile-card__sub" />
-                    <ui:VisualElement class="profile-stat-grid">
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="力" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Strength" class="profile-stat__label" />
-                                <ui:Label text="12" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="速" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Speed" class="profile-stat__label" />
-                                <ui:Label text="9" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="疾" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Agility" class="profile-stat__label" />
-                                <ui:Label text="11" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="耐" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Endurance" class="profile-stat__label" />
-                                <ui:Label text="8" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
+            <!-- three-region composition: identity (left) / capability radar
+                 (center, hero element) / current journey (right). Frontend
+                 mock data throughout — see ProfileController for the single
+                 centralized source of every placeholder value. -->
+            <ui:VisualElement class="profile-layout">
+
+                <!-- LEFT: identity / progression -->
+                <ui:VisualElement class="profile-column profile-column--identity">
+                    <ui:Label text="PROFILE" class="profile-kicker" />
+                    <ui:Label text="Mikey" class="profile-name" />
+                    <ui:VisualElement class="profile-role-row">
+                        <ui:Label text="Disciple" class="profile-role" />
+                        <ui:Label name="profile-identity-level" text="LVL 1" class="profile-role-level" />
                     </ui:VisualElement>
-                </ui:VisualElement>
 
-                <!-- achievements / badges use the reference Profile launcher labels as read-only status -->
-                <ui:VisualElement class="profile-achievements profile-card">
-                    <ui:Label text="Badges" class="profile-card__title" />
-                    <ui:VisualElement class="profile-badge-row">
-                        <ui:VisualElement class="profile-badge">
-                            <ui:Label text="録" class="profile-icon profile-icon--badge profile-badge__glyph" />
-                            <ui:Label text="Stats" class="profile-badge__title" />
-                            <ui:Label text="Your fighter's attributes" class="profile-badge__sub" />
+                    <ui:VisualElement class="profile-xp-bar">
+                        <ui:VisualElement name="profile-xp-bar-fill" class="profile-xp-bar__fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="profile-xp-label" text="320 / 500 XP" class="profile-xp-label" />
+
+                    <ui:VisualElement class="profile-identity-facts">
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="3 Day Streak" class="profile-identity-fact__text" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-badge">
-                            <ui:Label text="誓" class="profile-icon profile-icon--badge profile-badge__glyph profile-badge__glyph--seal" />
-                            <ui:Label text="The Vow" class="profile-badge__title" />
-                            <ui:Label text="Your daily commitment" class="profile-badge__sub" />
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="Chapter 0 · Okinawa" class="profile-identity-fact__text" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-badge profile-badge--disabled">
-                            <ui:Label text="金" class="profile-icon profile-icon--badge profile-badge__glyph" />
-                            <ui:Label text="Plans" class="profile-badge__title" />
-                            <ui:Label text="Membership &amp; pricing" class="profile-badge__sub" />
-                            <ui:Label text="COMING SOON" class="profile-disabled-label" />
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="1 Technique Learned" class="profile-identity-fact__text" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- recent progress/activity from the reference progression/session summary -->
-                <ui:VisualElement class="profile-activity profile-card">
-                    <ui:Label text="Recent progress" class="profile-card__title" />
-                    <ui:VisualElement class="profile-activity-list">
-                        <ui:VisualElement class="profile-activity-item">
-                            <ui:Label text="道" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="Dojo" class="profile-activity-item__title" />
-                                <ui:Label text="White belt" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-activity-item">
-                            <ui:Label text="前" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="Front Stance" class="profile-activity-item__title" />
-                                <ui:Label text="restored" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-activity-item profile-activity-item--current">
-                            <ui:Label text="今" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="You are here" class="profile-activity-item__title" />
-                                <ui:Label text="Heian — day 1" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:Label text="A fragment restored · 3 squats: 1 no-rep, 2 clean" class="profile-activity-note" />
+                <!-- CENTER: five-sided capability radar — the hero element.
+                     ProfileController mounts a ProfileRadarChart (custom
+                     VisualElement, generateVisualContent/Painter2D — see
+                     Assets/UI/Profile/ProfileRadarChart.cs) into this mount
+                     point and drives its collapse->target entrance animation. -->
+                <ui:VisualElement class="profile-column profile-column--radar">
+                    <ui:VisualElement name="profile-radar-mount" class="profile-radar-mount" />
                 </ui:VisualElement>
 
-                <!-- canonical four-tab bottom navigation dock -->
-                <ui:VisualElement class="profile-dock">
-                    <ui:VisualElement name="go-menu" class="profile-tab tap-target-lg">
-                        <ui:Label text="家" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Home" class="profile-tab__label" />
+                <!-- RIGHT: current journey / training -->
+                <ui:VisualElement class="profile-column profile-column--journey">
+                    <ui:Label text="Current Journey" class="profile-section-title" />
+                    <ui:Label text="Chapter 0" class="profile-journey-kicker" />
+                    <ui:VisualElement class="profile-journey-row">
+                        <ui:Label text="Okinawa" class="profile-journey-value" />
+                        <ui:Label text="Level 1 of 6" class="profile-journey-meta" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="profile-nav-map" class="profile-tab tap-target-lg">
-                        <ui:Label text="地" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Map" class="profile-tab__label" />
+                    <ui:VisualElement class="profile-journey-bar">
+                        <ui:VisualElement class="profile-journey-bar__fill" picking-mode="Ignore" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="profile-nav-techniques" class="profile-tab tap-target-lg">
-                        <ui:Label text="技" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Techniques" class="profile-tab__label" />
+
+                    <ui:Label text="Training" class="profile-section-title profile-section-title--spaced" />
+                    <ui:VisualElement class="profile-training-list">
+                        <ui:Label text="1 Technique Learned" class="profile-training-item" />
+                        <ui:Label text="1 Assessment Completed" class="profile-training-item" />
+                        <ui:Label text="3 Day Streak" class="profile-training-item" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-profile" class="profile-tab profile-tab--active tap-target-lg">
-                        <ui:Label text="人" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Profile" class="profile-tab__label" />
-                    </ui:VisualElement>
+
+                    <ui:Label text="Recent Milestone" class="profile-section-title profile-section-title--spaced profile-section-title--muted" />
+                    <ui:Label text="First Assessment Complete" class="profile-milestone-value" />
                 </ui:VisualElement>
 
             </ui:VisualElement>
