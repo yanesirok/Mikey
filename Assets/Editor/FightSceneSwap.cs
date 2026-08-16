@@ -12,11 +12,11 @@ namespace Mikey.FightEditor
     /// KimonoFighter_Player.fbx, the enemy KimonoFighter_Enemy.fbx, so the two read as different
     /// people rather than as one fighter in two belts.
     ///
-    /// Each fighter's root GameObject in the scene is a Model Prefab Instance of the model it is
-    /// currently wearing:
-    /// Fighter/FootIK/PlayerFighterInput(or EnemyFighterAI) live on that same root as
-    /// instance-level added components, alongside the FBX's own Animator (avatar plus
-    /// controller/applyRootMotion overrides) and its skeleton+mesh as children. FightRound's
+    /// Each fighter's root GameObject in the scene carries Fighter/FootIK/PlayerFighterInput (or
+    /// EnemyFighterAI) alongside the Animator (avatar, controller, applyRootMotion) and the
+    /// skeleton+mesh as children. The roots were Model Prefab Instances of whatever model the
+    /// fighter was wearing until the first run of this script unpacked them completely; they are
+    /// plain GameObjects now, and Swap() only unpacks when it still finds a link. FightRound's
     /// player/enemy fields and Fighter's opponent field reference those *components* directly,
     /// not the visual hierarchy, so as long as the components are never destroyed the cross
     /// references hold automatically — nothing here re-wires them by hand, and neither does it
@@ -81,8 +81,8 @@ namespace Mikey.FightEditor
 
         /// <summary>Samples the kick clip's peak onto both fighters — Edit mode has no Animator
         /// playback, so this is the only way to see the pose without entering Play — and takes
-        /// the existing capture tool's screenshot while it holds. Does not save the scene: the
-        /// pose is for the screenshot only, not a change to commit.</summary>
+        /// the existing capture tool's screenshot while it holds. Does not save the scene, and
+        /// reloads it afterwards: the pose is for the screenshot only, not a change to commit.</summary>
         [MenuItem("Mikey/Shoot Kimono Fighters Kick Pose")]
         public static void ShootKickPose()
         {
@@ -109,23 +109,39 @@ namespace Mikey.FightEditor
 
             // Around the peak of the kick, not the wind-up or the retract.
             float time = clip.length * 0.5f;
-            foreach (var fighter in fighters)
-                clip.SampleAnimation(fighter.gameObject, time);
+            try
+            {
+                foreach (var fighter in fighters)
+                    clip.SampleAnimation(fighter.gameObject, time);
 
-            FightCapture.Shoot();
-            Debug.Log("FightSceneSwap: kick pose sampled at t=" + time + "s of " + clip.length + "s");
+                FightCapture.Shoot();
+                Debug.Log("FightSceneSwap: kick pose sampled at t=" + time + "s of " + clip.length + "s");
+            }
+            finally
+            {
+                // Reload the scene from disk, the same way FightSceneTests puts back what it
+                // opened. Harmless to skip headless — the process exits — but this method has a
+                // [MenuItem] too, and OpenScene() above hands back the already-open FightSandbox
+                // when the user has it in front of them. Then the pose stays in the hierarchy,
+                // and SampleAnimation writes transforms straight past Undo, so the scene does not
+                // even go dirty to say so: the next manual save would bury a whole-skeleton pose
+                // among five thousand lines of diff.
+                EditorSceneManager.OpenScene(ScenePath);
+            }
         }
 
         static void Swap(GameObject root, GameObject model, Avatar avatar,
                          Material kimono, Material belt)
         {
-            // Bake in every current override and drop the prefab link to Ch15_nonPBR.
+            // Bake in every current override and drop the prefab link to the outgoing model. Only
+            // the first swap finds a link at all — after it the roots are plain GameObjects, and
+            // this is a no-op on every re-run.
             if (PrefabUtility.IsPartOfPrefabInstance(root))
                 PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely,
                     InteractionMode.AutomatedAction);
 
             // Old skeleton + mesh, direct children of the root — everything but the added blob
-            // shadow, which is not part of Ch15_nonPBR and stays as-is.
+            // shadow, which never came from a fighter model and stays as-is.
             foreach (var child in root.transform.Cast<Transform>().ToArray())
                 if (child.name != "BlobShadow")
                     Object.DestroyImmediate(child.gameObject);

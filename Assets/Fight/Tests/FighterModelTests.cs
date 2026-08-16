@@ -280,11 +280,15 @@ namespace Mikey.Fight.Tests
         }
     }
 
-    /// <summary>Fighter.cs owns the fighters' positions and moves them by writing
-    /// transform.position directly. That only works while the Animator is not also moving them.
-    /// The mocap clips carry real captured translation — up to 0.8 m — so the moment someone
-    /// ticks Apply Root Motion, both fighters start sliding around the arena and the arena's
-    /// bridge-deck height logic stops lining up with where they actually are.</summary>
+    /// <summary>What the scene has to hold, as opposed to what the model assets have to hold —
+    /// FighterModelTests above checks the FBX files, and every one of them stays green while the
+    /// scene wears the wrong thing.
+    ///
+    /// Fighter.cs owns the fighters' positions and moves them by writing transform.position
+    /// directly. That only works while the Animator is not also moving them. The mocap clips carry
+    /// real captured translation — up to 0.8 m — so the moment someone ticks Apply Root Motion,
+    /// both fighters start sliding around the arena and the arena's bridge-deck height logic stops
+    /// lining up with where they actually are.</summary>
     public class FightSceneTests
     {
         const string ScenePath = "Assets/Scenes/FightSandbox.unity";
@@ -292,19 +296,110 @@ namespace Mikey.Fight.Tests
         [Test]
         public void Fighters_DoNotApplyRootMotion()
         {
+            InScene(fighters =>
+            {
+                foreach (var fighter in fighters)
+                {
+                    var animator = fighter.GetComponent<Animator>();
+                    Assert.IsNotNull(animator, fighter.name + " has no Animator");
+                    Assert.IsFalse(animator.applyRootMotion,
+                        animator.name + " applies root motion; Fighter.cs already owns position");
+                }
+            });
+        }
+
+        /// <summary>Two regressions in FightSceneSwap, neither of which anything else would catch.
+        ///
+        /// One: both fighters back on a single model. That is what the script did before this
+        /// revision — one model and one avatar loaded once, above the loop — and the whole point
+        /// of the revision is that the two read as different people rather than as one fighter in
+        /// two belts. FighterModelTests checks both FBX files, and both stay green while the scene
+        /// puts the same one on both fighters.
+        ///
+        /// Two: an avatar taken from the other fighter's file. An avatar describes one specific
+        /// skeleton, so retargeting onto a different one degrades quietly — nothing throws, the
+        /// clips just stop landing where they should.</summary>
+        [Test]
+        public void Fighters_WearTheirOwnModelAndAvatar()
+        {
+            InScene(fighters =>
+            {
+                var models = new System.Collections.Generic.List<string>();
+                foreach (var fighter in fighters)
+                {
+                    var body = fighter.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                        .FirstOrDefault(s => !s.name.Contains("Kimono"));
+                    Assert.IsNotNull(body, fighter.name + " has no body mesh");
+                    var modelPath = AssetDatabase.GetAssetPath(body.sharedMesh);
+                    Assert.IsNotEmpty(modelPath, fighter.name + " wears a mesh with no asset");
+
+                    var animator = fighter.GetComponent<Animator>();
+                    Assert.IsNotNull(animator, fighter.name + " has no Animator");
+                    Assert.IsNotNull(animator.avatar, fighter.name + " has no avatar");
+                    Assert.AreEqual(modelPath, AssetDatabase.GetAssetPath(animator.avatar),
+                        fighter.name + " wears an avatar from a file other than its own mesh");
+                    models.Add(modelPath);
+                }
+                Assert.AreEqual(models.Count, models.Distinct().Count(),
+                    "the fighters share a model: " + string.Join(", ", models));
+            });
+        }
+
+        /// <summary>The belt slot has to be found by the placeholder name the FBX imported, never
+        /// by index: kimono_fit.py splits the garment as {0: cloth, 1: belt} and the FBX round trip
+        /// hands it back the other way round, so assigning new[] { kimono, belt } paints the belt
+        /// in the cloth colour and the cloth in the belt colour.
+        ///
+        /// Models_KimonoHasClothAndBeltSubmeshes does not catch that — it counts submeshes, and a
+        /// swapped pair still counts two. Nothing else does either: both materials exist, both are
+        /// on the right shader, and the mesh is intact. Only the colours are exchanged, which is
+        /// visible in a screenshot and in nothing else.
+        ///
+        /// The belt is identified as the smaller submesh (1060 triangles today against the cloth's
+        /// 10940) rather than by the literal count, so re-baking the garment at another triangle
+        /// budget does not turn this into a false alarm.</summary>
+        [Test]
+        public void Kimono_BeltSubmeshWearsTheBeltMaterial()
+        {
+            InScene(fighters =>
+            {
+                foreach (var fighter in fighters)
+                {
+                    var kimono = fighter.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                        .FirstOrDefault(s => s.name.Contains("Kimono"));
+                    Assert.IsNotNull(kimono, fighter.name + " has no kimono mesh");
+                    var mesh = kimono.sharedMesh;
+                    var tris = Enumerable.Range(0, mesh.subMeshCount)
+                        .Select(i => (int)mesh.GetIndexCount(i) / 3)
+                        .ToArray();
+                    Assert.AreEqual(2, tris.Length, fighter.name + " kimono is not cloth + belt");
+                    Assert.AreEqual(tris.Length, kimono.sharedMaterials.Length,
+                        fighter.name + " kimono has a material slot per submesh");
+
+                    var belt = System.Array.IndexOf(tris, tris.Min());
+                    var material = kimono.sharedMaterials[belt];
+                    Assert.IsNotNull(material, fighter.name + " belt submesh has no material");
+                    Assert.That(material.name, Does.EndWith("_Belt"),
+                        fighter.name + " belt submesh (" + tris[belt] + " tris) wears "
+                        + material.name + "; the cloth submesh has " + tris.Max());
+                }
+            });
+        }
+
+        /// <summary>Opens FightSandbox additively and puts it back afterwards — additively so the
+        /// scene the user has open is not replaced, and in a finally so a failed assert does not
+        /// leave it loaded for the rest of the run.</summary>
+        static void InScene(System.Action<Fighter[]> check)
+        {
             var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
                 ScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
             try
             {
-                var animators = scene.GetRootGameObjects()
-                    .SelectMany(go => go.GetComponentsInChildren<Animator>(true))
-                    .Where(a => a.GetComponent<Fighter>() != null)
+                var fighters = scene.GetRootGameObjects()
+                    .SelectMany(go => go.GetComponentsInChildren<Fighter>(true))
                     .ToArray();
-
-                Assert.IsNotEmpty(animators, "no fighters found in " + ScenePath);
-                foreach (var animator in animators)
-                    Assert.IsFalse(animator.applyRootMotion,
-                        animator.name + " applies root motion; Fighter.cs already owns position");
+                Assert.IsNotEmpty(fighters, "no fighters found in " + ScenePath);
+                check(fighters);
             }
             finally
             {

@@ -73,11 +73,12 @@ public static class FightCapture
             {
                 // The planar reflection renders itself in play mode; here it has to be driven.
                 // Driven INSIDE the warm-up loop, not once before it: the first render of a batch
-                // process comes out with its shadows crushed (see below), and a reflection
-                // rendered exactly once keeps that crushed frame forever — the water then shows
-                // black slabs in the shape of the reflected bridge, while the convergence test
-                // happily passes because a stale texture agrees with itself. Ровно так слой
-                // рельефа (2026-08-02) сутки числился виновником чужого бага.
+                // process comes out with its shadows crushed (see the comment above), and a
+                // reflection rendered exactly once keeps that crushed frame forever — the water
+                // then shows black slabs in the shape of the reflected bridge, while the
+                // convergence test happily passes because a stale texture agrees with itself.
+                // That is exactly how the relief layer (2026-08-02) spent a day being blamed for
+                // a bug that was never its own.
                 foreach (Mikey.Fight.WaterReflection reflection in
                          UnityEngine.Object.FindObjectsByType<Mikey.Fight.WaterReflection>(FindObjectsSortMode.None))
                     reflection.RenderNow();

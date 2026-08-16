@@ -1,3 +1,5 @@
+using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,18 +21,37 @@ namespace Mikey.FightEditor
         const string NormalPath = CharacterDir + "/kimono/T_Kimono_Normal.png";
         const string AoPath = CharacterDir + "/kimono/T_Kimono_AO.png";
 
+        const string BodyDir = CharacterDir + "/body";
+
         /// <summary>Every normal map the fighters sample, kimono and bodies alike. The body maps
         /// arrive with the model as plain PNGs and Unity types them Default, exactly as it did
-        /// with the kimono map before this script existed.</summary>
-        static readonly string[] NormalMapPaths =
+        /// with the kimono map before this script existed.
+        ///
+        /// The named entries are the floor of the guarantee; the body folder is swept on top of
+        /// them, so a third fighter's map is fixed the day it lands instead of importing as a
+        /// colour texture forever. A list alone is the shape of defect this project has already
+        /// shipped twice: the guard existed, but it was pinned to yesterday's asset paths.
+        /// (The paired test keeps its own explicit list on purpose — a sweep of an empty folder
+        /// passes without asserting anything.)</summary>
+        static string[] NormalMapPaths()
         {
-            NormalPath,
-            CharacterDir + "/body/Ch28_1001_Normal.png",   // Ch28_body, Ch28_hair
-            CharacterDir + "/body/Remy_Body_Normal.png",   // Bodymat, Eyelashmat
-            CharacterDir + "/body/Remy_Hair_Normal.png",   // Hairmat
-        };
+            var named = new[]
+            {
+                NormalPath,
+                BodyDir + "/Ch28_1001_Normal.png",   // Ch28_body, Ch28_hair
+                BodyDir + "/Remy_Body_Normal.png",   // Bodymat, Eyelashmat
+                BodyDir + "/Remy_Hair_Normal.png",   // Hairmat
+            };
+            if (!Directory.Exists(BodyDir))
+                return named;   // let the named paths report the miss with a usable message
+            return named
+                .Concat(Directory.GetFiles(BodyDir, "*Normal*.png")
+                    .Select(p => p.Replace('\\', '/')))
+                .Distinct()
+                .ToArray();
+        }
 
-        [MenuItem("Mikey/Setup Kimono Fighter")]
+        [MenuItem("Mikey/Setup Kimono Fighters")]
         public static void Run()
         {
             SetUpModel(PlayerModelPath);
@@ -64,7 +85,7 @@ namespace Mikey.FightEditor
         /// of the wrong magnitude everywhere it is sampled.</summary>
         static void SetUpNormalMaps()
         {
-            foreach (var path in NormalMapPaths)
+            foreach (var path in NormalMapPaths())
             {
                 var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                 if (importer == null)
