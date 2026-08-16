@@ -21,6 +21,7 @@ import sys
 
 import bpy
 import mathutils
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bridge_kit import (ATLAS, _install_deterministic_fbx_uuids, apply_mods,
@@ -55,25 +56,57 @@ def import_body(path):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.fbx(filepath=path, automatic_bone_orientation=True)
     new = [o for o in bpy.data.objects if o not in before]
-    arm = next(o for o in new if o.type == 'ARMATURE')
+    arm = next((o for o in new if o.type == 'ARMATURE'), None)
+    assert arm is not None, f'в {path} нет арматуры — тело экспортировано без скелета?'
     meshes = [o for o in new if o.type == 'MESH']
     assert meshes, 'в теле нет ни одного меша — скачано Without Skin?'
     return arm, meshes
 
 
-def import_kimono(path):
+# kimono.glb несёт пять мешей; четыре — одежда, пятый (материал 'default') —
+# манекен, на котором её моделировали: он тянется от стоп до макушки (z
+# 1.8..735.1 против 51.5..658.8 у самой одежды) и имеет самый широкий размах
+# рук из всех пяти. Склей его вместе с одеждой — и fit() станет мерить
+# масштаб по макушке манекена, что её собственный докстринг прямо запрещает
+# (кимоно кончается у воротника). Подтверждено импортом: реальные материалы
+# на пяти мешах — Belts_1, Jacket_1, Pants_1, Shirt_1, default.
+KIMONO_PARTS = ('Belts', 'Jacket', 'Pants', 'Shirt')
+
+
+def import_kimono_parts(path):
+    """Импортирует kimono.glb и склеивает только четыре части одежды, отбросив манекен.
+
+    Падает громко, а не молча, если частей одежды оказалось не четыре — регресс к
+    сценарию 'манекен снова в склейке' обязан ронять прогон, а не проходить тихо.
+    """
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
     new = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
     assert new, 'в glb нет мешей'
-    bpy.ops.object.select_all(action='DESELECT')
+
+    kept = [o for o in new if any(
+        slot.material and slot.material.name.startswith(KIMONO_PARTS)
+        for slot in o.material_slots)]
     for o in new:
+        if o not in kept:
+            bpy.data.objects.remove(o, do_unlink=True)
+    assert len(kept) == 4, (
+        f'ожидалось 4 части кимоно ({", ".join(KIMONO_PARTS)}), найдено {len(kept)}: '
+        f'{[o.name for o in kept]} — проверь материалы в kimono.glb')
+
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in kept:
         o.select_set(True)
-    bpy.context.view_layer.objects.active = new[0]
+    bpy.context.view_layer.objects.active = kept[0]
     bpy.ops.object.join()
     k = bpy.context.view_layer.objects.active
     k.name = 'Kimono_high'
+    return k
 
+
+def weld_seams_and_fix_normals(k):
+    """Сваривает швы, которые join() оставляет как задвоенные вершины, и приводит
+    нормали к единому направлению наружу."""
     # Порог сварки выводим из собственного bbox меша, тем же приёмом,
     # каким fit() выводит масштаб из костей, а не числом: на этом шаге
     # объект ещё не отмасштабирован (upright()/fit() позже), так что
@@ -87,10 +120,10 @@ def import_kimono(path):
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
 
-    # 5 склеенных объектов делят швы не по общим вершинам, а по
-    # задвоенным — join() не сваривает их. 408 несвязанных островов
+    # 4 склеенных объекта делят швы не по общим вершинам, а по
+    # задвоенным — join() не сваривает их. Несвязанные острова
     # вершин на выходе не дают smart_project ни одной крупной развёртки:
-    # 98% атласа уходит в межостровные поля. weld_threshold спаивает
+    # почти весь атлас уходит в межостровные поля. weld_threshold спаивает
     # только честные дубли шва, не трогает реальные складки, где ткань
     # просто соприкасается.
     bpy.ops.mesh.remove_doubles(threshold=weld_threshold)
@@ -102,6 +135,12 @@ def import_kimono(path):
     # Пересчитываем нормали наружу по геометрии.
     bpy.ops.mesh.normals_make_consistent(inside=False)
     bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def import_kimono(path):
+    """Импорт кимоно целиком: отбор частей одежды, склейка, сварка швов, нормали."""
+    k = import_kimono_parts(path)
+    weld_seams_and_fix_normals(k)
     return k
 
 
@@ -164,6 +203,33 @@ def make_low(high, target_tris):
     return low, n
 
 
+def capture_belt_mask(low):
+    """Per-face 'is this the belt' marker, read while low still carries the four
+    original per-part slots (Belts_1/Jacket_1/Pants_1/Shirt_1) that join() preserved
+    and decimate did not disturb. bake() wipes material slots down to one bake target
+    (bridge_kit.bake_target_material), so the split has to be captured before bake()
+    runs and reapplied after — see apply_belt_split().
+    """
+    names = [m.name if m else '' for m in low.data.materials]
+    return [names[p.material_index].startswith('Belts') for p in low.data.polygons]
+
+
+def apply_belt_split(low, is_belt):
+    """Rebuilds two material slots on the already-baked low mesh: cloth and belt.
+
+    Both slots point at placeholder materials — the baked textures are shared UV space,
+    not per-slot content — Unity/FighterImportSetup assigns the real per-team materials
+    by submesh index (0 = cloth, 1 = belt) after import. The spec wants player and enemy
+    belts in different colours, which needs its own submesh: the shader's _RimColor is a
+    fresnel highlight over the whole silhouette, not a belt.
+    """
+    low.data.materials.clear()
+    low.data.materials.append(bpy.data.materials.new('Kimono_Cloth'))
+    low.data.materials.append(bpy.data.materials.new('Kimono_Belt'))
+    for belt, poly in zip(is_belt, low.data.polygons):
+        poly.material_index = 1 if belt else 0
+
+
 # Опорные точки измерены этой же функцией на реальном пайплайне (не
 # взяты из отчёта буквально: там 1.8%/8.7% — доля незалитых ПИКСЕЛЕЙ на
 # готовом PNG, раздутая margin-выпуском запека вокруг мелких островов;
@@ -192,6 +258,67 @@ def uv_coverage(obj):
     return total
 
 
+def _pixel_array(img):
+    """RGBA float32, one row per texel."""
+    px = np.empty(img.size[0] * img.size[1] * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    return px.reshape(-1, 4)
+
+
+def _baked_mask(px, background):
+    """Texels the bake actually touched, as opposed to the untouched background fill.
+
+    bake() pre-fills both maps with a flat colour before baking (white for AO, "pointing
+    straight out" for the normal map); islands and their margin dilation are the only
+    pixels the bake operator overwrites, so anything still close to the fill is
+    background that no ray ever hit. The threshold has to clear 1/255 (~0.004): these
+    images are 8-bit-quantized even in memory (float_buffer defaults to False), so an
+    exact-fill midpoint like 0.5 comes back as ~0.498/0.502, not bit-identical — too
+    tight an epsilon (verified: 1e-4) classifies every background texel as "baked".
+    """
+    bg = np.array(background, dtype=np.float32)
+    return np.any(np.abs(px[:, :3] - bg) > 0.01, axis=1)
+
+
+# Пороги измерены на реальном негодном запеке (найден финальным ревью ветки, C2,
+# коммит перед починкой C1, где в склейку кимоно уезжал манекен): по текселям,
+# которые бейк реально тронул, AO — среднее 0.24, медиана 0.02 (половина ткани чистый
+# чёрный); синий канал нормалей — среднее 0.59 при σ 0.37 (шум, а не складки). Пороги
+# ниже заведомо ловят оба этих состояния; после починки C1 должны пройти (см. отчёт).
+AO_MEAN_MIN = 0.35
+AO_MEDIAN_MIN = 0.20
+NORMAL_BLUE_MEAN_MIN = 0.85
+NORMAL_BLUE_STD_MAX = 0.15
+
+
+def check_ao_content(ao):
+    """AO обязан заметно отличаться от чёрного там, где он реально запечён — он идёт в
+    _BaseMap при _AlbedoGamma=1, и чёрный AO там означает albedo ~0, то есть чёрную ткань."""
+    px = _pixel_array(ao)
+    lit = px[_baked_mask(px, (1.0, 1.0, 1.0)), 0]
+    assert lit.size > 0, 'AO не запёкся ни на одном текселе'
+    mean, median = float(lit.mean()), float(np.median(lit))
+    assert mean > AO_MEAN_MIN and median > AO_MEDIAN_MIN, (
+        f'AO негодный: среднее {mean:.3f}, медиана {median:.3f} по запечённым текселям '
+        f'(нужно среднее > {AO_MEAN_MIN}, медиана > {AO_MEDIAN_MIN}) — '
+        'похоже, в запек попала лишняя геометрия')
+    return mean, median
+
+
+def check_normal_content(normal):
+    """Синий канал tangent-space карты обязан группироваться у 1 (смотрит прямо наружу)
+    — иначе поверхность на экране читается как цветной шум, а не как рельеф ткани."""
+    px = _pixel_array(normal)
+    blue = px[_baked_mask(px, (0.5, 0.5, 1.0)), 2]
+    assert blue.size > 0, 'нормали не запеклись ни на одном текселе'
+    mean, std = float(blue.mean()), float(blue.std())
+    assert mean > NORMAL_BLUE_MEAN_MIN and std < NORMAL_BLUE_STD_MAX, (
+        f'карта нормалей — шум: синий канал среднее {mean:.3f}, σ {std:.3f} '
+        f'(нужно среднее > {NORMAL_BLUE_MEAN_MIN}, σ < {NORMAL_BLUE_STD_MAX}) — '
+        'похоже, в запек попала лишняя геометрия')
+    return mean, std
+
+
 def bake(low, high, out_dir):
     normal = bpy.data.images.new('T_Kimono_Normal', ATLAS, ATLAS,
                                  alpha=False, is_data=True)
@@ -200,6 +327,12 @@ def bake(low, high, out_dir):
     fill(normal, (0.5, 0.5, 1.0, 1.0))
     fill(ao, (1.0, 1.0, 1.0, 1.0))
     bake_pair(low, high, normal, ao)
+
+    ao_mean, ao_median = check_ao_content(ao)
+    n_mean, n_std = check_normal_content(normal)
+    print(f'kimono_fit: запек — AO среднее {ao_mean:.3f} медиана {ao_median:.3f}, '
+          f'нормали синий среднее {n_mean:.3f} sigma {n_std:.3f}')
+
     save_png(normal, os.path.join(out_dir, 'T_Kimono_Normal.png'))
     save_png(ao, os.path.join(out_dir, 'T_Kimono_AO.png'))
 
@@ -307,7 +440,8 @@ def verify_export(path):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.fbx(filepath=path)
     new = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
-    kimono = next(o for o in new if o.name == 'Kimono_low')
+    kimono = next((o for o in new if o.name == 'Kimono_low'), None)
+    assert kimono is not None, f'в {path} нет меша Kimono_low — экспорт переименовал его?'
     body = [o for o in new if o is not kimono]
     bmn, bmx = world_bbox(body)
     kmn, kmx = world_bbox([kimono])
@@ -348,8 +482,11 @@ def main():
     assert coverage >= UV_COVERAGE_MIN, (
         f'атлас заполнен на {coverage:.1%} — развёртка развалилась '
         f'(ниже порога {UV_COVERAGE_MIN:.0%}, см. UV_COVERAGE_MIN)')
+    print(f'kimono_fit: атлас заполнен на {coverage:.1%}')
 
+    is_belt = capture_belt_mask(low)
     bake(low, kimono, a.out)
+    apply_belt_split(low, is_belt)
 
     # High-poly больше не нужен. Удаляем сразу: в экспорт по
     # object_types={'MESH'} он уехал бы молча, и вместо 12k в Unity

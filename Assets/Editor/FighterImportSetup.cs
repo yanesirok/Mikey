@@ -23,6 +23,7 @@ namespace Mikey.FightEditor
         {
             SetUpModel();
             SetUpNormalMap();
+            SetUpAoMap();
             CreateMaterials();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -54,6 +55,21 @@ namespace Mikey.FightEditor
             importer.SaveAndReimport();
         }
 
+        /// <summary>bake() writes this map with is_data=True — linear values, not sRGB. Unity
+        /// defaults a new PNG's import to sRGB, which decodes it a second time and crushes the
+        /// midtones before _AlbedoGamma even gets a chance to apply.</summary>
+        static void SetUpAoMap()
+        {
+            var importer = AssetImporter.GetAtPath(AoPath) as TextureImporter;
+            if (importer == null)
+                throw new System.IO.FileNotFoundException(AoPath + " is not in the project");
+            if (!importer.sRGBTexture)
+                return;
+
+            importer.sRGBTexture = false;
+            importer.SaveAndReimport();
+        }
+
         static void CreateMaterials()
         {
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
@@ -75,6 +91,13 @@ namespace Mikey.FightEditor
                    new Color(0.91f, 0.89f, 0.85f), new Color(0.23f, 0.29f, 0.62f));
             Kimono(shader, CharacterDir + "/M_Enemy_Kimono.mat", normal, ao,
                    new Color(0.16f, 0.16f, 0.19f), new Color(0.48f, 0.12f, 0.16f));
+
+            // Belt is its own submesh again (kimono_fit.py: capture_belt_mask /
+            // apply_belt_split), so it gets its own material rather than borrowing the rim.
+            Belt(shader, CharacterDir + "/M_Player_Belt.mat", normal, ao,
+                 new Color(0.23f, 0.29f, 0.62f));
+            Belt(shader, CharacterDir + "/M_Enemy_Belt.mat", normal, ao,
+                 new Color(0.48f, 0.12f, 0.16f));
         }
 
         /// <summary>The kimono has no albedo texture — all five of its source materials are flat
@@ -82,21 +105,37 @@ namespace Mikey.FightEditor
         /// _AlbedoGamma is forced to 1: its 0.45 default exists to lift the near-black diffuse of
         /// the previous character and would wash an AO map out.
         ///
-        /// The belt is a separate submesh in the source garment, but the export merges the cloth
-        /// into one mesh, so the belt colour is carried as the rim rather than as a second
-        /// material — one draw call instead of two on a mobile target.
+        /// _RimColor is a fresnel highlight over the whole silhouette (see Character.shader),
+        /// tinted per team so the two fighters read apart even in the mist background — it is
+        /// not, and cannot be, the belt colour. The belt itself is Belt(), below.
         /// </summary>
         static void Kimono(Shader shader, string path, Texture normal, Texture ao,
                            Color cloth, Color accent)
         {
+            var mat = ClothLike(shader, path, normal, ao, cloth);
+            mat.SetColor("_RimColor", accent);
+        }
+
+        /// <summary>Kimono_low carries two submeshes on export — cloth and belt — sharing the
+        /// same baked atlas, so the belt gets real AO/normal detail rather than a flat patch;
+        /// only _BaseColor differs from Kimono(), which is what makes player and enemy belts
+        /// different colours as the spec asks for.</summary>
+        static void Belt(Shader shader, string path, Texture normal, Texture ao, Color color)
+        {
+            ClothLike(shader, path, normal, ao, color);
+        }
+
+        static Material ClothLike(Shader shader, string path, Texture normal, Texture ao,
+                                  Color baseColor)
+        {
             var mat = Material(shader, path);
             mat.SetTexture("_BaseMap", ao);
             mat.SetTexture("_BumpMap", normal);
-            mat.SetColor("_BaseColor", cloth);
-            mat.SetColor("_RimColor", accent);
+            mat.SetColor("_BaseColor", baseColor);
             mat.SetFloat("_AlbedoGamma", 1f);
             mat.SetFloat("_BumpScale", 1.4f);
             mat.SetFloat("_Smoothness", 0.12f);   // cotton, not silk
+            return mat;
         }
 
         static Material Material(Shader shader, string path)

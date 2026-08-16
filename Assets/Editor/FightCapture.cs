@@ -49,15 +49,6 @@ public static class FightCapture
             antiAliasing = 1, // MSAA comes from the URP asset; forcing it here double-resolves
         };
 
-        // The planar water reflection renders itself in play mode, where URP walks every enabled
-        // camera that owns a target texture. Here there is no player loop at all — Shoot renders
-        // one camera by hand — so it has to be driven, or the water samples its black default and
-        // the capture shows a lake with nothing in it. Which is exactly how a mirrored reflection
-        // and an inside-out one both went unnoticed.
-        foreach (Mikey.Fight.WaterReflection reflection in
-                 UnityEngine.Object.FindObjectsByType<Mikey.Fight.WaterReflection>(FindObjectsSortMode.None))
-            reflection.RenderNow();
-
         RenderTexture previous = RenderTexture.active;
         var shot = new Texture2D(width, height, TextureFormat.RGB24, false);
         try
@@ -80,6 +71,16 @@ public static class FightCapture
             float settled = float.NaN;
             for (int attempt = 0; attempt < 5; attempt++)
             {
+                // The planar reflection renders itself in play mode; here it has to be driven.
+                // Driven INSIDE the warm-up loop, not once before it: the first render of a batch
+                // process comes out with its shadows crushed (see below), and a reflection
+                // rendered exactly once keeps that crushed frame forever — the water then shows
+                // black slabs in the shape of the reflected bridge, while the convergence test
+                // happily passes because a stale texture agrees with itself. Ровно так слой
+                // рельефа (2026-08-02) сутки числился виновником чужого бага.
+                foreach (Mikey.Fight.WaterReflection reflection in
+                         UnityEngine.Object.FindObjectsByType<Mikey.Fight.WaterReflection>(FindObjectsSortMode.None))
+                    reflection.RenderNow();
                 cam.Render();
                 shot.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 shot.Apply();

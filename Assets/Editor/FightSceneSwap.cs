@@ -53,6 +53,8 @@ namespace Mikey.FightEditor
             var skin = LoadMaterial(CharacterDir + "/M_Fighter_Skin.mat");
             var playerKimono = LoadMaterial(CharacterDir + "/M_Player_Kimono.mat");
             var enemyKimono = LoadMaterial(CharacterDir + "/M_Enemy_Kimono.mat");
+            var playerBelt = LoadMaterial(CharacterDir + "/M_Player_Belt.mat");
+            var enemyBelt = LoadMaterial(CharacterDir + "/M_Enemy_Belt.mat");
 
             var fighters = scene.GetRootGameObjects()
                 .SelectMany(go => go.GetComponentsInChildren<Fighter>(true))
@@ -63,7 +65,8 @@ namespace Mikey.FightEditor
             foreach (var fighter in fighters)
             {
                 bool isPlayer = fighter.GetComponent<PlayerFighterInput>() != null;
-                Swap(fighter.gameObject, model, avatar, skin, isPlayer ? playerKimono : enemyKimono);
+                Swap(fighter.gameObject, model, avatar, skin,
+                     isPlayer ? playerKimono : enemyKimono, isPlayer ? playerBelt : enemyBelt);
             }
 
             EditorSceneManager.SaveScene(scene);
@@ -107,7 +110,8 @@ namespace Mikey.FightEditor
             Debug.Log("FightSceneSwap: kick pose sampled at t=" + time + "s of " + clip.length + "s");
         }
 
-        static void Swap(GameObject root, GameObject model, Avatar avatar, Material skin, Material kimono)
+        static void Swap(GameObject root, GameObject model, Avatar avatar, Material skin,
+                         Material kimono, Material belt)
         {
             // Bake in every current override and drop the prefab link to Ch15_nonPBR.
             if (PrefabUtility.IsPartOfPrefabInstance(root))
@@ -129,10 +133,16 @@ namespace Mikey.FightEditor
 
             root.GetComponent<Animator>().avatar = avatar;
             SetMaterial(root, "Human", skin);
-            SetMaterial(root, "Kimono_low", kimono);
+            // Kimono_low carries two submeshes — cloth then belt (kimono_fit.py:
+            // apply_belt_split) — so it needs the array setter: Renderer.sharedMaterial only
+            // ever touches submesh 0, leaving the belt on whatever Unity auto-imported.
+            SetMaterials(root, "Kimono_low", new[] { kimono, belt });
         }
 
-        static void SetMaterial(GameObject root, string childName, Material material)
+        static void SetMaterial(GameObject root, string childName, Material material) =>
+            SetMaterials(root, childName, new[] { material });
+
+        static void SetMaterials(GameObject root, string childName, Material[] materials)
         {
             var child = root.transform.Find(childName);
             if (child == null)
@@ -141,7 +151,11 @@ namespace Mikey.FightEditor
             var renderer = child.GetComponent<SkinnedMeshRenderer>();
             if (renderer == null)
                 throw new System.InvalidOperationException(childName + " has no SkinnedMeshRenderer");
-            renderer.sharedMaterial = material;
+            if (renderer.sharedMesh.subMeshCount != materials.Length)
+                throw new System.InvalidOperationException(
+                    childName + " has " + renderer.sharedMesh.subMeshCount + " submesh(es), expected "
+                    + materials.Length);
+            renderer.sharedMaterials = materials;
         }
 
         static Material LoadMaterial(string path)

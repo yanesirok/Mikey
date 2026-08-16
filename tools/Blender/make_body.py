@@ -10,12 +10,19 @@
 на который опирается kimono_fit.py — fit() ищет mixamorig:Neck и
 mixamorig:LeftToeBase, strip_covered() отбирает вершины по именам костей.
 Возьми другой риг — и оба сломаются молча.
+
+Детерминизм FBX (конвенция репо, см. шапку bridge_kit.py) берём оттуда же
+патчем UUID узлов — reset_scene() из bridge_kit НЕ вызываем, он выключает
+MPFB2 через read_factory_settings, что здесь недопустимо.
 """
 import argparse
 import os
 import sys
 
 import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bridge_kit import _install_deterministic_fbx_uuids
 
 
 def parse_args():
@@ -83,6 +90,7 @@ def main():
     bpy.context.view_layer.objects.active = arm
     # use_mesh_modifiers применяет маску 'Hide helpers' — вспомогательная
     # геометрия MPFB для примерки одежды в экспорт не уезжает.
+    _install_deterministic_fbx_uuids()
     bpy.ops.export_scene.fbx(
         filepath=os.path.abspath(a.out), use_selection=True,
         object_types={'MESH', 'ARMATURE'}, add_leaf_bones=False,
@@ -90,7 +98,15 @@ def main():
         bake_space_transform=True, axis_forward='-Z', axis_up='Y',
         use_mesh_modifiers=True)
 
-    print(f'make_body: {len(mesh.data.vertices)} вершин, {len(bones)} костей, '
+    # len(mesh.data.vertices) — это счёт ДО модификатора-маски 'Hide helpers', то есть
+    # не то число, что реально уезжает в FBX (use_mesh_modifiers применяет маску при
+    # экспорте, не трогая сам mesh.data). Печатаем пост-масочное число через evaluated
+    # depsgraph — иначе отчёт вводит в заблуждение, как уже было один раз (19158 против
+    # реальных 13380 в экспорте).
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    exported_verts = len(mesh.evaluated_get(depsgraph).data.vertices)
+    print(f'make_body: {exported_verts} вершин в экспорте '
+          f'({len(mesh.data.vertices)} до маски Hide helpers), {len(bones)} костей, '
           f'рост {mesh.dimensions.z:.3f} м -> {os.path.abspath(a.out)}')
 
 
