@@ -8,10 +8,12 @@ using Mikey.Fight;
 
 namespace Mikey.FightEditor
 {
-    /// <summary>Swaps both fighters' visual model in FightSandbox from the retired
-    /// Ch15_nonPBR.fbx to KimonoFighter.fbx, in place.
+    /// <summary>Swaps each fighter's visual model in FightSandbox in place — the player gets
+    /// KimonoFighter_Player.fbx, the enemy KimonoFighter_Enemy.fbx, so the two read as different
+    /// people rather than as one fighter in two belts.
     ///
-    /// Each fighter's root GameObject in the scene is a Model Prefab Instance of Ch15_nonPBR.fbx:
+    /// Each fighter's root GameObject in the scene is a Model Prefab Instance of the model it is
+    /// currently wearing:
     /// Fighter/FootIK/PlayerFighterInput(or EnemyFighterAI) live on that same root as
     /// instance-level added components, alongside the FBX's own Animator (avatar plus
     /// controller/applyRootMotion overrides) and its skeleton+mesh as children. FightRound's
@@ -22,20 +24,22 @@ namespace Mikey.FightEditor
     ///
     /// The swap itself: fully unpack the fighter's prefab instance (bakes every current override
     /// — applyRootMotion=false, opponent, moveSpeed, weight, touch/attackCooldown, the added
-    /// BlobShadow child — into plain data and drops every remaining reference to Ch15_nonPBR's
-    /// GUID except the two the visual model itself still owns: the Animator's avatar and the
-    /// SkinnedMeshRenderer's mesh); delete the old skeleton+mesh children; instantiate
-    /// KimonoFighter.fbx, unpack that too so its children can be freely reparented, and move its
-    /// Armature/Human/Kimono_low straight onto the fighter root at the same depth they had under
+    /// BlobShadow child — into plain data and drops every remaining reference to the outgoing
+    /// model's GUID except the two the visual model itself still owns: the Animator's avatar and
+    /// the SkinnedMeshRenderer's mesh); delete the old skeleton+mesh children; instantiate
+    /// the fighter's own model, unpack that too so its children can be freely reparented, and
+    /// move its Armature plus every mesh straight onto the fighter root at the same depth under
     /// the model's own root — the avatar's bone paths are relative to that root and only resolve
-    /// if the Animator ends up exactly one level above "Armature" again. Avatar and materials are
-    /// reassigned last.
+    /// if the Animator ends up exactly one level above "Armature" again. Avatar and kimono
+    /// materials are reassigned last; body, hair and eye materials are left exactly as the model
+    /// delivers them, because they are Mixamo's own and carry the face texture.
     /// </summary>
     public static class FightSceneSwap
     {
         const string ScenePath = "Assets/Scenes/FightSandbox.unity";
-        const string ModelPath = "Assets/Fight/character/KimonoFighter.fbx";
         const string CharacterDir = "Assets/Fight/character";
+        const string PlayerModelPath = CharacterDir + "/KimonoFighter_Player.fbx";
+        const string EnemyModelPath = CharacterDir + "/KimonoFighter_Enemy.fbx";
         const string ControllerPath = "Assets/Fight/Fighter.controller";
 
         [MenuItem("Mikey/Swap Fighters To Kimono")]
@@ -43,14 +47,6 @@ namespace Mikey.FightEditor
         {
             var scene = OpenScene();
 
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
-            if (model == null)
-                throw new FileNotFoundException(ModelPath + " is not in the project");
-            var avatar = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Avatar>().FirstOrDefault();
-            if (avatar == null)
-                throw new System.InvalidOperationException(ModelPath + " carries no avatar");
-
-            var skin = LoadMaterial(CharacterDir + "/M_Fighter_Skin.mat");
             var playerKimono = LoadMaterial(CharacterDir + "/M_Player_Kimono.mat");
             var enemyKimono = LoadMaterial(CharacterDir + "/M_Enemy_Kimono.mat");
             var playerBelt = LoadMaterial(CharacterDir + "/M_Player_Belt.mat");
@@ -65,12 +61,22 @@ namespace Mikey.FightEditor
             foreach (var fighter in fighters)
             {
                 bool isPlayer = fighter.GetComponent<PlayerFighterInput>() != null;
-                Swap(fighter.gameObject, model, avatar, skin,
+                var modelPath = isPlayer ? PlayerModelPath : EnemyModelPath;
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+                if (model == null)
+                    throw new FileNotFoundException(modelPath + " is not in the project");
+                // From the same file as the mesh, not from a shared model: an avatar describes
+                // one specific skeleton, and retargeting silently stops working on another.
+                var avatar = AssetDatabase.LoadAllAssetsAtPath(modelPath).OfType<Avatar>().FirstOrDefault();
+                if (avatar == null)
+                    throw new System.InvalidOperationException(modelPath + " carries no avatar");
+
+                Swap(fighter.gameObject, model, avatar,
                      isPlayer ? playerKimono : enemyKimono, isPlayer ? playerBelt : enemyBelt);
             }
 
             EditorSceneManager.SaveScene(scene);
-            Debug.Log("FightSceneSwap: done, " + fighters.Length + " fighter(s) now on KimonoFighter.fbx");
+            Debug.Log("FightSceneSwap: done, " + fighters.Length + " fighter(s) on their own model");
         }
 
         /// <summary>Samples the kick clip's peak onto both fighters — Edit mode has no Animator
@@ -110,7 +116,7 @@ namespace Mikey.FightEditor
             Debug.Log("FightSceneSwap: kick pose sampled at t=" + time + "s of " + clip.length + "s");
         }
 
-        static void Swap(GameObject root, GameObject model, Avatar avatar, Material skin,
+        static void Swap(GameObject root, GameObject model, Avatar avatar,
                          Material kimono, Material belt)
         {
             // Bake in every current override and drop the prefab link to Ch15_nonPBR.
@@ -132,30 +138,47 @@ namespace Mikey.FightEditor
             Object.DestroyImmediate(instance);
 
             root.GetComponent<Animator>().avatar = avatar;
-            SetMaterial(root, "Human", skin);
-            // Kimono_low carries two submeshes — cloth then belt (kimono_fit.py:
-            // apply_belt_split) — so it needs the array setter: Renderer.sharedMaterial only
-            // ever touches submesh 0, leaving the belt on whatever Unity auto-imported.
-            SetMaterials(root, "Kimono_low", new[] { kimono, belt });
+            SetKimonoMaterials(root, kimono, belt);
         }
 
-        static void SetMaterial(GameObject root, string childName, Material material) =>
-            SetMaterials(root, childName, new[] { material });
-
-        static void SetMaterials(GameObject root, string childName, Material[] materials)
+        /// <summary>Assigns the two kimono materials by the name of the placeholder the FBX
+        /// imported into each slot, never by slot index.
+        ///
+        /// The submesh order flips between Blender and Unity: kimono_fit.py splits the garment as
+        /// {0: cloth 10940 tris, 1: belt 1060}, and both models come back out of the FBX import as
+        /// submesh 0 = Kimono_Belt (1060), submesh 1 = Kimono_Cloth (10940). Writing
+        /// new[] { kimono, belt } would therefore paint the belt in the cloth colour and the cloth
+        /// in the belt colour, and nothing in the suite would go red over it —
+        /// Models_KimonoHasClothAndBeltSubmeshes only counts submeshes, and a swapped pair still
+        /// counts two. The placeholder names travel with the mesh, so they survive a reorder.
+        ///
+        /// It has to be the array setter either way: Renderer.sharedMaterial only ever touches
+        /// submesh 0, leaving the other slot on whatever Unity auto-imported.</summary>
+        static void SetKimonoMaterials(GameObject root, Material kimono, Material belt)
         {
-            var child = root.transform.Find(childName);
+            var child = root.transform.Find("Kimono_low");
             if (child == null)
                 throw new System.InvalidOperationException(
-                    root.name + " has no child named " + childName + " after the swap");
+                    root.name + " has no child named Kimono_low after the swap");
             var renderer = child.GetComponent<SkinnedMeshRenderer>();
             if (renderer == null)
-                throw new System.InvalidOperationException(childName + " has no SkinnedMeshRenderer");
-            if (renderer.sharedMesh.subMeshCount != materials.Length)
+                throw new System.InvalidOperationException("Kimono_low has no SkinnedMeshRenderer");
+
+            var slots = renderer.sharedMaterials;
+            if (slots.Length != 2)
                 throw new System.InvalidOperationException(
-                    childName + " has " + renderer.sharedMesh.subMeshCount + " submesh(es), expected "
-                    + materials.Length);
-            renderer.sharedMaterials = materials;
+                    "Kimono_low has " + slots.Length + " material slot(s), expected cloth + belt");
+            for (int i = 0; i < slots.Length; i++)
+            {
+                var placeholder = slots[i] == null ? null : slots[i].name;
+                if (placeholder == "Kimono_Cloth") slots[i] = kimono;
+                else if (placeholder == "Kimono_Belt") slots[i] = belt;
+                else
+                    throw new System.InvalidOperationException(
+                        "Kimono_low slot " + i + " holds " + (placeholder ?? "nothing")
+                        + ", expected Kimono_Cloth or Kimono_Belt");
+            }
+            renderer.sharedMaterials = slots;
         }
 
         static Material LoadMaterial(string path)
