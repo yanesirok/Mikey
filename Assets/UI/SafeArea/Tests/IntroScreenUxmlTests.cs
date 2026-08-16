@@ -11,10 +11,13 @@ namespace Mikey.UI.SafeArea.Tests
     /// Structural + navigation contract for the landscape Intro screen after the
     /// entry-flow consolidation. Mirrors the MikeyAppUxmlTests approach (clone the
     /// real UXML, assert on the resulting tree) so the production markup is the
-    /// single source of truth. Both Intro actions (Skip + primary CTA) now route
-    /// forward to the Home hub via 'go-menu'; the old loop back to Title is gone.
-    /// Since the minimal-placeholder pass, also covers the pure-black background
-    /// and the retired atmospheric glow/multi-beat copy sequence.
+    /// single source of truth. Both Intro actions (Skip + primary CTA) route
+    /// forward to the Home hub as 'lore-skip'/'lore-continue' — deliberately not
+    /// 'go-menu' navigators, so LoreExitController (not ScreenManager's auto-
+    /// wiring) drives their cinematic fade-to-black-then-navigate exit; see
+    /// LoreExitControllerTests. The old loop back to Title is gone. Since the
+    /// minimal-placeholder pass, also covers the pure-black background and the
+    /// retired atmospheric glow/multi-beat copy sequence.
     /// </summary>
     public class IntroScreenUxmlTests
     {
@@ -72,43 +75,46 @@ namespace Mikey.UI.SafeArea.Tests
                     ".intro-bg must live OUTSIDE .safe-area-content (full-bleed).");
         }
 
-        // 4 — both production actions now exist as 'go-menu' navigators.
+        // 4 — both production actions exist, named for LoreExitController (not 'go-menu').
         [Test]
-        public void BothProductionActions_Exist_AsGoMenu()
+        public void BothProductionActions_Exist_AsLoreSkipAndLoreContinue()
         {
-            var actions = Intro().Query<Button>(name: "go-menu").ToList();
-            Assert.AreEqual(2, actions.Count,
-                "Intro must expose exactly two production actions (Skip + primary CTA), both 'go-menu'.");
+            Assert.IsNotNull(Intro().Q<Button>("lore-skip"), "Intro must expose a 'lore-skip' action.");
+            Assert.IsNotNull(Intro().Q<Button>("lore-continue"), "Intro must expose a 'lore-continue' action.");
+            Assert.IsEmpty(Intro().Query<Button>(name: "go-menu").ToList(),
+                "Intro's exit actions must not be 'go-menu' navigators — LoreExitController drives their cinematic exit instead.");
         }
 
-        // 5 + 13 — both Intro actions target the existing Home ('menu') screen.
+        // 5 + 13 — both Intro actions ultimately reach the existing Home ('menu')
+        // screen — via LoreExitController's transition, not ScreenManager's
+        // 'go-<id>' auto-wiring convention (see LoreExitControllerTests for the
+        // NextScreenId = "menu" contract).
         [Test]
         public void BothIntroActions_TargetMenuScreen()
         {
             var root = BuildTree();
             var intro = root.Q<VisualElement>("intro");
-            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
-            var actions = intro.Query<Button>(name: "go-menu").ToList();
-            Assert.AreEqual(2, actions.Count, "Both Intro actions must be 'go-menu' navigators.");
+            Assert.IsNotNull(intro.Q<Button>("lore-skip"), "Expected a 'lore-skip' action.");
+            Assert.IsNotNull(intro.Q<Button>("lore-continue"), "Expected a 'lore-continue' action.");
             var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "'go-menu' must target an existing 'menu' (Home) screen.");
+            Assert.IsNotNull(menu, "Lore's exit must target an existing 'menu' (Home) screen.");
             Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
         }
 
-        // 10 — Skip uses go-menu (and is the .intro-skip action).
+        // 10 — Skip is 'lore-skip' (and is the .intro-skip action).
         [Test]
-        public void IntroSkip_UsesGoMenu()
+        public void IntroSkip_IsLoreSkip()
         {
-            var skip = Intro().Query<Button>(name: "go-menu", className: "intro-skip").ToList();
-            Assert.AreEqual(1, skip.Count, "Intro Skip must be a single 'go-menu' button with .intro-skip.");
+            var skip = Intro().Query<Button>(name: "lore-skip", className: "intro-skip").ToList();
+            Assert.AreEqual(1, skip.Count, "Intro Skip must be a single 'lore-skip' button with .intro-skip.");
         }
 
-        // 11 — primary action uses go-menu (and is the .intro-primary action).
+        // 11 — primary action is 'lore-continue' (and is the .intro-primary action).
         [Test]
-        public void IntroPrimary_UsesGoMenu()
+        public void IntroPrimary_IsLoreContinue()
         {
-            var primary = Intro().Query<Button>(name: "go-menu", className: "intro-primary").ToList();
-            Assert.AreEqual(1, primary.Count, "Intro primary CTA must be a single 'go-menu' button with .intro-primary.");
+            var primary = Intro().Query<Button>(name: "lore-continue", className: "intro-primary").ToList();
+            Assert.AreEqual(1, primary.Count, "Intro primary CTA must be a single 'lore-continue' button with .intro-primary.");
         }
 
         // 12 — Skip and primary keep distinct semantic classes.
@@ -116,10 +122,10 @@ namespace Mikey.UI.SafeArea.Tests
         public void PrimaryAndSkip_HaveDistinctSemanticClasses()
         {
             var intro = Intro();
-            var primary = intro.Query<Button>(name: "go-menu", className: "intro-primary").ToList();
-            var skip = intro.Query<Button>(name: "go-menu", className: "intro-skip").ToList();
-            Assert.AreEqual(1, primary.Count, "Exactly one go-menu must carry .intro-primary.");
-            Assert.AreEqual(1, skip.Count, "Exactly one go-menu must carry .intro-skip.");
+            var primary = intro.Query<Button>(name: "lore-continue", className: "intro-primary").ToList();
+            var skip = intro.Query<Button>(name: "lore-skip", className: "intro-skip").ToList();
+            Assert.AreEqual(1, primary.Count, "Exactly one 'lore-continue' must carry .intro-primary.");
+            Assert.AreEqual(1, skip.Count, "Exactly one 'lore-skip' must carry .intro-skip.");
             Assert.AreNotSame(primary[0], skip[0], "Primary and Skip must be distinct elements.");
         }
 
@@ -135,9 +141,13 @@ namespace Mikey.UI.SafeArea.Tests
         [Test]
         public void InteractiveControls_UseMinimumTouchTargetClass()
         {
-            foreach (var action in Intro().Query<Button>(name: "go-menu").ToList())
+            foreach (var name in new[] { "lore-skip", "lore-continue" })
+            {
+                var action = Intro().Q<Button>(name);
+                Assert.IsNotNull(action, $"Expected a '{name}' action.");
                 Assert.IsTrue(action.ClassListContains("tap-target"),
                     "Each production action must carry the .tap-target minimum-touch-target class.");
+            }
         }
 
         // 8
@@ -174,7 +184,7 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         // Minimal placeholder pass: one honest "not ready yet" statement rather
-        // than a scripted multi-beat sequence, ending on Continue (go-menu).
+        // than a scripted multi-beat sequence, ending on Continue (lore-continue).
         [Test]
         public void PlaceholderCopy_Exists_PrimaryAndSecondary()
         {
@@ -193,8 +203,8 @@ namespace Mikey.UI.SafeArea.Tests
         [Test]
         public void ContinueCta_ExistsAndReadsContinue()
         {
-            var continueCta = Intro().Query<Button>(name: "go-menu", className: "intro-primary").ToList();
-            Assert.AreEqual(1, continueCta.Count, "Expected a single Continue (go-menu/.intro-primary) action.");
+            var continueCta = Intro().Query<Button>(name: "lore-continue", className: "intro-primary").ToList();
+            Assert.AreEqual(1, continueCta.Count, "Expected a single Continue (lore-continue/.intro-primary) action.");
             Assert.AreEqual("Continue", continueCta[0].Q<Label>(className: "intro-cta__text")?.text);
         }
 

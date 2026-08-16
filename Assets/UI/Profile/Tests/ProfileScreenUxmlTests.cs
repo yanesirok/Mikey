@@ -300,7 +300,10 @@ namespace Mikey.UI.Profile.Tests
         {
             var root = BuildTree();
             Assert.IsNotNull(Screen(root, "title"));
-            Assert.IsNotEmpty(Screen(root, "intro").Query<VisualElement>(name: "go-menu").ToList());
+            // Intro's exit is 'lore-skip'/'lore-continue' (LoreExitController's
+            // cinematic transition), not a 'go-menu' navigator.
+            Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-skip"));
+            Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-continue"));
             Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-map"), "Main Menu's PLAY must route to Map.");
             Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
             Assert.IsNotNull(Screen(root, "camTest").Q<Button>("go-combine"));

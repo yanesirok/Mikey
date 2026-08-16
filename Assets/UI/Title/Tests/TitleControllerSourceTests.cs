@@ -114,5 +114,79 @@ namespace Mikey.UI.Title.Tests
             StringAssert.Contains("_videoAudio.volume = _audioSettings?.SfxVolume ?? 1f;", source,
                 "The embedded logo SFX must respect the current SFX volume.");
         }
+
+        // --- Cinematic launch transition (final-logo hold + shell readiness + fade) ---
+
+        [Test]
+        public void Advance_NoLongerNavigatesDirectly_StartsAdvanceRoutineInstead()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_advanceRoutine = StartCoroutine(AdvanceRoutine());", source,
+                "Advance() must kick off the cinematic advance sequence, not navigate synchronously.");
+            StringAssert.Contains("private IEnumerator AdvanceRoutine()", source);
+        }
+
+        [Test]
+        public void AdvanceRoutine_ShowsLogoHold_BeforeAnythingElse()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int routineIndex = source.IndexOf("private IEnumerator AdvanceRoutine()", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(routineIndex, 0, "Expected an AdvanceRoutine() method.");
+            int holdIndex = source.IndexOf("ShowLogoHold();", routineIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(holdIndex, 0,
+                "AdvanceRoutine must call ShowLogoHold() — natural completion, tap-skip and the error fallback all funnel through Advance()/AdvanceRoutine(), so all three enter the same hold, never a hard cut to Lore.");
+        }
+
+        [Test]
+        public void ShowLogoHold_StopsVideoAndCrossfadesToTheStaticLogoImage()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private void ShowLogoHold()", source);
+            StringAssert.Contains("_videoTarget.style.opacity = 0f;", source,
+                "The video must be hidden once the hold begins.");
+            StringAssert.Contains("_logoHoldTarget.style.opacity = 1f;", source,
+                "The static final-logo hold image must become visible in the same moment the video hides, so the swap reads as seamless.");
+        }
+
+        [Test]
+        public void AdvanceRoutine_WaitsOnShellPreloader_ButNeverBlocksForeverIfAbsent()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("while (_shellPreloader != null && !_shellPreloader.IsReady)", source,
+                "The hold must wait for the shell (Main Menu video) to be ready, but a null preloader (e.g. missing component) must never hang Logo Intro forever.");
+        }
+
+        [Test]
+        public void AdvanceRoutine_AppliesMinimumHold_SoItNeverFlashesByOnFastDevices()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float MinHoldSeconds = 0.25f;", source);
+            StringAssert.Contains("float remainingHold = MinHoldSeconds - (Time.unscaledTime - holdStart);", source);
+        }
+
+        [Test]
+        public void AdvanceRoutine_FadesThroughTheSharedTransitionOverlay_ThenSwapsToLore()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int routineIndex = source.IndexOf("private IEnumerator AdvanceRoutine()", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(routineIndex, 0);
+
+            int fadeToBlackIndex = source.IndexOf("_transitionOverlay.FadeToBlack(FadeToBlackSeconds)", routineIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(fadeToBlackIndex, 0, "Logo must fade to black through the shared transition overlay before navigating.");
+
+            int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", fadeToBlackIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(showIndex, 0, "The screen swap must happen only after the fade-to-black, while fully covered.");
+
+            int fadeFromBlackIndex = source.IndexOf("_transitionOverlay.FadeFromBlack(FadeInSeconds)", showIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Lore must fade in from black only after the screen swap.");
+        }
+
+        [Test]
+        public void EnterTitle_BeginsShellPreload_SoMostLoadingHappensDuringTheVideo()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_shellPreloader?.BeginPreload();", source,
+                "Logo Intro must kick off preparing the immediate shell flow (Main Menu's video) the moment it starts, not wait until advancing.");
+        }
     }
 }

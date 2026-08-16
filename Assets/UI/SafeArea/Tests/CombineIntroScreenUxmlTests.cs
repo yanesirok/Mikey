@@ -263,8 +263,11 @@ namespace Mikey.UI.SafeArea.Tests
 
             var intro = root.Q<VisualElement>("intro");
             Assert.IsNotNull(intro, "Expected an 'intro' screen.");
-            Assert.IsNotEmpty(intro.Query<VisualElement>(name: "go-menu").ToList(),
-                "Intro must keep a 'go-menu' route back to Home.");
+            // Intro's exit is 'lore-skip'/'lore-continue', driven by
+            // LoreExitController's cinematic transition — not a 'go-menu'
+            // navigator (see IntroScreenUxmlTests / LoreExitControllerTests).
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-skip"), "Intro must keep a 'lore-skip' route back to Home.");
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-continue"), "Intro must keep a 'lore-continue' route back to Home.");
         }
 
         // 17 — Camera Test → Combine → Home remains unchanged.

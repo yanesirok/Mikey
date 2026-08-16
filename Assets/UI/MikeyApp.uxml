@@ -4,20 +4,37 @@
 
         <!-- 1 - LOGO INTRO (startup/logo screen; single production entry screen).
              Full-bleed final logo animation (logo_intro.mp4) on a near-black
-             backdrop, nothing else. TitleController plays it once and advances to
-             Lore when it finishes, or immediately on a tap/click anywhere (no CTA
-             button — this is not a ScreenManager "go-" navigator). -->
+             backdrop, nothing else. TitleController plays it once, then — once
+             the shell is ready — advances to Lore with a cinematic fade (never
+             a hard cut), triggered by natural completion, a tap/click anywhere
+             (no CTA button — this is not a ScreenManager "go-" navigator), or
+             the video error fallback. -->
         <ui:VisualElement name="title" class="screen title-screen">
             <Style src="Title/Title.uss" />
             <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="title-bg" picking-mode="Ignore">
                 <ui:VisualElement name="title-video" picking-mode="Ignore" class="title-video" />
+                <!-- final-logo hold: the static Mikey logo image, framed to match the
+                     video's own final logo pose. TitleController crossfades onto this
+                     (opacity 0 -> 1, video 1 -> 0) the moment it advances — on natural
+                     completion, an early tap-skip, or the error fallback alike — so
+                     there is always something other than a blank/loading screen while
+                     it waits for the shell (Main Menu's video) to finish preparing. -->
+                <ui:VisualElement name="title-logo-hold" picking-mode="Ignore" class="title-logo-hold" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content" />
         </ui:VisualElement>
 
-        <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later) -->
+        <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later).
+             Exiting Lore (Skip or Continue) is driven by LoreExitController, NOT
+             ScreenManager's "go-" auto-wiring: both actions are named "lore-skip"/
+             "lore-continue" (deliberately not "go-menu") so LoreExitController can
+             darken Lore to black through the shared transition overlay BEFORE
+             swapping to Main Menu, then fade Main Menu in — never a hard cut. This
+             is also where a future real Lore image/video/animation slots in later:
+             only the placeholder content below (.intro-copy / .intro-note) changes,
+             the launch transition sequence around it does not. -->
         <ui:VisualElement name="intro" class="screen intro-screen">
             <Style src="Intro/Intro.uss" />
             <!-- full-bleed pure-black wash, OUTSIDE the safe-area wrapper -->
@@ -27,7 +44,7 @@
             <ui:VisualElement class="intro-layout">
 
                 <!-- Skip → Home (semantic class intro-skip; kept visually subtle, arrow is a sized, non-shrinking icon) -->
-                <ui:Button name="go-menu" class="skip intro-skip tap-target sfx-click">
+                <ui:Button name="lore-skip" class="skip intro-skip tap-target sfx-click">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
                 </ui:Button>
@@ -44,7 +61,7 @@
                 <ui:Label text="Lore cinematic coming soon." class="intro-note" />
 
                 <!-- primary CTA → Home (semantic class intro-primary) -->
-                <ui:Button name="go-menu" class="intro-primary intro-cta tap-target sfx-click">
+                <ui:Button name="lore-continue" class="intro-primary intro-cta tap-target sfx-click">
                     <ui:Label text="Continue" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
                 </ui:Button>
@@ -1011,6 +1028,19 @@
                 <ui:Button name="shared-settings-close" text="Close" class="settings-modal__close tap-target" />
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <!-- 12 - LAUNCH TRANSITION OVERLAY: the one shared full-screen black fade
+             used only by the Logo Intro -> Lore -> Main Menu launch sequence (see
+             TransitionOverlayController / ITransitionOverlay, driven by
+             TitleController and LoreExitController). Declared last, after every
+             screen AND the shared Settings modal, so it always paints above
+             whichever screen is currently active — same "declared last,
+             self-managed, never touched by ScreenManager" pattern as
+             shared-settings-modal above. Not a "screen" — ScreenManager never
+             touches it. Starts fully transparent and click-through
+             (picking-mode="Ignore"); TransitionOverlayController flips
+             picking-mode to Position only while actively covering the screen. -->
+        <ui:VisualElement name="transition-overlay" class="transition-overlay" picking-mode="Ignore" />
 
     </ui:VisualElement>
 </ui:UXML>

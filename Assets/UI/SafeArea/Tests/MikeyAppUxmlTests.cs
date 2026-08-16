@@ -100,6 +100,8 @@ namespace Mikey.UI.SafeArea.Tests
                 "Title must have a video target for the final logo animation.");
             Assert.IsNull(title.Q<VisualElement>(className: "title-logo"),
                 "The retired static logo mark must be gone — the video is the logo now.");
+            Assert.IsNotNull(title.Q<VisualElement>("title-logo-hold"),
+                "Title must have a final-logo hold target for TitleController's post-video wait state.");
         }
 
         [Test]
@@ -235,7 +237,10 @@ namespace Mikey.UI.SafeArea.Tests
 
         // 30 — Intro → Home route remains unchanged (Title's own route into Intro
         // is driven by TitleController, not a "go-" navigator — see
-        // GoIntroNavigator_NoLongerExists_TitleDrivesNavigationItself).
+        // GoIntroNavigator_NoLongerExists_TitleDrivesNavigationItself). Intro's
+        // own exit is likewise not a "go-" navigator: 'lore-skip'/'lore-continue'
+        // are driven by LoreExitController's cinematic transition instead (see
+        // LoreExitControllerTests), not ScreenManager's auto-wiring.
         [Test]
         public void IntroToHomeRoute_RemainsUnchanged()
         {
@@ -244,13 +249,50 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.IsNotNull(root.Q<VisualElement>("title"), "Expected a 'title' screen.");
             Assert.IsNotNull(root.Q<VisualElement>("intro"), "Expected an 'intro' screen.");
 
-            // intro → menu (CONTINUE / Skip both navigate Home)
+            // intro → menu (Continue / Skip both exit to Home via LoreExitController)
             var intro = root.Q<VisualElement>("intro");
-            Assert.IsNotEmpty(intro.Query<VisualElement>(name: "go-menu").ToList(),
-                "Intro must keep a 'go-menu' route to Home.");
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-skip"), "Intro must keep a 'lore-skip' route to Home.");
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-continue"), "Intro must keep a 'lore-continue' route to Home.");
             var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "'go-menu' must target an existing 'menu' (Home) screen.");
+            Assert.IsNotNull(menu, "Lore's exit must target an existing 'menu' (Home) screen.");
             Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
+        }
+
+        // 31 — the shared launch transition overlay: exists once, outside every
+        // screen (never toggled by ScreenManager), declared last so it paints
+        // above whichever screen is active, and starts fully transparent and
+        // click-through.
+        [Test]
+        public void TransitionOverlay_ExistsOnce_OutsideEveryScreen_DeclaredLast()
+        {
+            var root = BuildTree();
+
+            var overlays = root.Query<VisualElement>(name: "transition-overlay").ToList();
+            Assert.AreEqual(1, overlays.Count, "Expected exactly one 'transition-overlay' element.");
+            Assert.IsFalse(overlays[0].ClassListContains("screen"),
+                "The transition overlay must not carry the .screen class — ScreenManager must never toggle it.");
+
+            var appChildren = root.Q<VisualElement>("app")?.Children().ToList() ?? root.Children().ToList();
+            Assert.AreEqual("transition-overlay", appChildren[appChildren.Count - 1].name,
+                "The transition overlay must be declared last so it always paints above every screen and the shared Settings modal.");
+        }
+
+        [Test]
+        public void TransitionOverlay_StartsTransparentAndClickThrough()
+        {
+            var root = BuildTree();
+            var overlay = root.Q<VisualElement>("transition-overlay");
+            Assert.IsNotNull(overlay, "Expected a 'transition-overlay' element.");
+            Assert.AreEqual(PickingMode.Ignore, overlay.pickingMode,
+                "The overlay must start click-through — TransitionOverlayController only flips it to Position while actively covering the screen.");
+
+            string uss = File.ReadAllText("Assets/UI/theme.uss");
+            int start = uss.IndexOf("\n.transition-overlay {", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(start, 0, "Expected a '.transition-overlay' rule in theme.uss.");
+            int close = uss.IndexOf('}', start);
+            string block = uss.Substring(start, close - start);
+            StringAssert.Contains("opacity: 0", block, "The overlay must start fully transparent.");
+            StringAssert.Contains("background-color: #000000", block, "The overlay must be pure black.");
         }
     }
 }

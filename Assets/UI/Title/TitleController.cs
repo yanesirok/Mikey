@@ -24,6 +24,16 @@ namespace Mikey.UI.Title
     /// clip from frame 0 and leaving it stops playback completely, so nothing
     /// keeps rendering once Lore opens, and returning to Title (Editor/testing)
     /// restarts predictably.
+    ///
+    /// Advancing is no longer an instant cut: whatever triggered it (natural
+    /// completion, tap-skip, or the error fallback) first swaps the video for
+    /// the static "title-logo-hold" image (seamless — it is framed to
+    /// match the video's own final logo pose) and, via <see cref="_shellPreloader"/>,
+    /// holds there until the Main Menu's background video is ready (plus a
+    /// short minimum hold on fast devices so it never flashes by). Only then
+    /// does it fade to black through the shared <see cref="_transitionOverlay"/>,
+    /// swap to Lore while fully covered, and fade Lore in — see
+    /// <see cref="AdvanceRoutine"/>.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class TitleController : MonoBehaviour
@@ -35,7 +45,17 @@ namespace Mikey.UI.Title
         public const string NextScreenId = "intro";
 
         private const string VideoTargetElementName = "title-video";
+        private const string LogoHoldElementName = "title-logo-hold";
         private const int MaxRootResolveFrames = 30;
+
+        /// <summary>Minimum time the final-logo hold stays up even when the shell is already ready, so it never flashes by on fast devices.</summary>
+        private const float MinHoldSeconds = 0.25f;
+
+        /// <summary>How long the final logo darkens to pure black before Lore is swapped in underneath.</summary>
+        private const float FadeToBlackSeconds = 0.3f;
+
+        /// <summary>How long Lore fades in from black once it is the active screen.</summary>
+        private const float FadeInSeconds = 0.45f;
 
         [SerializeField]
         [Tooltip("Final logo animation (logo_intro.mp4), played once. Natural completion advances to Lore.")]
@@ -43,10 +63,14 @@ namespace Mikey.UI.Title
 
         private IScreenNavigator _navigator;
         private IAudioSettings _audioSettings;
+        private IShellPreloader _shellPreloader;
+        private ITransitionOverlay _transitionOverlay;
         private VisualElement _titleScreen;
         private VisualElement _videoTarget;
+        private VisualElement _logoHoldTarget;
         private EventCallback<ClickEvent> _tapCallback;
         private Coroutine _bindRoutine;
+        private Coroutine _advanceRoutine;
 
         private VideoPlayer _player;
         private RenderTexture _renderTexture;
@@ -59,6 +83,8 @@ namespace Mikey.UI.Title
             _navigated = false;
             _navigator = GetComponent<IScreenNavigator>();
             _audioSettings = GetComponent<IAudioSettings>();
+            _shellPreloader = GetComponent<IShellPreloader>();
+            _transitionOverlay = GetComponent<ITransitionOverlay>();
             _bindRoutine = StartCoroutine(BindWhenReady());
         }
 
@@ -68,6 +94,11 @@ namespace Mikey.UI.Title
             {
                 StopCoroutine(_bindRoutine);
                 _bindRoutine = null;
+            }
+            if (_advanceRoutine != null)
+            {
+                StopCoroutine(_advanceRoutine);
+                _advanceRoutine = null;
             }
 
             if (_navigator != null)
@@ -80,10 +111,13 @@ namespace Mikey.UI.Title
                 _titleScreen.UnregisterCallback(_tapCallback);
             _titleScreen = null;
             _videoTarget = null;
+            _logoHoldTarget = null;
             _tapCallback = null;
 
             DestroyPlayer();
             _audioSettings = null;
+            _shellPreloader = null;
+            _transitionOverlay = null;
         }
 
         private IEnumerator BindWhenReady()
@@ -111,6 +145,7 @@ namespace Mikey.UI.Title
             }
 
             _videoTarget = _titleScreen.Q<VisualElement>(VideoTargetElementName);
+            _logoHoldTarget = _titleScreen.Q<VisualElement>(LogoHoldElementName);
 
             _tapCallback = _ => Advance();
             _titleScreen.RegisterCallback(_tapCallback);
@@ -137,6 +172,23 @@ namespace Mikey.UI.Title
         private void EnterTitle()
         {
             _navigated = false;
+
+            if (_advanceRoutine != null)
+            {
+                StopCoroutine(_advanceRoutine);
+                _advanceRoutine = null;
+            }
+
+            // Reset the video/hold crossfade for a fresh entry (Editor/testing re-entry included).
+            if (_videoTarget != null)
+                _videoTarget.style.opacity = 1f;
+            if (_logoHoldTarget != null)
+                _logoHoldTarget.style.opacity = 0f;
+
+            // Kick off preparing the immediate shell flow (currently: the Main
+            // Menu background video) the moment Logo Intro starts, so most of
+            // it finishes invisibly while the user watches the video.
+            _shellPreloader?.BeginPreload();
 
             if (logoIntroClip == null)
             {
@@ -230,14 +282,60 @@ namespace Mikey.UI.Title
             Advance();
         }
 
-        /// <summary>Navigates to Lore exactly once, however it was triggered (video completion, tap, or error fallback).</summary>
+        /// <summary>Begins advancing to Lore exactly once, however it was triggered (video completion, tap, or error fallback).</summary>
         private void Advance()
         {
             if (_navigated || _navigator == null)
                 return;
             _navigated = true;
 
+            _advanceRoutine = StartCoroutine(AdvanceRoutine());
+        }
+
+        /// <summary>
+        /// Swaps the video for the static final-logo hold, waits for the shell
+        /// to be ready (with a short minimum hold so it never flashes by on a
+        /// fast device), then fades to black, swaps to Lore while fully
+        /// covered, and fades Lore in.
+        /// </summary>
+        private IEnumerator AdvanceRoutine()
+        {
+            ShowLogoHold();
+
+            float holdStart = Time.unscaledTime;
+            while (_shellPreloader != null && !_shellPreloader.IsReady)
+                yield return null;
+
+            float remainingHold = MinHoldSeconds - (Time.unscaledTime - holdStart);
+            if (remainingHold > 0f)
+                yield return new WaitForSecondsRealtime(remainingHold);
+
+            if (_transitionOverlay != null)
+                yield return StartCoroutine(_transitionOverlay.FadeToBlack(FadeToBlackSeconds));
+
             _navigator.Show(NextScreenId);
+
+            if (_transitionOverlay != null)
+                yield return StartCoroutine(_transitionOverlay.FadeFromBlack(FadeInSeconds));
+
+            _advanceRoutine = null;
+        }
+
+        /// <summary>
+        /// Freezes on the final Mikey logo: stops the video and crossfades to
+        /// the static <see cref="LogoHoldElementName"/> image, which is framed
+        /// to match the video's own final logo pose so the swap reads as
+        /// seamless whether it happens on natural completion (already at the
+        /// final frame) or an early tap-skip.
+        /// </summary>
+        private void ShowLogoHold()
+        {
+            if (_player != null && (_player.isPlaying || _player.isPaused))
+                _player.Stop();
+            if (_videoTarget != null)
+                _videoTarget.style.opacity = 0f;
+            if (_logoHoldTarget != null)
+                _logoHoldTarget.style.opacity = 1f;
         }
 
         private void DestroyPlayer()
