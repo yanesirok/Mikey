@@ -127,25 +127,25 @@ namespace Mikey.FightEditor
             // No skin material: the bodies arrive from Mixamo with their own materials and face
             // textures, and painting a flat colour over them would undo exactly that.
             //
-            // Both kimonos are black, as asked. The cream player cloth read as brown blotches
-            // in play: the base map here is the baked AO (there is no albedo texture), and AO
-            // is mottled by nature, so a light tint shows every blotch while black hides them.
+            // Both cloths are black. The cream player cloth read as warm brown blotches in
+            // play: the base map here is the baked AO (the kimono has no albedo texture), AO
+            // is mottled by nature, and this scene's sunset key is strong and orange — a light
+            // tint takes that colour straight on. Black is the one tint that survives it.
             //
-            // Player and enemy have to stay apart at a glance, and with both cloths black the
-            // only thing left to tell them by is the accent. Hence two different blues rather
-            // than one: royal on the player, teal on the enemy — both plainly blue, far enough
-            // apart in hue to read as different fighters in the mist.
+            // The accents stay blue for the player and RED for the enemy, as originally
+            // specified. A round of these was briefly recoloured to two blues; that lost the
+            // red the owner wanted and is reverted here.
             Kimono(shader, CharacterDir + "/M_Player_Kimono.mat", normal, ao,
-                   new Color(0.07f, 0.07f, 0.08f), new Color(0.20f, 0.35f, 0.85f));
+                   new Color(0.07f, 0.07f, 0.08f), new Color(0.23f, 0.29f, 0.62f));
             Kimono(shader, CharacterDir + "/M_Enemy_Kimono.mat", normal, ao,
-                   new Color(0.07f, 0.07f, 0.08f), new Color(0.10f, 0.55f, 0.70f));
+                   new Color(0.07f, 0.07f, 0.08f), new Color(0.48f, 0.12f, 0.16f));
 
             // Belt is its own submesh again (kimono_fit.py: capture_belt_mask /
             // apply_belt_split), so it gets its own material rather than borrowing the rim.
             Belt(shader, CharacterDir + "/M_Player_Belt.mat", normal, ao,
-                 new Color(0.20f, 0.35f, 0.85f));
+                 new Color(0.23f, 0.29f, 0.62f));
             Belt(shader, CharacterDir + "/M_Enemy_Belt.mat", normal, ao,
-                 new Color(0.10f, 0.55f, 0.70f));
+                 new Color(0.48f, 0.12f, 0.16f));
         }
 
         /// <summary>The kimono has no albedo texture — all five of its source materials are flat
@@ -190,6 +190,12 @@ namespace Mikey.FightEditor
             mat.SetTexture("_BumpMap", normal);
             mat.SetColor("_BaseColor", baseColor);
             mat.SetFloat("_AlbedoGamma", 1f);
+            // Character.shader ADDS the rim: color += _RimColor * rim * _RimStrength. Its 1.4
+            // default was tuned against a pale cloth, where the added light barely registers.
+            // On black cloth the same rim is the brightest thing on the fighter and reads as
+            // the garment glowing — which is exactly what it looked like. Halved rather than
+            // removed: the rim is what separates a dark fighter from the misty background.
+            mat.SetFloat("_RimStrength", 0.7f);
             mat.SetFloat("_BumpScale", 1.4f);
             mat.SetFloat("_Smoothness", 0.12f);   // cotton, not silk
             return mat;
