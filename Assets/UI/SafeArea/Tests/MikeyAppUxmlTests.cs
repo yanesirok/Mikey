@@ -313,5 +313,48 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.IsFalse(vow.ClassListContains("screen"),
                 "The Vow modal must not carry the .screen class — ScreenManager (and anything keyed to ScreenChanged, like hub music) must never react to it opening/closing.");
         }
+
+        // 33 — theme.uss ".mikey-app" remains the ONE place the global Mikey font
+        // is declared. Every descendant TextElement (including labels the Profile
+        // radar creates dynamically in C#) inherits it purely through the USS
+        // cascade; a local "-unity-font-definition" override anywhere else would
+        // both defeat that inheritance for its subtree and violate theme.uss's
+        // own "screens should not redeclare font-family locally" contract.
+        [Test]
+        public void GlobalMikeyFont_IsDeclaredExactlyOnce_InThemeUss()
+        {
+            string uiRoot = Path.Combine(UnityEngine.Application.dataPath, "UI");
+            Assert.IsTrue(Directory.Exists(uiRoot), $"Expected {uiRoot} to exist.");
+
+            int totalDeclarations = 0;
+            foreach (string path in Directory.GetFiles(uiRoot, "*.uss", SearchOption.AllDirectories))
+            {
+                string source = File.ReadAllText(path);
+                int count = CountOccurrences(source, "-unity-font-definition");
+                if (count == 0)
+                    continue;
+
+                totalDeclarations += count;
+                Assert.AreEqual("theme.uss", Path.GetFileName(path),
+                    $"'{Path.GetFileName(path)}' must not redeclare the font locally — theme.uss's '.mikey-app' is the sole authoritative source.");
+            }
+
+            Assert.AreEqual(1, totalDeclarations, "Expected exactly one '-unity-font-definition' declaration across all of Assets/UI (in theme.uss).");
+
+            string themeUss = File.ReadAllText("Assets/UI/theme.uss");
+            StringAssert.Contains("mikey_ui.otf", themeUss);
+        }
+
+        private static int CountOccurrences(string haystack, string needle)
+        {
+            int count = 0;
+            int index = 0;
+            while ((index = haystack.IndexOf(needle, index, System.StringComparison.Ordinal)) != -1)
+            {
+                count++;
+                index += needle.Length;
+            }
+            return count;
+        }
     }
 }

@@ -5,13 +5,16 @@ using UnityEngine;
 namespace Mikey.UI.Progression.Tests
 {
     /// <summary>
-    /// Regression guard for the Profile/shared-nav redesign: it introduces no new
-    /// persisted state. The only real persisted storage in the app is
-    /// PlayerPrefsTutorialProgressStorage's "Mikey.TutorialProgress.State" key and
-    /// PlayerPrefsAudioSettingsStorage's Music/SFX/Trainer Voice volumes (both
-    /// pre-existing) — every LVL/XP/streak number on the new Profile screen and
-    /// shared top HUD is frontend mock data (see ProfileController), so no other
-    /// source file should ever call PlayerPrefs.Set*.
+    /// Regression guard for the Profile/shared-nav redesign: it introduces
+    /// exactly one new piece of persisted state, explicitly approved — the
+    /// editable display name. Real persisted storage in the app is now:
+    /// PlayerPrefsTutorialProgressStorage's "Mikey.TutorialProgress.State" key,
+    /// PlayerPrefsAudioSettingsStorage's Music/SFX/Trainer Voice volumes, and
+    /// ProfileDisplayNameStorage's "Mikey.Profile.DisplayName" key (a stand-in
+    /// until a real account/profile system exists — see that class). Every
+    /// LVL/XP/streak number on Profile and the shared top HUD is still frontend
+    /// mock data (see ProfileController), so no other source file should ever
+    /// call PlayerPrefs.Set*.
     /// </summary>
     public class PlayerPrefsKeyRegressionTests
     {
@@ -19,6 +22,7 @@ namespace Mikey.UI.Progression.Tests
         {
             "PlayerPrefsTutorialProgressStorage.cs",
             "PlayerPrefsAudioSettingsStorage.cs",
+            "ProfileDisplayNameStorage.cs",
             // this file itself: the assertion text below legitimately contains the
             // literal string "PlayerPrefs.Set" it's scanning for.
             nameof(PlayerPrefsKeyRegressionTests) + ".cs",

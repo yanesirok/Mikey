@@ -77,16 +77,42 @@
 
 /* ---------- LEFT: identity / progression ---------- */
 .profile-kicker {
-    font-size: 20px;
+    font-size: 22px;
     letter-spacing: 3px;
     color: var(--crimson);
 }
+.profile-name-row {
+    flex-direction: row;
+    align-items: center;
+}
 .profile-name {
-    font-size: 44px;
+    font-size: 49px;
     -unity-font-style: bold;
     color: var(--bone);
     margin-top: 4px;
     white-space: normal;
+}
+/* Edit affordance next to the username — reuses the supplied edit_icon.png
+   as-is (pencil is already crimson in the source art; its clipboard body is
+   pure black and simply reads as invisible against the dark HUD, which is
+   fine — the pencil alone is a standard, recognizable "edit" glyph). Button
+   box is a full ".tap-target" (>=48px) even though the visible icon is much
+   smaller, so it never dominates the identity area. */
+.profile-name-edit-btn {
+    margin-left: 8px;
+    margin-top: 4px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    padding: 0;
+}
+.profile-name-edit-icon {
+    width: 22px;
+    height: 22px;
+    background-image: url("/Assets/UI/Media/Images/edit_icon.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+.profile-name-edit-btn:hover .profile-name-edit-icon {
+    opacity: 0.75;
 }
 .profile-role-row {
     flex-direction: row;
@@ -95,11 +121,11 @@
     margin-top: 10px;
 }
 .profile-role {
-    font-size: 22px;
+    font-size: 24px;
     color: var(--muted);
 }
 .profile-role-level {
-    font-size: 34px;
+    font-size: 38px;
     -unity-font-style: bold;
     letter-spacing: 0.5px;
     color: var(--crimson);
@@ -121,7 +147,7 @@
     background-color: var(--crimson-deep);
 }
 .profile-xp-label {
-    font-size: 18px;
+    font-size: 20px;
     color: var(--muted);
     margin-top: 8px;
     align-self: flex-end;
@@ -137,7 +163,7 @@
     border-bottom-color: rgba(237, 230, 216, 0.1);
 }
 .profile-identity-fact__text {
-    font-size: 20px;
+    font-size: 22px;
     color: rgba(237, 230, 216, 0.85);
     white-space: normal;
 }
@@ -160,7 +186,7 @@
    polygon itself (see ProfileRadarChart's Glow* colors). */
 .profile-radar-label {
     position: absolute;
-    font-size: 20px;
+    font-size: 22px;
     -unity-font-style: normal;
     letter-spacing: 0.5px;
     color: var(--bone);
@@ -168,14 +194,14 @@
     white-space: nowrap;
 }
 .profile-radar-label--value {
-    font-size: 15px;
+    font-size: 17px;
     -unity-font-style: normal;
     color: var(--muted);
 }
 
 /* ---------- RIGHT: current journey ---------- */
 .profile-section-title {
-    font-size: 26px;
+    font-size: 29px;
     -unity-font-style: bold;
     color: var(--bone);
     white-space: normal;
@@ -185,11 +211,11 @@
 }
 .profile-section-title--muted {
     color: var(--muted);
-    font-size: 22px;
+    font-size: 24px;
 }
 
 .profile-journey-kicker {
-    font-size: 18px;
+    font-size: 20px;
     letter-spacing: 1px;
     color: var(--muted);
     margin-top: 10px;
@@ -201,12 +227,12 @@
     margin-top: 4px;
 }
 .profile-journey-value {
-    font-size: 28px;
+    font-size: 31px;
     -unity-font-style: bold;
     color: var(--bone);
 }
 .profile-journey-meta {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--muted);
 }
 .profile-journey-bar {
@@ -230,7 +256,7 @@
     margin-top: 12px;
 }
 .profile-training-item {
-    font-size: 19px;
+    font-size: 21px;
     color: rgba(237, 230, 216, 0.85);
     padding: 8px 0;
     border-bottom-width: 1px;
@@ -239,56 +265,162 @@
 }
 
 .profile-milestone-value {
-    font-size: 22px;
+    font-size: 24px;
     -unity-font-style: bold;
     color: var(--jade);
     margin-top: 6px;
     white-space: normal;
 }
 
-/* ---------- attribute guide ----------
-   Compact explanation of the five radar metrics — a single wrapping row of
-   short name/description pairs beneath the three-region layout, not five
-   separate cards. */
-.profile-attribute-guide {
-    width: 100%;
-    max-width: 1680px;
-    align-self: center;
-    padding-top: 16px;
-    margin-top: 10px;
-    border-top-width: 1px;
-    border-top-color: rgba(237, 230, 216, 0.1);
+/* ---------- shared Profile-local popup shell ----------
+   Used by both the Attribute Details popup and the Username edit popup —
+   neither is a new screen id (see ProfileController): a full-screen overlay
+   toggled by ".profile-popup--open", scrim declared before the card so a tap
+   lands on the card when over it and the scrim everywhere else (same
+   technique as Map's ".map-outside-catcher"). Heavily-tinted dark glass with
+   a subtle crimson edge — never a generic white card, never five separate
+   cards for the attribute list. */
+.profile-popup {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
 }
-.profile-attribute-guide__title {
-    font-size: 17px;
+.profile-popup--open {
+    display: flex;
+}
+.profile-popup__scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(6, 6, 7, 0.55);
+}
+.profile-popup__card {
+    background-color: rgba(9, 7, 7, 0.88);
+    border-width: 1px;
+    border-color: rgba(198, 40, 40, 0.4);
+    border-radius: 18px;
+    padding: 40px 44px;
+}
+.profile-popup__card--wide {
+    width: 78%;
+    max-width: 980px;
+}
+.profile-popup__card--narrow {
+    width: 50%;
+    min-width: 380px;
+    max-width: 520px;
+}
+.profile-popup__title {
+    font-size: 34px;
     -unity-font-style: bold;
-    letter-spacing: 2px;
-    color: var(--muted);
+    letter-spacing: 1px;
+    color: var(--bone);
+    text-shadow: 0 0 12px rgba(198, 40, 40, 0.35);
+    margin-bottom: 24px;
 }
-.profile-attribute-guide__list {
+.profile-popup__title--compact {
+    font-size: 26px;
+    margin-bottom: 18px;
+    text-shadow: none;
+}
+.profile-popup__close,
+.profile-popup__primary-btn,
+.profile-popup__secondary-btn {
+    align-self: center;
+    min-width: 160px;
+    height: 54px;
+    padding: 0 28px;
+    border-radius: 8px;
+    -unity-text-align: middle-center;
+    font-size: 20px;
+    -unity-font-style: bold;
+}
+.profile-popup__close {
+    margin-top: 28px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(237, 230, 216, 0.06);
+    color: var(--bone);
+}
+.profile-popup__close:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.12);
+}
+.profile-popup__secondary-btn {
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(237, 230, 216, 0.06);
+    color: var(--bone);
+    margin-right: 16px;
+}
+.profile-popup__secondary-btn:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.12);
+}
+.profile-popup__primary-btn {
+    border-width: 1px;
+    border-color: var(--crimson);
+    background-color: var(--crimson);
+    color: var(--bone);
+}
+.profile-popup__primary-btn:hover {
+    background-color: var(--crimson-deep);
+}
+
+/* ---------- attribute details popup content ---------- */
+.profile-attribute-popup__grid {
     flex-direction: row;
     flex-wrap: wrap;
-    margin-top: 8px;
 }
-.profile-attribute-guide__item {
-    flex-direction: row;
-    align-items: baseline;
+.profile-attribute-popup__entry {
+    flex-basis: 45%;
     flex-grow: 1;
-    flex-basis: 300px;
-    min-width: 0;
-    padding: 3px 18px 3px 0;
+    min-width: 320px;
+    padding: 10px 20px 10px 0;
 }
-.profile-attribute-guide__name {
-    font-size: 16px;
+.profile-attribute-popup__name {
+    font-size: 22px;
     -unity-font-style: bold;
     color: var(--crimson);
-    margin-right: 8px;
-    flex-shrink: 0;
+    margin-bottom: 4px;
 }
-.profile-attribute-guide__desc {
-    font-size: 14px;
-    color: var(--muted);
+.profile-attribute-popup__desc {
+    font-size: 18px;
+    color: rgba(237, 230, 216, 0.85);
     white-space: normal;
-    flex-shrink: 1;
-    min-width: 0;
+}
+
+/* ---------- username edit popup content ---------- */
+.profile-username-edit__field {
+    margin-top: 6px;
+    font-size: 22px;
+}
+.profile-username-edit__field .unity-base-field__input {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--bone);
+}
+.profile-username-edit__error {
+    display: none;
+    font-size: 15px;
+    color: var(--crimson);
+    margin-top: 8px;
+}
+.profile-username-edit__error--visible {
+    display: flex;
+}
+.profile-username-edit__actions {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 24px;
 }

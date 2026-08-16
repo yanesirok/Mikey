@@ -126,8 +126,10 @@ namespace Mikey.UI.Map.Tests
             string uss = File.ReadAllText(UssPath);
             string block = ExtractRuleBlock(uss, "\n.map-topbar {");
             Assert.IsNotNull(block);
-            StringAssert.IsMatch(@"background-color:\s*rgba\(\d+,\s*\d+,\s*\d+,\s*0\.(3[5-9]|4\d|50)\)", block,
-                "Expected an rgba(...) tint with alpha roughly 0.35-0.50, not an opaque background.");
+            // Darkened for readability over the busier Profile background art
+            // (0.35-0.50 -> 0.55-0.62) — still a translucent glass tint, never opaque.
+            StringAssert.IsMatch(@"background-color:\s*rgba\(\d+,\s*\d+,\s*\d+,\s*0\.(5[5-9]|6[0-2])\)", block,
+                "Expected an rgba(...) tint with alpha roughly 0.55-0.62, not an opaque background.");
         }
 
         // ---------- 4: top bar height upgraded ----------
@@ -146,26 +148,33 @@ namespace Mikey.UI.Map.Tests
         // ---------- 5: main nav typography upgraded ----------
 
         [Test]
-        public void NavTextSize_IsWithinUpgradedMobileTarget_24To28Px()
+        public void NavTextSize_IsWithinUpgradedMobileTarget_24To32Px()
         {
+            // Bumped ~10-15% for on-device readability (24-28 -> 24-32).
             string uss = File.ReadAllText(UssPath);
             string block = ExtractRuleBlock(uss, "\n.map-topbar__nav-btn-text {");
             Assert.IsNotNull(block);
             float size = ExtractPx(block, "font-size");
             Assert.GreaterOrEqual(size, 24f);
-            Assert.LessOrEqual(size, 28f);
+            Assert.LessOrEqual(size, 32f);
         }
 
         [Test]
-        public void LevelAndXpTextSize_IsWithinUpgradedMobileTarget_20To24Px()
+        public void LevelTextSize_IsWithinUpgradedMobileTarget_24To30Px()
         {
-            string uss = File.ReadAllText(UssPath);
-            float levelSize = ExtractPx(ExtractRuleBlock(uss, "\n.map-topbar__level {"), "font-size");
-            float xpSize = ExtractPx(ExtractRuleBlock(uss, "\n.map-topbar__xp {"), "font-size");
-            Assert.GreaterOrEqual(levelSize, 20f);
-            Assert.LessOrEqual(levelSize, 24f);
+            // LVL now sizes independently from XP (24-30 vs XP's 20-25) since the
+            // typography pass grew them by different amounts.
+            float levelSize = ExtractPx(ExtractRuleBlock(File.ReadAllText(UssPath), "\n.map-topbar__level {"), "font-size");
+            Assert.GreaterOrEqual(levelSize, 24f);
+            Assert.LessOrEqual(levelSize, 30f);
+        }
+
+        [Test]
+        public void XpTextSize_IsWithinUpgradedMobileTarget_20To25Px()
+        {
+            float xpSize = ExtractPx(ExtractRuleBlock(File.ReadAllText(UssPath), "\n.map-topbar__xp {"), "font-size");
             Assert.GreaterOrEqual(xpSize, 20f);
-            Assert.LessOrEqual(xpSize, 24f);
+            Assert.LessOrEqual(xpSize, 25f);
         }
 
         // ---------- 6: Settings touch target ----------

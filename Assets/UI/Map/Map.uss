@@ -108,7 +108,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 28px;
-    background-color: rgba(11, 14, 17, 0.42);
+    background-color: rgba(11, 14, 17, 0.58);
     border-bottom-width: 1px;
     border-bottom-color: rgba(237, 230, 216, 0.12);
 }
@@ -137,7 +137,7 @@
     justify-content: center;
 }
 .map-topbar__nav-btn-text {
-    font-size: 26px;
+    font-size: 29px;
     letter-spacing: 0.5px;
     -unity-font-style: bold;
     color: rgba(237, 230, 216, 0.72);
@@ -158,10 +158,12 @@
    Profile; "Techniques" on Techniques (the player is always somewhere in
    that flow while its HUD is visible). Glow color is literal rgba (matches
    --crimson, #C62828) rather than var(--crimson) because USS can't blend a
-   custom-property color into an rgba()'s alpha channel. */
+   custom-property color into an rgba()'s alpha channel. Blur/alpha bumped up
+   (10px/0.55 -> 14px/0.75) so the active tab is unmistakable at a glance,
+   while staying a soft glow rather than solid-red text. */
 .map-topbar__nav-btn--active .map-topbar__nav-btn-text {
     color: var(--bone);
-    text-shadow: 0 0 10px rgba(198, 40, 40, 0.55);
+    text-shadow: 0 0 14px rgba(198, 40, 40, 0.75);
 }
 
 /* Small inked underline beneath the active label. NOT the Main-Menu
@@ -235,16 +237,18 @@
 }
 /* Off-white primary text with a restrained red glow as the accent — never
    solid orange/red text. rgba matches --crimson (#C62828); see the active-nav
-   glow comment above for why this is a literal rgba rather than var(). */
+   glow comment above for why this is a literal rgba rather than var(). Bumped
+   slightly stronger than before (8px/0.4 -> 12px/0.55) — still clearly
+   "restrained metadata," but more clearly Mikey's red visual language. */
 .map-topbar__level {
-    font-size: 24px;
+    font-size: 27px;
     -unity-font-style: bold;
     letter-spacing: 0.5px;
     color: var(--bone);
-    text-shadow: 0 0 8px rgba(198, 40, 40, 0.4);
+    text-shadow: 0 0 12px rgba(198, 40, 40, 0.55);
 }
 .map-topbar__xp {
-    font-size: 20px;
+    font-size: 22px;
     color: var(--muted);
     margin-top: 2px;
 }
@@ -262,41 +266,27 @@
     background-color: var(--crimson);
 }
 
-/* Settings: the one genuine icon button in the HUD — a simple, font-
-   independent ring+dot glyph (never relies on a gear glyph existing in the
-   display font) so it renders identically everywhere. Transparent by
-   default, matching the "clean text navigation" language rather than
-   another button bubble; the ring brightens on hover/press. */
+/* Settings: the one genuine icon button in the HUD. Uses the supplied
+   settings_icon.png (a white gear silhouette with an alpha-only shape) as-is
+   — it's already the exact off-white the old ring+dot glyph approximated, so
+   no tint is needed. Replaces that placeholder glyph entirely. Transparent
+   button background, matching the "clean text navigation" language rather
+   than another button bubble; the icon dims slightly on hover/press. The
+   button itself keeps the >=48px ".tap-target" touch target even though the
+   visible icon is smaller. */
 .map-topbar__settings-btn {
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
     padding: 0;
 }
 .map-topbar__settings-icon {
-    width: 30px;
-    height: 30px;
-    align-items: center;
-    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-image: url("/Assets/UI/Media/Images/settings_icon.png");
+    -unity-background-scale-mode: scale-to-fit;
 }
-.map-topbar__settings-ring {
-    position: absolute;
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
-    border-width: 2px;
-    border-color: rgba(237, 230, 216, 0.75);
-}
-.map-topbar__settings-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 4px;
-    background-color: rgba(237, 230, 216, 0.75);
-}
-.map-topbar__settings-btn:hover .map-topbar__settings-ring {
-    border-color: var(--bone);
-}
-.map-topbar__settings-btn:hover .map-topbar__settings-dot {
-    background-color: var(--bone);
+.map-topbar__settings-btn:hover .map-topbar__settings-icon {
+    opacity: 0.75;
 }
 
 /* ---------- pan/zoom stage (shared by Japan + Okinawa) ----------

@@ -9,14 +9,16 @@ using Mikey.UI.Progression;
 namespace Mikey.UI.Profile.Tests
 {
     /// <summary>
-    /// Contract for the Profile navigation-lock-bypass fix: Profile's Map/Techniques
-    /// dock tabs must consult the same <see cref="TutorialProgressPresenter"/>
-    /// Level1Unlocked gate Home already uses (see TutorialProgressPresenterTests for
-    /// the NewPlayer=locked / Level1Unlocked=unlocked boundary this reuses), so a
-    /// production player can no longer bypass Home's lock via Profile. Verified by
-    /// reading the source, mirroring HomeControllerSourceTests' established
-    /// technique for MonoBehaviour internals not practical to drive through a live
-    /// panel in EditMode.
+    /// Contract for Profile's shared-HUD navigation: Techniques keeps consulting
+    /// <see cref="TutorialProgressPresenter"/>'s Level1Unlocked gate Home already
+    /// uses (see TutorialProgressPresenterTests for the NewPlayer=locked /
+    /// Level1Unlocked=unlocked boundary this reuses), so a production player can
+    /// no longer bypass Home's lock via Profile. Map is deliberately UNGATED —
+    /// see NavMapClick_IsUngated_MirroringMenusGoMapPlayButton for why gating it
+    /// made it a dead duplicate of Main Menu's own always-available PLAY.
+    /// Verified by reading the source, mirroring HomeControllerSourceTests'
+    /// established technique for MonoBehaviour internals not practical to drive
+    /// through a live panel in EditMode.
     /// </summary>
     public class ProfileProgressionTests
     {
@@ -24,14 +26,14 @@ namespace Mikey.UI.Profile.Tests
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
 
         [Test]
-        public void NavMapClick_IsGatedByIsMapUnlocked_SoNewPlayerCannotReachMap_AndLevel1UnlockedCan()
+        public void NavMapClick_IsUngated_MirroringMenusGoMapPlayButton()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private void OnNavMapClicked()", source);
-            StringAssert.Contains("if (!TutorialProgressPresenter.IsMapUnlocked(_progress.State))", source,
-                "Before Level1Unlocked, IsMapUnlocked(NewPlayer) is false (see TutorialProgressPresenterTests), so this must return without navigating.");
-            StringAssert.Contains("_navigator.Show(\"map\");", source,
-                "From Level1Unlocked onward, IsMapUnlocked is true, so the click must still navigate to Map.");
+            StringAssert.Contains("private void OnNavMapClicked() => _navigator?.Show(\"map\");", source,
+                "Map must be a plain, unconditional navigation — Main Menu's 'go-map' PLAY button is never gated either " +
+                "(see HomeControllerSourceTests), so gating Profile's copy just made it a dead duplicate.");
+            StringAssert.DoesNotContain("IsMapUnlocked", source,
+                "The old Level1Unlocked gate on Map must be fully removed, not just bypassed in one place.");
         }
 
         [Test]

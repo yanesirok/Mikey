@@ -521,10 +521,7 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Button name="techniques-topbar-settings" class="map-topbar__settings-btn tap-target">
-                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
-                            <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
-                        </ui:VisualElement>
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
                     </ui:Button>
                 </ui:VisualElement>
             </ui:VisualElement>
@@ -746,10 +743,7 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Button name="map-topbar-settings" class="map-topbar__settings-btn tap-target">
-                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
-                                <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
-                                <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
-                            </ui:VisualElement>
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -886,10 +880,7 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Button name="okinawa-topbar-settings" class="map-topbar__settings-btn tap-target">
-                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
-                                <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
-                                <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
-                            </ui:VisualElement>
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -956,10 +947,7 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Button name="profile-topbar-settings" class="map-topbar__settings-btn tap-target">
-                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
-                            <ui:VisualElement class="map-topbar__settings-ring" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-topbar__settings-dot" picking-mode="Ignore" />
-                        </ui:VisualElement>
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
                     </ui:Button>
                 </ui:VisualElement>
             </ui:VisualElement>
@@ -973,7 +961,12 @@
                 <!-- LEFT: identity / progression -->
                 <ui:VisualElement class="profile-column profile-column--identity">
                     <ui:Label text="PROFILE" class="profile-kicker" />
-                    <ui:Label text="Mikey" class="profile-name" />
+                    <ui:VisualElement class="profile-name-row">
+                        <ui:Label name="profile-display-name" text="Mikey" class="profile-name" />
+                        <ui:Button name="profile-name-edit-open" class="profile-name-edit-btn tap-target">
+                            <ui:VisualElement class="profile-name-edit-icon" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
                     <ui:VisualElement class="profile-role-row">
                         <ui:Label text="Disciple" class="profile-role" />
                         <ui:Label name="profile-identity-level" text="LVL 1" class="profile-role-level" />
@@ -1031,32 +1024,59 @@
 
             </ui:VisualElement>
 
-            <!-- Compact explanation of the five radar metrics — one wrapping row
-                 of short name/description pairs, not five separate cards. Sits
-                 beneath the three-region layout so that composition stays intact
-                 above it. -->
-            <ui:VisualElement class="profile-attribute-guide">
-                <ui:Label text="Attribute Guide" class="profile-attribute-guide__title" />
-                <ui:VisualElement class="profile-attribute-guide__list">
-                    <ui:VisualElement class="profile-attribute-guide__item">
-                        <ui:Label text="Strength" class="profile-attribute-guide__name" />
-                        <ui:Label text="Power and striking force." class="profile-attribute-guide__desc" />
+            <!-- Attribute Details popup — a Profile-LOCAL overlay (no new screen
+                 id), opened by tapping the radar itself (ProfileController wires
+                 "profile-radar-mount"'s click) instead of a permanently-visible
+                 guide that fought the background art for readability. Tapping the
+                 scrim or Close dismisses it; opening/closing never touches
+                 IScreenNavigator, so it can never replay the radar entrance
+                 animation (that only reacts to ScreenChanged — see
+                 ProfileController). Declared after ".profile-layout" so it paints
+                 above the three-region composition. -->
+            <ui:VisualElement name="profile-attribute-popup" class="profile-popup">
+                <ui:VisualElement name="profile-attribute-popup-scrim" class="profile-popup__scrim" />
+                <ui:VisualElement class="profile-popup__card profile-popup__card--wide">
+                    <ui:Label text="Attributes" class="profile-popup__title" />
+                    <ui:VisualElement class="profile-attribute-popup__grid">
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Strength" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures power production and striking force. Higher Strength reflects your ability to generate force efficiently through movement." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Speed" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures how quickly you move and react. Higher Speed reflects faster execution, transitions, and response time." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Form" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures technical precision and correctness. Higher Form reflects cleaner positioning, mechanics, and execution of techniques." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Stamina" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures endurance during repeated effort. Higher Stamina reflects your ability to maintain performance as a session becomes longer or more demanding." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Control" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures balance, stability, and body control. Higher Control reflects your ability to stay composed, coordinated, and accurate throughout movement." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="profile-attribute-guide__item">
-                        <ui:Label text="Speed" class="profile-attribute-guide__name" />
-                        <ui:Label text="Quickness of movement and reaction." class="profile-attribute-guide__desc" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="profile-attribute-guide__item">
-                        <ui:Label text="Form" class="profile-attribute-guide__name" />
-                        <ui:Label text="Technical precision and correctness." class="profile-attribute-guide__desc" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="profile-attribute-guide__item">
-                        <ui:Label text="Stamina" class="profile-attribute-guide__name" />
-                        <ui:Label text="Endurance across repeated effort." class="profile-attribute-guide__desc" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="profile-attribute-guide__item">
-                        <ui:Label text="Control" class="profile-attribute-guide__name" />
-                        <ui:Label text="Balance, stability, and body control." class="profile-attribute-guide__desc" />
+                    <ui:Button name="profile-attribute-popup-close" text="Close" class="profile-popup__close tap-target" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Username edit popup — also Profile-local. No outside-tap-to-close
+                 (a scrim without a click handler still blocks taps from reaching
+                 Profile underneath, it just doesn't dismiss on its own) so an
+                 accidental tap while typing can't silently discard the edit;
+                 Cancel/Save are the only ways out. -->
+            <ui:VisualElement name="profile-username-edit-popup" class="profile-popup">
+                <ui:VisualElement name="profile-username-edit-scrim" class="profile-popup__scrim" />
+                <ui:VisualElement class="profile-popup__card profile-popup__card--narrow">
+                    <ui:Label text="Display Name" class="profile-popup__title profile-popup__title--compact" />
+                    <ui:TextField name="profile-username-edit-field" max-length="24" class="profile-username-edit__field" />
+                    <ui:Label name="profile-username-edit-error" text="Display name cannot be empty." class="profile-username-edit__error" />
+                    <ui:VisualElement class="profile-username-edit__actions">
+                        <ui:Button name="profile-username-edit-cancel" text="Cancel" class="profile-popup__secondary-btn tap-target" />
+                        <ui:Button name="profile-username-edit-save" text="Save" class="profile-popup__primary-btn tap-target" />
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

@@ -219,27 +219,66 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void AttributeGuide_ExistsWithAllFiveDefinitions()
+        public void PermanentAttributeGuide_IsRemoved()
         {
-            var labels = Labels(Profile(BuildTree())).Select(l => l.text).ToList();
-            CollectionAssert.Contains(labels, "Attribute Guide");
+            var screen = Profile(BuildTree());
+            Assert.IsNull(screen.Q<VisualElement>(className: "profile-attribute-guide"),
+                "The always-visible Attribute Guide must be gone — it fought the background art for readability; " +
+                "the radar now opens an Attribute Details popup instead.");
+        }
+
+        [Test]
+        public void RadarTap_OpensAttributeDetailsPopup_WithAllFiveDetailedExplanations()
+        {
+            var root = BuildTree();
+            var screen = Profile(root);
+
+            var popup = screen.Q<VisualElement>("profile-attribute-popup");
+            Assert.IsNotNull(popup, "Expected a Profile-local 'profile-attribute-popup' overlay.");
+            Assert.IsNull(root.Q<VisualElement>("attributeDetails"), "Must not be a new screen id — Profile-local overlay only.");
+
+            var labels = Labels(popup).Select(l => l.text).ToList();
+            CollectionAssert.Contains(labels, "Attributes");
 
             foreach (var (name, description) in new[]
             {
-                ("Strength", "Power and striking force."),
-                ("Speed", "Quickness of movement and reaction."),
-                ("Form", "Technical precision and correctness."),
-                ("Stamina", "Endurance across repeated effort."),
-                ("Control", "Balance, stability, and body control."),
+                ("Strength", "Measures power production and striking force. Higher Strength reflects your ability to generate force efficiently through movement."),
+                ("Speed", "Measures how quickly you move and react. Higher Speed reflects faster execution, transitions, and response time."),
+                ("Form", "Measures technical precision and correctness. Higher Form reflects cleaner positioning, mechanics, and execution of techniques."),
+                ("Stamina", "Measures endurance during repeated effort. Higher Stamina reflects your ability to maintain performance as a session becomes longer or more demanding."),
+                ("Control", "Measures balance, stability, and body control. Higher Control reflects your ability to stay composed, coordinated, and accurate throughout movement."),
             })
             {
-                CollectionAssert.Contains(labels, name, $"Attribute Guide must name '{name}'.");
-                CollectionAssert.Contains(labels, description, $"Attribute Guide must define '{name}'.");
+                CollectionAssert.Contains(labels, name, $"Attribute popup must name '{name}'.");
+                CollectionAssert.Contains(labels, description, $"Attribute popup must give '{name}'s detailed explanation.");
             }
 
-            var guide = Profile(BuildTree()).Q<VisualElement>(className: "profile-attribute-guide");
-            Assert.IsNotNull(guide, "Expected a compact '.profile-attribute-guide' section, not five separate cards.");
-            Assert.AreEqual(5, guide.Query<VisualElement>(className: "profile-attribute-guide__item").ToList().Count);
+            Assert.AreEqual(5, popup.Query<VisualElement>(className: "profile-attribute-popup__entry").ToList().Count,
+                "Expected one compact grid, not five separate cards.");
+            Assert.IsNotNull(popup.Q<VisualElement>("profile-attribute-popup-scrim"), "Expected an outside-tap-to-close scrim.");
+            Assert.IsNotNull(popup.Q<Button>("profile-attribute-popup-close"), "Expected an explicit Close control.");
+        }
+
+        [Test]
+        public void UsernameEdit_ExistsBesideDisplayName_WithEditIconAsset()
+        {
+            var screen = Profile(BuildTree());
+
+            var nameLabel = screen.Q<Label>("profile-display-name");
+            Assert.IsNotNull(nameLabel, "Expected the display name Label.");
+            Assert.AreEqual("Mikey", nameLabel.text, "Default display name must be 'Mikey'.");
+
+            Assert.IsNotNull(screen.Q<Button>("profile-name-edit-open"), "Expected an edit button beside the display name.");
+
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            StringAssert.Contains("Media/Images/edit_icon.png", uss, "Must use the supplied edit_icon.png asset.");
+
+            var popup = screen.Q<VisualElement>("profile-username-edit-popup");
+            Assert.IsNotNull(popup, "Expected a Profile-local username edit overlay.");
+            Assert.IsNotNull(popup.Q<TextField>("profile-username-edit-field"), "Expected a Display Name text field.");
+            Assert.IsNotNull(popup.Q<Button>("profile-username-edit-save"), "Expected a Save control.");
+            Assert.IsNotNull(popup.Q<Button>("profile-username-edit-cancel"), "Expected a Cancel control.");
+            Assert.IsNotNull(popup.Q<Label>("profile-username-edit-error"), "Expected an empty-name validation message.");
         }
 
         [Test]

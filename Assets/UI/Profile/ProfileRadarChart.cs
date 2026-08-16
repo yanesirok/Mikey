@@ -21,7 +21,9 @@ namespace Mikey.UI.Profile
     {
         private const int GridRingCount = 4;
         private const float RadiusFillFraction = 0.72f;
-        private const float LabelOutset = 34f;
+        // Nudged out slightly (34 -> 36) to keep clearance from the outer ring
+        // now that the radar's own label typography is ~10% larger.
+        private const float LabelOutset = 36f;
 
         // True red (#C62828 / #8F1717 — matches theme.uss --crimson/--crimson-deep;
         // written as float literals since generateVisualContent runs off the main

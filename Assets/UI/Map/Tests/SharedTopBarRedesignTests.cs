@@ -235,6 +235,27 @@ namespace Mikey.UI.Map.Tests
                 $"SettingsModalController must list '{settingsButtonName}' in OpenButtonNames.");
         }
 
+        [Test]
+        public void SettingsIcon_UsesTheSuppliedAsset_NotThePlaceholderRingAndDotGlyph()
+        {
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, "\n.map-topbar__settings-icon {");
+            Assert.IsNotNull(block);
+            StringAssert.Contains("Media/Images/settings_icon.png", block, "Must use the supplied settings_icon.png asset.");
+
+            StringAssert.DoesNotContain(".map-topbar__settings-ring", uss, "The old placeholder ring glyph rule must be removed.");
+            StringAssert.DoesNotContain(".map-topbar__settings-dot", uss, "The old placeholder dot glyph rule must be removed.");
+
+            foreach (var screenId in new[] { "map", "mapOkinawa", "techniques", "profile" })
+            {
+                var screen = Screen(BuildTree(), screenId);
+                Assert.IsNull(screen.Q<VisualElement>(className: "map-topbar__settings-ring"),
+                    $"'{screenId}' must not still render the old ring glyph markup.");
+                Assert.IsNull(screen.Q<VisualElement>(className: "map-topbar__settings-dot"),
+                    $"'{screenId}' must not still render the old dot glyph markup.");
+            }
+        }
+
         // ---------- premium spacing, not a compressed toolbar ----------
 
         [Test]
