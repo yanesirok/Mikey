@@ -13,9 +13,11 @@ namespace Mikey.UI.Map.Tests
     /// screens (Map, Okinawa, Techniques, Profile) — one shared stylesheet
     /// (Map.uss, linked into each screen; see the per-screen class checks below),
     /// the visible label rename Stats -> Profile, per-screen active state
-    /// (restrained red text glow + a small painted brushstroke underline reusing
-    /// the existing Main-Menu asset), generous nav spacing, and a Settings entry
-    /// point on every screen wired into the one shared modal. Lives alongside
+    /// (restrained true-red text glow + a small layered red brushstroke-style
+    /// underline — see Underline_IsARedLayeredStrokeApproximation_NotTheBlockedImageTint
+    /// for why this is no longer the tinted Main-Menu image), generous nav
+    /// spacing, and a Settings entry point on every screen wired into the one
+    /// shared modal. Lives alongside
     /// MapHudRedesignTests.cs since both read Assets/UI/Map/Map.uss as the single
     /// source of truth for this shared system. Profile-region-specific content
     /// (identity/radar/journey) is covered by Mikey.UI.Profile.Tests instead.
@@ -153,14 +155,41 @@ namespace Mikey.UI.Map.Tests
                 $"'{screenId}' active nav item must carry a brushstroke underline.");
         }
 
+        // NOT the tinted Main-Menu brushstroke image anymore: that asset's ink is
+        // near-black RGB behind an alpha mask, and "-unity-background-image-tint-
+        // color" is a per-pixel MULTIPLY, so multiplying black by any tint color
+        // still yields black — it visually read as a black underline no matter what
+        // color it was "tinted." Rebuilt as a small dedicated layered VisualElement
+        // (3 solid-red, slightly rotated strokes) per the fallback the spec itself
+        // allows for exactly this case.
         [Test]
-        public void Underline_IsRedTinted_AndReusesTheExistingBrushstrokeAsset_NoNewArt()
+        public void Underline_IsARedLayeredStrokeApproximation_NotTheBlockedImageTint()
         {
             string uss = File.ReadAllText(UssPath);
-            string block = ExtractRuleBlock(uss, "\n.map-topbar__nav-btn-underline {");
-            Assert.IsNotNull(block);
-            StringAssert.Contains("menu_brushstroke.png", block, "Must reuse the existing Main-Menu brushstroke asset, not new art.");
-            StringAssert.Contains("-unity-background-image-tint-color", block, "Must be red-tinted at render time (the source asset is black).");
+            StringAssert.DoesNotContain("menu_brushstroke.png", ExtractRuleBlock(uss, "\n.map-topbar__nav-btn-underline {") ?? string.Empty,
+                "The underline wrapper must no longer reference the brushstroke image asset.");
+
+            string strokeBlock = ExtractRuleBlock(uss, "\n.map-topbar__nav-btn-underline__stroke {");
+            Assert.IsNotNull(strokeBlock, "Expected a shared '.map-topbar__nav-btn-underline__stroke' rule.");
+            StringAssert.Contains("#C62828", strokeBlock, "Stroke color must be the true-red brand accent, not orange.");
+            StringAssert.DoesNotContain("-unity-background-image-tint-color", strokeBlock,
+                "Must be a solid color, not another attempt at tinting a black source image.");
+
+            foreach (var suffix in new[] { "a", "b", "c" })
+                Assert.IsNotNull(ExtractRuleBlock(uss, $"\n.map-topbar__nav-btn-underline__stroke--{suffix} {{"),
+                    $"Expected a '.map-topbar__nav-btn-underline__stroke--{suffix}' layer for an irregular, painted look.");
+        }
+
+        [TestCase("map")]
+        [TestCase("mapOkinawa")]
+        [TestCase("techniques")]
+        [TestCase("profile")]
+        public void EveryHudScreen_ActiveUnderline_HasThreeRedStrokeLayers(string screenId)
+        {
+            var active = Screen(BuildTree(), screenId).Q<VisualElement>(className: "map-topbar__nav-btn--active");
+            var underline = active.Q<VisualElement>(className: "map-topbar__nav-btn-underline");
+            var strokes = underline.Query<VisualElement>(className: "map-topbar__nav-btn-underline__stroke").ToList();
+            Assert.AreEqual(3, strokes.Count, $"'{screenId}' underline must carry all three stroke layers.");
         }
 
         // ---------- 13+14: LVL / XP on every screen ----------
@@ -174,6 +203,20 @@ namespace Mikey.UI.Map.Tests
             var topBar = Screen(BuildTree(), screenId).Q<VisualElement>(className: "map-topbar");
             Assert.IsNotNull(topBar.Q<Label>(className: "map-topbar__level"));
             Assert.IsNotNull(topBar.Q<Label>(className: "map-topbar__xp"));
+            Assert.IsNotNull(topBar.Q<VisualElement>(className: "map-topbar__xp-bar"), $"'{screenId}' HUD must show a thin XP progress line.");
+            Assert.IsNotNull(topBar.Q<VisualElement>(className: "map-topbar__xp-bar__fill"));
+        }
+
+        [Test]
+        public void LevelText_IsOffWhite_WithARestrainedRedAccent_NotOrange()
+        {
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, "\n.map-topbar__level {");
+            Assert.IsNotNull(block);
+            StringAssert.Contains("var(--bone)", block, "LVL text itself must be off-white, not colored orange/red.");
+            StringAssert.DoesNotContain("var(--seal)", block, "Must not use the old vermilion/orange-leaning accent.");
+            StringAssert.DoesNotContain("var(--ember)", block, "Must not use the orange accent.");
+            StringAssert.Contains("text-shadow", block, "Expected a restrained red glow as the accent, not solid-colored text.");
         }
 
         // ---------- 15: Settings still opens the one shared modal, everywhere ----------

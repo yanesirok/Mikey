@@ -502,7 +502,11 @@
                     </ui:Button>
                     <ui:VisualElement class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
                         <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--techniques" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--techniques" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Button name="go-profile" class="map-topbar__nav-btn tap-target">
                         <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
@@ -512,6 +516,9 @@
                     <ui:VisualElement class="map-topbar__status">
                         <ui:Label name="techniques-topbar-level" text="LVL 1" class="map-topbar__level" />
                         <ui:Label name="techniques-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Button name="techniques-topbar-settings" class="map-topbar__settings-btn tap-target">
                         <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
@@ -717,7 +724,11 @@
                         </ui:Button>
                         <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
@@ -730,6 +741,9 @@
                         <ui:VisualElement class="map-topbar__status">
                             <ui:Label name="map-topbar-level" text="LVL 1" class="map-topbar__level" />
                             <ui:Label name="map-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                            <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Button name="map-topbar-settings" class="map-topbar__settings-btn tap-target">
                             <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
@@ -850,7 +864,11 @@
                              ordering relative to a second handler isn't guaranteed. -->
                         <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
                             <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
@@ -863,6 +881,9 @@
                         <ui:VisualElement class="map-topbar__status">
                             <ui:Label name="okinawa-topbar-level" text="LVL 1" class="map-topbar__level" />
                             <ui:Label name="okinawa-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                            <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Button name="okinawa-topbar-settings" class="map-topbar__settings-btn tap-target">
                             <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
@@ -888,10 +909,11 @@
             <!-- shared top-nav visual system (".map-topbar"), reused exactly as-is
                  — see the same note on the "techniques" screen above. -->
             <Style src="Map/Map.uss" />
-            <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper. The
+                 supplied final art (profile_background.jpg) IS the background —
+                 no generated decorative glow/enso shapes. -->
             <ui:VisualElement class="profile-bg" picking-mode="Ignore">
-                <ui:VisualElement class="profile-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="profile-enso" picking-mode="Ignore" />
+                <ui:VisualElement class="profile-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
@@ -918,13 +940,20 @@
                     </ui:VisualElement>
                     <ui:VisualElement name="nav-profile" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
                         <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--profile" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--profile" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="map-topbar__right">
                     <ui:VisualElement class="map-topbar__status">
                         <ui:Label name="profile-topbar-level" text="LVL 1" class="map-topbar__level" />
                         <ui:Label name="profile-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Button name="profile-topbar-settings" class="map-topbar__settings-btn tap-target">
                         <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore">
@@ -1000,6 +1029,36 @@
                     <ui:Label text="First Assessment Complete" class="profile-milestone-value" />
                 </ui:VisualElement>
 
+            </ui:VisualElement>
+
+            <!-- Compact explanation of the five radar metrics — one wrapping row
+                 of short name/description pairs, not five separate cards. Sits
+                 beneath the three-region layout so that composition stays intact
+                 above it. -->
+            <ui:VisualElement class="profile-attribute-guide">
+                <ui:Label text="Attribute Guide" class="profile-attribute-guide__title" />
+                <ui:VisualElement class="profile-attribute-guide__list">
+                    <ui:VisualElement class="profile-attribute-guide__item">
+                        <ui:Label text="Strength" class="profile-attribute-guide__name" />
+                        <ui:Label text="Power and striking force." class="profile-attribute-guide__desc" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-attribute-guide__item">
+                        <ui:Label text="Speed" class="profile-attribute-guide__name" />
+                        <ui:Label text="Quickness of movement and reaction." class="profile-attribute-guide__desc" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-attribute-guide__item">
+                        <ui:Label text="Form" class="profile-attribute-guide__name" />
+                        <ui:Label text="Technical precision and correctness." class="profile-attribute-guide__desc" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-attribute-guide__item">
+                        <ui:Label text="Stamina" class="profile-attribute-guide__name" />
+                        <ui:Label text="Endurance across repeated effort." class="profile-attribute-guide__desc" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-attribute-guide__item">
+                        <ui:Label text="Control" class="profile-attribute-guide__name" />
+                        <ui:Label text="Balance, stability, and body control." class="profile-attribute-guide__desc" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

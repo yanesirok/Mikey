@@ -7,7 +7,13 @@
    header comment for the exact REAL vs PLACEHOLDER split).
    ============================================================ */
 
-/* ---------- full-bleed background ---------- */
+/* ---------- full-bleed background ----------
+   The supplied final art (profile_background.jpg) IS the background now —
+   no generated decorative glow/enso shapes. background-color is only a
+   fallback in case the image fails to load; -unity-background-scale-mode
+   "scale-and-crop" is a cover-fit (fills the box, preserves aspect ratio,
+   never stretches), matching every other full-bleed media surface in this
+   app (see theme.uss ".bg-media"). */
 .profile-bg {
     position: absolute;
     top: 0;
@@ -15,26 +21,18 @@
     right: 0;
     bottom: 0;
     background-color: var(--base);
-    align-items: center;
+    background-image: url("/Assets/UI/Media/Images/Profile/profile_background.jpg");
+    -unity-background-scale-mode: scale-and-crop;
 }
-.profile-glow {
+/* Subtle legibility scrim — the source art is already mostly near-black in
+   the center where content sits, so this only needs to be light. */
+.profile-scrim {
     position: absolute;
-    top: -180px;
-    width: 780px;
-    height: 780px;
-    border-radius: 390px;
-    background-color: rgba(255, 90, 31, 0.055);
-}
-.profile-enso {
-    position: absolute;
-    right: -130px;
-    bottom: -180px;
-    width: 560px;
-    height: 560px;
-    border-radius: 280px;
-    border-width: 18px;
-    border-color: rgba(237, 230, 216, 0.045);
-    background-color: rgba(43, 217, 168, 0.025);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(8, 10, 12, 0.3);
 }
 
 /* ---------- three-region layout ----------
@@ -81,7 +79,7 @@
 .profile-kicker {
     font-size: 20px;
     letter-spacing: 3px;
-    color: var(--ember);
+    color: var(--crimson);
 }
 .profile-name {
     font-size: 44px;
@@ -104,13 +102,13 @@
     font-size: 34px;
     -unity-font-style: bold;
     letter-spacing: 0.5px;
-    color: var(--seal);
+    color: var(--crimson);
 }
 
 .profile-xp-bar {
     height: 14px;
     border-radius: 7px;
-    background-color: rgba(255, 90, 31, 0.12);
+    background-color: rgba(15, 10, 10, 0.4);
     border-width: 1px;
     border-color: var(--line);
     margin-top: 16px;
@@ -120,7 +118,7 @@
     width: 64%;
     height: 100%;
     border-radius: 7px;
-    background-color: var(--ember);
+    background-color: var(--crimson-deep);
 }
 .profile-xp-label {
     font-size: 18px;
@@ -156,13 +154,16 @@
 }
 
 /* Applied by ProfileRadarChart to the five Label vertices it positions
-   itself (absolute, centered on each computed vertex anchor point). */
+   itself (absolute, centered on each computed vertex anchor point). Clean,
+   flat off-white text — no text-shadow/glow and no bold weight, so these
+   never read as "neon"; the only glow in this region belongs to the red
+   polygon itself (see ProfileRadarChart's Glow* colors). */
 .profile-radar-label {
     position: absolute;
     font-size: 20px;
-    -unity-font-style: bold;
+    -unity-font-style: normal;
     letter-spacing: 0.5px;
-    color: rgba(237, 230, 216, 0.85);
+    color: var(--bone);
     -unity-text-align: middle-center;
     white-space: nowrap;
 }
@@ -211,7 +212,7 @@
 .profile-journey-bar {
     height: 8px;
     border-radius: 4px;
-    background-color: rgba(255, 90, 31, 0.12);
+    background-color: rgba(15, 10, 10, 0.4);
     border-width: 1px;
     border-color: var(--line);
     margin-top: 12px;
@@ -221,7 +222,7 @@
     width: 16%;
     height: 100%;
     border-radius: 4px;
-    background-color: var(--seal);
+    background-color: var(--crimson);
 }
 
 .profile-training-list {
@@ -243,4 +244,51 @@
     color: var(--jade);
     margin-top: 6px;
     white-space: normal;
+}
+
+/* ---------- attribute guide ----------
+   Compact explanation of the five radar metrics — a single wrapping row of
+   short name/description pairs beneath the three-region layout, not five
+   separate cards. */
+.profile-attribute-guide {
+    width: 100%;
+    max-width: 1680px;
+    align-self: center;
+    padding-top: 16px;
+    margin-top: 10px;
+    border-top-width: 1px;
+    border-top-color: rgba(237, 230, 216, 0.1);
+}
+.profile-attribute-guide__title {
+    font-size: 17px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: var(--muted);
+}
+.profile-attribute-guide__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.profile-attribute-guide__item {
+    flex-direction: row;
+    align-items: baseline;
+    flex-grow: 1;
+    flex-basis: 300px;
+    min-width: 0;
+    padding: 3px 18px 3px 0;
+}
+.profile-attribute-guide__name {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--crimson);
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+.profile-attribute-guide__desc {
+    font-size: 14px;
+    color: var(--muted);
+    white-space: normal;
+    flex-shrink: 1;
+    min-width: 0;
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -199,6 +200,97 @@ namespace Mikey.UI.Profile.Tests
             {
                 CollectionAssert.Contains(labels, expected, $"Profile's journey column should include '{expected}'.");
             }
+        }
+
+        [Test]
+        public void Background_UsesSuppliedFinalArt_AndOldDecorativeShapesAreGone()
+        {
+            const string ussPath = "Assets/UI/Profile/Profile.uss";
+            Assert.IsTrue(File.Exists(ussPath), $"Expected stylesheet at {ussPath}.");
+            string uss = File.ReadAllText(ussPath);
+            StringAssert.Contains("Media/Images/Profile/profile_background.jpg", uss,
+                "Profile.uss must reference the supplied final background art.");
+            StringAssert.Contains("scale-and-crop", uss, "Background must cover-fit, never stretch.");
+
+            var screen = Profile(BuildTree());
+            Assert.IsNull(screen.Q<VisualElement>(className: "profile-glow"), "The generated decorative glow circle must be removed.");
+            Assert.IsNull(screen.Q<VisualElement>(className: "profile-enso"), "The generated decorative enso ring must be removed.");
+            Assert.IsNotNull(screen.Q<VisualElement>(className: "profile-scrim"), "Expected a subtle readability scrim over the real art.");
+        }
+
+        [Test]
+        public void AttributeGuide_ExistsWithAllFiveDefinitions()
+        {
+            var labels = Labels(Profile(BuildTree())).Select(l => l.text).ToList();
+            CollectionAssert.Contains(labels, "Attribute Guide");
+
+            foreach (var (name, description) in new[]
+            {
+                ("Strength", "Power and striking force."),
+                ("Speed", "Quickness of movement and reaction."),
+                ("Form", "Technical precision and correctness."),
+                ("Stamina", "Endurance across repeated effort."),
+                ("Control", "Balance, stability, and body control."),
+            })
+            {
+                CollectionAssert.Contains(labels, name, $"Attribute Guide must name '{name}'.");
+                CollectionAssert.Contains(labels, description, $"Attribute Guide must define '{name}'.");
+            }
+
+            var guide = Profile(BuildTree()).Q<VisualElement>(className: "profile-attribute-guide");
+            Assert.IsNotNull(guide, "Expected a compact '.profile-attribute-guide' section, not five separate cards.");
+            Assert.AreEqual(5, guide.Query<VisualElement>(className: "profile-attribute-guide__item").ToList().Count);
+        }
+
+        [Test]
+        public void NoOrangeAccentsRemainInProfileStyles()
+        {
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            StringAssert.DoesNotContain("var(--ember)", uss, "Profile must not use the orange accent anywhere.");
+            StringAssert.DoesNotContain("var(--seal)", uss, "Profile must use the true-red --crimson accent, not the orange-leaning --seal.");
+            StringAssert.DoesNotContain("255, 90, 31", uss, "No leftover orange (--ember) literal rgba values.");
+            StringAssert.Contains("var(--crimson)", uss);
+        }
+
+        [Test]
+        public void RadarLabelStyle_HasNoTextShadow_AndIsNotBold()
+        {
+            string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
+            string block = ExtractRuleBlock(uss, ".profile-radar-label {");
+            Assert.IsNotNull(block, "Expected a '.profile-radar-label' rule.");
+            StringAssert.DoesNotContain("text-shadow", block, "Radar axis/value labels must be clean flat text, no glow.");
+            StringAssert.Contains("-unity-font-style: normal", block, "Radar labels must not be bold (reads as heavier/glowier).");
+        }
+
+        [Test]
+        public void RadarPolygonColors_AreTrueRed_NotOrange()
+        {
+            string source = File.ReadAllText("Assets/UI/Profile/ProfileRadarChart.cs");
+            StringAssert.DoesNotContain("0.90f, 0.30f, 0.20f", source, "Old orange-shifted stroke color must be gone.");
+            StringAssert.Contains("0.7765f, 0.1569f, 0.1569f", source, "Polygon fill/stroke/glow must use the true-red (#C62828) value.");
+        }
+
+        private static string ExtractRuleBlock(string uss, string header)
+        {
+            int start = uss.IndexOf(header, System.StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+            int open = uss.IndexOf('{', start);
+            if (open < 0)
+                return null;
+            int depth = 0;
+            for (int i = open; i < uss.Length; i++)
+            {
+                if (uss[i] == '{')
+                    depth++;
+                else if (uss[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                        return uss.Substring(open + 1, i - open - 1);
+                }
+            }
+            return null;
         }
 
         [Test]

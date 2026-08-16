@@ -23,13 +23,16 @@ namespace Mikey.UI.Profile
         private const float RadiusFillFraction = 0.72f;
         private const float LabelOutset = 34f;
 
+        // True red (#C62828 / #8F1717 — matches theme.uss --crimson/--crimson-deep;
+        // written as float literals since generateVisualContent runs off the main
+        // thread's USS cascade and can't read custom properties at paint time).
         private static readonly Color GridColor = new Color(0.75f, 0.72f, 0.65f, 0.12f);
         private static readonly Color OuterGridColor = new Color(0.75f, 0.72f, 0.65f, 0.22f);
         private static readonly Color AxisColor = new Color(0.75f, 0.72f, 0.65f, 0.12f);
-        private static readonly Color GlowOuter = new Color(0.78f, 0.16f, 0.09f, 0.05f);
-        private static readonly Color GlowInner = new Color(0.78f, 0.16f, 0.09f, 0.08f);
-        private static readonly Color DataFill = new Color(0.78f, 0.16f, 0.09f, 0.32f);
-        private static readonly Color DataStroke = new Color(0.90f, 0.30f, 0.20f, 0.95f);
+        private static readonly Color GlowOuter = new Color(0.7765f, 0.1569f, 0.1569f, 0.05f);
+        private static readonly Color GlowInner = new Color(0.7765f, 0.1569f, 0.1569f, 0.08f);
+        private static readonly Color DataFill = new Color(0.7765f, 0.1569f, 0.1569f, 0.32f);
+        private static readonly Color DataStroke = new Color(0.7765f, 0.1569f, 0.1569f, 0.95f);
 
         private float[] _targetValues = new float[ProfileRadarMath.AxisCount];
         private float _maxValue = 100f;
