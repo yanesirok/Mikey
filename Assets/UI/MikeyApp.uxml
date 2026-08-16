@@ -3,22 +3,18 @@
         <Style src="theme.uss" />
 
         <!-- 1 - LOGO INTRO (startup/logo screen; single production entry screen).
-             Minimal by design: near-black background + centered Mikey logo, nothing
-             else. TitleController auto-advances to Lore after a short beat, or
-             immediately on a tap/click anywhere (no CTA button — this is not a
-             ScreenManager "go-" navigator). The retired title_loop.mp4 / ember-sun
-             treatment is gone; when a dedicated logo-animation video exists later,
-             only .title-logo needs to become a video target. -->
+             Full-bleed final logo animation (logo_intro.mp4) on a near-black
+             backdrop, nothing else. TitleController plays it once and advances to
+             Lore when it finishes, or immediately on a tap/click anywhere (no CTA
+             button — this is not a ScreenManager "go-" navigator). -->
         <ui:VisualElement name="title" class="screen title-screen">
             <Style src="Title/Title.uss" />
-            <!-- full-bleed near-black background, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="title-bg" picking-mode="Ignore" />
+            <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="title-bg" picking-mode="Ignore">
+                <ui:VisualElement name="title-video" picking-mode="Ignore" class="title-video" />
+            </ui:VisualElement>
 
-            <ui:VisualElement class="safe-area-content sa-center">
-            <ui:VisualElement class="title-block">
-                <ui:VisualElement class="title-logo" picking-mode="Ignore" />
-            </ui:VisualElement>
-            </ui:VisualElement>
+            <ui:VisualElement class="safe-area-content" />
         </ui:VisualElement>
 
         <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later) -->

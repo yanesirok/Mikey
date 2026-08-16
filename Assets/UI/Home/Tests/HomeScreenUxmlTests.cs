@@ -88,14 +88,14 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void MikeyLogo_IsReferencedOnTitleAndMainMenu()
+        public void MikeyLogo_IsReferencedOnMainMenu_ButNoLongerOnTitle()
         {
             Assert.IsTrue(File.Exists(TitleUssPath), $"Expected stylesheet at {TitleUssPath}.");
             Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
-            StringAssert.Contains(LogoAssetPath, File.ReadAllText(TitleUssPath),
-                "Title.uss must reference the supplied Mikey logo asset.");
             StringAssert.Contains(LogoAssetPath, File.ReadAllText(HomeUssPath),
                 "Home.uss must reference the supplied Mikey logo asset on the Main Menu.");
+            StringAssert.DoesNotContain(LogoAssetPath, File.ReadAllText(TitleUssPath),
+                "Title.uss must no longer reference the static Mikey logo image — the final logo_intro.mp4 animation replaces it.");
         }
 
         [Test]

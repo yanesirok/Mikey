@@ -86,18 +86,20 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.IsTrue(intro.ClassListContains("screen"), "'intro' target must be a screen.");
         }
 
-        // 8 + 9 — Logo Intro is minimal by design: no buttons, just the centered
-        // Mikey logo mark (see Assets/UI/Title/Tests for TitleController's own
-        // timer/tap-skip contract).
+        // 8 + 9 — Logo Intro is minimal by design: no buttons, just the full-bleed
+        // logo video (see Assets/UI/Title/Tests for TitleController's own video
+        // playback/tap-skip contract).
         [Test]
-        public void TitleScreen_HasNoButtons_OnlyTheLogo()
+        public void TitleScreen_HasNoButtons_OnlyTheLogoVideo()
         {
             var title = BuildTree().Q<VisualElement>("title");
             Assert.IsNotNull(title, "Expected a 'title' screen.");
             Assert.IsEmpty(title.Query<Button>().ToList(),
-                "Logo Intro must have no buttons — auto-advance timer + tap-anywhere only.");
-            Assert.IsNotNull(title.Q<VisualElement>(className: "title-logo"),
-                "Title must show the centered Mikey logo mark.");
+                "Logo Intro must have no buttons — video completion + tap-anywhere only.");
+            Assert.IsNotNull(title.Q<VisualElement>("title-video"),
+                "Title must have a video target for the final logo animation.");
+            Assert.IsNull(title.Q<VisualElement>(className: "title-logo"),
+                "The retired static logo mark must be gone — the video is the logo now.");
         }
 
         [Test]
@@ -201,7 +203,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void FullBleedElementsAreNotInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-bg", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed", "map-bg", "profile-bg" })
+            foreach (var className in new[] { "title-bg", "title-video", "cam-feed", "combine-bg", "intro-bg", "tq-bg", "pr-feed", "map-bg", "profile-bg" })
             {
                 var matches = ByClass(root, className);
                 Assert.IsNotEmpty(matches, $"Expected at least one .{className}.");
@@ -217,7 +219,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "title-block", "content", "cam-actionbar", "cam-live", "skip", "combine-content",
+            foreach (var className in new[] { "content", "cam-actionbar", "cam-live", "skip", "combine-content",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
                 "map-root", "pan-stage", "detail-panel", "profile-dashboard", "profile-identity", "profile-stats", "profile-achievements", "profile-activity", "profile-dock" })
             {
