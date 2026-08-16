@@ -113,28 +113,10 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- SETTINGS overlay: Music / Sound Effects / Trainer Voice volume,
-                 two-way bound to IAudioSettings (PlayerPrefs). Hidden by default. -->
-            <ui:VisualElement name="menu-settings-modal" class="menu-modal">
-                <ui:VisualElement class="menu-modal__card">
-                    <ui:Label text="SETTINGS" class="menu-modal__title" />
-
-                    <ui:VisualElement class="menu-setting">
-                        <ui:Label text="MUSIC" class="menu-setting__label" />
-                        <ui:Slider name="menu-settings-music" low-value="0" high-value="1" value="0.70" class="menu-setting__slider" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="menu-setting">
-                        <ui:Label text="SOUND EFFECTS" class="menu-setting__label" />
-                        <ui:Slider name="menu-settings-sfx" low-value="0" high-value="1" value="1.00" class="menu-setting__slider" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="menu-setting">
-                        <ui:Label text="TRAINER VOICE" class="menu-setting__label" />
-                        <ui:Slider name="menu-settings-trainer" low-value="0" high-value="1" value="1.00" class="menu-setting__slider" />
-                    </ui:VisualElement>
-
-                    <ui:Button name="menu-settings-close" text="CLOSE" class="btn primary sm menu-modal__close tap-target sfx-click" />
-                </ui:VisualElement>
-            </ui:VisualElement>
+            <!-- SETTINGS ("menu-settings-open" above) now opens the one shared
+                 Settings modal (see the "shared-settings-modal" element at the
+                 end of this file, and SettingsModalController) — no local
+                 modal here anymore. -->
         </ui:VisualElement>
 
         <!-- 4 - COMBINE INTRO (landscape LVL0 briefing) -->
@@ -661,27 +643,10 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- map-local Settings modal: reuses IAudioSettings directly
-                     rather than duplicating Home's whole settings system
-                     (see MapSettingsModalBinder). Hidden by default. -->
-                <ui:VisualElement name="map-settings-modal" class="map-settings-modal">
-                    <ui:VisualElement class="map-settings-modal__card">
-                        <ui:Label text="Settings" class="map-settings-modal__title" />
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Music" class="map-setting__label" />
-                            <ui:Slider name="map-settings-music" low-value="0" high-value="1" value="0.70" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Sound Effects" class="map-setting__label" />
-                            <ui:Slider name="map-settings-sfx" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Trainer Voice" class="map-setting__label" />
-                            <ui:Slider name="map-settings-trainer" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:Button name="map-settings-close" text="Close" class="map-settings-modal__close tap-target" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
+                <!-- SETTINGS ("map-topbar-settings" above) now opens the one
+                     shared Settings modal (see the "shared-settings-modal"
+                     element at the end of this file, and
+                     SettingsModalController) — no local modal here anymore. -->
 
             </ui:VisualElement>
             </ui:VisualElement>
@@ -810,24 +775,10 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <ui:VisualElement name="okinawa-settings-modal" class="map-settings-modal">
-                    <ui:VisualElement class="map-settings-modal__card">
-                        <ui:Label text="Settings" class="map-settings-modal__title" />
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Music" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-music" low-value="0" high-value="1" value="0.70" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Sound Effects" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-sfx" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-setting">
-                            <ui:Label text="Trainer Voice" class="map-setting__label" />
-                            <ui:Slider name="okinawa-settings-trainer" low-value="0" high-value="1" value="1.00" class="map-setting__slider" />
-                        </ui:VisualElement>
-                        <ui:Button name="okinawa-settings-close" text="Close" class="map-settings-modal__close tap-target" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
+                <!-- SETTINGS ("okinawa-topbar-settings" above) now opens the
+                     one shared Settings modal (see the "shared-settings-modal"
+                     element at the end of this file, and
+                     SettingsModalController) — no local modal here anymore. -->
 
             </ui:VisualElement>
             </ui:VisualElement>
@@ -988,6 +939,38 @@
                 </ui:VisualElement>
 
             </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 11 - SHARED SETTINGS MODAL (Music / Sound Effects / Trainer Voice).
+             The ONE Settings window for the whole app — reachable from Main
+             Menu ("menu-settings-open") and both map screens
+             ("map-topbar-settings" / "okinawa-topbar-settings"), all wired to
+             THIS SAME element by SettingsModalController. Declared last, after
+             every screen, so it always paints/hit-tests above whichever screen
+             is currently active (ScreenManager only toggles screens'
+             display:none/flex; this element isn't itself a screen and is never
+             touched by ScreenManager). Closing only removes the modal's own
+             "open" CSS class — it never navigates, so the screen underneath
+             (and, on a map screen, its camera/chapter context) is always
+             left exactly as it was. Hidden by default. -->
+        <ui:VisualElement name="shared-settings-modal" class="settings-modal">
+            <Style src="Settings/Settings.uss" />
+            <ui:VisualElement class="settings-modal__card">
+                <ui:Label text="Settings" class="settings-modal__title" />
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Music" class="setting__label" />
+                    <ui:Slider name="shared-settings-music" low-value="0" high-value="1" value="0.70" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Sound Effects" class="setting__label" />
+                    <ui:Slider name="shared-settings-sfx" low-value="0" high-value="1" value="1.00" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Trainer Voice" class="setting__label" />
+                    <ui:Slider name="shared-settings-trainer" low-value="0" high-value="1" value="1.00" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:Button name="shared-settings-close" text="Close" class="settings-modal__close tap-target" />
             </ui:VisualElement>
         </ui:VisualElement>
 

@@ -137,5 +137,14 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State)", source);
         }
+
+        [Test]
+        public void NoLongerOwnsSettings_TheSharedModalControllerDoesInstead()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("MapSettingsModalBinder", source);
+            StringAssert.DoesNotContain("_settingsModal", source);
+            StringAssert.DoesNotContain("IAudioSettings", source);
+        }
     }
 }

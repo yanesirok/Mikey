@@ -255,85 +255,11 @@ namespace Mikey.UI.Map.Tests
             Assert.LessOrEqual(size, 26f);
         }
 
-        // ---------- 10-12: Settings modal content ----------
-
-        [TestCase("map", "Music")]
-        [TestCase("map", "Sound Effects")]
-        [TestCase("map", "Trainer Voice")]
-        [TestCase("mapOkinawa", "Music")]
-        [TestCase("mapOkinawa", "Sound Effects")]
-        [TestCase("mapOkinawa", "Trainer Voice")]
-        public void SettingsModal_ContainsExpectedControlLabel(string screenId, string expectedLabel)
-        {
-            var screen = Screen(BuildTree(), screenId);
-            var labels = screen.Query<Label>().ToList().Select(l => l.text).ToList();
-            CollectionAssert.Contains(labels, expectedLabel);
-        }
-
-        // ---------- 13: Settings modal is substantially larger ----------
-
-        [Test]
-        public void SettingsModalCard_IsPercentageWidth_NotTheOldFixed420px()
-        {
-            string block = ExtractRuleBlock(File.ReadAllText(UssPath), "\n.map-settings-modal__card {");
-            Assert.IsNotNull(block);
-            StringAssert.DoesNotContain("width: 420px", block, "The old small fixed-width card must not remain.");
-            StringAssert.Contains("width: 60%", block);
-        }
-
-        [Test]
-        public void SettingsModalTitle_IsWithinUpgradedTarget_36To44Px()
-        {
-            float size = ExtractPx(ExtractRuleBlock(File.ReadAllText(UssPath), "\n.map-settings-modal__title {"), "font-size");
-            Assert.GreaterOrEqual(size, 36f);
-            Assert.LessOrEqual(size, 44f);
-        }
-
-        [Test]
-        public void SettingsControlLabel_IsWithinUpgradedTarget_22To26Px()
-        {
-            float size = ExtractPx(ExtractRuleBlock(File.ReadAllText(UssPath), "\n.map-setting__label {"), "font-size");
-            Assert.GreaterOrEqual(size, 22f);
-            Assert.LessOrEqual(size, 26f);
-        }
-
-        [Test]
-        public void Sliders_HaveAnUpgradedThumbAndTrackSize()
-        {
-            string uss = File.ReadAllText(UssPath);
-            string tracker = ExtractRuleBlock(uss, ".map-setting__slider .unity-base-slider__tracker {");
-            string dragger = ExtractRuleBlock(uss, ".map-setting__slider .unity-base-slider__dragger {");
-            Assert.IsNotNull(tracker, "Expected a track-thickness override scoped under '.map-setting__slider'.");
-            Assert.IsNotNull(dragger, "Expected a thumb-size override scoped under '.map-setting__slider'.");
-            Assert.GreaterOrEqual(ExtractPx(tracker, "height"), 6f, "Track should read as substantially thicker than the UI Toolkit default.");
-            Assert.GreaterOrEqual(ExtractPx(dragger, "width"), 24f, "Thumb should be comfortably large for a fingertip.");
-        }
-
-        [Test]
-        public void AllSliders_CarryTheUpgradedSliderClass()
-        {
-            var root = BuildTree();
-            foreach (var screenId in new[] { "map", "mapOkinawa" })
-            {
-                var screen = Screen(root, screenId);
-                var sliders = screen.Query<Slider>().ToList();
-                Assert.AreEqual(3, sliders.Count, $"Expected 3 sliders on '{screenId}'.");
-                foreach (var slider in sliders)
-                    Assert.IsTrue(slider.ClassListContains("map-setting__slider"), $"Slider '{slider.name}' must carry the upgraded slider class.");
-            }
-        }
-
-        [Test]
-        public void CloseButton_IsSelfContained_NotFightingTheSharedThemeButtonClass()
-        {
-            var root = BuildTree();
-            foreach (var (screenId, buttonName) in new[] { ("map", "map-settings-close"), ("mapOkinawa", "okinawa-settings-close") })
-            {
-                var close = Screen(root, screenId).Q<Button>(buttonName);
-                Assert.IsNotNull(close);
-                Assert.IsFalse(close.ClassListContains("btn"), "Must not reuse theme.uss's shared '.btn' class, which would fight this modal's own specificity.");
-            }
-        }
+        // Settings modal content/sizing tests (items 10-13 from the original
+        // HUD-redesign pass) moved to Mikey.UI.Settings.Tests.SettingsModalUxmlTests
+        // — Settings is no longer part of Map.uss/MikeyApp.uxml's per-screen
+        // markup at all; it's the one shared modal (see
+        // Assets/UI/Settings and SettingsModalController).
 
         private static float ExtractPx(string block, string property)
         {

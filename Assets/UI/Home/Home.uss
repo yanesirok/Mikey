@@ -166,18 +166,8 @@
     min-width: 160px;
 }
 
-/* Settings rows: label + full-width slider, spacing carries the hierarchy. */
-.menu-setting {
-    width: 100%;
-    align-items: flex-start;
-    margin-top: 20px;
-}
-.menu-setting__label {
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    margin-bottom: 8px;
-}
-.menu-setting__slider {
-    width: 100%;
-}
+/* Settings ("menu-settings-open" in MikeyApp.uxml) now opens the one shared
+   Settings modal (see Assets/UI/Settings/Settings.uss and
+   SettingsModalController) — the old local ".menu-setting*" rows were
+   retired with it. ".menu-modal" above remains: it's still used by the
+   separate Plans overlay. */

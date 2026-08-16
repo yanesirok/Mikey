@@ -11,9 +11,11 @@ namespace Mikey.UI.Home.Tests
     /// Structural contract for the rebuilt Main Menu (the "menu" screen) in
     /// MikeyApp.uxml: the supplied cinematic video background, the upper-left
     /// Mikey logo, a right-side PLAY/PLANS/SETTINGS/QUIT navigation built from
-    /// spacing and typography rather than dashboard cards, the Plans/Settings
-    /// overlays (hidden by default, driven by HomeController), and none of the
-    /// old Home dashboard controls (CTA, ribbon, power stats, 4-tab dock, dev bar).
+    /// spacing and typography rather than dashboard cards, the local Plans
+    /// overlay (hidden by default, driven by HomeController — SETTINGS now
+    /// opens the one shared Settings modal instead, see
+    /// Mikey.UI.Settings.Tests), and none of the old Home dashboard controls
+    /// (CTA, ribbon, power stats, 4-tab dock, dev bar).
     /// </summary>
     public class HomeScreenUxmlTests
     {
@@ -138,36 +140,21 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void Settings_OpensLocalOverlay_WithThreeVolumeSlidersAndClose()
+        public void Settings_ExistsAsButton_ButNoLongerOpensALocalOverlay()
         {
+            // SETTINGS now opens the one shared Settings modal (see
+            // Assets/UI/Settings — Mikey.UI.Settings.Tests covers its content,
+            // sizing and behavior in full); Home no longer owns a Settings
+            // modal of its own.
             var screen = MenuScreen(BuildTree());
 
             var settingsButton = screen.Q<Button>("menu-settings-open");
             Assert.IsNotNull(settingsButton, "Main Menu must expose SETTINGS.");
             Assert.IsFalse(settingsButton.name.StartsWith(NavPrefix),
-                "SETTINGS must not be a 'go-' navigator — it opens a local overlay.");
+                "SETTINGS must not be a 'go-' navigator — it opens the shared Settings modal.");
 
-            var modal = screen.Q<VisualElement>("menu-settings-modal");
-            Assert.IsNotNull(modal, "Expected a 'menu-settings-modal' overlay.");
-
-            var music = modal.Q<Slider>("menu-settings-music");
-            var sfx = modal.Q<Slider>("menu-settings-sfx");
-            var trainer = modal.Q<Slider>("menu-settings-trainer");
-            Assert.IsNotNull(music, "Expected a Music volume slider.");
-            Assert.IsNotNull(sfx, "Expected a Sound Effects volume slider.");
-            Assert.IsNotNull(trainer, "Expected a Trainer Voice volume slider.");
-
-            foreach (var slider in new[] { music, sfx, trainer })
-            {
-                Assert.AreEqual(0f, slider.lowValue, $"'{slider.name}' must range from 0.");
-                Assert.AreEqual(1f, slider.highValue, $"'{slider.name}' must range to 1.");
-            }
-
-            Assert.AreEqual(0.70f, music.value, 0.001f, "Music's markup default must match the suggested default (0.70).");
-            Assert.AreEqual(1.00f, sfx.value, 0.001f, "Sound Effects' markup default must match the suggested default (1.00).");
-            Assert.AreEqual(1.00f, trainer.value, 0.001f, "Trainer Voice's markup default must match the suggested default (1.00).");
-
-            Assert.IsNotNull(modal.Q<Button>("menu-settings-close"), "Settings overlay must expose a close action.");
+            Assert.IsNull(screen.Q<VisualElement>("menu-settings-modal"),
+                "The old local Settings overlay must be gone — Settings is unified into one shared modal.");
         }
 
         [Test]
@@ -267,10 +254,13 @@ namespace Mikey.UI.Home.Tests
         {
             var screen = MenuScreen(BuildTree());
             // Every Button on the rebuilt Main Menu (including inside its overlays)
-            // must be a wired "go-" navigator or a known local HomeController action.
+            // must be a wired "go-" navigator or a known local action — either
+            // HomeController's own (Plans/Quit) or the shared
+            // SettingsModalController's ("menu-settings-open"; its close button
+            // now lives outside this screen, in the shared modal).
             var localActions = new HashSet<string>
             {
-                "menu-plans-open", "menu-plans-close", "menu-settings-open", "menu-settings-close", "menu-quit",
+                "menu-plans-open", "menu-plans-close", "menu-settings-open", "menu-quit",
             };
 
             foreach (var button in screen.Query<Button>().ToList())

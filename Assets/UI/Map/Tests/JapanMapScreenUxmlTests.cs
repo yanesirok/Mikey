@@ -142,15 +142,16 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void SettingsModal_ExistsAndIsClosedByDefault()
+        public void NoLocalSettingsModal_TheSettingsButtonOpensTheOneSharedModalInstead()
         {
-            var modal = MapScreen(BuildTree()).Q<VisualElement>("map-settings-modal");
-            Assert.IsNotNull(modal, "Expected a map-local 'map-settings-modal' overlay.");
-            Assert.IsFalse(modal.ClassListContains("map-settings-modal--open"));
-            Assert.IsNotNull(modal.Q<Slider>("map-settings-music"));
-            Assert.IsNotNull(modal.Q<Slider>("map-settings-sfx"));
-            Assert.IsNotNull(modal.Q<Slider>("map-settings-trainer"));
-            Assert.IsNotNull(modal.Q<Button>("map-settings-close"));
+            // Settings is unified into a single shared modal (see
+            // Assets/UI/Settings and Mikey.UI.Settings.Tests) — the Japan
+            // screen must not have its own copy anymore, only the open
+            // trigger button (already covered by
+            // TopBar_ExposesSettingsMapTechniquesStatsAndLevelXp above).
+            var screen = MapScreen(BuildTree());
+            Assert.IsNull(screen.Q<VisualElement>("map-settings-modal"),
+                "The old map-local Settings overlay must be gone.");
         }
 
         // No baked labels, the old flattened single-image composition, the

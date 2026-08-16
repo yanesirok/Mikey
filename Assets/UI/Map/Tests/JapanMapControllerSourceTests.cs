@@ -70,13 +70,23 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("if (screenId == ScreenId)", source);
             StringAssert.Contains("ResetToDefaultState();", source);
-            // ResetToDefaultState itself must close the panel, clear the settings
-            // modal and clear the transition overlay so nothing is stuck from a
-            // prior visit.
+            // ResetToDefaultState itself must close the panel and clear the
+            // transition overlay so nothing is stuck from a prior visit. It no
+            // longer touches Settings at all — the shared modal (see
+            // Mikey.UI.Settings.SettingsModalController) manages its own state
+            // independently of any screen.
             StringAssert.Contains("private void ResetToDefaultState()", source);
             StringAssert.Contains("ClosePanel();", source);
-            StringAssert.Contains("MapSettingsModalBinder.Close(_settingsModal);", source);
             StringAssert.Contains("_transitionOverlay?.RemoveFromClassList(TransitionVisibleClass);", source);
+        }
+
+        [Test]
+        public void NoLongerOwnsSettings_TheSharedModalControllerDoesInstead()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("MapSettingsModalBinder", source);
+            StringAssert.DoesNotContain("_settingsModal", source);
+            StringAssert.DoesNotContain("IAudioSettings", source);
         }
 
         [Test]

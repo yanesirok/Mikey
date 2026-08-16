@@ -4,7 +4,6 @@
     "references": [
         "Mikey.UI.SafeArea",
         "Mikey.UI.Progression",
-        "Mikey.UI.Audio",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

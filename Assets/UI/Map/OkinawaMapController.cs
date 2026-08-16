@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using Mikey.UI.Audio;
 using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
@@ -12,12 +11,16 @@ namespace Mikey.UI.Map
     /// Drives the Okinawa chapter map screen ("mapOkinawa"): LVL 0-5 marker
     /// selection, the shared level detail overlay popup, the top quick-access
     /// bar, and completing the ink-fade begun by JapanMapController on entry.
-    /// LVL 0 is always unlocked and routes to the existing assessment intro
-    /// ("combineIntro"); LVL 1 unlocks once <see cref="TutorialProgressState.Level1Unlocked"/>
-    /// is reached and routes to the existing lesson/techniques flow
-    /// ("techniques", mirroring the old MapLevelPreviewController's
-    /// StartLessonTarget); LVL 2-5 are always locked placeholders — no
-    /// gameplay built for them yet.
+    /// The top bar's Settings button opens the one shared Settings modal —
+    /// this controller doesn't wire it at all (see
+    /// Mikey.UI.Settings.SettingsModalController, which finds
+    /// "okinawa-topbar-settings" itself). LVL 0 is always unlocked and routes
+    /// to the existing assessment intro ("combineIntro"); LVL 1 unlocks once
+    /// <see cref="TutorialProgressState.Level1Unlocked"/> is reached and
+    /// routes to the existing lesson/techniques flow ("techniques",
+    /// mirroring the old MapLevelPreviewController's StartLessonTarget);
+    /// LVL 2-5 are always locked placeholders — no gameplay built for them
+    /// yet.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class OkinawaMapController : MonoBehaviour
@@ -49,16 +52,12 @@ namespace Mikey.UI.Map
         private Label _panelCtaText;
         private VisualElement _transitionOverlay;
 
-        private Button _topbarSettings;
         private Button _topbarMap;
         private Button _topbarTechniques;
         private Button _topbarStats;
-        private VisualElement _settingsModal;
-        private Button _settingsClose;
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
-        private Action _unbindSettingsModal;
 
         private int _selectedLevel = -1;
         private Coroutine _bindRoutine;
@@ -94,7 +93,6 @@ namespace Mikey.UI.Map
                     _topbarTechniques.clicked -= OnTopbarTechniquesClicked;
                 if (_topbarStats != null)
                     _topbarStats.clicked -= OnTopbarStatsClicked;
-                _unbindSettingsModal?.Invoke();
             }
 
             if (_navigator != null)
@@ -109,7 +107,6 @@ namespace Mikey.UI.Map
                 _progress = null;
             }
 
-            _unbindSettingsModal = null;
             _selectedLevel = -1;
             _bound = false;
         }
@@ -147,12 +144,9 @@ namespace Mikey.UI.Map
             _panelCtaText = _root.Q<Label>("level-panel-cta-text");
             _transitionOverlay = _root.Q<VisualElement>("okinawa-transition-overlay");
 
-            _topbarSettings = _root.Q<Button>("okinawa-topbar-settings");
             _topbarMap = _root.Q<Button>("okinawa-topbar-map");
             _topbarTechniques = _root.Q<Button>("okinawa-topbar-techniques");
             _topbarStats = _root.Q<Button>("okinawa-topbar-stats");
-            _settingsModal = _root.Q<VisualElement>("okinawa-settings-modal");
-            _settingsClose = _root.Q<Button>("okinawa-settings-close");
 
             if (_panel == null || _panelCta == null || _levelNodes[0] == null)
             {
@@ -191,12 +185,6 @@ namespace Mikey.UI.Map
             _progress = GetComponent<ITutorialProgress>();
             if (_progress != null)
                 _progress.Changed += OnProgressChanged;
-
-            var audioSettings = GetComponent<IAudioSettings>();
-            _unbindSettingsModal = MapSettingsModalBinder.Bind(
-                _settingsModal, _topbarSettings, _settingsClose,
-                _root.Q<Slider>("okinawa-settings-music"), _root.Q<Slider>("okinawa-settings-sfx"), _root.Q<Slider>("okinawa-settings-trainer"),
-                audioSettings);
 
             RefreshLevelLockStates();
             RefreshTechniquesGate();
@@ -378,7 +366,6 @@ namespace Mikey.UI.Map
         {
             MapNavigationState.Current = MapContext.OkinawaChapter;
             ClosePanel();
-            MapSettingsModalBinder.Close(_settingsModal);
             RefreshLevelLockStates();
             RefreshTechniquesGate();
             _transitionOverlay?.RemoveFromClassList(TransitionVisibleClass);

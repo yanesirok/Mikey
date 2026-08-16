@@ -1,6 +1,4 @@
-using System;
 using System.Collections;
-using Mikey.UI.Audio;
 using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
@@ -14,9 +12,12 @@ namespace Mikey.UI.Map
     /// selection, the shared chapter detail overlay panel (never a
     /// permanently-reserved column, never auto-selected on entry), the
     /// Okinawa preview video, the top quick-access bar, and the short
-    /// ink-fade transition into the Okinawa chapter map. Replaces the old
-    /// MVP's MapLevelPreviewController (flattened single map image, always-
-    /// open Okinawa panel, auto-selection on entry). Mirrors the bind/entry/
+    /// ink-fade transition into the Okinawa chapter map. The top bar's
+    /// Settings button opens the one shared Settings modal — this controller
+    /// doesn't wire it at all (see Mikey.UI.Settings.SettingsModalController,
+    /// which finds "map-topbar-settings" itself). Replaces the old MVP's
+    /// MapLevelPreviewController (flattened single map image, always-open
+    /// Okinawa panel, auto-selection on entry). Mirrors the bind/entry/
     /// unsubscribe pattern used throughout this app (see HomeController,
     /// MapPanZoomController).
     /// </summary>
@@ -64,19 +65,15 @@ namespace Mikey.UI.Map
         private Label _panelCtaText;
         private VisualElement _transitionOverlay;
 
-        private Button _topbarSettings;
         private Button _topbarMap;
         private Button _topbarTechniques;
         private Button _topbarStats;
-        private VisualElement _settingsModal;
-        private Button _settingsClose;
 
         private VideoPlayer _okinawaPlayer;
         private RenderTexture _okinawaRenderTexture;
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
-        private Action _unbindSettingsModal;
 
         private string _selectedChapter;
         private bool _transitioning;
@@ -113,7 +110,6 @@ namespace Mikey.UI.Map
                 _topbarMap.clicked -= OnTopbarMapClicked;
                 _topbarTechniques.clicked -= OnTopbarTechniquesClicked;
                 _topbarStats.clicked -= OnTopbarStatsClicked;
-                _unbindSettingsModal?.Invoke();
             }
 
             if (_navigator != null)
@@ -143,7 +139,6 @@ namespace Mikey.UI.Map
                 _okinawaRenderTexture = null;
             }
 
-            _unbindSettingsModal = null;
             _selectedChapter = null;
             _transitioning = false;
             _bound = false;
@@ -181,12 +176,9 @@ namespace Mikey.UI.Map
             _panelCtaText = _root.Q<Label>("chapter-panel-cta-text");
             _transitionOverlay = _root.Q<VisualElement>("map-transition-overlay");
 
-            _topbarSettings = _root.Q<Button>("map-topbar-settings");
             _topbarMap = _root.Q<Button>("map-topbar-map");
             _topbarTechniques = _root.Q<Button>("map-topbar-techniques");
             _topbarStats = _root.Q<Button>("map-topbar-stats");
-            _settingsModal = _root.Q<VisualElement>("map-settings-modal");
-            _settingsClose = _root.Q<Button>("map-settings-close");
 
             if (_okinawaNode == null || _tohokuNode == null || _panel == null || _panelCta == null)
             {
@@ -214,12 +206,6 @@ namespace Mikey.UI.Map
             if (_progress != null)
                 _progress.Changed += RefreshTechniquesGate;
             RefreshTechniquesGate();
-
-            var audioSettings = GetComponent<IAudioSettings>();
-            _unbindSettingsModal = MapSettingsModalBinder.Bind(
-                _settingsModal, _topbarSettings, _settingsClose,
-                _root.Q<Slider>("map-settings-music"), _root.Q<Slider>("map-settings-sfx"), _root.Q<Slider>("map-settings-trainer"),
-                audioSettings);
 
             ResetToDefaultState();
 
@@ -395,7 +381,6 @@ namespace Mikey.UI.Map
         private void ResetToDefaultState()
         {
             ClosePanel();
-            MapSettingsModalBinder.Close(_settingsModal);
             _transitionOverlay?.RemoveFromClassList(TransitionVisibleClass);
         }
 
