@@ -539,41 +539,169 @@ def bake(low, high, out_dir):
           f'не заливка на {n_baked:.1%} атласа')
 
 
-def transfer_weights(low, body, arm):
-    """Веса берём с уже отскиненного тела, а не автоматические.
+# Полоса плавного перехода над пахом, долей от высоты шеи. Ниже неё подол
+# целиком на тазе, выше — веса теплового расчёта; между — линейная смесь,
+# чтобы не поставить на месте старого разрыва новый.
+SKIRT_BAND = 0.08
 
-    Тело отскинено правильно и кимоно лежит ровно по нему, поэтому перенос
-    ближайшей гранью точнее, чем parent_set(ARMATURE_AUTO), и не требует
-    ручной покраски.
+# Порог приёмки скиннинга: во сколько раз ребру позволено растянуться на
+# проверочной позе. Здоровая ткань на замерах не переходит 4x, разрыв даёт
+# десятки — 5.0 разделяет их с запасом и не ловит честное натяжение подола.
+STRETCH_MAX = 5.0
+
+# Проверочная поза: развод ног как в ударе, сгиб колена, скрутка корпуса и
+# рук. Именно она вскрывает разрывы, которые bind pose прячет в складках.
+GUARD_POSE = (('LeftUpLeg', 'x', 70), ('RightUpLeg', 'x', -40),
+              ('LeftLeg', 'x', -50), ('Spine2', 'x', 20),
+              ('LeftForeArm', 'y', -70), ('LeftShoulder', 'z', -30))
+
+
+def skin_cloth(low, arm):
+    """Скиннинг ткани костным тепловым расчётом.
+
+    До этого веса переносились с уже отскиненного тела модификатором
+    DATA_TRANSFER в режиме POLYINTERP_NEAREST. Такой перенос точен, но
+    разрывен: там, где ткань перекрывает промежуток между частями тела —
+    пах, подмышки, — соседние вершины берут веса ближайшей грани, а
+    ближайшими у них оказываются разные конечности. Никакого перехода между
+    ними нет: замер показал соседей в 4.5 см с весами LeftLeg 0.80 и
+    RightLeg 0.74 соответственно, без единой общей кости. В bind pose ноги
+    рядом и шва не видно, а на ударе полотно между ними разлетается плоскими
+    плитами — ровно то, что было видно в Play.
+
+    Тепловой расчёт решает диффузию по мешу и разрывов не даёт по
+    построению. На проверочной позе: рёбер с растяжением больше пятикратного
+    261 -> 24, максимум 58x -> 9.6x.
+
+    Вторая причина отказаться от переноса: он копирует только те группы, что
+    есть у тела, а у тел Mixamo нет групп Hips, Spine, Spine1, LeftUpLeg и
+    RightUpLeg вовсе (45 групп на 65 костей — проверено на сыром файле, наш
+    импорт тут ничего не теряет). Подолу халата было буквально не за что
+    держаться, кроме голеней. Тепловой расчёт берёт веса со скелета и даёт
+    все 65.
     """
-    for vg in body.vertex_groups:
-        if vg.name not in low.vertex_groups:
-            low.vertex_groups.new(name=vg.name)
-    mod = low.modifiers.new('weights', 'DATA_TRANSFER')
-    mod.object = body
-    mod.use_vert_data = True
-    mod.data_types_verts = {'VGROUP_WEIGHTS'}
-    mod.vert_mapping = 'POLYINTERP_NEAREST'
-    apply_mods(low)
-
-    armmod = low.modifiers.new('Armature', 'ARMATURE')
-    armmod.object = arm
-
-    # Раунд правок 2: было low.parent = arm; low.matrix_parent_inverse =
-    # arm.matrix_world.inverted() — математически эквивалентно (обнуляет
-    # матрицу родителя), но экспортёр FBX реконструирует Lcl Rotation для
-    # low иначе, чем для parent_set(): body_meshes приезжают из FBX, где
-    # парентинг сделан Блендером, и переживают экспорт верно; low с ручной
-    # matrix_parent_inverse — нет (при реимпорте получал произвольный лишний
-    # поворот в 90°, ширина/высота кимоно уезжали в глубину — см.
-    # коммит-сообщение и task-4-report.md). parent_set(keep_transform=True)
-    # — тот же результат в сцене (мировое положение low не меняется), но
-    # matrix_parent_inverse считает сам Blender, и с ней экспорт стабилен.
+    # Веса тепловой расчёт берёт по текущему положению меша, поэтому парентим
+    # до правки трансформа, пока кимоно стоит ровно по телу.
+    world = low.matrix_world.copy()
     bpy.ops.object.select_all(action='DESELECT')
     low.select_set(True)
     arm.select_set(True)
     bpy.context.view_layer.objects.active = arm
-    bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+
+    # parent_set(ARMATURE_AUTO), в отличие от parent_set(keep_transform=True),
+    # мирового положения не сохраняет: замер показал уезд кимоно с z 0.147..1.628
+    # под пол, в -0.282..0.101. Дальше pin_skirt_to_hips сравнивает высоту вершин
+    # с высотой паха, и на уехавшем меше под посадку попадали все вершины разом —
+    # кимоно становилось монолитом, а verify_deform показывал ровно 1.00 и
+    # пропускал это как успех.
+    #
+    # Возвращаем ткань туда, где она стояла, и заодно в ту же локальную систему,
+    # в какой приезжают меши тела: единичная matrix_parent_inverse, весь трансформ
+    # унаследован от арматуры. Раньше у ткани был собственный масштаб 0.0024
+    # против 0.0102 у тела; теперь они совпадают, и экспорт связки идёт по уже
+    # проверенному на телах пути.
+    low.data.transform(arm.matrix_world.inverted() @ world)
+    low.matrix_parent_inverse.identity()
+    low.matrix_basis.identity()
+    bpy.context.view_layer.update()
+
+
+def pin_skirt_to_hips(low, arm):
+    """Всё ниже паха — жёстко на таз.
+
+    Тепловой расчёт снимает разрывы весов, но полотно, натянутое между ног,
+    всё равно обязано растягиваться, когда ноги расходятся на 110°: остаётся
+    24 рваных ребра, максимум 9.6x. Длинный халат в жизни и не облегает
+    каждую ногу — он качается от бедра целиком. Посадка подола на таз
+    убирает разрывы полностью: 0 рёбер, максимум 4.0x.
+
+    Цена решения: при высоком ударе нога проходит внутри подола. Это
+    штатный размен для длинной одежды без симуляции ткани, и он заметно
+    лучше, чем разлетающиеся плиты.
+    """
+    world = arm.matrix_world
+    crotch = min((world @ bone_by_suffix(arm, ':' + side + 'UpLeg').head).z
+                 for side in ('Left', 'Right'))
+    band = (world @ bone_by_suffix(arm, ':Neck').head).z * SKIRT_BAND
+
+    hips_bone = next(b.name for b in arm.data.bones
+                     if b.name.split(':')[-1] == 'Hips')
+    hips = low.vertex_groups.get(hips_bone) or low.vertex_groups.new(name=hips_bone)
+    by_index = {g.index: g.name for g in low.vertex_groups}
+
+    matrix = low.matrix_world
+    for v in low.data.vertices:
+        # t: 0 на верхней кромке полосы, 1 у паха и ниже.
+        t = max(0.0, min(1.0, (crotch + band - (matrix @ v.co).z) / max(band, 1e-9)))
+        if t <= 1e-4:
+            continue
+        for g in list(v.groups):
+            if g.group != hips.index:
+                low.vertex_groups[by_index[g.group]].add(
+                    [v.index], g.weight * (1.0 - t), 'REPLACE')
+        was = next((g.weight for g in v.groups if g.group == hips.index), 0.0)
+        hips.add([v.index], was * (1.0 - t) + t, 'REPLACE')
+
+
+def verify_deform(low, arm):
+    """Гоняет проверочную позу и меряет растяжение рёбер ткани.
+
+    Все прежние проверки смотрели bind pose и были к этому слепы:
+    verify_export перечитывает записанный файл в покое, проверка размаха —
+    тоже. Кимоно уезжало в Unity целым и разлеталось на первом ударе, а
+    пайплайн об этом молчал. Сюда добавлена единственная проверка, которая
+    видит деформацию.
+    """
+    def edge_lengths():
+        graph = bpy.context.evaluated_depsgraph_get()
+        graph.update()
+        evaluated = low.evaluated_get(graph)
+        mesh = evaluated.to_mesh()
+        out = [(mesh.vertices[e.vertices[0]].co - mesh.vertices[e.vertices[1]].co).length
+               for e in mesh.edges]
+        evaluated.to_mesh_clear()
+        return out
+
+    rest = edge_lengths()
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode='POSE')
+    try:
+        for suffix, axis, degrees in GUARD_POSE:
+            bone = next((pb for pb in arm.pose.bones
+                         if pb.name.split(':')[-1] == suffix), None)
+            assert bone is not None, f'нет кости {suffix} для проверочной позы'
+            bone.rotation_mode = 'XYZ'
+            setattr(bone.rotation_euler, axis, math.radians(degrees))
+        bpy.ops.object.mode_set(mode='OBJECT')
+        posed = edge_lengths()
+    finally:
+        bpy.context.view_layer.objects.active = arm
+        bpy.ops.object.mode_set(mode='POSE')
+        for pb in arm.pose.bones:
+            pb.rotation_euler = (0, 0, 0)
+            pb.rotation_quaternion = (1, 0, 0, 0)
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    n = len(rest)
+    # Порог длины — p99 покоя: почти все рёбра меша короче него. Одного
+    # коэффициента мало. У второго бойца остаётся ребро 1.17 см -> 7.37 см,
+    # это 6.3x, но в мире 7 см при медиане ребра 4 см и p99 22 см — обычный
+    # размер для этой ткани, увидеть там нечего. А настоящий разрыв,
+    # который был до правки скиннинга, уводил рёбра в 490 см при той же
+    # медиане: он валит оба условия сразу. Поэтому рвано = растянулось
+    # сильно И стало длиннее, чем почти всё в меше.
+    long_rest = sorted(rest)[int(n * 0.99)]
+    ratios = sorted(p / max(r, 1e-9) for p, r in zip(posed, rest))
+    torn = [(p / max(r, 1e-9), p) for p, r in zip(posed, rest)
+            if p / max(r, 1e-9) > STRETCH_MAX and p > long_rest]
+    print(f'kimono_fit: деформация — медиана {ratios[n // 2]:.2f} '
+          f'p99 {ratios[int(n * 0.99)]:.2f} максимум {ratios[-1]:.2f}, '
+          f'рёбер длиннее {long_rest:.3f}: {len(torn)}')
+    assert not torn, (
+        f'{len(torn)} рёбер ткани растянулись больше чем в {STRETCH_MAX:g} раз '
+        f'и переросли {long_rest:.3f} (худшее {max(t[1] for t in torn):.3f} '
+        f'при {max(t[0] for t in torn):.1f}x) — скиннинг рвёт кимоно на анимации')
 
 
 TEXTURE_SUBDIR = 'body'
@@ -770,13 +898,15 @@ def main():
     # приехало бы 305k.
     bpy.data.objects.remove(kimono, do_unlink=True)
 
-    body = max(body_meshes, key=tri_count)
-    transfer_weights(low, body, arm)
+    skin_cloth(low, arm)
+    pin_skirt_to_hips(low, arm)
 
     skinned = sum(1 for v in low.data.vertices if v.groups)
     assert skinned == len(low.data.vertices), (
         f'{len(low.data.vertices) - skinned} вершин кимоно без весов — '
         'ткань останется висеть в воздухе')
+
+    verify_deform(low, arm)
 
     fbx = os.path.normpath(os.path.join(a.out, '..', a.name + '.fbx'))
     unpack_body_textures(body_meshes, fbx)

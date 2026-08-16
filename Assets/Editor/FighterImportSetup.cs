@@ -126,17 +126,26 @@ namespace Mikey.FightEditor
 
             // No skin material: the bodies arrive from Mixamo with their own materials and face
             // textures, and painting a flat colour over them would undo exactly that.
+            //
+            // Both kimonos are black, as asked. The cream player cloth read as brown blotches
+            // in play: the base map here is the baked AO (there is no albedo texture), and AO
+            // is mottled by nature, so a light tint shows every blotch while black hides them.
+            //
+            // Player and enemy have to stay apart at a glance, and with both cloths black the
+            // only thing left to tell them by is the accent. Hence two different blues rather
+            // than one: royal on the player, teal on the enemy — both plainly blue, far enough
+            // apart in hue to read as different fighters in the mist.
             Kimono(shader, CharacterDir + "/M_Player_Kimono.mat", normal, ao,
-                   new Color(0.91f, 0.89f, 0.85f), new Color(0.23f, 0.29f, 0.62f));
+                   new Color(0.07f, 0.07f, 0.08f), new Color(0.20f, 0.35f, 0.85f));
             Kimono(shader, CharacterDir + "/M_Enemy_Kimono.mat", normal, ao,
-                   new Color(0.16f, 0.16f, 0.19f), new Color(0.48f, 0.12f, 0.16f));
+                   new Color(0.07f, 0.07f, 0.08f), new Color(0.10f, 0.55f, 0.70f));
 
             // Belt is its own submesh again (kimono_fit.py: capture_belt_mask /
             // apply_belt_split), so it gets its own material rather than borrowing the rim.
             Belt(shader, CharacterDir + "/M_Player_Belt.mat", normal, ao,
-                 new Color(0.23f, 0.29f, 0.62f));
+                 new Color(0.20f, 0.35f, 0.85f));
             Belt(shader, CharacterDir + "/M_Enemy_Belt.mat", normal, ao,
-                 new Color(0.48f, 0.12f, 0.16f));
+                 new Color(0.10f, 0.55f, 0.70f));
         }
 
         /// <summary>The kimono has no albedo texture — all five of its source materials are flat
