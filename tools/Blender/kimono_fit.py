@@ -558,26 +558,60 @@ def transfer_weights(low, body, arm):
     bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
 
-# path_mode='COPY' + embed_textures=True — то есть текстуры тела уезжают ВНУТРЬ
-# нашего FBX. Без этой пары экспортёр переносит только пути, а пути у Mixamo
-# абсолютные и ведут во временный каталог их сервера
-# (C:\Users\user\home\app\mixamo-mini\tmp\skins_<uuid>.fbm\), которого на этой
-# машине нет и не было. Пиксели при этом в исходнике есть: импортёр Blender
-# распаковывает вшитые PNG в память (packed_file), поэтому встраивать есть что.
-# Цена ошибки была ровно та, ради которой затевалась вся ревизия 2: материалы
-# тела приезжали в Unity без diffuse, и головы снова читались болванками.
-#
-# Выбрано встраивание, а не распаковка текстур в проект с относительными
-# путями. Байт выходит столько же: экспортёр склеивает дубликаты по пути (у Ch28
-# один и тот же Diffuse висит на трёх датаблоках, а в файл уезжает один раз), а
-# кода — одна строка против каталога новых ассетов, переписывания путей и
-# сопровождающих .meta. Реимпорт при этом ничего не разворачивает на диск:
-# проверено, картинки приходят packed, каталог .fbm рядом с файлом не создаётся.
-#
-# Размеры после встраивания: Player 46.7 МБ (4096² diffuse/normal/gloss/specular
-# у Ch28), Enemy 15.1 МБ (2048² тело + 1024²/512² волосы у Remy). Оба уезжают в
-# Git LFS. Запечённые карты кимоно сюда НЕ попадают: Kimono_Cloth и Kimono_Belt
-# — пустые материалы без нод, Unity подхватывает их PNG отдельными ассетами.
+TEXTURE_SUBDIR = 'body'
+
+
+def unpack_body_textures(meshes, fbx_path):
+    """Выкладывает текстуры тела файлами в <каталог FBX>/body/. Возвращает {путь: байт}.
+
+    Mixamo вшивает пиксели внутрь FBX, а пути пишет абсолютные, во временный
+    каталог своего сервера (…\\mixamo-mini\\tmp\\skins_<uuid>.fbm\\), которого на
+    этой машине нет и не было. Импортёр Blender распаковывает пиксели в память
+    (packed_file), но файла на диске не создаёт — поэтому одного path_mode='COPY'
+    мало: копировать ему нечего, и он молча не пишет НИ ОДНОГО файла (замерено:
+    0 файлов, FBX 1.3 МБ). Без файлов Unity получает тело без diffuse, то есть
+    ровно ту безликую голову, ради которой затевалась вся ревизия 2.
+
+    Пишем packed_file.data как есть, без image.save(): это исходные байты PNG, а
+    не пересжатие, поэтому файл совпадает побайтно с тем, что кладёт
+    ExtractTextures на стороне Unity, и git не видит изменений на перегонах.
+    """
+    tex_dir = os.path.join(os.path.dirname(fbx_path), TEXTURE_SUBDIR)
+    os.makedirs(tex_dir, exist_ok=True)
+    imgs = {n.image for o in meshes for m in o.data.materials if m and m.node_tree
+            for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image}
+    assert imgs, 'у мешей тела нет ни одной текстуры — персонаж пришёл без скинов?'
+
+    written = {}
+    for img in imgs:
+        assert img.packed_file, (
+            f'текстура {img.name!r} не вшита в исходник и файла у неё нет: '
+            f'{img.filepath!r} — выкладывать нечего')
+        # Дубликаты датабликов (у Ch28 один Diffuse висит на трёх) сходятся в
+        # один путь, поэтому written считает файлы, а не картинки.
+        dst = os.path.join(tex_dir, os.path.basename(img.filepath))
+        with open(dst, 'wb') as f:
+            f.write(img.packed_file.data)
+        img.filepath = dst
+        written[dst] = len(img.packed_file.data)
+
+    print(f'kimono_fit: текстур тела выложено {len(written)} на '
+          f'{sum(written.values()) / 1048576:.1f} МБ в {tex_dir}')
+    return written
+
+
+# path_mode='RELATIVE', а не 'COPY' и не встраивание. Пиксели должны лежать в
+# репозитории ровно один раз:
+#   * embed_textures=True клал их внутрь FBX (Player 47.2 МБ, Enemy 15.7 МБ), но
+#     Unity встроенные медиа поддассетами НЕ отдаёт — их приходится доставать
+#     ModelImporter.ExtractTextures(), и распакованные PNG тоже надо коммитить.
+#     Выходило 60 МБ файлов ПЛЮС 63 МБ тех же пикселей внутри FBX;
+#   * 'COPY' поверх уже выложенных файлов скопировал бы их из body/ в каталог
+#     самого FBX — тот же второй экземпляр, только рядом.
+# RELATIVE пишет в FBX путь body/<имя>.png относительно модели, Unity находит
+# текстуру при импорте сама, и экземпляр остаётся один: ~60 МБ на обоих бойцов.
+# Запечённые карты кимоно сюда не попадают — Kimono_Cloth и Kimono_Belt пустые,
+# без нод, их PNG Unity подхватывает отдельными ассетами.
 def export(path, objs):
     _install_deterministic_fbx_uuids()
     bpy.ops.object.select_all(action='DESELECT')
@@ -589,7 +623,7 @@ def export(path, objs):
         object_types={'MESH', 'ARMATURE'}, add_leaf_bones=False,
         bake_anim=False, apply_scale_options='FBX_SCALE_UNITS',
         bake_space_transform=True, axis_forward='-Z', axis_up='Y',
-        path_mode='COPY', embed_textures=True,
+        path_mode='RELATIVE',
         use_mesh_modifiers=True)
 
 
@@ -620,16 +654,26 @@ def verify_export(path):
         f'{sorted(used)} вместо двух (ткань, пояс) — разделение не пережило экспорт')
     body = [o for o in new if o is not kimono]
 
-    # Пиксели, а не ссылки. Этот дефект дважды прошёл ревью незамеченным, потому
-    # что в Blender сцена выглядит правильной: картинки на месте, просто лежат в
-    # памяти, а в файл уезжают одни пути. Ловится только чтением записанного FBX.
+    # Текстура тела обязана разрешаться в существующий файл РЯДОМ С МОДЕЛЬЮ.
+    # Исходный дефект Mixamo был именно тут: ссылка вела в каталог их сервера,
+    # которого на этой машине нет, и Unity молча импортировала тело без diffuse.
+    # В Blender это не видно — там картинка есть, просто в памяти, — так что
+    # ловится только чтением записанного FBX. Проверка на «файл существует» без
+    # проверки «внутри каталога модели» пропустила бы ровно исходный дефект на
+    # той машине, где такой каталог случайно есть.
     used = {n.image for o in body for m in o.data.materials if m and m.node_tree
             for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image}
     assert used, f'в {path} у мешей тела нет ни одной текстуры'
-    loose = sorted(i.name for i in used if not i.packed_file)
-    assert not loose, (
-        f'в {path} текстуры тела не встроены, уехали только ссылки: {loose} — '
-        'потерян path_mode=COPY / embed_textures в export()')
+    here = os.path.dirname(os.path.abspath(path))
+    broken = []
+    for img in sorted(used, key=lambda i: i.name):
+        p = os.path.abspath(bpy.path.abspath(img.filepath)) if img.filepath else ''
+        inside = os.path.normcase(p).startswith(os.path.normcase(here + os.sep))
+        if not p or not os.path.isfile(p) or not inside:
+            broken.append(f'{img.name} -> {img.filepath!r}')
+    assert not broken, (
+        f'в {path} текстуры тела не разрешаются в файлы рядом с моделью: {broken} '
+        '— потеряны unpack_body_textures() или path_mode=RELATIVE в export()')
 
     bmn, bmx = world_bbox(body)
     kmn, kmx = world_bbox([kimono])
@@ -694,12 +738,13 @@ def main():
         f'{len(low.data.vertices) - skinned} вершин кимоно без весов — '
         'ткань останется висеть в воздухе')
 
-    fbx = os.path.join(a.out, '..', a.name + '.fbx')
-    export(os.path.normpath(fbx), [arm, low] + body_meshes)
-    verify_export(os.path.normpath(fbx))
+    fbx = os.path.normpath(os.path.join(a.out, '..', a.name + '.fbx'))
+    unpack_body_textures(body_meshes, fbx)
+    export(fbx, [arm, low] + body_meshes)
+    verify_export(fbx)
     print(f'kimono_fit: подгонка scale={scale:.4f}, '
           f'{high_tris} -> {got} трисов, '
-          f'экспорт {os.path.normpath(fbx)}')
+          f'экспорт {fbx}')
 
 
 if __name__ == '__main__':
