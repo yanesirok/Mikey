@@ -46,8 +46,8 @@ namespace Mikey.UI.Map
 
         public const float MaxZoom = 2.5f;
 
-        /// <summary>How far above <see cref="MinZoom"/> a map starts by default, so it reads as fullscreen/explorable rather than a bare cover-fit with zero pan room.</summary>
-        public const float InitialZoomMultiplier = 1.15f;
+        /// <summary>How far above <see cref="MinZoom"/> a map starts by default, so it reads as noticeably close/immersive rather than a bare cover-fit with zero pan room.</summary>
+        public const float InitialZoomMultiplier = 1.4f;
 
         /// <summary>The default zoom on a fresh entry to a map screen — deliberately above <see cref="MinZoom"/>, see <see cref="InitialZoomMultiplier"/>.</summary>
         public const float DefaultZoom = MinZoom * InitialZoomMultiplier;
@@ -91,6 +91,20 @@ namespace Mikey.UI.Map
 
             float max = MaxPanForZoom(zoom, viewportDimension);
             return Clamp(pan, -max, max);
+        }
+
+        /// <summary>
+        /// Decelerating (ease-out cubic) progress curve for the opening zoom
+        /// animation: fast at first, settling smoothly by <paramref name="t"/> = 1.
+        /// <paramref name="t"/> is clamped to [0, 1]; <c>EaseOutCubic(0) == 0</c>,
+        /// <c>EaseOutCubic(1) == 1</c>, strictly increasing and always decelerating
+        /// in between (no bounce/overshoot).
+        /// </summary>
+        public static float EaseOutCubic(float t)
+        {
+            float clamped = Clamp(IsFinite(t) ? t : 0f, 0f, 1f);
+            float inv = 1f - clamped;
+            return 1f - inv * inv * inv;
         }
 
         private static float Clamp(float v, float min, float max) => v < min ? min : (v > max ? max : v);

@@ -29,6 +29,13 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(MapPanZoomMath.MinZoom * MapPanZoomMath.InitialZoomMultiplier, MapPanZoomMath.DefaultZoom, 0.0001f);
         }
 
+        [Test]
+        public void DefaultZoom_IsApproximately1Point4()
+        {
+            Assert.AreEqual(1.4f, MapPanZoomMath.DefaultZoom, 0.0001f,
+                "The intended default viewing zoom should read as noticeably close/immersive, not a bare cover-fit.");
+        }
+
         // Both MapPanZoomController(screenId="map") and
         // MapPanZoomController(screenId="mapOkinawa") call ResetTransform() on
         // entry, which sets _zoom = MapPanZoomMath.DefaultZoom (see
@@ -153,6 +160,45 @@ namespace Mikey.UI.Map.Tests
         public void MaxPanForZoom_NonFiniteZoom_IsZero()
         {
             Assert.AreEqual(0f, MapPanZoomMath.MaxPanForZoom(float.NaN, 1280f));
+        }
+
+        // ---------- opening zoom animation easing ----------
+
+        [Test]
+        public void EaseOutCubic_StartsAt0_EndsAt1()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutCubic(0f), 0.0001f);
+            Assert.AreEqual(1f, MapPanZoomMath.EaseOutCubic(1f), 0.0001f);
+        }
+
+        [Test]
+        public void EaseOutCubic_IsMonotonicallyIncreasing_NoOvershootOrBounce()
+        {
+            float previous = MapPanZoomMath.EaseOutCubic(0f);
+            for (float t = 0.05f; t <= 1f; t += 0.05f)
+            {
+                float current = MapPanZoomMath.EaseOutCubic(t);
+                Assert.GreaterOrEqual(current, previous, $"Must never move backward at t={t}.");
+                Assert.LessOrEqual(current, 1f, $"Must never overshoot past 1 at t={t}.");
+                previous = current;
+            }
+        }
+
+        [Test]
+        public void EaseOutCubic_Decelerates_EarlyProgressExceedsLinear()
+        {
+            // "Ease-out" means fast at first, settling by the end — at the
+            // midpoint, progress must be further along than a plain linear
+            // ramp (0.5) would give.
+            Assert.Greater(MapPanZoomMath.EaseOutCubic(0.5f), 0.5f);
+        }
+
+        [Test]
+        public void EaseOutCubic_ClampsOutOfRangeInput()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutCubic(-1f));
+            Assert.AreEqual(1f, MapPanZoomMath.EaseOutCubic(2f));
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutCubic(float.NaN));
         }
     }
 }

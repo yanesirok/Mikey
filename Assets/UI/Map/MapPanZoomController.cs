@@ -21,15 +21,30 @@ namespace Mikey.UI.Map
     /// not the legacy UnityEngine.Input class. Deliberately simple (see
     /// <see cref="MapPanZoomMath"/>): zoom always pivots around the canvas's own
     /// center, and a short drag threshold distinguishes a tap on a marker from
-    /// an intentional pan, so pinch/drag never swallows a marker's click.
-    /// Pan/zoom resets to the default on every fresh entry to its map screen.
+    /// an intentional pan, so pinch/drag never swallows a marker's click. On
+    /// every fresh entry to its map screen, pan/zoom resets to centered at
+    /// MinZoom and plays a short opening zoom animation in to DefaultZoom (see
+    /// ResetTransform/PlayIntroZoomAnimation) — real input cancels it instantly.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class MapPanZoomController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
         private const float DragThresholdPixels = 8f;
-        private const float WheelZoomSensitivity = 0.12f;
+
+        /// <summary>
+        /// Zoom change applied per wheel event, as a fixed step rather than a
+        /// multiplier on the event's raw delta. UI Toolkit's WheelEvent.delta
+        /// magnitude for "one notch" varies a lot by mouse/OS/trackpad — scaling
+        /// off it directly makes sensitivity unpredictable across machines. Using
+        /// only the delta's sign and a fixed step makes two ordinary wheel
+        /// notches reliably move from MinZoom to roughly DefaultZoom
+        /// (2 * WheelZoomStep ~= DefaultZoom - MinZoom), on any device.
+        /// </summary>
+        private const float WheelZoomStep = 0.2f;
+
+        /// <summary>How long the opening zoom (MinZoom -> DefaultZoom) takes on a fresh entry to this map screen.</summary>
+        private const float IntroZoomDurationSeconds = 0.4f;
 
         [Tooltip("The ScreenManager screen id this instance belongs to (e.g. 'map' or 'mapOkinawa'). Pan/zoom resets whenever this screen becomes active.")]
         [SerializeField] private string screenId = "map";
@@ -65,6 +80,7 @@ namespace Mikey.UI.Map
         private float _pinchStartZoom;
 
         private Coroutine _bindRoutine;
+        private Coroutine _introZoomRoutine;
         private bool _bound;
 
         private void OnEnable()
@@ -81,6 +97,7 @@ namespace Mikey.UI.Map
                 StopCoroutine(_bindRoutine);
                 _bindRoutine = null;
             }
+            CancelIntroZoomAnimation();
 
             if (_bound && _viewport != null)
             {
@@ -195,6 +212,7 @@ namespace Mikey.UI.Map
                 _pinchStartDistance = currentDistance;
                 _pinchStartZoom = _zoom;
                 EndDrag(); // a second finger landing mid-drag means this is a pinch, not a pan.
+                CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
                 return;
             }
 
@@ -231,6 +249,7 @@ namespace Mikey.UI.Map
                     return;
                 _dragging = true;
                 _viewport.CapturePointer(_activePointerId);
+                CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
             }
 
             SetPan(_dragStartPan.x + delta.x, _dragStartPan.y + delta.y);
@@ -245,8 +264,17 @@ namespace Mikey.UI.Map
 
         private void OnWheel(WheelEvent evt)
         {
-            float delta = -evt.delta.y * WheelZoomSensitivity;
-            SetZoom(_zoom + delta);
+            CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
+
+            // Only the direction of one wheel event is used, not its raw
+            // magnitude (see WheelZoomStep) — this is what keeps the step
+            // predictable across mice/trackpads/OS scroll settings.
+            if (!Mathf.Approximately(evt.delta.y, 0f))
+            {
+                float direction = evt.delta.y < 0f ? 1f : -1f;
+                SetZoom(_zoom + direction * WheelZoomStep);
+            }
+
             evt.StopPropagation();
         }
 
@@ -266,11 +294,53 @@ namespace Mikey.UI.Map
                 ResetTransform();
         }
 
+        /// <summary>
+        /// Snaps to the legal fully-zoomed-out cover scale, centered, then
+        /// smoothly animates in to the intended default zoom (see
+        /// PlayIntroZoomAnimation) — only called on a fresh entry/reset of this
+        /// map screen (BindWhenReady, OnScreenChanged), never from in-screen
+        /// interactions like marker/popup selection or Settings.
+        /// </summary>
         private void ResetTransform()
         {
-            _zoom = MapPanZoomMath.DefaultZoom;
+            CancelIntroZoomAnimation();
+            _zoom = MapPanZoomMath.MinZoom;
             SetPan(0f, 0f);
             ApplyZoom();
+            _introZoomRoutine = StartCoroutine(PlayIntroZoomAnimation());
+        }
+
+        /// <summary>
+        /// Short, decelerating zoom-in from MinZoom to DefaultZoom, pivoting
+        /// around the canvas's own center (pan stays at its reset 0,0 the whole
+        /// time) — "world map appears, glides inward, settles". Any real input
+        /// (drag past threshold, wheel, pinch start) cancels this immediately
+        /// via CancelIntroZoomAnimation and is never queued afterward.
+        /// </summary>
+        private IEnumerator PlayIntroZoomAnimation()
+        {
+            float startZoom = MapPanZoomMath.MinZoom;
+            float targetZoom = MapPanZoomMath.DefaultZoom;
+            float elapsed = 0f;
+
+            while (elapsed < IntroZoomDurationSeconds)
+            {
+                elapsed += Time.deltaTime;
+                float t = MapPanZoomMath.EaseOutCubic(elapsed / IntroZoomDurationSeconds);
+                SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
+                yield return null;
+            }
+
+            SetZoom(targetZoom);
+            _introZoomRoutine = null;
+        }
+
+        private void CancelIntroZoomAnimation()
+        {
+            if (_introZoomRoutine == null)
+                return;
+            StopCoroutine(_introZoomRoutine);
+            _introZoomRoutine = null;
         }
 
         private void SetPan(float x, float y)
