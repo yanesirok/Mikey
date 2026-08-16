@@ -86,6 +86,36 @@ namespace Mikey.Fight.Tests
             }
         }
 
+        /// <summary>Do not delete this test. The body arrives from Mixamo with its own diffuse,
+        /// and that texture is the single reason the body source was changed at all — the
+        /// generated body gave flat-colour heads. A body material without a diffuse hands that
+        /// failure straight back, and nothing else in this file would notice: the FBX still
+        /// imports, the avatar is still human, the height still checks out, the kimono still has
+        /// its two submeshes. That is how a textureless body passed two reviews.
+        ///
+        /// The maps ride inside the FBX rather than as files under Assets/, so they become
+        /// project assets only when FighterImportSetup calls ModelImporter.ExtractTextures. Red
+        /// here means either that step did not run or the export lost the embedded media.
+        ///
+        /// The body is picked by name and not by vertex count: Ch28_Hair carries 15540 vertices
+        /// against Ch28_Body's 9466, so "the heaviest mesh" would guard the hair and let a bare
+        /// body through. Hair and eyelashes are deliberately not asserted on — they may be
+        /// untextured legitimately.</summary>
+        [Test]
+        public void Models_BodyMeshCarriesItsDiffuse()
+        {
+            foreach (var path in Models)
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                var body = go.GetComponentsInChildren<SkinnedMeshRenderer>()
+                    .FirstOrDefault(s => !s.name.Contains("Kimono") && s.name.Contains("Body"));
+                Assert.IsNotNull(body, path + " has no body mesh");
+                Assert.IsNotNull(body.sharedMaterial, path + " body mesh has no material");
+                Assert.IsNotNull(body.sharedMaterial.mainTexture,
+                    path + " body material " + body.sharedMaterial.name + " has no diffuse");
+            }
+        }
+
         [Test]
         public void Materials_ExistOnTheCharacterShader()
         {
