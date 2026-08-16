@@ -21,41 +21,35 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 2 - LORE (landscape temporary cinematic; full lore video lands later) -->
+        <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later) -->
         <ui:VisualElement name="intro" class="screen intro-screen">
             <Style src="Intro/Intro.uss" />
-            <!-- full-bleed near-black wash, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="intro-bg" picking-mode="Ignore">
-                <ui:VisualElement class="intro-glow" picking-mode="Ignore" />
-            </ui:VisualElement>
+            <!-- full-bleed pure-black wash, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="intro-bg" picking-mode="Ignore" />
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="intro-layout">
 
-                <!-- Skip → Home (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
+                <!-- Skip → Home (semantic class intro-skip; kept visually subtle, arrow is a sized, non-shrinking icon) -->
                 <ui:Button name="go-menu" class="skip intro-skip tap-target sfx-click">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
                 </ui:Button>
 
-                <!-- temporary text-only cinematic (honest placeholder for the future
-                     full lore video): a short sequence of beats with lots of negative
-                     space, no cards/artwork/silhouettes. -->
+                <!-- minimal premium placeholder (honest "not ready yet" statement for
+                     the future full lore cinematic): near-empty pure-black screen, one
+                     thin red ink rule as the only accent between the two lines. -->
                 <ui:VisualElement class="intro-copy">
-                    <ui:Label text="Every fighter begins somewhere." class="intro-line intro-line--open" />
-                    <ui:VisualElement class="intro-copy__group">
-                        <ui:Label text="Before technique comes understanding." class="intro-line intro-line--support" />
-                        <ui:Label text="Before mastery comes discipline." class="intro-line intro-line--support" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="intro-copy__group">
-                        <ui:Label text="Know where you stand." class="intro-line intro-line--close" />
-                        <ui:Label text="Then begin." class="intro-line intro-line--close" />
-                    </ui:VisualElement>
+                    <ui:Label text="The story is still being written." class="intro-line intro-line--open" />
+                    <ui:VisualElement class="intro-rule" picking-mode="Ignore" />
+                    <ui:Label text="Every path begins before the first step." class="intro-line intro-line--support" />
                 </ui:VisualElement>
 
+                <ui:Label text="Lore cinematic coming soon." class="intro-note" />
+
                 <!-- primary CTA → Home (semantic class intro-primary) -->
-                <ui:Button name="go-menu" class="btn primary intro-primary intro-cta tap-target sfx-click">
-                    <ui:Label text="CONTINUE" class="intro-cta__text" picking-mode="Ignore" />
+                <ui:Button name="go-menu" class="intro-primary intro-cta tap-target sfx-click">
+                    <ui:Label text="Continue" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
                 </ui:Button>
 

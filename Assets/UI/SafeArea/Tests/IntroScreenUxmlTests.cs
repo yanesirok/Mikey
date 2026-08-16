@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -12,10 +13,13 @@ namespace Mikey.UI.SafeArea.Tests
     /// real UXML, assert on the resulting tree) so the production markup is the
     /// single source of truth. Both Intro actions (Skip + primary CTA) now route
     /// forward to the Home hub via 'go-menu'; the old loop back to Title is gone.
+    /// Since the minimal-placeholder pass, also covers the pure-black background
+    /// and the retired atmospheric glow/multi-beat copy sequence.
     /// </summary>
     public class IntroScreenUxmlTests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
+        private const string IntroUssPath = "Assets/UI/Intro/Intro.uss";
 
         private static VisualElement BuildTree()
         {
@@ -169,18 +173,79 @@ namespace Mikey.UI.SafeArea.Tests
                 "The old placeholder silhouette figures must be removed from Lore.");
         }
 
-        // Lore rebuild: the new temporary copy sequence exists and reads as the
-        // spec'd beats, ending on a CONTINUE that still uses go-menu.
+        // Minimal placeholder pass: one honest "not ready yet" statement rather
+        // than a scripted multi-beat sequence, ending on Continue (go-menu).
         [Test]
-        public void NewTemporaryCopySequence_Exists()
+        public void PlaceholderCopy_Exists_PrimaryAndSecondary()
         {
             var lines = Intro().Query<Label>(className: "intro-line").ToList().Select(l => l.text).ToList();
-            CollectionAssert.Contains(lines, "Every fighter begins somewhere.");
-            CollectionAssert.Contains(lines, "Then begin.");
+            CollectionAssert.Contains(lines, "The story is still being written.");
+            CollectionAssert.Contains(lines, "Every path begins before the first step.");
+        }
 
+        [Test]
+        public void PlaceholderCopy_HasComingSoonNote_DistinctFromTheMainLines()
+        {
+            var notes = Intro().Query<Label>(className: "intro-note").ToList().Select(l => l.text).ToList();
+            CollectionAssert.Contains(notes, "Lore cinematic coming soon.");
+        }
+
+        [Test]
+        public void ContinueCta_ExistsAndReadsContinue()
+        {
             var continueCta = Intro().Query<Button>(name: "go-menu", className: "intro-primary").ToList();
-            Assert.AreEqual(1, continueCta.Count, "Expected a single CONTINUE (go-menu/.intro-primary) action.");
-            Assert.AreEqual("CONTINUE", continueCta[0].Q<Label>(className: "intro-cta__text")?.text);
+            Assert.AreEqual(1, continueCta.Count, "Expected a single Continue (go-menu/.intro-primary) action.");
+            Assert.AreEqual("Continue", continueCta[0].Q<Label>(className: "intro-cta__text")?.text);
+        }
+
+        [Test]
+        public void NoExtraCopy_OnlyTheFourSpecifiedLines()
+        {
+            var intro = Intro();
+            var allText = intro.Query<Label>().ToList().Select(l => l.text ?? string.Empty).Where(t => t.Length > 0).ToList();
+            var expected = new[]
+            {
+                "The story is still being written.",
+                "Every path begins before the first step.",
+                "Lore cinematic coming soon.",
+                "Continue",
+                "Skip",
+                "▸",
+                "›",
+            };
+            CollectionAssert.AreEquivalent(expected, allText,
+                "The placeholder Lore screen must not carry any extra copy beyond the spec'd lines, note, Continue and Skip.");
+        }
+
+        [Test]
+        public void Background_IsPureOrNearPureBlack()
+        {
+            string uss = File.ReadAllText(IntroUssPath);
+            int start = uss.IndexOf("\n.intro-bg {", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(start, 0, "Expected an '.intro-bg' rule in Intro.uss.");
+            int close = uss.IndexOf('}', start);
+            string block = uss.Substring(start, close - start);
+            StringAssert.Contains("background-color: #000000", block,
+                "The Lore placeholder background must be pure (or extremely close to pure) black.");
+        }
+
+        [Test]
+        public void OldGlowDecoration_IsRemoved()
+        {
+            Assert.IsEmpty(ByClass(Intro(), "intro-glow"),
+                "The old atmospheric glow decoration must be gone — the screen should feel almost empty.");
+            string uss = File.ReadAllText(IntroUssPath);
+            StringAssert.DoesNotContain(".intro-glow", uss);
+        }
+
+        [Test]
+        public void NoCardOrPanelWrapsThePlaceholderCopy()
+        {
+            // The placeholder must read as an near-empty full-bleed screen, never
+            // a card/popup/modal-style container.
+            var intro = Intro();
+            foreach (var className in new[] { "menu-modal", "vow-modal", "settings-modal", "card", "panel" })
+                Assert.IsEmpty(ByClass(intro, className), $"Lore must not wrap its copy in a '.{className}'-style container.");
         }
 
         // 10 (suite-level) — production screen count is eleven (Profile, Okinawa chapter map added).
