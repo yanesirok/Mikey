@@ -299,11 +299,16 @@ def capture_belt_mask(low):
 def apply_belt_split(low, is_belt):
     """Rebuilds two material slots on the already-baked low mesh: cloth and belt.
 
-    Both slots point at placeholder materials — the baked textures are shared UV space,
-    not per-slot content — Unity/FighterImportSetup assigns the real per-team materials
-    by submesh index (0 = cloth, 1 = belt) after import. The spec wants player and enemy
-    belts in different colours, which needs its own submesh: the shader's _RimColor is a
-    fresnel highlight over the whole silhouette, not a belt.
+    Оба слота держат материалы-заглушки — запечённые карты общие на всю развёртку,
+    а не по слотам. Настоящие материалы команд назначает FightSceneSwap.cs (не
+    FighterImportSetup) уже в сцене, и назначает ПО ИМЕНИ ЗАГЛУШКИ, а не по индексу
+    сабмеша: порядок переворачивается на круге экспорт-импорт FBX. Здесь ткань 0,
+    пояс 1; в Unity замерено обратное — слот 0 это Kimono_Belt (1060 трисов), слот 1
+    Kimono_Cloth (10940). Поэтому имена ниже несущие, менять их без правки
+    FightSceneSwap.SetKimonoMaterials нельзя — там контракт изложен полностью.
+
+    Пояс вообще выделен в свой сабмеш потому, что спека просит игроку и врагу разные
+    цвета пояса, а _RimColor шейдера — это френель по всему силуэту, не пояс.
     """
     # zip() усекается по короткому: разъехавшаяся маска молча раскрасила бы
     # часть полигонов и оставила остальные нулевыми, а пустая — вообще ничего.
@@ -426,11 +431,23 @@ def check_ao_content(ao):
 
 
 def check_normal_content(normal):
-    """Синий канал tangent-space карты: 1.0 — прямо наружу, ниже 0.5 — внутрь поверхности."""
+    """Синий канал tangent-space карты: 1.0 — прямо наружу, ниже 0.5 — внутрь поверхности.
+
+    Третьим числом — доля АТЛАСА, отличающаяся от заливки. Она в логе потому, что
+    промахи луча — единственная величина, которая по свипу реально ходит (2.9% ->
+    33.9% покрытой площади в таблице у CLOTH_CAGE), пока синий и сигма стоят почти
+    на месте. Промах оставляет тексель заливкой, значит он в эту долю не попадает, и
+    при неизменной развёртке (покрытие постоянно) её падение и есть рост промахов.
+    Печатается доля атласа, а не доля промахов от покрытия: маску покрытия (острова
+    плюс margin-выпуск) пайплайн не считает, а знаменатель из uv_coverage — площадь
+    UV-треугольников без выпуска — дал бы число, несравнимое с той таблицей.
+    Идеально плоский запечённый тексель от заливки неотличим и тоже не попадает.
+    """
     px = _pixel_array(normal)
-    blue = px[_baked_mask(px, (0.5, 0.5, 1.0)), 2]
+    mask = _baked_mask(px, (0.5, 0.5, 1.0))
+    blue = px[mask, 2]
     assert blue.size > 0, 'нормали не запеклись ни на одном текселе'
-    return float(blue.mean()), float(blue.std())
+    return float(blue.mean()), float(blue.std()), float(mask.mean())
 
 
 # Значения из bridge_kit.bake_pair — cage 20 мм, луч 60 мм — приехали с деталей
@@ -516,9 +533,10 @@ def bake(low, high, out_dir):
     save_png(ao, os.path.join(out_dir, 'T_Kimono_AO.png'))
 
     ao_mean, ao_median = check_ao_content(ao)
-    n_mean, n_std = check_normal_content(normal)
+    n_mean, n_std, n_baked = check_normal_content(normal)
     print(f'kimono_fit: запек — AO среднее {ao_mean:.3f} медиана {ao_median:.3f}, '
-          f'нормали синий среднее {n_mean:.3f} sigma {n_std:.3f}')
+          f'нормали синий среднее {n_mean:.3f} sigma {n_std:.3f}, '
+          f'не заливка на {n_baked:.1%} атласа')
 
 
 def transfer_weights(low, body, arm):
@@ -627,6 +645,20 @@ def export(path, objs):
         use_mesh_modifiers=True)
 
 
+# Размер записанного FBX — единственное, что ловит ВОЗВРАТ дублирования пикселей.
+# Проверка «текстура разрешается в файл рядом с моделью» (ниже) при embed_textures=True
+# или при path_mode='COPY' поверх уже выложенного body/ проходит: файлы на месте, пути
+# годные. А 60 МБ пикселей при этом снова уезжают в LFS вторым экземпляром — ровно то
+# состояние, из которого пайплайн уводили.
+# Опорные точки, замерены на этом же пайплайне:
+#   файлами (сегодня)      Player  1.83 МБ, Enemy  1.60 МБ
+#   со встраиванием        Player 47.2 МБ,  Enemy 15.7 МБ
+# 8 МБ лежит между ними с запасом в обе стороны: вчетверо выше сегодняшнего худшего
+# (то есть тело может потяжелеть вчетверо, не роняя прогон) и вдвое ниже самого
+# лёгкого встроенного варианта.
+FBX_MAX_BYTES = 8 * 1024 * 1024
+
+
 def verify_export(path):
     """Единственная проверка, которая читает сам записанный FBX, а не
     состояние сцены до export_scene.fbx.
@@ -638,6 +670,14 @@ def verify_export(path):
     ложился негодный файл. Эта проверка перечитывает path тем же
     импортёром, каким его позже прочтёт Unity.
     """
+    size = os.path.getsize(path)
+    assert size <= FBX_MAX_BYTES, (
+        f'{path} весит {size / 1048576:.2f} МБ при потолке '
+        f'{FBX_MAX_BYTES / 1048576:.0f} МБ — похоже, текстуры снова внутри файла '
+        '(embed_textures или path_mode=COPY), то есть в репозитории появился '
+        'второй экземпляр тех же пикселей; см. FBX_MAX_BYTES')
+    print(f'kimono_fit: {os.path.basename(path)} весит {size / 1048576:.2f} МБ')
+
     reset_scene()
     before = set(bpy.data.objects)
     bpy.ops.import_scene.fbx(filepath=path)
