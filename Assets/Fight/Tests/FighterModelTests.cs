@@ -93,9 +93,11 @@ namespace Mikey.Fight.Tests
         /// imports, the avatar is still human, the height still checks out, the kimono still has
         /// its two submeshes. That is how a textureless body passed two reviews.
         ///
-        /// The maps ride inside the FBX rather than as files under Assets/, so they become
-        /// project assets only when FighterImportSetup calls ModelImporter.ExtractTextures. Red
-        /// here means either that step did not run or the export lost the embedded media.
+        /// The maps are files in character/body, and the FBX points at them by a path relative to
+        /// itself, so Unity binds them on a plain import. Red here means the export stopped
+        /// writing them, or wrote paths that do not resolve, or the files were moved. (They were
+        /// once embedded in the FBX instead — that needs ModelImporter.ExtractTextures, and
+        /// without it every map on the body material came back null.)
         ///
         /// The body is picked by name and not by vertex count: Ch28_Hair carries 15540 vertices
         /// against Ch28_Body's 9466, so "the heaviest mesh" would guard the hair and let a bare

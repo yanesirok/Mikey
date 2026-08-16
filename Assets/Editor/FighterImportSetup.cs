@@ -15,7 +15,6 @@ namespace Mikey.FightEditor
         const string CharacterDir = "Assets/Fight/character";
         const string PlayerModelPath = CharacterDir + "/KimonoFighter_Player.fbx";
         const string EnemyModelPath = CharacterDir + "/KimonoFighter_Enemy.fbx";
-        const string BodyTextureDir = CharacterDir + "/body";
         const string ShaderPath = CharacterDir + "/Character.shader";
         const string NormalPath = CharacterDir + "/kimono/T_Kimono_Normal.png";
         const string AoPath = CharacterDir + "/kimono/T_Kimono_AO.png";
@@ -43,22 +42,10 @@ namespace Mikey.FightEditor
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importAnimation = false;   // clips come from the mocap files, not from here
             importer.SaveAndReimport();
-
-            // The Mixamo maps ride *inside* the FBX (the Blender export embeds them). Unity does
-            // not turn embedded media into project assets by itself — no .fbm folder, no texture
-            // sub-assets — so the body material it generates comes back with every map null and
-            // the head renders as a flat colour. That is the exact failure the whole change of
-            // body source was meant to end, and it is invisible to every other check here.
-            // ExtractTextures writes them out once; the reimport after it rebinds the material.
-            // Refresh() between the two is not optional: ExtractTextures only writes the PNGs to
-            // disk, and a model reimported before they are assets binds to nothing — that is a
-            // green run of this script leaving a textureless body behind, measured.
-            System.IO.Directory.CreateDirectory(BodyTextureDir);
-            if (importer.ExtractTextures(BodyTextureDir))
-            {
-                AssetDatabase.Refresh();
-                AssetDatabase.ImportAsset(modelPath, ImportAssetOptions.ForceUpdate);
-            }
+            // Nothing here for the body's own maps: the export writes them as files next to the
+            // model (body/<name>.png) and Unity resolves them on a plain import. They were briefly
+            // embedded in the FBX instead, which needs ModelImporter.ExtractTextures — see
+            // Models_BodyMeshCarriesItsDiffuse for what a body without them looks like.
         }
 
         /// <summary>Without this the relief reads as coloured noise rather than folds.</summary>
