@@ -88,18 +88,18 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void MikeyLogo_IsReferencedOnMainMenuAndTitlesFinalLogoHold()
+        public void MikeyLogo_IsReferencedOnMainMenu_ButNoLongerOnTitle()
         {
             Assert.IsTrue(File.Exists(TitleUssPath), $"Expected stylesheet at {TitleUssPath}.");
             Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
             StringAssert.Contains(LogoAssetPath, File.ReadAllText(HomeUssPath),
                 "Home.uss must reference the supplied Mikey logo asset on the Main Menu.");
-            // Title.uss references it again too, but only for ".title-logo-hold" —
-            // the static final-logo hold TitleController crossfades onto once
-            // advancing begins (see TitleControllerSourceTests). The primary,
-            // normal-viewing "logo" is still logo_intro.mp4 via .title-video.
-            StringAssert.Contains(LogoAssetPath, File.ReadAllText(TitleUssPath),
-                "Title.uss must reference the Mikey logo asset for the final-logo hold overlay.");
+            // Title.uss must not reference the static image at all: the video
+            // itself is the logo during playback, and TitleController freezes on
+            // that SAME video's own final frame while waiting on the shell —
+            // never a separate static image (see TitleControllerSourceTests).
+            StringAssert.DoesNotContain(LogoAssetPath, File.ReadAllText(TitleUssPath),
+                "Title.uss must no longer reference the static Mikey logo image — the final logo_intro.mp4 animation (including its own final frame) replaces it.");
         }
 
         [Test]

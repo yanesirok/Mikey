@@ -115,7 +115,7 @@ namespace Mikey.UI.Title.Tests
                 "The embedded logo SFX must respect the current SFX volume.");
         }
 
-        // --- Cinematic launch transition (final-logo hold + shell readiness + fade) ---
+        // --- Cinematic launch transition (frozen final video frame + shell readiness + fade) ---
 
         [Test]
         public void Advance_NoLongerNavigatesDirectly_StartsAdvanceRoutineInstead()
@@ -127,25 +127,67 @@ namespace Mikey.UI.Title.Tests
         }
 
         [Test]
-        public void AdvanceRoutine_ShowsLogoHold_BeforeAnythingElse()
+        public void AdvanceRoutine_FreezesVideo_BeforeAnythingElse()
         {
             string source = File.ReadAllText(SourcePath);
             int routineIndex = source.IndexOf("private IEnumerator AdvanceRoutine()", System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(routineIndex, 0, "Expected an AdvanceRoutine() method.");
-            int holdIndex = source.IndexOf("ShowLogoHold();", routineIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(holdIndex, 0,
-                "AdvanceRoutine must call ShowLogoHold() — natural completion, tap-skip and the error fallback all funnel through Advance()/AdvanceRoutine(), so all three enter the same hold, never a hard cut to Lore.");
+            int freezeIndex = source.IndexOf("FreezeVideo();", routineIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(freezeIndex, 0,
+                "AdvanceRoutine must call FreezeVideo() — natural completion, tap-skip and the error fallback all funnel through Advance()/AdvanceRoutine(), so all three enter the same hold on the video's own frame, never a hard cut to Lore.");
         }
 
         [Test]
-        public void ShowLogoHold_StopsVideoAndCrossfadesToTheStaticLogoImage()
+        public void FreezeVideo_OnlyPauses_NeverStopsOrHidesTheRenderedFrame()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private void ShowLogoHold()", source);
-            StringAssert.Contains("_videoTarget.style.opacity = 0f;", source,
-                "The video must be hidden once the hold begins.");
-            StringAssert.Contains("_logoHoldTarget.style.opacity = 1f;", source,
-                "The static final-logo hold image must become visible in the same moment the video hides, so the swap reads as seamless.");
+            StringAssert.Contains("private void FreezeVideo()", source);
+            int methodIndex = source.IndexOf("private void FreezeVideo()", System.StringComparison.Ordinal);
+            int nextMethodIndex = source.IndexOf("private void SeekToFinalFrame()", methodIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(nextMethodIndex, 0);
+            string body = source.Substring(methodIndex, nextMethodIndex - methodIndex);
+
+            StringAssert.Contains("_player.Pause();", body,
+                "The hold must pause playback, keeping the currently rendered frame on screen.");
+            StringAssert.DoesNotContain("_player.Stop();", body,
+                "Stop() rewinds to frame 0 — the hold must never lose the final frame that way.");
+            StringAssert.DoesNotContain(".style.opacity", body,
+                "The video element must stay visible throughout the hold — no crossfade to anything else.");
+            StringAssert.DoesNotContain("backgroundImage", body,
+                "The video's render texture must never be swapped or cleared during the hold.");
+        }
+
+        [Test]
+        public void TapCallback_SeeksToFinalFrame_BeforeAdvancing()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int callbackIndex = source.IndexOf("_tapCallback = _ =>", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(callbackIndex, 0, "Expected the tap callback assignment.");
+            int seekIndex = source.IndexOf("SeekToFinalFrame();", callbackIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(seekIndex, 0, "Expected SeekToFinalFrame() inside the tap callback.");
+            int advanceIndex = source.IndexOf("Advance();", seekIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(advanceIndex, 0,
+                "The tap callback must seek to the final-logo portion BEFORE calling Advance(), so an early skip never jumps straight from a random mid-video frame to Lore.");
+        }
+
+        [Test]
+        public void SeekToFinalFrame_PausesAndSeeksNearTheEnd_OfTheSameVideo()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private void SeekToFinalFrame()", source);
+            StringAssert.Contains("private const float SkipSeekBackSeconds = 0.15f;", source);
+            StringAssert.Contains("_player.time = System.Math.Max(0d, _player.length - SkipSeekBackSeconds);", source,
+                "An early tap-skip must seek into the SAME video's own final held-logo portion, never replay the rest of the clip or jump to a separate asset.");
+        }
+
+        [Test]
+        public void NoStaticLogoImageAsset_SubstitutesTheFinalVideoFrame()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("mikey_logo", source,
+                "TitleController must never substitute a separate static image for the video's own final frame.");
+            StringAssert.DoesNotContain("_logoHoldTarget", source);
+            StringAssert.DoesNotContain("title-logo-hold", source);
         }
 
         [Test]
@@ -165,20 +207,32 @@ namespace Mikey.UI.Title.Tests
         }
 
         [Test]
-        public void AdvanceRoutine_FadesThroughTheSharedTransitionOverlay_ThenSwapsToLore()
+        public void AdvanceRoutine_FadesToBlack_HoldsOnFullBlack_ThenSwapsToLore_ThenFadesIn()
         {
             string source = File.ReadAllText(SourcePath);
             int routineIndex = source.IndexOf("private IEnumerator AdvanceRoutine()", System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(routineIndex, 0);
 
             int fadeToBlackIndex = source.IndexOf("_transitionOverlay.FadeToBlack(FadeToBlackSeconds)", routineIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(fadeToBlackIndex, 0, "Logo must fade to black through the shared transition overlay before navigating.");
+            Assert.GreaterOrEqual(fadeToBlackIndex, 0, "The frozen final frame must fade to black through the shared transition overlay before navigating.");
 
-            int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", fadeToBlackIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(showIndex, 0, "The screen swap must happen only after the fade-to-black, while fully covered.");
+            int blackHoldIndex = source.IndexOf("WaitForSecondsRealtime(BlackHoldSeconds)", fadeToBlackIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(blackHoldIndex, 0, "The screen must hold briefly on full black before the swap.");
+
+            int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", blackHoldIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(showIndex, 0, "The screen swap must happen only after the fade-to-black and hold, while fully covered.");
 
             int fadeFromBlackIndex = source.IndexOf("_transitionOverlay.FadeFromBlack(FadeInSeconds)", showIndex, System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Lore must fade in from black only after the screen swap.");
+        }
+
+        [Test]
+        public void TransitionTiming_MatchesTheApprovedDesignBrief()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float FadeToBlackSeconds = 0.5f;", source);
+            StringAssert.Contains("private const float BlackHoldSeconds = 0.12f;", source);
+            StringAssert.Contains("private const float FadeInSeconds = 0.7f;", source);
         }
 
         [Test]

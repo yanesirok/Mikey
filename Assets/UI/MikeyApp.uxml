@@ -11,16 +11,12 @@
              the video error fallback. -->
         <ui:VisualElement name="title" class="screen title-screen">
             <Style src="Title/Title.uss" />
-            <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper.
+                 TitleController freezes on this SAME video's own final frame while
+                 waiting for the shell (Main Menu's video) to be ready — never a
+                 separate static logo image. -->
             <ui:VisualElement class="title-bg" picking-mode="Ignore">
                 <ui:VisualElement name="title-video" picking-mode="Ignore" class="title-video" />
-                <!-- final-logo hold: the static Mikey logo image, framed to match the
-                     video's own final logo pose. TitleController crossfades onto this
-                     (opacity 0 -> 1, video 1 -> 0) the moment it advances — on natural
-                     completion, an early tap-skip, or the error fallback alike — so
-                     there is always something other than a blank/loading screen while
-                     it waits for the shell (Main Menu's video) to finish preparing. -->
-                <ui:VisualElement name="title-logo-hold" picking-mode="Ignore" class="title-logo-hold" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content" />

@@ -30,11 +30,14 @@ namespace Mikey.UI.Intro
         private const string ContinueButtonName = "lore-continue";
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>How long Lore darkens to black before the screen swaps to Main Menu.</summary>
-        private const float FadeOutSeconds = 0.3f;
+        /// <summary>How long Lore darkens to black (Phase A) before the screen swaps to Main Menu.</summary>
+        private const float FadeOutSeconds = 0.5f;
 
-        /// <summary>How long Main Menu fades in from black once it is the active screen.</summary>
-        private const float FadeInSeconds = 0.45f;
+        /// <summary>How long the screen holds on full black — Main Menu is activated and its video allowed to start during this hold, all while fully covered.</summary>
+        private const float BlackHoldSeconds = 0.12f;
+
+        /// <summary>How long Main Menu fades in from black (Phase B) once it is the active screen.</summary>
+        private const float FadeInSeconds = 0.72f;
 
         private IScreenNavigator _navigator;
         private ITransitionOverlay _overlay;
@@ -115,14 +118,28 @@ namespace Mikey.UI.Intro
             _exitRoutine = StartCoroutine(ExitRoutine());
         }
 
-        /// <summary>Darkens Lore to black, swaps to Main Menu while fully covered, then fades Main Menu in.</summary>
+        /// <summary>
+        /// True two-phase transition. Phase A: Lore darkens to black — by the
+        /// end of this phase the screen must be fully black. While still fully
+        /// black, Main Menu is activated (its background video is already
+        /// prepared — see IShellPreloader/BackgroundMediaController — so it
+        /// begins playing immediately, underneath the opaque overlay, with no
+        /// blank-frame/initialization flash by the time it becomes visible).
+        /// Phase B: the overlay fades out, gradually revealing Main Menu out
+        /// of black rather than an instant bright reveal.
+        /// </summary>
         private IEnumerator ExitRoutine()
         {
+            // Phase A: Lore -> full black.
             if (_overlay != null)
                 yield return StartCoroutine(_overlay.FadeToBlack(FadeOutSeconds));
 
+            // Still fully black: activate Main Menu (and let its already-prepared
+            // video start) before any reveal begins.
+            yield return new WaitForSecondsRealtime(BlackHoldSeconds);
             _navigator.Show(NextScreenId);
 
+            // Phase B: full black -> Main Menu revealed.
             if (_overlay != null)
                 yield return StartCoroutine(_overlay.FadeFromBlack(FadeInSeconds));
 

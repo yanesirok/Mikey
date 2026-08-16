@@ -100,8 +100,8 @@ namespace Mikey.UI.SafeArea.Tests
                 "Title must have a video target for the final logo animation.");
             Assert.IsNull(title.Q<VisualElement>(className: "title-logo"),
                 "The retired static logo mark must be gone — the video is the logo now.");
-            Assert.IsNotNull(title.Q<VisualElement>("title-logo-hold"),
-                "Title must have a final-logo hold target for TitleController's post-video wait state.");
+            Assert.IsNull(title.Q<VisualElement>("title-logo-hold"),
+                "There must be no separate static final-logo hold element — TitleController freezes on the video's own final frame instead.");
         }
 
         [Test]
@@ -293,6 +293,24 @@ namespace Mikey.UI.SafeArea.Tests
             string block = uss.Substring(start, close - start);
             StringAssert.Contains("opacity: 0", block, "The overlay must start fully transparent.");
             StringAssert.Contains("background-color: #000000", block, "The overlay must be pure black.");
+        }
+
+        // 32 — Settings and Vow are local overlays, not ScreenManager screens:
+        // opening/closing them can never raise ScreenChanged, so AudioController's
+        // hub soundtrack (which only reacts to ScreenChanged) is structurally
+        // unaffected by them — see AudioControllerHubMusicTests.
+        [Test]
+        public void SharedSettingsModalAndVowModal_AreNotScreens_SoTheyCannotInterruptHubMusic()
+        {
+            var root = BuildTree();
+            var settings = root.Q<VisualElement>("shared-settings-modal");
+            var vow = root.Q<VisualElement>("menu-vow-modal");
+            Assert.IsNotNull(settings, "Expected the shared Settings modal.");
+            Assert.IsNotNull(vow, "Expected the Vow modal.");
+            Assert.IsFalse(settings.ClassListContains("screen"),
+                "The shared Settings modal must not carry the .screen class — ScreenManager (and anything keyed to ScreenChanged, like hub music) must never react to it opening/closing.");
+            Assert.IsFalse(vow.ClassListContains("screen"),
+                "The Vow modal must not carry the .screen class — ScreenManager (and anything keyed to ScreenChanged, like hub music) must never react to it opening/closing.");
         }
     }
 }

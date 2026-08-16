@@ -55,20 +55,32 @@ namespace Mikey.UI.Intro.Tests
         }
 
         [Test]
-        public void ExitRoutine_FadesToBlack_ThenNavigates_ThenFadesIn()
+        public void ExitRoutine_FadesToBlack_HoldsOnFullBlack_ThenNavigates_ThenFadesIn()
         {
             string source = File.ReadAllText(SourcePath);
             int routineIndex = source.IndexOf("private IEnumerator ExitRoutine()", System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(routineIndex, 0, "Expected an ExitRoutine() method.");
 
             int fadeToBlackIndex = source.IndexOf("_overlay.FadeToBlack(FadeOutSeconds)", routineIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(fadeToBlackIndex, 0, "Lore must fade to black through the shared transition overlay before navigating.");
+            Assert.GreaterOrEqual(fadeToBlackIndex, 0, "Phase A: Lore must fade to black through the shared transition overlay before navigating.");
 
-            int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", fadeToBlackIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(showIndex, 0, "The screen swap must happen only after the fade-to-black, while fully covered.");
+            int blackHoldIndex = source.IndexOf("WaitForSecondsRealtime(BlackHoldSeconds)", fadeToBlackIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(blackHoldIndex, 0, "The screen must hold on full black before Main Menu is activated.");
+
+            int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", blackHoldIndex, System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(showIndex, 0, "Main Menu must be activated only after the fade-to-black and hold, while fully covered.");
 
             int fadeFromBlackIndex = source.IndexOf("_overlay.FadeFromBlack(FadeInSeconds)", showIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Main Menu must fade in from black only after the screen swap.");
+            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Phase B: Main Menu must fade in from black only after the screen swap — a real alpha 1 -> 0 reveal, never an instant bright cut.");
+        }
+
+        [Test]
+        public void TransitionTiming_MatchesTheApprovedDesignBrief()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float FadeOutSeconds = 0.5f;", source);
+            StringAssert.Contains("private const float BlackHoldSeconds = 0.12f;", source);
+            StringAssert.Contains("private const float FadeInSeconds = 0.72f;", source);
         }
 
         [Test]

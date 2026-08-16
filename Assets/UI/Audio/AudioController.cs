@@ -13,19 +13,39 @@ namespace Mikey.UI.Audio
     /// <see cref="AudioSettingsStore"/>), plays the one shared UI click sound for every
     /// element carrying the "sfx-click" USS class (same auto-wiring convention
     /// ScreenManager uses for "go-&lt;id&gt;" navigators — add the class in UXML, no
-    /// code/Inspector wiring needed), and owns the Main Menu soundtrack's lifecycle,
-    /// tied to <see cref="IScreenNavigator.ScreenChanged"/> so it plays only while the
-    /// "menu" screen is active and is unaffected by local overlays (Plans/Settings)
-    /// opening on top of it. The combat-scene music candidates and Trainer
-    /// voice-line playback are deliberately not wired here yet.
+    /// code/Inspector wiring needed), and owns the hub/shell soundtrack's lifecycle.
+    /// The soundtrack plays continuously across every hub/navigation screen
+    /// (<see cref="HubScreenIds"/> — Main Menu, Japan/Okinawa Map, Profile,
+    /// Techniques) and any local overlay on top of them (Settings/Vow — these are
+    /// not ScreenManager screens, so opening them never even raises
+    /// <see cref="IScreenNavigator.ScreenChanged"/>): moving between hub screens
+    /// never restarts or re-fades it (<see cref="ShouldStartHubMusic"/>/
+    /// <see cref="ShouldStopHubMusic"/> only fire on a genuine hub/non-hub
+    /// boundary crossing). It only fades out entering actual training/gameplay
+    /// content (combineIntro, camTest, combine, practice) and fades back in
+    /// (resuming via <see cref="AudioSource.UnPause"/>, never a second
+    /// <see cref="AudioSource.Play"/> or a duplicate AudioSource) on return to
+    /// any hub screen. The combat-scene music candidates and Trainer voice-line
+    /// playback are deliberately not wired here yet.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class AudioController : MonoBehaviour, IAudioSettings
     {
         private const string SfxClickClass = "sfx-click";
-        private const string MenuScreenId = "menu";
         private const int MaxRootResolveFrames = 30;
         private const float FadeSeconds = 0.2f;
+
+        /// <summary>
+        /// Hub/shell screens the soundtrack plays continuously across. Every
+        /// other screen is not part of the hub: Logo Intro and Lore (before the
+        /// hub — the soundtrack has not started yet) and training/gameplay
+        /// content (combineIntro, camTest, combine, practice — the soundtrack
+        /// fades out for these).
+        /// </summary>
+        public static readonly HashSet<string> HubScreenIds = new HashSet<string>
+        {
+            "menu", "map", "mapOkinawa", "profile", "techniques",
+        };
 
         [SerializeField] private AudioClip menuMusicClip;
         [SerializeField] private AudioClip uiClickClip;
@@ -39,6 +59,7 @@ namespace Mikey.UI.Audio
         private Coroutine _bindRoutine;
         private Coroutine _fadeRoutine;
         private bool _musicStarted;
+        private bool _wasInHub;
 
         public event Action Changed
         {
@@ -122,6 +143,7 @@ namespace Mikey.UI.Audio
             _musicSource = null;
             _sfxSource = null;
             _musicStarted = false;
+            _wasInHub = false;
         }
 
         private IEnumerator BindSfxWhenReady()
@@ -159,13 +181,36 @@ namespace Mikey.UI.Audio
 
         private void OnScreenChanged(string screenId)
         {
-            if (screenId == MenuScreenId)
-                PlayMenuMusic();
-            else
-                PauseMenuMusic();
+            bool isHub = IsHubScreen(screenId);
+
+            if (ShouldStartHubMusic(_wasInHub, isHub))
+                PlayHubMusic();
+            else if (ShouldStopHubMusic(_wasInHub, isHub))
+                PauseHubMusic();
+
+            _wasInHub = isHub;
         }
 
-        private void PlayMenuMusic()
+        /// <summary>True for every hub/shell screen the soundtrack plays continuously across.</summary>
+        public static bool IsHubScreen(string screenId) => HubScreenIds.Contains(screenId);
+
+        /// <summary>
+        /// Pure decision: start the hub soundtrack only on a genuine non-hub ->
+        /// hub transition (e.g. Lore -> Menu, or training -> Menu/Map/...),
+        /// never on a hub -> hub one (e.g. Menu -> Map) — that would restart or
+        /// re-fade a soundtrack that is already playing. Unit-tested.
+        /// </summary>
+        public static bool ShouldStartHubMusic(bool wasInHub, bool isHub) => isHub && !wasInHub;
+
+        /// <summary>
+        /// Pure decision: stop the hub soundtrack only on a genuine hub ->
+        /// non-hub transition (e.g. Techniques -> Practice), never on a
+        /// non-hub -> non-hub one (e.g. within a multi-screen training flow) or
+        /// a hub -> hub one. Unit-tested.
+        /// </summary>
+        public static bool ShouldStopHubMusic(bool wasInHub, bool isHub) => !isHub && wasInHub;
+
+        private void PlayHubMusic()
         {
             if (_musicSource == null || menuMusicClip == null)
                 return;
@@ -184,7 +229,7 @@ namespace Mikey.UI.Audio
             RestartFade(FadeIn());
         }
 
-        private void PauseMenuMusic()
+        private void PauseHubMusic()
         {
             if (_musicSource == null || !_musicStarted)
                 return;

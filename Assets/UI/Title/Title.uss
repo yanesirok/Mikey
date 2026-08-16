@@ -48,20 +48,3 @@
     bottom: 0;
     -unity-background-scale-mode: scale-to-fit;
 }
-
-/* ---------- final-logo hold ----------
-   The static Mikey logo image, framed with the same full-bleed scale-to-fit
-   sizing as .title-video so crossfading between them (TitleController's
-   AdvanceRoutine) reads as seamless rather than a jump cut. Hidden by
-   default (opacity 0) — only shown once advancing has begun, so the video
-   itself is what plays under normal viewing. */
-.title-logo-hold {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url("/Assets/UI/Media/Images/mikey_logo.png");
-    -unity-background-scale-mode: scale-to-fit;
-    opacity: 0;
-}

@@ -26,14 +26,20 @@ namespace Mikey.UI.Title
     /// restarts predictably.
     ///
     /// Advancing is no longer an instant cut: whatever triggered it (natural
-    /// completion, tap-skip, or the error fallback) first swaps the video for
-    /// the static "title-logo-hold" image (seamless — it is framed to
-    /// match the video's own final logo pose) and, via <see cref="_shellPreloader"/>,
-    /// holds there until the Main Menu's background video is ready (plus a
-    /// short minimum hold on fast devices so it never flashes by). Only then
-    /// does it fade to black through the shared <see cref="_transitionOverlay"/>,
-    /// swap to Lore while fully covered, and fade Lore in — see
-    /// <see cref="AdvanceRoutine"/>.
+    /// completion, tap-skip, or the error fallback) freezes on the actual
+    /// final frame of <see cref="logoIntroClip"/> itself — never a separate
+    /// static image — and, via <see cref="_shellPreloader"/>, holds there
+    /// until the Main Menu's background video is ready (plus a short minimum
+    /// hold on fast devices so it never flashes by). Only then does it fade
+    /// to black, hold briefly on full black, swap to Lore while fully
+    /// covered, and fade Lore in — through the shared
+    /// <see cref="_transitionOverlay"/>, see <see cref="AdvanceRoutine"/>.
+    /// Natural completion already leaves the (non-looping) VideoPlayer
+    /// stopped exactly on its last rendered frame, so nothing needs to
+    /// change there; an early tap-skip instead seeks into the final
+    /// held-logo portion of the same video (see
+    /// <see cref="SeekToFinalFrame"/>) rather than cutting away from
+    /// whatever random mid-animation frame the tap landed on.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class TitleController : MonoBehaviour
@@ -45,17 +51,27 @@ namespace Mikey.UI.Title
         public const string NextScreenId = "intro";
 
         private const string VideoTargetElementName = "title-video";
-        private const string LogoHoldElementName = "title-logo-hold";
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>Minimum time the final-logo hold stays up even when the shell is already ready, so it never flashes by on fast devices.</summary>
+        /// <summary>Minimum time the final-frame hold stays up even when the shell is already ready, so it never flashes by on fast devices.</summary>
         private const float MinHoldSeconds = 0.25f;
 
-        /// <summary>How long the final logo darkens to pure black before Lore is swapped in underneath.</summary>
-        private const float FadeToBlackSeconds = 0.3f;
+        /// <summary>
+        /// How far before the video's own end an early tap-skip seeks, since
+        /// frame-accurate seeking on a compressed video is not reliable — this
+        /// lands inside the video's own held-logo portion rather than at the
+        /// exact last frame.
+        /// </summary>
+        private const float SkipSeekBackSeconds = 0.15f;
+
+        /// <summary>How long the frozen final frame darkens to pure black.</summary>
+        private const float FadeToBlackSeconds = 0.5f;
+
+        /// <summary>How long the screen holds on full black (Lore is swapped in during this hold, while fully covered).</summary>
+        private const float BlackHoldSeconds = 0.12f;
 
         /// <summary>How long Lore fades in from black once it is the active screen.</summary>
-        private const float FadeInSeconds = 0.45f;
+        private const float FadeInSeconds = 0.7f;
 
         [SerializeField]
         [Tooltip("Final logo animation (logo_intro.mp4), played once. Natural completion advances to Lore.")]
@@ -67,7 +83,6 @@ namespace Mikey.UI.Title
         private ITransitionOverlay _transitionOverlay;
         private VisualElement _titleScreen;
         private VisualElement _videoTarget;
-        private VisualElement _logoHoldTarget;
         private EventCallback<ClickEvent> _tapCallback;
         private Coroutine _bindRoutine;
         private Coroutine _advanceRoutine;
@@ -111,7 +126,6 @@ namespace Mikey.UI.Title
                 _titleScreen.UnregisterCallback(_tapCallback);
             _titleScreen = null;
             _videoTarget = null;
-            _logoHoldTarget = null;
             _tapCallback = null;
 
             DestroyPlayer();
@@ -145,9 +159,12 @@ namespace Mikey.UI.Title
             }
 
             _videoTarget = _titleScreen.Q<VisualElement>(VideoTargetElementName);
-            _logoHoldTarget = _titleScreen.Q<VisualElement>(LogoHoldElementName);
 
-            _tapCallback = _ => Advance();
+            _tapCallback = _ =>
+            {
+                SeekToFinalFrame();
+                Advance();
+            };
             _titleScreen.RegisterCallback(_tapCallback);
 
             if (_navigator != null)
@@ -178,12 +195,6 @@ namespace Mikey.UI.Title
                 StopCoroutine(_advanceRoutine);
                 _advanceRoutine = null;
             }
-
-            // Reset the video/hold crossfade for a fresh entry (Editor/testing re-entry included).
-            if (_videoTarget != null)
-                _videoTarget.style.opacity = 1f;
-            if (_logoHoldTarget != null)
-                _logoHoldTarget.style.opacity = 0f;
 
             // Kick off preparing the immediate shell flow (currently: the Main
             // Menu background video) the moment Logo Intro starts, so most of
@@ -293,14 +304,14 @@ namespace Mikey.UI.Title
         }
 
         /// <summary>
-        /// Swaps the video for the static final-logo hold, waits for the shell
-        /// to be ready (with a short minimum hold so it never flashes by on a
-        /// fast device), then fades to black, swaps to Lore while fully
-        /// covered, and fades Lore in.
+        /// Freezes on the video's own final frame, waits for the shell to be
+        /// ready (with a short minimum hold so it never flashes by on a fast
+        /// device), then fades to black, holds briefly on full black, swaps to
+        /// Lore while fully covered, and fades Lore in.
         /// </summary>
         private IEnumerator AdvanceRoutine()
         {
-            ShowLogoHold();
+            FreezeVideo();
 
             float holdStart = Time.unscaledTime;
             while (_shellPreloader != null && !_shellPreloader.IsReady)
@@ -313,6 +324,8 @@ namespace Mikey.UI.Title
             if (_transitionOverlay != null)
                 yield return StartCoroutine(_transitionOverlay.FadeToBlack(FadeToBlackSeconds));
 
+            yield return new WaitForSecondsRealtime(BlackHoldSeconds);
+
             _navigator.Show(NextScreenId);
 
             if (_transitionOverlay != null)
@@ -322,20 +335,37 @@ namespace Mikey.UI.Title
         }
 
         /// <summary>
-        /// Freezes on the final Mikey logo: stops the video and crossfades to
-        /// the static <see cref="LogoHoldElementName"/> image, which is framed
-        /// to match the video's own final logo pose so the swap reads as
-        /// seamless whether it happens on natural completion (already at the
-        /// final frame) or an early tap-skip.
+        /// Defensive catch-all so the hold never keeps advancing frames: pauses
+        /// if still playing. Natural completion already leaves the (non-looping)
+        /// VideoPlayer stopped on its final rendered frame, and an early
+        /// tap-skip already paused via <see cref="SeekToFinalFrame"/> — the
+        /// rendered frame (and its render texture) is never hidden, cleared or
+        /// swapped for a separate image.
         /// </summary>
-        private void ShowLogoHold()
+        private void FreezeVideo()
         {
-            if (_player != null && (_player.isPlaying || _player.isPaused))
-                _player.Stop();
-            if (_videoTarget != null)
-                _videoTarget.style.opacity = 0f;
-            if (_logoHoldTarget != null)
-                _logoHoldTarget.style.opacity = 1f;
+            if (_player != null && _player.isPlaying)
+                _player.Pause();
+        }
+
+        /// <summary>
+        /// Tap-to-skip only: pauses mid-playback and seeks into the final
+        /// held-logo portion of the SAME video, so the hold shows the actual
+        /// final logo pose instead of cutting away from whatever random
+        /// mid-animation frame the tap landed on. Frame-accurate seeking on a
+        /// compressed video is not reliable, so this seeks a small fixed
+        /// distance before the end (<see cref="SkipSeekBackSeconds"/>) rather
+        /// than to the exact last frame.
+        /// </summary>
+        private void SeekToFinalFrame()
+        {
+            if (_player == null || !_player.isPrepared || _player.length <= 0d)
+                return;
+
+            if (_player.isPlaying || _player.isPaused)
+                _player.Pause();
+
+            _player.time = System.Math.Max(0d, _player.length - SkipSeekBackSeconds);
         }
 
         private void DestroyPlayer()
