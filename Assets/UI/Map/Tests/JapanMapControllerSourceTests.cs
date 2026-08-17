@@ -39,12 +39,26 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Tohoku_OpensLockedPanel_WithDisabledCta()
+        public void FukuokaAndHiroshima_OpenLockedPanel_WithDisabledCta()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_panelTitle.text = \"TOHOKU\";", source);
+            StringAssert.Contains("ShowLockedChapterPanel(\"FUKUOKA\", chapterNumber: 1);", source);
+            StringAssert.Contains("ShowLockedChapterPanel(\"HIROSHIMA\", chapterNumber: 2);", source);
+            StringAssert.Contains("private void ShowLockedChapterPanel(string displayName, int chapterNumber)", source);
             StringAssert.Contains("_panelCta.SetEnabled(false);", source);
             StringAssert.Contains("_panelCta.AddToClassList(LockedCtaClass);", source);
+        }
+
+        [Test]
+        public void ChapterMarkers_PositionIsAppliedFromCentralizedMapMarkerLayout()
+        {
+            // Coordinates must not be scattered through UXML/USS — only
+            // MapMarkerLayout.Chapters (see MapMarkerLayoutTests).
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("ApplyChapterPosition(_okinawaNode, OkinawaChapterId);", source);
+            StringAssert.Contains("ApplyChapterPosition(_fukuokaNode, FukuokaChapterId);", source);
+            StringAssert.Contains("ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId);", source);
+            StringAssert.Contains("MapMarkerLayout.ApplyNormalizedPosition(node, chapter.NormalizedX, chapter.NormalizedY);", source);
         }
 
         [Test]

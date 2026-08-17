@@ -9,7 +9,8 @@ namespace Mikey.UI.Map.Tests
     /// <summary>
     /// Structural contract for the Japan world map screen ("map") in
     /// MikeyApp.uxml: full-bleed pannable japan_map_final.jpg with real UI
-    /// Toolkit chapter markers (Okinawa unlocked, Tohoku locked), no
+    /// Toolkit chapter markers (Okinawa unlocked, Fukuoka and Hiroshima
+    /// locked — the 3 MVP chapters, see Map Pass 3A / MapMarkerLayout), no
     /// auto-selected chapter/open panel on entry, and the always-visible top
     /// quick-access bar. Retires the old flattened single-image MVP
     /// (japan_route_map_mvp@2x.png, the permanent 61.7/38.3 split, the
@@ -68,7 +69,8 @@ namespace Mikey.UI.Map.Tests
                 "Entering Map must never auto-select a chapter or open the panel.");
 
             Assert.IsFalse(screen.Q<Button>("chapter-node-okinawa").ClassListContains("chapter-node--selected"));
-            Assert.IsFalse(screen.Q<Button>("chapter-node-tohoku").ClassListContains("chapter-node--selected"));
+            Assert.IsFalse(screen.Q<Button>("chapter-node-fukuoka").ClassListContains("chapter-node--selected"));
+            Assert.IsFalse(screen.Q<Button>("chapter-node-hiroshima").ClassListContains("chapter-node--selected"));
         }
 
         [Test]
@@ -80,11 +82,27 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void TohokuChapterMarker_Exists_VisibleButLocked()
+        public void FukuokaChapterMarker_Exists_VisibleButLocked()
         {
-            var tohoku = MapScreen(BuildTree()).Q<Button>("chapter-node-tohoku");
-            Assert.IsNotNull(tohoku, "Expected a 'chapter-node-tohoku' marker.");
-            Assert.IsTrue(tohoku.ClassListContains("chapter-node--locked"), "Tohoku (Chapter 1) must start locked.");
+            var fukuoka = MapScreen(BuildTree()).Q<Button>("chapter-node-fukuoka");
+            Assert.IsNotNull(fukuoka, "Expected a 'chapter-node-fukuoka' marker.");
+            Assert.IsTrue(fukuoka.ClassListContains("chapter-node--locked"), "Fukuoka (Chapter 1) must start locked.");
+        }
+
+        [Test]
+        public void HiroshimaChapterMarker_Exists_VisibleButLocked()
+        {
+            var hiroshima = MapScreen(BuildTree()).Q<Button>("chapter-node-hiroshima");
+            Assert.IsNotNull(hiroshima, "Expected a 'chapter-node-hiroshima' marker.");
+            Assert.IsTrue(hiroshima.ClassListContains("chapter-node--locked"), "Hiroshima (Chapter 2) must start locked.");
+        }
+
+        [Test]
+        public void ExactlyThreeChapterMarkers_Exist()
+        {
+            var screen = MapScreen(BuildTree());
+            var chapterNodes = screen.Query<Button>(className: "chapter-node").ToList();
+            Assert.AreEqual(3, chapterNodes.Count, "Japan map must show exactly the 3 MVP chapter markers (Okinawa, Fukuoka, Hiroshima).");
         }
 
         [Test]

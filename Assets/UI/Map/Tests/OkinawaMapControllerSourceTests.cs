@@ -13,6 +13,18 @@ namespace Mikey.UI.Map.Tests
         private const string SourcePath = "Assets/UI/Map/OkinawaMapController.cs";
 
         [Test]
+        public void MissionMarkers_PositionAndTypeAreAppliedFromCentralizedMapMarkerLayout()
+        {
+            // Mission type must not be inferred from a static CSS class baked
+            // into MikeyApp.uxml — it's read from MapMarkerLayout.Missions at
+            // bind time and applied here (see MapMarkerLayoutTests).
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], levelIndex);", source);
+            StringAssert.Contains("MapMarkerLayout.ApplyNormalizedPosition(node, mission.NormalizedX, mission.NormalizedY);", source);
+            StringAssert.Contains("mission.Type == MissionMarkerType.Fight ? FightIconClass : TrainingIconClass", source);
+        }
+
+        [Test]
         public void Level0_IsAlwaysUnlocked()
         {
             string source = File.ReadAllText(SourcePath);

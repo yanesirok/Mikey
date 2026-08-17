@@ -1,7 +1,8 @@
 /* ============================================================
    Map — mobile rebuild. The Map is now the primary in-game hub, with a
    two-tier hierarchy: the Japan world map ("map" screen) shows CHAPTER/CITY
-   nodes (Okinawa unlocked, Tohoku locked); tapping "ENTER CHAPTER" on Okinawa
+   nodes (Okinawa unlocked, Fukuoka and Hiroshima locked — see
+   MapMarkerLayout); tapping "ENTER CHAPTER" on Okinawa
    transitions into the Okinawa chapter map ("mapOkinawa" screen), which shows
    LEVEL nodes (LVL 0-5). Both screens share this one stylesheet and the same
    structural pattern:
@@ -417,102 +418,86 @@
 }
 
 /* ---------- Japan chapter markers ----------
-   Compact, elegant, brush/seal-inspired badges — never giant text painted
-   across the map. Percentage-positioned within .pan-canvas so markers move
-   and scale together with the map. The button's own box is generously
-   larger than the visible badge for a comfortable touch target. */
+   Map Pass 3A: the final supplied chapter_*.png marker art (its own painted
+   pin/emblem, seal-red circle baked in) IS the badge now — no extra circle,
+   dark backing plate or dot drawn around it. Position (left/top, percent)
+   is applied at bind time by JapanMapController from
+   MapMarkerLayout.Chapters, never hardcoded here — see that file to move a
+   marker. The button's own box stays generously larger than the visible
+   icon for a comfortable touch target (".tap-target-lg"). */
 .chapter-node {
     position: absolute;
     translate: -50% -50%;
-    width: 120px;
-    padding: 10px 4px;
+    width: 132px;
+    padding: 6px 4px;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
     flex-direction: column;
     align-items: center;
 }
-.chapter-node--okinawa {
-    left: 30%;
-    top: 62%;
+.chapter-node__icon {
+    width: 66px;
+    height: 66px;
+    -unity-background-scale-mode: scale-to-fit;
 }
-.chapter-node--tohoku {
-    left: 47%;
-    top: 30%;
+.chapter-node__icon--okinawa {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_okinawa.png");
 }
-.chapter-node__badge {
-    width: 60px;
-    height: 60px;
-    border-radius: 30px;
-    background-color: rgba(11, 14, 17, 0.82);
-    border-width: 2px;
-    border-color: var(--seal);
-    align-items: center;
-    justify-content: center;
+.chapter-node__icon--fukuoka {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_fukuoka.png");
 }
-.chapter-node__badge-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 7px;
-    background-color: var(--seal);
+.chapter-node__icon--hiroshima {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_hiroshima.png");
 }
 .chapter-node__label {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 14px;
     -unity-font-style: bold;
     letter-spacing: 2px;
     color: var(--bone);
     -unity-text-align: middle-center;
 }
-.chapter-node--locked .chapter-node__badge {
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.6);
-}
-.chapter-node--locked .chapter-node__badge-dot {
-    background-color: var(--muted);
+/* Restrained locked treatment: darker + dimmer via a per-pixel multiply
+   tint, never a lock glyph/giant lock painted over the unique emblem. */
+.chapter-node--locked .chapter-node__icon {
+    opacity: 0.7;
+    -unity-background-image-tint-color: rgb(150, 150, 150);
 }
 .chapter-node--locked .chapter-node__label {
     color: var(--muted);
 }
-.chapter-node--selected .chapter-node__badge {
-    border-color: var(--ember);
-    border-width: 3px;
+.chapter-node--selected .chapter-node__icon {
     scale: 1.08;
 }
 
-/* ---------- Okinawa level markers ----------
-   Same visual language as the chapter markers, smaller/denser since there
-   are six of them. LVL n index shown directly in the badge. */
+/* ---------- Okinawa mission markers (LVL 0-5) ----------
+   Same treatment as the chapter markers: the final supplied
+   mission_training.png / mission_fight.png marker art is shown directly,
+   smaller/denser since there are six of them. Which of the two icons shows
+   is applied at bind time by OkinawaMapController from
+   MapMarkerLayout.Missions (mission type is centralized there, never
+   inferred from a static CSS class baked into the UXML). Position is
+   likewise applied at bind time from the same centralized data. */
 .level-node {
     position: absolute;
     translate: -50% -50%;
     width: 92px;
-    padding: 8px 2px;
+    padding: 6px 2px;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
     flex-direction: column;
     align-items: center;
 }
-.level-node--0 { left: 22%; top: 78%; }
-.level-node--1 { left: 34%; top: 60%; }
-.level-node--2 { left: 48%; top: 68%; }
-.level-node--3 { left: 60%; top: 48%; }
-.level-node--4 { left: 72%; top: 58%; }
-.level-node--5 { left: 82%; top: 36%; }
-
-.level-node__badge {
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
-    background-color: rgba(11, 14, 17, 0.82);
-    border-width: 2px;
-    border-color: var(--seal);
-    align-items: center;
-    justify-content: center;
+.level-node__icon {
+    width: 54px;
+    height: 54px;
+    -unity-background-scale-mode: scale-to-fit;
 }
-.level-node__badge-index {
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: var(--bone);
+.level-node__icon--training {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_training.png");
+}
+.level-node__icon--fight {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_fight.png");
 }
 .level-node__label {
     margin-top: 6px;
@@ -522,23 +507,15 @@
     color: var(--bone);
     -unity-text-align: middle-center;
 }
-.level-node--locked .level-node__badge {
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.6);
-}
-.level-node--locked .level-node__badge-index {
-    color: var(--muted);
+.level-node--locked .level-node__icon {
+    opacity: 0.7;
+    -unity-background-image-tint-color: rgb(150, 150, 150);
 }
 .level-node--locked .level-node__label {
     color: var(--muted);
 }
-.level-node--selected .level-node__badge {
-    border-color: var(--ember);
-    border-width: 3px;
+.level-node--selected .level-node__icon {
     scale: 1.1;
-}
-.level-node--completed .level-node__badge {
-    border-color: var(--jade);
 }
 
 /* ---------- shared detail panel (chapter panel + level popup) ----------

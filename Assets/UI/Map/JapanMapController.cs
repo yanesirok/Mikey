@@ -26,8 +26,9 @@ namespace Mikey.UI.Map
     {
         private const int MaxRootResolveFrames = 30;
         private const string ScreenId = "map";
-        private const string OkinawaChapterId = "okinawa";
-        private const string TohokuChapterId = "tohoku";
+        private const string OkinawaChapterId = MapMarkerLayout.OkinawaChapterId;
+        private const string FukuokaChapterId = MapMarkerLayout.FukuokaChapterId;
+        private const string HiroshimaChapterId = MapMarkerLayout.HiroshimaChapterId;
 
         /// <summary>Where LVL 0-5 gameplay actually lives once a chapter is entered.</summary>
         public const string OkinawaChapterScreenId = "mapOkinawa";
@@ -52,7 +53,8 @@ namespace Mikey.UI.Map
 
         private VisualElement _root;
         private Button _okinawaNode;
-        private Button _tohokuNode;
+        private Button _fukuokaNode;
+        private Button _hiroshimaNode;
         private VisualElement _outsideCatcher;
         private VisualElement _panel;
         private VisualElement _panelVideo;
@@ -104,7 +106,8 @@ namespace Mikey.UI.Map
             if (_bound)
             {
                 _okinawaNode.clicked -= OnOkinawaClicked;
-                _tohokuNode.clicked -= OnTohokuClicked;
+                _fukuokaNode.clicked -= OnFukuokaClicked;
+                _hiroshimaNode.clicked -= OnHiroshimaClicked;
                 _outsideCatcher.UnregisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
                 _panelCta.clicked -= OnEnterChapterClicked;
                 _topbarMap.clicked -= OnTopbarMapClicked;
@@ -163,7 +166,8 @@ namespace Mikey.UI.Map
             _root = document.rootVisualElement;
 
             _okinawaNode = _root.Q<Button>("chapter-node-okinawa");
-            _tohokuNode = _root.Q<Button>("chapter-node-tohoku");
+            _fukuokaNode = _root.Q<Button>("chapter-node-fukuoka");
+            _hiroshimaNode = _root.Q<Button>("chapter-node-hiroshima");
             _outsideCatcher = _root.Q<VisualElement>("map-outside-catcher");
             _panel = _root.Q<VisualElement>("chapter-panel");
             _panelVideo = _root.Q<VisualElement>("chapter-panel-video");
@@ -180,15 +184,20 @@ namespace Mikey.UI.Map
             _topbarTechniques = _root.Q<Button>("map-topbar-techniques");
             _topbarStats = _root.Q<Button>("map-topbar-stats");
 
-            if (_okinawaNode == null || _tohokuNode == null || _panel == null || _panelCta == null)
+            if (_okinawaNode == null || _fukuokaNode == null || _hiroshimaNode == null || _panel == null || _panelCta == null)
             {
                 Debug.LogError("[JapanMapController] Japan map elements missing; screen not bound.", this);
                 _bindRoutine = null;
                 yield break;
             }
 
+            ApplyChapterPosition(_okinawaNode, OkinawaChapterId);
+            ApplyChapterPosition(_fukuokaNode, FukuokaChapterId);
+            ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId);
+
             _okinawaNode.clicked += OnOkinawaClicked;
-            _tohokuNode.clicked += OnTohokuClicked;
+            _fukuokaNode.clicked += OnFukuokaClicked;
+            _hiroshimaNode.clicked += OnHiroshimaClicked;
             _outsideCatcher?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
             _panelCta.clicked += OnEnterChapterClicked;
             if (_topbarMap != null)
@@ -213,9 +222,23 @@ namespace Mikey.UI.Map
             _bindRoutine = null;
         }
 
+        /// <summary>Applies this chapter's normalized position from MapMarkerLayout — the only place its coordinates live.</summary>
+        private static void ApplyChapterPosition(VisualElement node, string chapterId)
+        {
+            foreach (var chapter in MapMarkerLayout.Chapters)
+            {
+                if (chapter.Id != chapterId)
+                    continue;
+                MapMarkerLayout.ApplyNormalizedPosition(node, chapter.NormalizedX, chapter.NormalizedY);
+                return;
+            }
+        }
+
         private void OnOkinawaClicked() => ToggleChapter(OkinawaChapterId, _okinawaNode);
 
-        private void OnTohokuClicked() => ToggleChapter(TohokuChapterId, _tohokuNode);
+        private void OnFukuokaClicked() => ToggleChapter(FukuokaChapterId, _fukuokaNode);
+
+        private void OnHiroshimaClicked() => ToggleChapter(HiroshimaChapterId, _hiroshimaNode);
 
         private void ToggleChapter(string chapterId, Button node)
         {
@@ -238,8 +261,10 @@ namespace Mikey.UI.Map
 
             if (chapterId == OkinawaChapterId)
                 ShowOkinawaPanel();
+            else if (chapterId == FukuokaChapterId)
+                ShowLockedChapterPanel("FUKUOKA", chapterNumber: 1);
             else
-                ShowTohokuPanel();
+                ShowLockedChapterPanel("HIROSHIMA", chapterNumber: 2);
 
             _panel.AddToClassList(PanelOpenClass);
             _panel.pickingMode = PickingMode.Position;
@@ -259,17 +284,17 @@ namespace Mikey.UI.Map
             PlayOkinawaPreview();
         }
 
-        private void ShowTohokuPanel()
+        private void ShowLockedChapterPanel(string displayName, int chapterNumber)
         {
             StopOkinawaPreview();
             _panelVideo.style.display = DisplayStyle.None;
             HideFallback();
 
-            _panelEyebrow.text = "CHAPTER 1";
-            _panelTitle.text = "TOHOKU";
-            _panelDesc.text = "Complete Okinawa to unlock the next chapter of your journey.";
+            _panelEyebrow.text = $"CHAPTER {chapterNumber}";
+            _panelTitle.text = displayName;
+            _panelDesc.text = "Locked for now. Complete the earlier chapters to continue your journey.";
             _panelMeta.text = string.Empty;
-            _panelCtaText.text = "COMPLETE OKINAWA";
+            _panelCtaText.text = "LOCKED";
             _panelCta.SetEnabled(false);
             _panelCta.AddToClassList(LockedCtaClass);
         }
@@ -288,8 +313,10 @@ namespace Mikey.UI.Map
         {
             if (_selectedChapter == OkinawaChapterId)
                 _okinawaNode.RemoveFromClassList(SelectedNodeClass);
-            else if (_selectedChapter == TohokuChapterId)
-                _tohokuNode.RemoveFromClassList(SelectedNodeClass);
+            else if (_selectedChapter == FukuokaChapterId)
+                _fukuokaNode.RemoveFromClassList(SelectedNodeClass);
+            else if (_selectedChapter == HiroshimaChapterId)
+                _hiroshimaNode.RemoveFromClassList(SelectedNodeClass);
         }
 
         private void SetOutsideCatcherActive(bool active)

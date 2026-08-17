@@ -163,6 +163,7 @@ namespace Mikey.UI.Map
                 Action handler = () => OnLevelNodeClicked(levelIndex);
                 _levelClickHandlers[i] = handler;
                 _levelNodes[i].clicked += handler;
+                ApplyMissionLayout(_levelNodes[i], levelIndex);
             }
 
             _outsideCatcher?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
@@ -191,6 +192,41 @@ namespace Mikey.UI.Map
 
             _bound = true;
             _bindRoutine = null;
+        }
+
+        private const string TrainingIconClass = "level-node__icon--training";
+        private const string FightIconClass = "level-node__icon--fight";
+
+        /// <summary>
+        /// Applies this level's normalized position and mission-type icon
+        /// (training/fight) from MapMarkerLayout — the only place a mission's
+        /// coordinates and type live. The icon class is added here at bind
+        /// time rather than baked into MikeyApp.uxml so mission type stays
+        /// centralized in data, never inferred from static CSS.
+        /// </summary>
+        private static void ApplyMissionLayout(VisualElement node, int levelIndex)
+        {
+            MissionMarkerLayout mission = default;
+            bool found = false;
+            foreach (var candidate in MapMarkerLayout.Missions)
+            {
+                if (candidate.LevelIndex != levelIndex)
+                    continue;
+                mission = candidate;
+                found = true;
+                break;
+            }
+            if (!found)
+                return;
+
+            MapMarkerLayout.ApplyNormalizedPosition(node, mission.NormalizedX, mission.NormalizedY);
+
+            var icon = node.Q<VisualElement>(className: "level-node__icon");
+            if (icon == null)
+                return;
+            icon.RemoveFromClassList(TrainingIconClass);
+            icon.RemoveFromClassList(FightIconClass);
+            icon.AddToClassList(mission.Type == MissionMarkerType.Fight ? FightIconClass : TrainingIconClass);
         }
 
         private void OnLevelNodeClicked(int index)
