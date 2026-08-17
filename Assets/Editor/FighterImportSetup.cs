@@ -122,12 +122,26 @@ namespace Mikey.FightEditor
         /// whichever scene happened to be open, which is worse.</summary>
         static readonly Color KeySun = new Color(11.0f, 8.58f, 5.50f);
 
+        /// <summary>What the base map contributes to albedo on a typical texel, after
+        /// _AlbedoGamma. The map is the baked AO, and raw AO is dark: median 0.063 over the
+        /// atlas. Under gamma 0.45 that lifts to 0.063^0.45 ≈ 0.28, which is the number the
+        /// tints below are calibrated against.
+        ///
+        /// Gamma matters here precisely because the AO is so contrasty. At gamma 1 the same
+        /// tint renders anywhere from 0.06x to 1.0x depending on the texel — the mottled,
+        /// blotchy garment — and a belt tint chosen for the bright end goes black across most
+        /// of its area, which is what happened when the red and blue stripes disappeared.</summary>
+        const float AoTypical = 0.28f;
+
         /// <summary>Takes the colour we want ON SCREEN and returns the tint that produces it,
-        /// by dividing out the key light. Without this every tint here is really a tint times
-        /// eleven, which is how a 0.07 "black" kimono ended up rendering tan-gold.</summary>
+        /// dividing out both things that sit between a tint and a pixel: the key light and the
+        /// base map. Miss the light and a "black" 0.07 renders tan-gold; miss the map and the
+        /// coloured belts render black. Both mistakes were shipped before this existed.</summary>
         static Color Lit(float r, float g, float b)
         {
-            return new Color(r / KeySun.r, g / KeySun.g, b / KeySun.b);
+            return new Color(r / (KeySun.r * AoTypical),
+                             g / (KeySun.g * AoTypical),
+                             b / (KeySun.b * AoTypical));
         }
 
         static void CreateMaterials()
@@ -208,7 +222,13 @@ namespace Mikey.FightEditor
             mat.SetTexture("_BaseMap", ao);
             mat.SetTexture("_BumpMap", normal);
             mat.SetColor("_BaseColor", baseColor);
-            mat.SetFloat("_AlbedoGamma", 1f);
+            // Gamma 0.45, the shader's own default, not 1. An earlier note here said 0.45
+            // "would wash an AO map out" — it has that backwards for this map. Raw AO runs
+            // median 0.063 with a long bright tail, so at gamma 1 the tint is multiplied by
+            // anything from 0.06 to 1.0 across the garment: that spread IS the blotchiness,
+            // and it is what swallowed the red and blue belts. 0.45 compresses the floor to
+            // ~0.28 and leaves the occlusion readable as shading rather than as stains.
+            mat.SetFloat("_AlbedoGamma", 0.45f);
             // Character.shader ADDS the rim: color += _RimColor * rim * _RimStrength. Its 1.4
             // default was tuned against a pale cloth, where the added light barely registers.
             // On black cloth the same rim is the brightest thing on the fighter and reads as
