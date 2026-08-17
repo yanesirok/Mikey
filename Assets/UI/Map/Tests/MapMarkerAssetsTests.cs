@@ -97,6 +97,38 @@ namespace Mikey.UI.Map.Tests
             Assert.LessOrEqual(size, 60f);
         }
 
+        // ---------- locked markers read clearly, not just barely visible ----------
+
+        [TestCase(".chapter-node--locked .chapter-node__icon {")]
+        [TestCase(".level-node--locked .level-node__icon {")]
+        public void LockedIcon_OpacityIsWithinReadableTarget_78To86Percent(string selector)
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(UssPath), selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            var match = System.Text.RegularExpressions.Regex.Match(block, @"opacity:\s*(\d+(\.\d+)?)");
+            Assert.IsTrue(match.Success, $"Expected an 'opacity: <n>' declaration in: {block}");
+            float opacity = float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.GreaterOrEqual(opacity, 0.78f);
+            Assert.LessOrEqual(opacity, 0.86f);
+        }
+
+        [TestCase(".chapter-node--locked .chapter-node__icon {")]
+        [TestCase(".level-node--locked .level-node__icon {")]
+        public void LockedIcon_TintIsSubstantiallyLighterThanTheOldHeavyGray(string selector)
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(UssPath), selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            var match = System.Text.RegularExpressions.Regex.Match(block, @"-unity-background-image-tint-color:\s*rgb\((\d+),\s*(\d+),\s*(\d+)\)");
+            Assert.IsTrue(match.Success, $"Expected an rgb(...) tint declaration in: {block}");
+            int r = int.Parse(match.Groups[1].Value);
+            // The old value was rgb(150,150,150) — a much heavier darken. The
+            // final calibration must be substantially lighter so the
+            // Training/Fight symbol and chapter emblems stay clearly readable
+            // while locked, without removing the tint cue entirely (255=none).
+            Assert.Greater(r, 180, "Locked tint must be substantially lighter than the old rgb(150,150,150).");
+            Assert.Less(r, 255, "A tint must still be present — locked markers stay visually distinct from unlocked ones.");
+        }
+
         [Test]
         public void ChapterAndLevelNodes_KeepTheSharedTapTargetTouchArea()
         {

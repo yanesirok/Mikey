@@ -457,11 +457,13 @@
     color: var(--bone);
     -unity-text-align: middle-center;
 }
-/* Restrained locked treatment: darker + dimmer via a per-pixel multiply
-   tint, never a lock glyph/giant lock painted over the unique emblem. */
+/* Restrained locked treatment: a light per-pixel multiply tint plus a
+   modest opacity drop, never a lock glyph/giant lock painted over the
+   unique emblem. Kept light enough that the emblem/symbol stays clearly
+   readable against the map — this is a "locked" cue, not a fog-out. */
 .chapter-node--locked .chapter-node__icon {
-    opacity: 0.7;
-    -unity-background-image-tint-color: rgb(150, 150, 150);
+    opacity: 0.82;
+    -unity-background-image-tint-color: rgb(210, 210, 210);
 }
 .chapter-node--locked .chapter-node__label {
     color: var(--muted);
@@ -508,8 +510,8 @@
     -unity-text-align: middle-center;
 }
 .level-node--locked .level-node__icon {
-    opacity: 0.7;
-    -unity-background-image-tint-color: rgb(150, 150, 150);
+    opacity: 0.82;
+    -unity-background-image-tint-color: rgb(210, 210, 210);
 }
 .level-node--locked .level-node__label {
     color: var(--muted);

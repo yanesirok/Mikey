@@ -72,13 +72,16 @@ namespace Mikey.UI.Map
         /// locked), Hiroshima (western Honshu, locked). Positions were picked
         /// by eye against the final japan_map_final.jpg ink-map art — Fukuoka
         /// sits at the northern tip of the Kyushu landmass nearest the strait,
-        /// Hiroshima sits further northeast along the Honshu coastline.
+        /// Hiroshima sits further northeast along the Honshu coastline. Final
+        /// calibration pass: Okinawa nudged east/north onto its island chain,
+        /// Fukuoka nudged east/south onto northern Kyushu, Hiroshima nudged
+        /// west/south onto western Honshu.
         /// </summary>
         public static readonly ChapterMarkerLayout[] Chapters =
         {
-            new ChapterMarkerLayout(OkinawaChapterId, "OKINAWA", 0.30f, 0.62f, unlocked: true),
-            new ChapterMarkerLayout(FukuokaChapterId, "FUKUOKA", 0.38f, 0.47f, unlocked: false),
-            new ChapterMarkerLayout(HiroshimaChapterId, "HIROSHIMA", 0.50f, 0.38f, unlocked: false),
+            new ChapterMarkerLayout(OkinawaChapterId, "OKINAWA", 0.35f, 0.58f, unlocked: true),
+            new ChapterMarkerLayout(FukuokaChapterId, "FUKUOKA", 0.405f, 0.49f, unlocked: false),
+            new ChapterMarkerLayout(HiroshimaChapterId, "HIROSHIMA", 0.49f, 0.405f, unlocked: false),
         };
 
         /// <summary>
@@ -92,14 +95,16 @@ namespace Mikey.UI.Map
         /// state are separate concerns, so a locked Fight mission still shows
         /// the Fight marker. LVL 5 was dropped from the MVP entirely; it must
         /// not appear here or anywhere in the Okinawa UXML/USS/runtime data.
+        /// Final calibration pass: coordinates recalibrated onto the main
+        /// Okinawa landmass for a clean southwest-to-northeast progression.
         /// </summary>
         public static readonly MissionMarkerLayout[] Missions =
         {
-            new MissionMarkerLayout(0, 0.22f, 0.78f, MissionMarkerType.Training),
-            new MissionMarkerLayout(1, 0.34f, 0.60f, MissionMarkerType.Training),
-            new MissionMarkerLayout(2, 0.48f, 0.68f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(3, 0.60f, 0.48f, MissionMarkerType.Training),
-            new MissionMarkerLayout(4, 0.72f, 0.58f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(0, 0.315f, 0.69f, MissionMarkerType.Training),
+            new MissionMarkerLayout(1, 0.405f, 0.61f, MissionMarkerType.Training),
+            new MissionMarkerLayout(2, 0.50f, 0.57f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(3, 0.62f, 0.47f, MissionMarkerType.Training),
+            new MissionMarkerLayout(4, 0.80f, 0.39f, MissionMarkerType.Fight),
         };
 
         /// <summary>Writes a normalized (0-1) position onto an element as percentage style.left/style.top.</summary>
