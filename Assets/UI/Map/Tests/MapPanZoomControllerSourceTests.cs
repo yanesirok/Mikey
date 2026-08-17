@@ -235,5 +235,65 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("_viewport.UnregisterCallback(_onWheel);", source);
             StringAssert.Contains("_navigator.ScreenChanged -= OnScreenChanged;", source);
         }
+
+        // ---------- cloud transition input lock: pan/wheel/pinch must all yield while clouds are closing/revealing ----------
+
+        [Test]
+        public void Update_BlocksPinchPolling_WhileCloudTransitionIsRunning()
+        {
+            // Pinch bypasses the UI Toolkit event tree entirely (it polls
+            // Touchscreen directly), so picking-mode alone can never block
+            // it — the guard has to live here, at the top of Update().
+            string source = File.ReadAllText(SourcePath);
+            int updateStart = source.IndexOf("private void Update()", System.StringComparison.Ordinal);
+            int updateEnd = source.IndexOf("private void OnPointerDown", System.StringComparison.Ordinal);
+            Assert.Greater(updateStart, -1);
+            Assert.Greater(updateEnd, updateStart);
+            string updateBody = source.Substring(updateStart, updateEnd - updateStart);
+            StringAssert.Contains("if (!_bound || MapCloudTransitionController.IsTransitioning)", updateBody);
+        }
+
+        [Test]
+        public void OnPointerDown_RejectsNewDrags_WhileCloudTransitionIsRunning()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnPointerDown(PointerDownEvent evt)", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void OnPointerMove", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.Contains("if (_pointerDown || _isPinching || MapCloudTransitionController.IsTransitioning)", body);
+        }
+
+        [Test]
+        public void OnWheel_BlocksZoom_AndStopsPropagation_WhileCloudTransitionIsRunning()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnWheel(WheelEvent evt)", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void EndDrag", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            int guardIndex = body.IndexOf("if (MapCloudTransitionController.IsTransitioning)", System.StringComparison.Ordinal);
+            Assert.Greater(guardIndex, -1, "Expected the guard to be the first check in OnWheel.");
+            int guardStopPropagation = body.IndexOf("evt.StopPropagation();", guardIndex, System.StringComparison.Ordinal);
+            int guardReturn = body.IndexOf("return;", guardIndex, System.StringComparison.Ordinal);
+            Assert.Greater(guardStopPropagation, guardIndex);
+            Assert.Greater(guardReturn, guardStopPropagation);
+        }
+
+        [Test]
+        public void CloudTransitionGuards_CheckTheControllerDirectly_NotOnlyPickingMode()
+        {
+            // Belt-and-suspenders proof that all three input sources
+            // (pinch via Update, drag via OnPointerDown, wheel via OnWheel)
+            // check MapCloudTransitionController.IsTransitioning — picking-
+            // mode on the cloud layer container is a separate, additional
+            // mechanism that only helps with marker taps/outside-tap close.
+            string source = File.ReadAllText(SourcePath);
+            int occurrences = CountOccurrences(source, "MapCloudTransitionController.IsTransitioning");
+            Assert.AreEqual(3, occurrences, "Expected exactly 3 guard sites: Update(), OnPointerDown(), OnWheel().");
+        }
     }
 }

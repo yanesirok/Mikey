@@ -693,24 +693,27 @@
     opacity: 1;
 }
 
-/* ---------- Map Pass 3B decorative cloud overlay ----------
-   The four sumi-e cloud PNGs, positioned/sized/rotated per
-   MapCloudLayout — a plain percentage overlay against this element's own
-   box (NOT the source map image, unlike markers), since clouds are
-   foreground decoration that must never pan/zoom with the map art. This
-   is why the layer sits as a sibling of ".pan-stage" inside ".map-root",
-   never a child of ".pan-canvas". overflow:hidden clips cloud bleed to
-   the map-content region so it never paints over the topbar below (a
-   later, higher sibling). Percentage styling here means resize is already
-   handled automatically by UI Toolkit's layout engine — no explicit
-   reprojection needed, unlike marker positions. */
+/* ---------- Map Pass 3B decorative cloud overlay (corrected architecture) ----------
+   The four sumi-e cloud PNGs, positioned/sized/rotated/opacity per
+   MapCloudLayout — a child of ".pan-canvas" (the SAME transformed map
+   artboard as the map art and markers, declared last inside it so it
+   paints above them), never a viewport-fixed overlay, so clouds pan/zoom
+   together with the map. Sized to exactly match the canvas's own box
+   (inset:0, same pattern as ".map-canvas-art") so the cloud sprites'
+   percentage left/top/width/height resolve against the same box
+   MapCloudLayout.Apply's viewportWidth/viewportHeight argument measures.
+   No overflow:hidden here (a cloud's Canva-authored bleed past the canvas
+   edge is already clipped correctly by ".pan-stage"'s own overflow:hidden,
+   the outer clip boundary that already governs the map art/markers at any
+   pan/zoom state — an extra clip here would double-clip incorrectly once
+   zoomed/panned). Opacity is per-cloud/per-state (see MapCloudLayout) —
+   the CSS never hardcodes it. */
 .map-cloud-layer {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    overflow: hidden;
 }
 .map-cloud {
     position: absolute;

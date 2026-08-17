@@ -174,7 +174,7 @@ namespace Mikey.UI.Map
 
         private void Update()
         {
-            if (!_bound)
+            if (!_bound || MapCloudTransitionController.IsTransitioning)
                 return;
 
             Touchscreen touchscreen = Touchscreen.current;
@@ -225,7 +225,7 @@ namespace Mikey.UI.Map
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            if (_pointerDown || _isPinching)
+            if (_pointerDown || _isPinching || MapCloudTransitionController.IsTransitioning)
                 return;
 
             _pointerDown = true;
@@ -264,6 +264,12 @@ namespace Mikey.UI.Map
 
         private void OnWheel(WheelEvent evt)
         {
+            if (MapCloudTransitionController.IsTransitioning)
+            {
+                evt.StopPropagation();
+                return;
+            }
+
             CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
 
             // Only the direction of one wheel event is used, not its raw

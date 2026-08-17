@@ -680,31 +680,37 @@
                             <ui:Label text="HIROSHIMA" class="chapter-node__label" picking-mode="Ignore" />
                             <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
                         </ui:Button>
+
+                        <!-- Map Pass 3B decorative cloud overlay (corrected
+                             architecture): a child of THIS "pan-canvas", the same
+                             transformed map-artboard the art and markers above
+                             live in — so clouds pan/zoom together with the map,
+                             never fixed to the viewport. Declared LAST so it
+                             paints above the map art/markers (picking-mode:Ignore
+                             at rest still lets taps reach markers underneath).
+                             Rests at MapCloudLayout.JapanRest, positioned as a
+                             source-image-normalized rectangle converted through
+                             the same cover-fit crop as marker coordinates (see
+                             MapCloudLayout.Apply/MapCoordinateMapping.SourceRectToViewport).
+                             MapCloudTransitionController animates it during a
+                             Japan<->Okinawa chapter transition. The layer's own
+                             picking-mode is the input-lock switch during a
+                             transition (Position while locked, Ignore at rest) —
+                             the four cloud sprites themselves always stay
+                             non-picking; pan/wheel/pinch are separately guarded
+                             in MapPanZoomController. -->
+                        <ui:VisualElement name="map-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="map-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
 
                     <!-- toggled to picking-mode:Position only while the chapter
                          panel is open, so a tap "elsewhere" on the map closes it
                          (JapanMapController). -->
                     <ui:VisualElement name="map-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
-                </ui:VisualElement>
-
-                <!-- Map Pass 3B decorative cloud overlay: a stable sibling of
-                     "map-stage" (never a child of the transformed "pan-canvas",
-                     so it never pans/zooms with the map art), sized to the same
-                     map-content region and clipped there so it never bleeds over
-                     the topbar below. Rests at MapCloudLayout.JapanRest until
-                     MapCloudTransitionController animates it during a
-                     Japan<->Okinawa chapter transition. The layer's own
-                     picking-mode is the input-lock switch during a transition
-                     (Position while locked, Ignore at rest) — the four cloud
-                     sprites themselves always stay non-picking. Declared BEFORE
-                     "chapter-panel" so an open panel's own opaque background
-                     always paints over resting clouds. -->
-                <ui:VisualElement name="map-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
-                    <ui:VisualElement name="map-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
-                    <ui:VisualElement name="map-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
-                    <ui:VisualElement name="map-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
-                    <ui:VisualElement name="map-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
                 </ui:VisualElement>
 
                 <!-- chapter detail OVERLAY panel: slides in over the map on
@@ -863,19 +869,21 @@
                             <ui:Label text="LVL 6" class="level-node__label" picking-mode="Ignore" />
                             <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
+
+                        <!-- Map Pass 3B decorative cloud overlay (corrected
+                             architecture) — see the "map" screen's
+                             "map-cloud-layer" for the full explanation. A child
+                             of THIS "okinawa-canvas", so it pans/zooms with the
+                             Okinawa map art. Rests at MapCloudLayout.OkinawaRest. -->
+                        <ui:VisualElement name="okinawa-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="okinawa-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
 
                     <ui:VisualElement name="okinawa-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
-                </ui:VisualElement>
-
-                <!-- Map Pass 3B decorative cloud overlay — see the "map"
-                     screen's "map-cloud-layer" for the full explanation.
-                     Rests at MapCloudLayout.OkinawaRest. -->
-                <ui:VisualElement name="okinawa-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
-                    <ui:VisualElement name="okinawa-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
-                    <ui:VisualElement name="okinawa-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
-                    <ui:VisualElement name="okinawa-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
-                    <ui:VisualElement name="okinawa-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
                 </ui:VisualElement>
 
                 <!-- level detail OVERLAY popup: same shared ".detail-panel"

@@ -68,6 +68,45 @@ namespace Mikey.UI.Map
             viewportNormalizedY = renderedPixelY / viewportHeight;
         }
 
+        /// <summary>
+        /// Converts a normalized source-image RECTANGLE (position + size,
+        /// e.g. one MapCloudLayout.CloudLayout) into a normalized viewport
+        /// rectangle, via the same cover-fit scale+crop as
+        /// <see cref="SourceToViewport"/>. The top-left corner converts
+        /// exactly like a point; width/height convert by the same per-axis
+        /// scale factor WITHOUT the position's centering offset, since a
+        /// size is a delta, not a point — crop only ever shifts where a
+        /// rectangle sits, never how big it is. Falls back to an identity
+        /// mapping for degenerate/not-yet-laid-out input, same as
+        /// <see cref="SourceToViewport"/>.
+        /// </summary>
+        public static void SourceRectToViewport(
+            float sourceNormalizedX, float sourceNormalizedY, float sourceNormalizedWidth, float sourceNormalizedHeight,
+            float sourceWidth, float sourceHeight,
+            float viewportWidth, float viewportHeight,
+            out float viewportNormalizedX, out float viewportNormalizedY, out float viewportNormalizedWidth, out float viewportNormalizedHeight)
+        {
+            if (!IsFinite(sourceNormalizedX) || !IsFinite(sourceNormalizedY) || !IsFinite(sourceNormalizedWidth) || !IsFinite(sourceNormalizedHeight)
+                || !IsPositiveFinite(sourceWidth) || !IsPositiveFinite(sourceHeight)
+                || !IsPositiveFinite(viewportWidth) || !IsPositiveFinite(viewportHeight))
+            {
+                viewportNormalizedX = sourceNormalizedX;
+                viewportNormalizedY = sourceNormalizedY;
+                viewportNormalizedWidth = sourceNormalizedWidth;
+                viewportNormalizedHeight = sourceNormalizedHeight;
+                return;
+            }
+
+            SourceToViewport(sourceNormalizedX, sourceNormalizedY, sourceWidth, sourceHeight, viewportWidth, viewportHeight,
+                out viewportNormalizedX, out viewportNormalizedY);
+
+            float scale = Max(viewportWidth / sourceWidth, viewportHeight / sourceHeight);
+            float kx = sourceWidth * scale / viewportWidth;
+            float ky = sourceHeight * scale / viewportHeight;
+            viewportNormalizedWidth = sourceNormalizedWidth * kx;
+            viewportNormalizedHeight = sourceNormalizedHeight * ky;
+        }
+
         private static float Max(float a, float b) => a > b ? a : b;
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);

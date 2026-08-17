@@ -5,7 +5,16 @@ namespace Mikey.UI.Map
     /// UnityEngine/UI Toolkit so it can be exercised directly in EditMode
     /// tests (mirrors <see cref="MapPanZoomMath"/>). Smooth ease-in-out
     /// (decelerating in, accelerating out, no overshoot/bounce/elastic) per
-    /// the desired "sumi-e mist" motion feel, never a linear or bouncy curve.
+    /// the desired "sumi-e mist" motion feel.
+    ///
+    /// The transition's dominant motion is each cloud EXPANDING from its own
+    /// resting rectangle while one of its edges/corners (see
+    /// <see cref="CloudExpansionAnchor"/>) stays fixed — never a slide
+    /// toward the viewport center. <see cref="ComputeClosedLayout"/> derives
+    /// the fully-closed rectangle for one cloud from its rest layout; the
+    /// animation itself is then a plain eased <see cref="Lerp"/> between
+    /// that rest layout and the computed closed layout (or, in reveal, from
+    /// closed back to the DESTINATION screen's rest layout).
     /// </summary>
     public static class MapCloudMath
     {
@@ -24,13 +33,9 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
-        /// The local progress of one staggered cloud within an overall phase:
-        /// 0 before its own start delay has elapsed, 1 once its own duration
-        /// has fully elapsed, linear in between. Each cloud's motion starts
-        /// at <paramref name="startDelaySeconds"/> into the phase and takes
-        /// <paramref name="cloudDurationSeconds"/> to complete — the phase's
-        /// own total duration only needs to be at least
-        /// startDelaySeconds + cloudDurationSeconds for every cloud to finish.
+        /// The local progress of one (optionally staggered) cloud within an
+        /// overall phase: 0 before its own start delay has elapsed, 1 once
+        /// its own duration has fully elapsed, linear in between.
         /// </summary>
         public static float LocalProgress(float elapsedSeconds, float startDelaySeconds, float cloudDurationSeconds)
         {
@@ -41,7 +46,50 @@ namespace Mikey.UI.Map
             return Clamp01(local);
         }
 
-        /// <summary>Eases <paramref name="t"/> and linearly interpolates every field of a <see cref="CloudLayout"/> between two presets.</summary>
+        /// <summary>
+        /// Derives the fully-closed (progress == 1) rectangle for one cloud
+        /// from its own rest layout: its size grows by
+        /// <paramref name="expansionFactor"/> while the edge/corner named by
+        /// <paramref name="anchor"/> stays exactly where it was at rest.
+        /// Rotation is copied unchanged (never animated); opacity is set to
+        /// <paramref name="closedOpacity"/> (full cover always reads as
+        /// fully opaque, regardless of the cloud's own rest opacity).
+        /// </summary>
+        public static CloudLayout ComputeClosedLayout(CloudLayout rest, CloudExpansionAnchor anchor, float expansionFactor, float closedOpacity)
+        {
+            float factor = IsPositiveFinite(expansionFactor) ? expansionFactor : 1f;
+            float closedWidth = rest.NormalizedWidth * factor;
+
+            switch (anchor)
+            {
+                case CloudExpansionAnchor.LeftEdge:
+                    // Left edge fixed; grows rightward. Y/height untouched.
+                    return new CloudLayout(rest.NormalizedX, rest.NormalizedY, closedWidth, rest.NormalizedHeight, rest.RotationDegrees, closedOpacity);
+
+                case CloudExpansionAnchor.RightEdge:
+                {
+                    // Right edge fixed; grows leftward. Y/height untouched.
+                    float rightEdge = rest.NormalizedX + rest.NormalizedWidth;
+                    float closedX = rightEdge - closedWidth;
+                    return new CloudLayout(closedX, rest.NormalizedY, closedWidth, rest.NormalizedHeight, rest.RotationDegrees, closedOpacity);
+                }
+
+                case CloudExpansionAnchor.BottomRightCorner:
+                default:
+                {
+                    // Bottom-right corner fixed; grows diagonally toward the
+                    // upper-left. Both dimensions scale together.
+                    float closedHeight = rest.NormalizedHeight * factor;
+                    float rightEdge = rest.NormalizedX + rest.NormalizedWidth;
+                    float bottomEdge = rest.NormalizedY + rest.NormalizedHeight;
+                    float closedX = rightEdge - closedWidth;
+                    float closedY = bottomEdge - closedHeight;
+                    return new CloudLayout(closedX, closedY, closedWidth, closedHeight, rest.RotationDegrees, closedOpacity);
+                }
+            }
+        }
+
+        /// <summary>Eases <paramref name="t"/> and linearly interpolates every field (including opacity) of a <see cref="CloudLayout"/> between two endpoints.</summary>
         public static CloudLayout Lerp(CloudLayout from, CloudLayout to, float t)
         {
             float eased = EaseInOutCubic(t);
@@ -50,7 +98,8 @@ namespace Mikey.UI.Map
                 LerpFloat(from.NormalizedY, to.NormalizedY, eased),
                 LerpFloat(from.NormalizedWidth, to.NormalizedWidth, eased),
                 LerpFloat(from.NormalizedHeight, to.NormalizedHeight, eased),
-                LerpFloat(from.RotationDegrees, to.RotationDegrees, eased));
+                LerpFloat(from.RotationDegrees, to.RotationDegrees, eased),
+                LerpFloat(from.Opacity, to.Opacity, eased));
         }
 
         private static float LerpFloat(float a, float b, float t) => a + (b - a) * t;
