@@ -389,6 +389,20 @@ COVER_ANGLES = 48
 COVER_LEVELS = 40
 
 
+def drop_character_clothes(body_meshes):
+    """Убирает собственную одежду персонажа, оставляя кожу. Возвращает остаток."""
+    doomed = [o for o in body_meshes
+              if any(c in o.name.lower() for c in CHARACTER_CLOTHES)]
+    names = [o.name for o in doomed]
+    for o in doomed:
+        bpy.data.objects.remove(o, do_unlink=True)
+    kept = [o for o in body_meshes if o not in doomed]
+    assert kept, 'после снятия одежды не осталось ни одного меша'
+    print(f'kimono_fit: снята одежда персонажа {names}, осталось '
+          f'{[o.name for o in kept]}')
+    return kept
+
+
 def strip_covered(kimono, body_meshes, arm):
     """Удаляет геометрию тела там, где её закрывает кимоно.
 
@@ -1342,13 +1356,18 @@ def main():
     bpy.data.objects.remove(kimono, do_unlink=True)
 
     blend_weights_by_fit(low, body_meshes, arm)
-    # Вырезание укрытого идёт ПОСЛЕ скиннинга, и это не косметика порядка.
-    # Сначала оно стояло до него — и выедало ровно ту поверхность тела, по
-    # которой скиннинг меряет расстояние и берёт веса. Тело приходило дырявым,
-    # ближайшая поверхность оказывалась далеко (все 4838 вершин ткани
-    # считались «висящими свободно»), перенос хватал веса чужих кусков, и
-    # рукава схлопывались на корпус.
-    strip_covered(low, body_meshes, arm)
+    # Одежда персонажа снимается ПОСЛЕ скиннинга, и порядок здесь несущий.
+    #
+    # До скиннинга она нужна: это поверхность тела, с которой берутся веса и по
+    # которой меряется расстояние. Без неё от бойца остаются голова, предплечья
+    # и ступни — переносить веса не с чего (ровно это и вышло, когда снятие
+    # стояло раньше: все 4838 вершин ткани считались висящими свободно).
+    #
+    # После скиннинга она вредна: кимоно сидит по фигуре и закрывает торс
+    # целиком, плечи лежат внутри рукавов, ноги — под штанами кимоно, так что
+    # видеть её негде, а пробивать наружу на резком движении она может. Проверено
+    # кадром: с погашенными Tops и Bottoms боец спереди и сзади цел полностью.
+    body_meshes = drop_character_clothes(body_meshes)
     fill_unweighted(low)
     pin_skirt_to_hips(low, arm)
     smooth_cloth_weights(low, SEAM_SMOOTH)
