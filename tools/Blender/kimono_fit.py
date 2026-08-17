@@ -375,10 +375,14 @@ def seat_on_body(kimono, body_meshes, arm):
           f'расширение ×{widen:.2f}, зазор {FIT_CLEARANCE * 100:.1f} см')
 
 
-# Запас при вырезании укрытой геометрии, в метрах: тело считается укрытым,
-# только если ткань лежит дальше него хотя бы на столько. Меньше — и на
-# границе появится рваный край.
-COVER_MARGIN = 0.012
+# Запас при вырезании укрытой геометрии, в метрах. Отрицательный намеренно:
+# режется даже то, что в позе покоя торчит наружу на пару сантиметров.
+#
+# Положительный запас (было 1.2 см) режет ровно по укрытости В ПОКОЕ, а
+# пробой случается В ДВИЖЕНИИ: ткань и тело деформируются по-разному, и на
+# ударе наружу выходит то, что в T-позе лежало внутри. Отрицательный запас
+# отдаёт эти два сантиметра заранее.
+COVER_MARGIN = -0.02
 
 # Сетка, по которой меряется укрытость: угол вокруг вертикальной оси и высота.
 COVER_ANGLES = 48
@@ -768,6 +772,151 @@ STRETCH_MAX = 5.0
 GUARD_POSE = (('LeftUpLeg', 'x', 70), ('RightUpLeg', 'x', -40),
               ('LeftLeg', 'x', -50), ('Spine2', 'x', 20),
               ('LeftForeArm', 'y', -70), ('LeftShoulder', 'z', -30))
+
+
+# Расстояния до поверхности тела, по которым решается, чьи веса брать, в
+# метрах. Ближе NEAR ткань считается лежащей на теле — её ведут веса тела.
+# Дальше FAR она висит свободно (широкий рукав, подол) — её ведёт скелет.
+# Между ними линейная смесь, иначе на границе появится ступенька весов.
+WEIGHT_NEAR = 0.02
+WEIGHT_FAR = 0.07
+
+
+def _read_weights(o):
+    names = {g.index: g.name for g in o.vertex_groups}
+    return [{names[g.group]: g.weight for g in v.groups} for v in o.data.vertices]
+
+
+def _write_weights(o, per_vertex):
+    for g in list(o.vertex_groups):
+        o.vertex_groups.remove(g)
+    groups = {}
+    for vi, w in enumerate(per_vertex):
+        for name, val in w.items():
+            if val <= 1e-5:
+                continue
+            if name not in groups:
+                groups[name] = o.vertex_groups.new(name=name)
+            groups[name].add([vi], val, 'REPLACE')
+
+
+def _body_shell(body_meshes):
+    """Склеенная копия тела в позе покоя — цель для переноса и замера расстояний."""
+    src = [o for o in body_meshes
+           if not any(k in o.name.lower() for k in FIT_IGNORE)]
+    assert src, 'не из чего собрать тело — остались одни волосы?'
+    copies = []
+    for o in src:
+        c = o.copy()
+        c.data = o.data.copy()
+        c.modifiers.clear()
+        bpy.context.collection.objects.link(c)
+        copies.append(c)
+    bpy.ops.object.select_all(action='DESELECT')
+    for c in copies:
+        c.select_set(True)
+    bpy.context.view_layer.objects.active = copies[0]
+    if len(copies) > 1:
+        bpy.ops.object.join()
+    return bpy.context.view_layer.objects.active
+
+
+def blend_weights_by_fit(low, body_meshes, arm):
+    """Смешивает два скиннинга: веса тела там, где ткань на теле, скелет — где висит.
+
+    Ни один из двух способов не верен целиком, и оба уже проверены на кадрах.
+
+    Перенос весов с тела (POLYINTERP_NEAREST) точен для облегающих мест: корпус
+    и полы двигаются ровно как тело, ничего не расходится. Но для свободных он
+    врёт: у широкого рукава ближайшая поверхность тела — не рука, а бок, и
+    рукав прилипает к корпусу, схлопываясь на ударе. На кадре из рукава кимоно
+    торчал серый рукав толстовки.
+
+    Костное тепловое взвешивание наоборот: рукава ведёт правильно, потому что
+    считает диффузию по самой ткани, а не ищет ближайшее тело. Зато корпус у
+    него живёт своей жизнью — ткань идёт по своей идее о скелете, тело по
+    своей, и на блоке спина халата раскрывалась, а из плеча лез плоский клин.
+
+    Поэтому: считаем оба набора и берём каждый там, где он прав, по
+    расстоянию вершины до поверхности тела. Переход линейный, чтобы на
+    границе не возникла ступенька, следом идёт сглаживание швов.
+    """
+    shell = _body_shell(body_meshes)
+
+    # 1. Тепловой расчёт по скелету.
+    # Мировую матрицу запоминаем ДО parent_set: он её меняет, и взять её после
+    # значит вернуть ткань не туда. Проверено — при чтении после кимоно уезжало
+    # с z 0.937 под пол на -0.218, расстояния до тела вырастали до метра, и вся
+    # смесь вырождалась в чистый тепловой расчёт.
+    world = low.matrix_world.copy()
+    bpy.ops.object.select_all(action='DESELECT')
+    low.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    heat = _read_weights(low)
+    low.data.transform(arm.matrix_world.inverted() @ world)
+    low.matrix_parent_inverse.identity()
+    low.matrix_basis.identity()
+    bpy.context.view_layer.update()
+
+    # 2. Перенос с тела.
+    for g in list(low.vertex_groups):
+        low.vertex_groups.remove(g)
+    for vg in shell.vertex_groups:
+        low.vertex_groups.new(name=vg.name)
+    mod = low.modifiers.new('weights', 'DATA_TRANSFER')
+    mod.object = shell
+    mod.use_vert_data = True
+    mod.data_types_verts = {'VGROUP_WEIGHTS'}
+    mod.vert_mapping = 'POLYINTERP_NEAREST'
+    bpy.context.view_layer.objects.active = low
+    apply_mods(low)
+    worn = _read_weights(low)
+
+    # 3. Смесь по расстоянию до тела.
+    tree = mathutils.bvhtree.BVHTree.FromObject(shell, bpy.context.evaluated_depsgraph_get())
+    # BVHTree.FromObject строит дерево в ЛОКАЛЬНЫХ координатах меша, а не в
+    # мировых. Спрашивать его мировой точкой нельзя: первый заход так и делал,
+    # и все 4838 вершин вышли «далеко от тела» — смесь выродилась в чистый
+    # тепловой расчёт. Переводим точку в систему тела, а найденное расстояние
+    # обратно в метры через масштаб (он равномерный).
+    to_shell = shell.matrix_world.inverted()
+    shell_scale = shell.matrix_world.to_scale().x
+    m = low.matrix_world
+    mixed = []
+    loose = 0
+    for vi, v in enumerate(low.data.vertices):
+        local = to_shell @ (m @ v.co)
+        hit = tree.find_nearest(local)
+        d = ((local - hit[0]).length * shell_scale
+             if hit and hit[0] is not None else WEIGHT_FAR * 2)
+        a = max(0.0, min(1.0, (d - WEIGHT_NEAR) / max(WEIGHT_FAR - WEIGHT_NEAR, 1e-9)))
+        if a > 0.5:
+            loose += 1
+        w = {}
+        for name, val in worn[vi].items():
+            w[name] = w.get(name, 0.0) + val * (1.0 - a)
+        for name, val in heat[vi].items():
+            w[name] = w.get(name, 0.0) + val * a
+        total = sum(w.values())
+        if total > 1e-6:
+            w = {k: val / total for k, val in w.items()}
+        mixed.append(w)
+
+    _write_weights(low, mixed)
+    bpy.data.objects.remove(shell, do_unlink=True)
+
+    armmod = low.modifiers.new('Armature', 'ARMATURE')
+    armmod.object = arm
+    bpy.ops.object.select_all(action='DESELECT')
+    low.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
+
+    print(f'kimono_fit: скиннинг смесью — свободных вершин (ведёт скелет) '
+          f'{loose} из {len(low.data.vertices)}, остальные ведёт тело')
 
 
 def wear_body_weights(low, body_meshes, arm):
@@ -1172,7 +1321,6 @@ def main():
     assert kmx.z <= bmx.z + 0.01, 'кимоно выше макушки — масштаб не тот'
 
     seat_on_body(kimono, body_meshes, arm)
-    strip_covered(kimono, body_meshes, arm)
 
     low, high_tris = make_low(kimono, a.tris)
     got = tri_count(low)
@@ -1193,7 +1341,14 @@ def main():
     # приехало бы 305k.
     bpy.data.objects.remove(kimono, do_unlink=True)
 
-    wear_body_weights(low, body_meshes, arm)
+    blend_weights_by_fit(low, body_meshes, arm)
+    # Вырезание укрытого идёт ПОСЛЕ скиннинга, и это не косметика порядка.
+    # Сначала оно стояло до него — и выедало ровно ту поверхность тела, по
+    # которой скиннинг меряет расстояние и берёт веса. Тело приходило дырявым,
+    # ближайшая поверхность оказывалась далеко (все 4838 вершин ткани
+    # считались «висящими свободно»), перенос хватал веса чужих кусков, и
+    # рукава схлопывались на корпус.
+    strip_covered(low, body_meshes, arm)
     fill_unweighted(low)
     pin_skirt_to_hips(low, arm)
     smooth_cloth_weights(low, SEAM_SMOOTH)
