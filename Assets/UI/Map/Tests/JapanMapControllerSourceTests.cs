@@ -55,10 +55,24 @@ namespace Mikey.UI.Map.Tests
             // Coordinates must not be scattered through UXML/USS — only
             // MapMarkerLayout.Chapters (see MapMarkerLayoutTests).
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ApplyChapterPosition(_okinawaNode, OkinawaChapterId);", source);
-            StringAssert.Contains("ApplyChapterPosition(_fukuokaNode, FukuokaChapterId);", source);
-            StringAssert.Contains("ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId);", source);
-            StringAssert.Contains("MapMarkerLayout.ApplyNormalizedPosition(node, chapter.NormalizedX, chapter.NormalizedY);", source);
+            StringAssert.Contains("ApplyChapterPosition(_okinawaNode, OkinawaChapterId, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("MapMarkerLayout.ApplySourceCoordinate(node, chapter.NormalizedX, chapter.NormalizedY, viewportWidth, viewportHeight);", source);
+        }
+
+        [Test]
+        public void ChapterMarkerPosition_IsConvertedThroughTheCurrentViewportSize_NotAppliedAsARawPercentage()
+        {
+            // The bug this guards against: a source-image-normalized
+            // coordinate is not a valid viewport percentage once the map art
+            // is displayed with a cover-fit crop (see MapCoordinateMapping).
+            // BindWhenReady must read the actual current canvas size and
+            // route every chapter through it.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_root.Q<VisualElement>(\"map-canvas\");", source);
+            StringAssert.Contains("canvas?.resolvedStyle.width ?? 0f;", source);
+            StringAssert.Contains("canvas?.resolvedStyle.height ?? 0f;", source);
         }
 
         [Test]

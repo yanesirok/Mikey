@@ -156,6 +156,14 @@ namespace Mikey.UI.Map
                 yield break;
             }
 
+            // Marker positions are stored as SOURCE-IMAGE-normalized
+            // coordinates (see MapMarkerLayout) and must be converted
+            // through the current viewport size to land correctly under the
+            // map art's cover-fit crop — never applied as a raw percentage.
+            var canvas = _root.Q<VisualElement>("okinawa-canvas");
+            float viewportWidth = canvas?.resolvedStyle.width ?? 0f;
+            float viewportHeight = canvas?.resolvedStyle.height ?? 0f;
+
             for (int i = 0; i < LevelCount; i++)
             {
                 if (_levelNodes[i] == null)
@@ -164,7 +172,7 @@ namespace Mikey.UI.Map
                 Action handler = () => OnLevelNodeClicked(levelIndex);
                 _levelClickHandlers[i] = handler;
                 _levelNodes[i].clicked += handler;
-                ApplyMissionLayout(_levelNodes[i], levelIndex);
+                ApplyMissionLayout(_levelNodes[i], levelIndex, viewportWidth, viewportHeight);
             }
 
             _outsideCatcher?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
@@ -201,14 +209,16 @@ namespace Mikey.UI.Map
         private const string BossFightIconClass = "level-node__icon--boss-fight";
 
         /// <summary>
-        /// Applies this level's normalized position and mission-type icon
-        /// (special/training/fight/boss fight) from MapMarkerLayout — the
-        /// only place a mission's coordinates and type live. The icon class
-        /// is added here at bind time rather than baked into MikeyApp.uxml
-        /// so mission type stays centralized in data, never inferred from
-        /// static CSS.
+        /// Applies this level's source-image-normalized position (converted
+        /// through the current viewport size, see
+        /// MapMarkerLayout.ApplySourceCoordinate/MapCoordinateMapping) and
+        /// mission-type icon (special/training/fight/boss fight) from
+        /// MapMarkerLayout — the only place a mission's coordinates and type
+        /// live. The icon class is added here at bind time rather than baked
+        /// into MikeyApp.uxml so mission type stays centralized in data,
+        /// never inferred from static CSS.
         /// </summary>
-        private static void ApplyMissionLayout(VisualElement node, int levelIndex)
+        private static void ApplyMissionLayout(VisualElement node, int levelIndex, float viewportWidth, float viewportHeight)
         {
             MissionMarkerLayout mission = default;
             bool found = false;
@@ -223,7 +233,7 @@ namespace Mikey.UI.Map
             if (!found)
                 return;
 
-            MapMarkerLayout.ApplyNormalizedPosition(node, mission.NormalizedX, mission.NormalizedY);
+            MapMarkerLayout.ApplySourceCoordinate(node, mission.NormalizedX, mission.NormalizedY, viewportWidth, viewportHeight);
 
             var icon = node.Q<VisualElement>(className: "level-node__icon");
             if (icon == null)

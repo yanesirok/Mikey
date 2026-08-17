@@ -191,9 +191,16 @@ namespace Mikey.UI.Map
                 yield break;
             }
 
-            ApplyChapterPosition(_okinawaNode, OkinawaChapterId);
-            ApplyChapterPosition(_fukuokaNode, FukuokaChapterId);
-            ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId);
+            // Marker positions are stored as SOURCE-IMAGE-normalized
+            // coordinates (see MapMarkerLayout) and must be converted
+            // through the current viewport size to land correctly under the
+            // map art's cover-fit crop — never applied as a raw percentage.
+            var canvas = _root.Q<VisualElement>("map-canvas");
+            float viewportWidth = canvas?.resolvedStyle.width ?? 0f;
+            float viewportHeight = canvas?.resolvedStyle.height ?? 0f;
+            ApplyChapterPosition(_okinawaNode, OkinawaChapterId, viewportWidth, viewportHeight);
+            ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, viewportWidth, viewportHeight);
+            ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, viewportWidth, viewportHeight);
 
             _okinawaNode.clicked += OnOkinawaClicked;
             _fukuokaNode.clicked += OnFukuokaClicked;
@@ -222,14 +229,19 @@ namespace Mikey.UI.Map
             _bindRoutine = null;
         }
 
-        /// <summary>Applies this chapter's normalized position from MapMarkerLayout — the only place its coordinates live.</summary>
-        private static void ApplyChapterPosition(VisualElement node, string chapterId)
+        /// <summary>
+        /// Applies this chapter's source-image-normalized position from
+        /// MapMarkerLayout — the only place its coordinates live — converted
+        /// through the current viewport size (see
+        /// MapMarkerLayout.ApplySourceCoordinate/MapCoordinateMapping).
+        /// </summary>
+        private static void ApplyChapterPosition(VisualElement node, string chapterId, float viewportWidth, float viewportHeight)
         {
             foreach (var chapter in MapMarkerLayout.Chapters)
             {
                 if (chapter.Id != chapterId)
                     continue;
-                MapMarkerLayout.ApplyNormalizedPosition(node, chapter.NormalizedX, chapter.NormalizedY);
+                MapMarkerLayout.ApplySourceCoordinate(node, chapter.NormalizedX, chapter.NormalizedY, viewportWidth, viewportHeight);
                 return;
             }
         }

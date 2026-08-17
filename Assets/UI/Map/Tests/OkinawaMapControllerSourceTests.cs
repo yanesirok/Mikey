@@ -19,9 +19,22 @@ namespace Mikey.UI.Map.Tests
             // into MikeyApp.uxml — it's read from MapMarkerLayout.Missions at
             // bind time and applied here (see MapMarkerLayoutTests).
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], levelIndex);", source);
-            StringAssert.Contains("MapMarkerLayout.ApplyNormalizedPosition(node, mission.NormalizedX, mission.NormalizedY);", source);
+            StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], levelIndex, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("MapMarkerLayout.ApplySourceCoordinate(node, mission.NormalizedX, mission.NormalizedY, viewportWidth, viewportHeight);", source);
             StringAssert.Contains("icon.AddToClassList(IconClassFor(mission.Type));", source);
+        }
+
+        [Test]
+        public void MissionMarkerPosition_IsConvertedThroughTheCurrentViewportSize_NotAppliedAsARawPercentage()
+        {
+            // Same bug/fix as JapanMapControllerSourceTests — Okinawa's
+            // mission map uses the identical cover-fit background art
+            // pattern (".okinawa-canvas-art"), so it needs the same
+            // conversion (see MapCoordinateMapping).
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_root.Q<VisualElement>(\"okinawa-canvas\");", source);
+            StringAssert.Contains("canvas?.resolvedStyle.width ?? 0f;", source);
+            StringAssert.Contains("canvas?.resolvedStyle.height ?? 0f;", source);
         }
 
         [Test]

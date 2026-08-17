@@ -50,14 +50,22 @@ namespace Mikey.UI.Map
     /// <summary>
     /// ONE centralized source of truth for marker placement and mission type
     /// (Map Pass 3A). Coordinates are normalized 0-1 against each screen's map
-    /// artwork (normalizedX = pixelX / 6336, normalizedY = pixelY / 2688,
-    /// top-left origin — the source japan_map_final.jpg / okinawa_map_final.jpg
-    /// are both 6336x2688), not the viewport, so JapanMapController/
-    /// OkinawaMapController can apply them as percentage style.left/style.top
-    /// on elements that live inside the same pan/zoom-transformed
-    /// ".pan-canvas" as the map art — they move and scale with the map
-    /// instead of the viewport. Moving a marker only ever requires editing
-    /// its entry here; Map.uss no longer hardcodes any marker's left/top.
+    /// SOURCE IMAGE (normalizedX = pixelX / SourceImageWidth, normalizedY =
+    /// pixelY / SourceImageHeight, top-left origin — the source
+    /// japan_map_final.jpg / okinawa_map_final.jpg are both
+    /// SourceImageWidth x SourceImageHeight), NOT the on-screen viewport.
+    ///
+    /// Because the map art renders with a cover fit
+    /// ("-unity-background-scale-mode: scale-and-crop" in Map.uss) against a
+    /// viewport whose aspect ratio generally differs from the source image's
+    /// own, a source-normalized coordinate is NOT the same as a viewport
+    /// percentage — see MapCoordinateMapping for why and the conversion
+    /// math. ApplySourceCoordinate below is the only place that conversion
+    /// happens; JapanMapController/OkinawaMapController must always go
+    /// through it (never apply NormalizedX/NormalizedY as a raw percentage)
+    /// so a marker's position tracks the same crop the visible map art
+    /// receives. Moving a marker only ever requires editing its entry here;
+    /// Map.uss no longer hardcodes any marker's left/top.
     ///
     /// Each coordinate is the point where the marker pin's BOTTOM TIP should
     /// touch the map — not the icon's visual center. ".chapter-node"/
@@ -77,6 +85,10 @@ namespace Mikey.UI.Map
         public const string OkinawaChapterId = "okinawa";
         public const string FukuokaChapterId = "fukuoka";
         public const string HiroshimaChapterId = "hiroshima";
+
+        /// <summary>Pixel dimensions of japan_map_final.jpg and okinawa_map_final.jpg — every stored coordinate below is normalized against these, not the viewport.</summary>
+        public const float SourceImageWidth = 6336f;
+        public const float SourceImageHeight = 2688f;
 
         /// <summary>
         /// MVP chapters, south to north: Okinawa (unlocked), Fukuoka (Kyushu,
@@ -119,11 +131,26 @@ namespace Mikey.UI.Map
             new MissionMarkerLayout(6, 0.81345f, 0.36570f, MissionMarkerType.BossFight),
         };
 
-        /// <summary>Writes a normalized (0-1) position onto an element as percentage style.left/style.top.</summary>
-        public static void ApplyNormalizedPosition(VisualElement element, float normalizedX, float normalizedY)
+        /// <summary>
+        /// Converts a normalized SOURCE-IMAGE coordinate into a viewport
+        /// percentage (via MapCoordinateMapping.SourceToViewport, accounting
+        /// for the cover-fit crop) and writes it onto <paramref name="element"/>
+        /// as style.left/style.top. <paramref name="viewportWidth"/>/
+        /// <paramref name="viewportHeight"/> must be the CURRENT resolved
+        /// size of the ".pan-canvas" element the marker is a child of (its
+        /// resolvedStyle.width/height at bind time) — NOT the source image's
+        /// own dimensions.
+        /// </summary>
+        public static void ApplySourceCoordinate(VisualElement element, float sourceNormalizedX, float sourceNormalizedY, float viewportWidth, float viewportHeight)
         {
-            element.style.left = new Length(normalizedX * 100f, LengthUnit.Percent);
-            element.style.top = new Length(normalizedY * 100f, LengthUnit.Percent);
+            MapCoordinateMapping.SourceToViewport(
+                sourceNormalizedX, sourceNormalizedY,
+                SourceImageWidth, SourceImageHeight,
+                viewportWidth, viewportHeight,
+                out float viewportNormalizedX, out float viewportNormalizedY);
+
+            element.style.left = new Length(viewportNormalizedX * 100f, LengthUnit.Percent);
+            element.style.top = new Length(viewportNormalizedY * 100f, LengthUnit.Percent);
         }
     }
 }
