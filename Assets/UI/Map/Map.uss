@@ -424,16 +424,30 @@
    is applied at bind time by JapanMapController from
    MapMarkerLayout.Chapters, never hardcoded here — see that file to move a
    marker. The button's own box stays generously larger than the visible
-   icon for a comfortable touch target (".tap-target-lg"). */
+   icon for a comfortable touch target (".tap-target-lg").
+
+   Anchor: MapMarkerLayout coordinates are the pin's bottom TIP, not its
+   center — "translate: -50% -100%" anchors this node's own bottom edge to
+   that point. The label is ordered BEFORE the icon in the UXML (so it
+   renders above it) specifically so the node's bottom edge coincides with
+   the icon's bottom edge/pin tip, not the label's. */
 .chapter-node {
     position: absolute;
-    translate: -50% -50%;
+    translate: -50% -100%;
     width: 132px;
     padding: 6px 4px;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
     flex-direction: column;
     align-items: center;
+}
+.chapter-node__label {
+    margin-bottom: 6px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
 }
 .chapter-node__icon {
     width: 66px;
@@ -448,14 +462,6 @@
 }
 .chapter-node__icon--hiroshima {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_hiroshima.png");
-}
-.chapter-node__label {
-    margin-top: 6px;
-    font-size: 14px;
-    -unity-font-style: bold;
-    letter-spacing: 2px;
-    color: var(--bone);
-    -unity-text-align: middle-center;
 }
 /* Restrained locked treatment: a light per-pixel multiply tint plus a
    modest opacity drop, never a lock glyph/giant lock painted over the
@@ -472,17 +478,21 @@
     scale: 1.08;
 }
 
-/* ---------- Okinawa mission markers (LVL 0-5) ----------
-   Same treatment as the chapter markers: the final supplied
-   mission_training.png / mission_fight.png marker art is shown directly,
-   smaller/denser since there are six of them. Which of the two icons shows
-   is applied at bind time by OkinawaMapController from
-   MapMarkerLayout.Missions (mission type is centralized there, never
-   inferred from a static CSS class baked into the UXML). Position is
-   likewise applied at bind time from the same centralized data. */
+/* ---------- Okinawa mission markers (LVL 0-6) ----------
+   Same treatment as the chapter markers: the final supplied mission marker
+   art (Special/Training/Fight/Boss Fight) is shown directly, smaller/denser
+   since there are seven of them. Which icon shows is applied at bind time by
+   OkinawaMapController from MapMarkerLayout.Missions (mission type is
+   centralized there, never inferred from a static CSS class baked into the
+   UXML). Position is likewise applied at bind time from the same
+   centralized data.
+
+   Anchor: same tip-anchor scheme as ".chapter-node" — "translate: -50%
+   -100%" plus the label ordered before the icon in the UXML, so the node's
+   bottom edge is the icon's bottom edge/pin tip. */
 .level-node {
     position: absolute;
-    translate: -50% -50%;
+    translate: -50% -100%;
     width: 92px;
     padding: 6px 2px;
     background-color: rgba(0, 0, 0, 0);
@@ -490,10 +500,21 @@
     flex-direction: column;
     align-items: center;
 }
+.level-node__label {
+    margin-bottom: 6px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+}
 .level-node__icon {
     width: 54px;
     height: 54px;
     -unity-background-scale-mode: scale-to-fit;
+}
+.level-node__icon--special {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_lvl0.png");
 }
 .level-node__icon--training {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_training.png");
@@ -501,13 +522,8 @@
 .level-node__icon--fight {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_fight.png");
 }
-.level-node__label {
-    margin-top: 6px;
-    font-size: 12px;
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: var(--bone);
-    -unity-text-align: middle-center;
+.level-node__icon--boss-fight {
+    background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_boss.png");
 }
 .level-node--locked .level-node__icon {
     opacity: 0.82;

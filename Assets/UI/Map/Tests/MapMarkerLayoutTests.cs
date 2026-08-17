@@ -3,14 +3,19 @@ using NUnit.Framework;
 namespace Mikey.UI.Map.Tests
 {
     /// <summary>
-    /// Direct behavioral contract for MapMarkerLayout (Map Pass 3A): the one
-    /// centralized source of truth for chapter/mission marker placement and
-    /// mission type. Unlike the MonoBehaviour controllers, this is a plain
-    /// static data class, so it's exercised directly rather than via
-    /// source-text assertions.
+    /// Direct behavioral contract for MapMarkerLayout: the one centralized
+    /// source of truth for chapter/mission marker placement and mission
+    /// type. Unlike the MonoBehaviour controllers, this is a plain static
+    /// data class, so it's exercised directly rather than via source-text
+    /// assertions. Coordinates are exact values measured directly on the
+    /// 6336x2688 source map art (normalizedX = pixelX / 6336, normalizedY =
+    /// pixelY / 2688) — the exact-value tests below guard against silent
+    /// drift back to by-eye estimation.
     /// </summary>
     public class MapMarkerLayoutTests
     {
+        private const float CoordinateTolerance = 0.00001f;
+
         // ---------- chapters ----------
 
         [Test]
@@ -57,38 +62,62 @@ namespace Mikey.UI.Map.Tests
             Assert.LessOrEqual(chapter.NormalizedY, 1f);
         }
 
+        // Exact pixel-measured positions on the 6336x2688 japan_map_final.jpg:
+        // Okinawa (1782, 1685), Fukuoka (2352, 1349), Hiroshima (2670, 1253).
+        [Test]
+        public void Okinawa_CoordinateMatchesExactPixelMeasurement()
+        {
+            var chapter = FindChapter(MapMarkerLayout.OkinawaChapterId);
+            Assert.AreEqual(0.28125f, chapter.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(0.62686f, chapter.NormalizedY, CoordinateTolerance);
+        }
+
+        [Test]
+        public void Fukuoka_CoordinateMatchesExactPixelMeasurement()
+        {
+            var chapter = FindChapter(MapMarkerLayout.FukuokaChapterId);
+            Assert.AreEqual(0.37121f, chapter.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(0.50186f, chapter.NormalizedY, CoordinateTolerance);
+        }
+
+        [Test]
+        public void Hiroshima_CoordinateMatchesExactPixelMeasurement()
+        {
+            var chapter = FindChapter(MapMarkerLayout.HiroshimaChapterId);
+            Assert.AreEqual(0.42140f, chapter.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(0.46615f, chapter.NormalizedY, CoordinateTolerance);
+        }
+
         // ---------- missions ----------
 
         [Test]
-        public void Missions_HasExactlyFiveMvpDefinitions_ForLvl0Through4()
+        public void Missions_HasExactlySevenMvpDefinitions_ForLvl0Through6()
         {
-            // Okinawa's MVP mission set is exactly 5 missions (3 Training + 2
-            // Fight) — LVL 5 was dropped entirely, not just hidden/locked.
-            Assert.AreEqual(5, MapMarkerLayout.Missions.Length);
-            for (int i = 0; i < 5; i++)
+            // Okinawa's final MVP mission set is exactly 7 missions (1
+            // Special + 3 Training + 2 Fight + 1 Boss Fight).
+            Assert.AreEqual(7, MapMarkerLayout.Missions.Length);
+            for (int i = 0; i < 7; i++)
                 Assert.AreEqual(i, MapMarkerLayout.Missions[i].LevelIndex, $"Missions[{i}] must describe LVL {i}.");
         }
 
         [Test]
-        public void Missions_HasNoLvl5Definition()
+        public void Missions_HasExactlyOneSpecial_ThreeTraining_TwoFight_OneBossFight()
         {
-            foreach (var mission in MapMarkerLayout.Missions)
-                Assert.AreNotEqual(5, mission.LevelIndex, "LVL 5 must not appear in MapMarkerLayout.Missions.");
-        }
-
-        [Test]
-        public void Missions_HasExactlyThreeTrainingAndTwoFight()
-        {
-            int training = 0, fight = 0;
+            int special = 0, training = 0, fight = 0, boss = 0;
             foreach (var mission in MapMarkerLayout.Missions)
             {
-                if (mission.Type == MissionMarkerType.Training)
-                    training++;
-                else
-                    fight++;
+                switch (mission.Type)
+                {
+                    case MissionMarkerType.Special: special++; break;
+                    case MissionMarkerType.Training: training++; break;
+                    case MissionMarkerType.Fight: fight++; break;
+                    case MissionMarkerType.BossFight: boss++; break;
+                }
             }
+            Assert.AreEqual(1, special, "Okinawa MVP must have exactly 1 Special mission.");
             Assert.AreEqual(3, training, "Okinawa MVP must have exactly 3 Training missions.");
             Assert.AreEqual(2, fight, "Okinawa MVP must have exactly 2 Fight missions.");
+            Assert.AreEqual(1, boss, "Okinawa MVP must have exactly 1 Boss Fight mission.");
         }
 
         [TestCase(0)]
@@ -96,6 +125,8 @@ namespace Mikey.UI.Map.Tests
         [TestCase(2)]
         [TestCase(3)]
         [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(6)]
         public void AllMissionCoordinates_AreNormalized0to1(int levelIndex)
         {
             var mission = MapMarkerLayout.Missions[levelIndex];
@@ -105,10 +136,25 @@ namespace Mikey.UI.Map.Tests
             Assert.LessOrEqual(mission.NormalizedY, 1f);
         }
 
-        [Test]
-        public void Lvl0_IsTraining_MatchesItsExistingAssessmentRoute()
+        // Exact pixel-measured positions on the 6336x2688 okinawa_map_final.jpg.
+        [TestCase(0, 0.33428f, 0.75856f)]
+        [TestCase(1, 0.43277f, 0.60007f)]
+        [TestCase(2, 0.55208f, 0.49070f)]
+        [TestCase(3, 0.60511f, 0.31659f)]
+        [TestCase(4, 0.66098f, 0.45275f)]
+        [TestCase(5, 0.74716f, 0.44159f)]
+        [TestCase(6, 0.81345f, 0.36570f)]
+        public void MissionCoordinate_MatchesExactPixelMeasurement(int levelIndex, float expectedX, float expectedY)
         {
-            Assert.AreEqual(MissionMarkerType.Training, MapMarkerLayout.Missions[0].Type);
+            var mission = MapMarkerLayout.Missions[levelIndex];
+            Assert.AreEqual(expectedX, mission.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(expectedY, mission.NormalizedY, CoordinateTolerance);
+        }
+
+        [Test]
+        public void Lvl0_IsSpecial()
+        {
+            Assert.AreEqual(MissionMarkerType.Special, MapMarkerLayout.Missions[0].Type);
         }
 
         [Test]
@@ -136,16 +182,29 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void MissionMarkerType_SupportsBothTrainingAndFight()
+        public void Lvl5_IsTraining()
         {
-            // Both categories are real, distinct enum members backing the two
-            // supplied marker icons — covered by the icon-class mapping in
-            // OkinawaMapController.ApplyMissionLayout and the
-            // ".level-node__icon--fight"/"--training" rules in Map.uss
-            // (MapMarkerAssetsTests).
+            Assert.AreEqual(MissionMarkerType.Training, MapMarkerLayout.Missions[5].Type);
+        }
+
+        [Test]
+        public void Lvl6_IsBossFight()
+        {
+            Assert.AreEqual(MissionMarkerType.BossFight, MapMarkerLayout.Missions[6].Type);
+        }
+
+        [Test]
+        public void MissionMarkerType_SupportsAllFourCategories()
+        {
+            // All four categories are real, distinct enum members backing the
+            // four supplied marker icons — covered by the icon-class mapping
+            // in OkinawaMapController.IconClassFor and the
+            // ".level-node__icon--*" rules in Map.uss (MapMarkerAssetsTests).
             var values = (MissionMarkerType[])System.Enum.GetValues(typeof(MissionMarkerType));
+            CollectionAssert.Contains(values, MissionMarkerType.Special);
             CollectionAssert.Contains(values, MissionMarkerType.Training);
             CollectionAssert.Contains(values, MissionMarkerType.Fight);
+            CollectionAssert.Contains(values, MissionMarkerType.BossFight);
         }
 
         private static ChapterMarkerLayout FindChapter(string id)

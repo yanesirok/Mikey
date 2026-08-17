@@ -7,12 +7,14 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Map.Tests
 {
     /// <summary>
-    /// Contract for the final chapter/mission marker asset integration (Map
-    /// Pass 3A): the 5 supplied final PNGs exist on disk, are referenced by
-    /// the correct marker icon class in Map.uss, the old placeholder
-    /// badge/dot/index circles are gone, icon sizes land in the approved
-    /// mobile ranges, and markers still live inside the pan/zoom-transformed
-    /// map artboard rather than the viewport.
+    /// Contract for the final chapter/mission marker asset integration: the 7
+    /// supplied final PNGs (3 chapter + 4 mission) exist on disk, are
+    /// referenced by the correct marker icon class in Map.uss, the old
+    /// placeholder badge/dot/index circles are gone, icon sizes land in the
+    /// approved mobile ranges, markers still live inside the
+    /// pan/zoom-transformed map artboard rather than the viewport, and the
+    /// node transform anchors the marker's bottom TIP (not its center) to
+    /// its normalized coordinate.
     /// </summary>
     public class MapMarkerAssetsTests
     {
@@ -34,8 +36,10 @@ namespace Mikey.UI.Map.Tests
         [TestCase("Chapters/chapter_okinawa.png")]
         [TestCase("Chapters/chapter_fukuoka.png")]
         [TestCase("Chapters/chapter_hiroshima.png")]
+        [TestCase("Missions/mission_lvl0.png")]
         [TestCase("Missions/mission_training.png")]
         [TestCase("Missions/mission_fight.png")]
+        [TestCase("Missions/mission_boss.png")]
         public void FinalMarkerAsset_ExistsOnDisk(string relativePath)
         {
             string path = $"{MarkersRoot}/{relativePath}";
@@ -47,8 +51,10 @@ namespace Mikey.UI.Map.Tests
         [TestCase(".chapter-node__icon--okinawa {", "chapter_okinawa.png")]
         [TestCase(".chapter-node__icon--fukuoka {", "chapter_fukuoka.png")]
         [TestCase(".chapter-node__icon--hiroshima {", "chapter_hiroshima.png")]
+        [TestCase(".level-node__icon--special {", "mission_lvl0.png")]
         [TestCase(".level-node__icon--training {", "mission_training.png")]
         [TestCase(".level-node__icon--fight {", "mission_fight.png")]
+        [TestCase(".level-node__icon--boss-fight {", "mission_boss.png")]
         public void MarkerIconClass_ReferencesItsFinalAsset(string selector, string expectedFileName)
         {
             string uss = File.ReadAllText(UssPath);
@@ -135,8 +141,50 @@ namespace Mikey.UI.Map.Tests
             var root = BuildTree();
             foreach (var name in new[] { "chapter-node-okinawa", "chapter-node-fukuoka", "chapter-node-hiroshima" })
                 Assert.IsTrue(root.Q<Button>(name).ClassListContains("tap-target-lg"), $"'{name}' must keep a >=touch-target class.");
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 7; i++)
                 Assert.IsTrue(root.Q<Button>($"level-node-{i}").ClassListContains("tap-target-lg"), $"'level-node-{i}' must keep a >=touch-target class.");
+        }
+
+        // ---------- coordinate refers to the marker's bottom TIP, not its center ----------
+
+        [TestCase(".chapter-node {")]
+        [TestCase(".level-node {")]
+        public void MarkerNode_AnchorsItsBottomTip_NotItsCenter(string selector)
+        {
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            StringAssert.Contains("translate: -50% -100%;", block,
+                "The node's own bottom edge (its pin tip, since the label is ordered before the icon) must anchor to the coordinate — not a center anchor.");
+            StringAssert.DoesNotContain("-50% -50%", block, "Must not be a center anchor.");
+        }
+
+        [Test]
+        public void ChapterLabel_IsOrderedBeforeItsIcon_SoTheNodesBottomEdgeIsThePinTip()
+        {
+            var root = BuildTree();
+            var okinawa = root.Q<Button>("chapter-node-okinawa");
+            Assert.IsNotNull(okinawa);
+            var children = okinawa.Children().ToList();
+            int labelIndex = children.IndexOf(okinawa.Q<Label>(className: "chapter-node__label"));
+            int iconIndex = children.IndexOf(okinawa.Q<VisualElement>(className: "chapter-node__icon"));
+            Assert.GreaterOrEqual(labelIndex, 0);
+            Assert.GreaterOrEqual(iconIndex, 0);
+            Assert.Less(labelIndex, iconIndex, "Label must come before the icon so the node's bottom edge is the icon's bottom edge (the pin tip).");
+        }
+
+        [Test]
+        public void MissionLabel_IsOrderedBeforeItsIcon_SoTheNodesBottomEdgeIsThePinTip()
+        {
+            var root = BuildTree();
+            var level0 = root.Q<Button>("level-node-0");
+            Assert.IsNotNull(level0);
+            var children = level0.Children().ToList();
+            int labelIndex = children.IndexOf(level0.Q<Label>(className: "level-node__label"));
+            int iconIndex = children.IndexOf(level0.Q<VisualElement>(className: "level-node__icon"));
+            Assert.GreaterOrEqual(labelIndex, 0);
+            Assert.GreaterOrEqual(iconIndex, 0);
+            Assert.Less(labelIndex, iconIndex, "Label must come before the icon so the node's bottom edge is the icon's bottom edge (the pin tip).");
         }
 
         // ---------- markers stay attached to the transformed map artboard ----------
@@ -161,7 +209,7 @@ namespace Mikey.UI.Map.Tests
             var root = BuildTree();
             var canvas = root.Q<VisualElement>("okinawa-canvas");
             Assert.IsNotNull(canvas, "Expected the '.pan-canvas' element named 'okinawa-canvas'.");
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 7; i++)
             {
                 var node = root.Q<Button>($"level-node-{i}");
                 Assert.IsNotNull(node, $"Expected 'level-node-{i}'.");

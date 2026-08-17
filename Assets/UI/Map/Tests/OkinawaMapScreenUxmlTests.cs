@@ -9,7 +9,7 @@ namespace Mikey.UI.Map.Tests
     /// <summary>
     /// Structural contract for the Okinawa chapter map screen ("mapOkinawa")
     /// in MikeyApp.uxml: full-bleed pannable okinawa_map_final.jpg with real
-    /// UI Toolkit LVL 0-4 markers (Okinawa's MVP mission set — see
+    /// UI Toolkit LVL 0-6 markers (Okinawa's final MVP mission set — see
     /// MapMarkerLayout.Missions), no auto-selected level/open popup on
     /// entry, and the same top quick-access bar as the Japan world map.
     /// </summary>
@@ -56,21 +56,11 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void AllFiveLevelMarkers_Exist()
+        public void AllSevenLevelMarkers_Exist()
         {
             var screen = OkinawaScreen(BuildTree());
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 7; i++)
                 Assert.IsNotNull(screen.Q<Button>($"level-node-{i}"), $"Expected a 'level-node-{i}' marker.");
-        }
-
-        [Test]
-        public void Level5Marker_NoLongerExists()
-        {
-            // Okinawa's MVP mission set was corrected to exactly 5 missions
-            // (LVL 0-4, 3 Training + 2 Fight) — LVL 5 must not remain in the
-            // production UXML (see MapMarkerLayoutTests for the data-side check).
-            var screen = OkinawaScreen(BuildTree());
-            Assert.IsNull(screen.Q<Button>("level-node-5"), "'level-node-5' must not exist — Okinawa's MVP mission set is LVL 0-4 only.");
         }
 
         [Test]
@@ -81,14 +71,14 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Levels1Through4_AreLockedByDefault()
+        public void Levels1Through6_AreLockedByDefault()
         {
             var screen = OkinawaScreen(BuildTree());
-            for (int i = 1; i <= 4; i++)
+            for (int i = 1; i <= 6; i++)
             {
                 var node = screen.Q<Button>($"level-node-{i}");
                 Assert.IsTrue(node.ClassListContains("level-node--locked"),
-                    $"LVL {i} must start locked (LVL 1 unlocks via progression, LVL 2-4 have no gameplay yet).");
+                    $"LVL {i} must start locked (LVL 1 unlocks via progression, LVL 2-6 have no gameplay yet).");
             }
         }
 
@@ -101,7 +91,7 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNotNull(panel, "Expected a 'level-panel' overlay.");
             Assert.IsFalse(panel.ClassListContains("detail-panel--open"), "Entering Okinawa must never auto-select a level.");
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 7; i++)
                 Assert.IsFalse(screen.Q<Button>($"level-node-{i}").ClassListContains("level-node--selected"));
         }
 

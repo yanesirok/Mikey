@@ -21,14 +21,30 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], levelIndex);", source);
             StringAssert.Contains("MapMarkerLayout.ApplyNormalizedPosition(node, mission.NormalizedX, mission.NormalizedY);", source);
-            StringAssert.Contains("mission.Type == MissionMarkerType.Fight ? FightIconClass : TrainingIconClass", source);
+            StringAssert.Contains("icon.AddToClassList(IconClassFor(mission.Type));", source);
         }
 
         [Test]
-        public void LevelCount_IsFive_MatchingOkinawasMvpMissionSet()
+        public void IconClassFor_MapsAllFourMissionTypesToTheirOwnClass()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const int LevelCount = 5;", source);
+            StringAssert.Contains("case MissionMarkerType.Special:", source);
+            StringAssert.Contains("return SpecialIconClass;", source);
+            StringAssert.Contains("case MissionMarkerType.Fight:", source);
+            StringAssert.Contains("return FightIconClass;", source);
+            StringAssert.Contains("case MissionMarkerType.BossFight:", source);
+            StringAssert.Contains("return BossFightIconClass;", source);
+            StringAssert.Contains("private const string SpecialIconClass = \"level-node__icon--special\";", source);
+            StringAssert.Contains("private const string TrainingIconClass = \"level-node__icon--training\";", source);
+            StringAssert.Contains("private const string FightIconClass = \"level-node__icon--fight\";", source);
+            StringAssert.Contains("private const string BossFightIconClass = \"level-node__icon--boss-fight\";", source);
+        }
+
+        [Test]
+        public void LevelCount_IsSeven_MatchingOkinawasFinalMvpMissionSet()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const int LevelCount = 7;", source);
         }
 
         [Test]
@@ -46,10 +62,10 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Levels2Through4_AreAlwaysLocked_NoGameplayYet()
+        public void Levels2Through6_AreAlwaysLocked_NoGameplayYet()
         {
-            // LevelCount == 5 (LVL 0-4) means this "default:" case only ever
-            // matches indices 2-4 now that LVL 5 has been dropped.
+            // LevelCount == 7 (LVL 0-6) means this "default:" case now
+            // matches indices 2-6.
             string source = File.ReadAllText(SourcePath);
             StringAssert.IsMatch(@"default:\s*return true;", source);
         }

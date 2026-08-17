@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Drives the Okinawa chapter map screen ("mapOkinawa"): LVL 0-4 marker
+    /// Drives the Okinawa chapter map screen ("mapOkinawa"): LVL 0-6 marker
     /// selection, the shared level detail overlay popup, the top quick-access
     /// bar, and completing the ink-fade begun by JapanMapController on entry.
     /// The top bar's Settings button opens the one shared Settings modal —
@@ -19,14 +19,14 @@ namespace Mikey.UI.Map
     /// <see cref="TutorialProgressState.Level1Unlocked"/> is reached and
     /// routes to the existing lesson/techniques flow ("techniques",
     /// mirroring the old MapLevelPreviewController's StartLessonTarget);
-    /// LVL 2-4 are always locked placeholders — no gameplay built for them
-    /// yet. Okinawa's MVP mission set is exactly 5 missions (3 Training + 2
-    /// Fight, see MapMarkerLayout.Missions) — LVL 5 was dropped entirely.
+    /// LVL 2-6 are always locked placeholders — no gameplay built for them
+    /// yet. Okinawa's final MVP mission set is exactly 7 missions (1 Special
+    /// + 3 Training + 2 Fight + 1 Boss Fight, see MapMarkerLayout.Missions).
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class OkinawaMapController : MonoBehaviour
     {
-        private const int LevelCount = 5;
+        private const int LevelCount = 7;
         private const int MaxRootResolveFrames = 30;
         private const string ScreenId = "mapOkinawa";
 
@@ -195,15 +195,18 @@ namespace Mikey.UI.Map
             _bindRoutine = null;
         }
 
+        private const string SpecialIconClass = "level-node__icon--special";
         private const string TrainingIconClass = "level-node__icon--training";
         private const string FightIconClass = "level-node__icon--fight";
+        private const string BossFightIconClass = "level-node__icon--boss-fight";
 
         /// <summary>
         /// Applies this level's normalized position and mission-type icon
-        /// (training/fight) from MapMarkerLayout — the only place a mission's
-        /// coordinates and type live. The icon class is added here at bind
-        /// time rather than baked into MikeyApp.uxml so mission type stays
-        /// centralized in data, never inferred from static CSS.
+        /// (special/training/fight/boss fight) from MapMarkerLayout — the
+        /// only place a mission's coordinates and type live. The icon class
+        /// is added here at bind time rather than baked into MikeyApp.uxml
+        /// so mission type stays centralized in data, never inferred from
+        /// static CSS.
         /// </summary>
         private static void ApplyMissionLayout(VisualElement node, int levelIndex)
         {
@@ -225,9 +228,26 @@ namespace Mikey.UI.Map
             var icon = node.Q<VisualElement>(className: "level-node__icon");
             if (icon == null)
                 return;
+            icon.RemoveFromClassList(SpecialIconClass);
             icon.RemoveFromClassList(TrainingIconClass);
             icon.RemoveFromClassList(FightIconClass);
-            icon.AddToClassList(mission.Type == MissionMarkerType.Fight ? FightIconClass : TrainingIconClass);
+            icon.RemoveFromClassList(BossFightIconClass);
+            icon.AddToClassList(IconClassFor(mission.Type));
+        }
+
+        private static string IconClassFor(MissionMarkerType type)
+        {
+            switch (type)
+            {
+                case MissionMarkerType.Special:
+                    return SpecialIconClass;
+                case MissionMarkerType.Fight:
+                    return FightIconClass;
+                case MissionMarkerType.BossFight:
+                    return BossFightIconClass;
+                default:
+                    return TrainingIconClass;
+            }
         }
 
         private void OnLevelNodeClicked(int index)
@@ -329,7 +349,7 @@ namespace Mikey.UI.Map
             }
         }
 
-        /// <summary>LVL 0 is always unlocked; LVL 1 unlocks at Level1Unlocked; LVL 2-4 are always locked (no gameplay built yet).</summary>
+        /// <summary>LVL 0 is always unlocked; LVL 1 unlocks at Level1Unlocked; LVL 2-6 are always locked (no gameplay built yet).</summary>
         private bool IsLevelLocked(int index)
         {
             switch (index)

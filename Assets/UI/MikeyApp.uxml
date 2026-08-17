@@ -659,22 +659,26 @@
                              JapanMapController from MapMarkerLayout.Chapters — not
                              hardcoded here or in Map.uss. Icon is the final supplied
                              chapter_okinawa.png marker (its own emblem baked in, no
-                             extra circle/backing plate). -->
+                             extra circle/backing plate). Label comes BEFORE the icon
+                             in markup (rendered above it) so the node's own bottom
+                             edge is the icon's bottom edge — MapMarkerLayout's
+                             coordinates are the pin's bottom TIP, and ".chapter-node"
+                             anchors via "translate: -50% -100%" in Map.uss. -->
                         <ui:Button name="chapter-node-okinawa" class="chapter-node chapter-node--okinawa tap-target-lg">
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
                             <ui:Label text="OKINAWA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Chapter 1: visible, tappable, locked for now. -->
                         <ui:Button name="chapter-node-fukuoka" class="chapter-node chapter-node--fukuoka chapter-node--locked tap-target-lg">
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
                             <ui:Label text="FUKUOKA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Chapter 2: visible, tappable, locked for now. -->
                         <ui:Button name="chapter-node-hiroshima" class="chapter-node chapter-node--hiroshima chapter-node--locked tap-target-lg">
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
                             <ui:Label text="HIROSHIMA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
 
@@ -791,41 +795,54 @@
                         <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
-                        <!-- LVL 0-4: Okinawa's MVP mission set (3 Training + 2 Fight,
-                             see MapMarkerLayout.Missions — LVL 5 was dropped from the
-                             MVP entirely). Position (style.left/top, percent) and
-                             mission-type icon class (training/fight) are both applied
-                             at bind time by OkinawaMapController from
+                        <!-- LVL 0-6: Okinawa's final MVP mission set (1 Special + 3
+                             Training + 2 Fight + 1 Boss Fight, see
+                             MapMarkerLayout.Missions). Position (style.left/top,
+                             percent) and mission-type icon class are both applied at
+                             bind time by OkinawaMapController from
                              MapMarkerLayout.Missions — the "level-node__icon" element
                              below is intentionally generic in markup; its type modifier
                              class is never hardcoded here so mission type stays
                              centralized in one place, not inferred from static CSS.
-                             Icon is one of the two final supplied mission markers
-                             (mission_training.png / mission_fight.png), shown as-is
-                             with no extra circle/backing plate. -->
+                             Icon is one of the four final supplied mission markers
+                             (mission_lvl0.png / mission_training.png /
+                             mission_fight.png / mission_boss.png), shown as-is with no
+                             extra circle/backing plate. Label comes BEFORE the icon in
+                             markup (rendered above it) so the node's own bottom edge is
+                             the icon's bottom edge — MapMarkerLayout's coordinates are
+                             the pin's bottom TIP, and ".level-node" anchors via
+                             "translate: -50% -100%" in Map.uss. -->
                         <!-- LVL 0: unlocked (existing starting assessment flow). -->
                         <ui:Button name="level-node-0" class="level-node level-node--0 tap-target-lg">
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             <ui:Label text="LVL 0" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
                         <!-- LVL 1: visible but locked until Level1Unlocked. -->
                         <ui:Button name="level-node-1" class="level-node level-node--1 level-node--locked tap-target-lg">
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             <ui:Label text="LVL 1" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
-                        <!-- LVL 2-4: visible but always locked for now; no
+                        <!-- LVL 2-6: visible but always locked for now; no
                              gameplay built for these yet. -->
                         <ui:Button name="level-node-2" class="level-node level-node--2 level-node--locked tap-target-lg">
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             <ui:Label text="LVL 2" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-3" class="level-node level-node--3 level-node--locked tap-target-lg">
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             <ui:Label text="LVL 3" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-4" class="level-node level-node--4 level-node--locked tap-target-lg">
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             <ui:Label text="LVL 4" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-5" class="level-node level-node--5 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 5" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-6" class="level-node level-node--6 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 6" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
 
