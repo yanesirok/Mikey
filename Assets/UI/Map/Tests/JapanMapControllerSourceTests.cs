@@ -55,24 +55,73 @@ namespace Mikey.UI.Map.Tests
             // Coordinates must not be scattered through UXML/USS — only
             // MapMarkerLayout.Chapters (see MapMarkerLayoutTests).
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ApplyChapterPosition(_okinawaNode, OkinawaChapterId, viewportWidth, viewportHeight);", source);
-            StringAssert.Contains("ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, viewportWidth, viewportHeight);", source);
-            StringAssert.Contains("ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("ApplyChapterPosition(_okinawaNode, OkinawaChapterId, width, height);", source);
+            StringAssert.Contains("ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, width, height);", source);
+            StringAssert.Contains("ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, width, height);", source);
             StringAssert.Contains("MapMarkerLayout.ApplySourceCoordinate(node, chapter.NormalizedX, chapter.NormalizedY, viewportWidth, viewportHeight);", source);
         }
 
         [Test]
-        public void ChapterMarkerPosition_IsConvertedThroughTheCurrentViewportSize_NotAppliedAsARawPercentage()
+        public void ChapterMarkerPosition_IsConvertedThroughTheCurrentCanvasSize_NotAppliedAsARawPercentage()
         {
             // The bug this guards against: a source-image-normalized
             // coordinate is not a valid viewport percentage once the map art
             // is displayed with a cover-fit crop (see MapCoordinateMapping).
-            // BindWhenReady must read the actual current canvas size and
-            // route every chapter through it.
+            // BindWhenReady/resize must read the actual current canvas size
+            // and route every chapter through it.
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_root.Q<VisualElement>(\"map-canvas\");", source);
-            StringAssert.Contains("canvas?.resolvedStyle.width ?? 0f;", source);
-            StringAssert.Contains("canvas?.resolvedStyle.height ?? 0f;", source);
+            StringAssert.Contains("_canvas = _root.Q<VisualElement>(\"map-canvas\");", source);
+            StringAssert.Contains("_canvas?.resolvedStyle.width ?? 0f;", source);
+            StringAssert.Contains("_canvas?.resolvedStyle.height ?? 0f;", source);
+        }
+
+        // ---------- markers stay attached to the same source point across canvas resizes ----------
+
+        [Test]
+        public void ChapterMarkers_ReapplyPositionOnCanvasGeometryChange_NotJustOnceAtBind()
+        {
+            // Root cause of the "moves when Game View is maximized" bug: the
+            // canvas's resolved size (whatever ApplyAllChapterPositions reads)
+            // can change after bind, and a marker's viewport position must be
+            // recomputed from the same stored source coordinate whenever that
+            // happens — never left stale from the first bind-time computation.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_canvas?.RegisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);", source);
+            StringAssert.Contains("private void OnCanvasGeometryChanged(GeometryChangedEvent evt)", source);
+            StringAssert.Contains("private void ApplyAllChapterPositions()", source);
+            // Both the initial bind-time call and every resize call go through
+            // the SAME method, so there is exactly one place stored
+            // coordinates are ever turned into a viewport position.
+            StringAssert.Contains("ApplyAllChapterPositions();", source);
+        }
+
+        [Test]
+        public void CanvasGeometryChange_IsChangeGated_OnCachedWidthAndHeight()
+        {
+            // Mirrors SafeAreaController's cache-and-compare pattern — a
+            // spurious geometry event that didn't actually resize the canvas
+            // must be a cheap no-op, not a redundant reapplication.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private float _lastCanvasWidth;", source);
+            StringAssert.Contains("private float _lastCanvasHeight;", source);
+            StringAssert.Contains("if (width == _lastCanvasWidth && height == _lastCanvasHeight)", source);
+            StringAssert.Contains("return;", source);
+        }
+
+        [Test]
+        public void CanvasGeometryCallback_IsUnregistered_OnDisable_NoLeak()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_canvas?.UnregisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);", source);
+        }
+
+        [Test]
+        public void ResizeHandling_DoesNotPollEveryFrame_NoUpdateMethodAdded()
+        {
+            // The fix must be purely event-driven (GeometryChangedEvent), not
+            // a MonoBehaviour.Update() loop doing per-frame layout work.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("private void Update()", source);
         }
 
         [Test]

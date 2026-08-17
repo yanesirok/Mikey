@@ -52,6 +52,9 @@ namespace Mikey.UI.Map
         [SerializeField] private VideoClip okinawaPreviewClip;
 
         private VisualElement _root;
+        private VisualElement _canvas;
+        private float _lastCanvasWidth;
+        private float _lastCanvasHeight;
         private Button _okinawaNode;
         private Button _fukuokaNode;
         private Button _hiroshimaNode;
@@ -105,6 +108,7 @@ namespace Mikey.UI.Map
 
             if (_bound)
             {
+                _canvas?.UnregisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);
                 _okinawaNode.clicked -= OnOkinawaClicked;
                 _fukuokaNode.clicked -= OnFukuokaClicked;
                 _hiroshimaNode.clicked -= OnHiroshimaClicked;
@@ -142,6 +146,9 @@ namespace Mikey.UI.Map
                 _okinawaRenderTexture = null;
             }
 
+            _canvas = null;
+            _lastCanvasWidth = 0f;
+            _lastCanvasHeight = 0f;
             _selectedChapter = null;
             _transitioning = false;
             _bound = false;
@@ -193,14 +200,15 @@ namespace Mikey.UI.Map
 
             // Marker positions are stored as SOURCE-IMAGE-normalized
             // coordinates (see MapMarkerLayout) and must be converted
-            // through the current viewport size to land correctly under the
+            // through the CURRENT canvas size to land correctly under the
             // map art's cover-fit crop — never applied as a raw percentage.
-            var canvas = _root.Q<VisualElement>("map-canvas");
-            float viewportWidth = canvas?.resolvedStyle.width ?? 0f;
-            float viewportHeight = canvas?.resolvedStyle.height ?? 0f;
-            ApplyChapterPosition(_okinawaNode, OkinawaChapterId, viewportWidth, viewportHeight);
-            ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, viewportWidth, viewportHeight);
-            ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, viewportWidth, viewportHeight);
+            // That canvas size can change after bind (Game View
+            // maximize/restore, aspect change, device rotation), so this is
+            // reapplied on every genuine GeometryChangedEvent, not just once
+            // here — see OnCanvasGeometryChanged.
+            _canvas = _root.Q<VisualElement>("map-canvas");
+            ApplyAllChapterPositions();
+            _canvas?.RegisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);
 
             _okinawaNode.clicked += OnOkinawaClicked;
             _fukuokaNode.clicked += OnFukuokaClicked;
@@ -227,6 +235,43 @@ namespace Mikey.UI.Map
 
             _bound = true;
             _bindRoutine = null;
+        }
+
+        /// <summary>
+        /// Re-reads the canvas's current resolved size and reapplies every
+        /// chapter marker's position from it — called once at bind time and
+        /// again whenever <see cref="OnCanvasGeometryChanged"/> detects the
+        /// canvas actually changed size, so a marker stays attached to the
+        /// same geographical source-image point across Game View
+        /// maximize/restore, aspect changes, and device rotation.
+        /// </summary>
+        private void ApplyAllChapterPositions()
+        {
+            float width = _canvas?.resolvedStyle.width ?? 0f;
+            float height = _canvas?.resolvedStyle.height ?? 0f;
+            ApplyChapterPosition(_okinawaNode, OkinawaChapterId, width, height);
+            ApplyChapterPosition(_fukuokaNode, FukuokaChapterId, width, height);
+            ApplyChapterPosition(_hiroshimaNode, HiroshimaChapterId, width, height);
+            _lastCanvasWidth = width;
+            _lastCanvasHeight = height;
+        }
+
+        /// <summary>
+        /// Change-gated on the canvas's own resolved size (mirrors
+        /// SafeAreaController's cache-and-compare pattern) so a spurious
+        /// geometry event that didn't actually change the size is a cheap
+        /// no-op — repositioning markers (absolute-positioned children)
+        /// never changes the canvas's own size in turn, so there is no
+        /// feedback loop, but the cache still avoids redundant work.
+        /// </summary>
+        private void OnCanvasGeometryChanged(GeometryChangedEvent evt)
+        {
+            float width = _canvas?.resolvedStyle.width ?? 0f;
+            float height = _canvas?.resolvedStyle.height ?? 0f;
+            if (width == _lastCanvasWidth && height == _lastCanvasHeight)
+                return;
+
+            ApplyAllChapterPositions();
         }
 
         /// <summary>

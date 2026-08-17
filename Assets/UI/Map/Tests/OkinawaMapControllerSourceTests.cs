@@ -19,22 +19,82 @@ namespace Mikey.UI.Map.Tests
             // into MikeyApp.uxml — it's read from MapMarkerLayout.Missions at
             // bind time and applied here (see MapMarkerLayoutTests).
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], levelIndex, viewportWidth, viewportHeight);", source);
+            StringAssert.Contains("ApplyMissionLayout(_levelNodes[i], i, width, height);", source);
             StringAssert.Contains("MapMarkerLayout.ApplySourceCoordinate(node, mission.NormalizedX, mission.NormalizedY, viewportWidth, viewportHeight);", source);
             StringAssert.Contains("icon.AddToClassList(IconClassFor(mission.Type));", source);
         }
 
         [Test]
-        public void MissionMarkerPosition_IsConvertedThroughTheCurrentViewportSize_NotAppliedAsARawPercentage()
+        public void MissionMarkerPosition_IsConvertedThroughTheCurrentCanvasSize_NotAppliedAsARawPercentage()
         {
             // Same bug/fix as JapanMapControllerSourceTests — Okinawa's
             // mission map uses the identical cover-fit background art
             // pattern (".okinawa-canvas-art"), so it needs the same
             // conversion (see MapCoordinateMapping).
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_root.Q<VisualElement>(\"okinawa-canvas\");", source);
-            StringAssert.Contains("canvas?.resolvedStyle.width ?? 0f;", source);
-            StringAssert.Contains("canvas?.resolvedStyle.height ?? 0f;", source);
+            StringAssert.Contains("_canvas = _root.Q<VisualElement>(\"okinawa-canvas\");", source);
+            StringAssert.Contains("_canvas?.resolvedStyle.width ?? 0f;", source);
+            StringAssert.Contains("_canvas?.resolvedStyle.height ?? 0f;", source);
+        }
+
+        // ---------- markers stay attached to the same source point across canvas resizes ----------
+
+        [Test]
+        public void MissionMarkers_ReapplyPositionOnCanvasGeometryChange_NotJustOnceAtBind()
+        {
+            // Same root cause/fix as Japan: the canvas's resolved size can
+            // change after bind (Game View maximize/restore, aspect change,
+            // device rotation), so every mission marker's position must be
+            // recomputed from its stored source coordinate whenever that
+            // happens — never left stale from the first bind-time computation.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_canvas?.RegisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);", source);
+            StringAssert.Contains("private void OnCanvasGeometryChanged(GeometryChangedEvent evt)", source);
+            StringAssert.Contains("private void ApplyAllMissionPositions()", source);
+            StringAssert.Contains("ApplyAllMissionPositions();", source);
+        }
+
+        [Test]
+        public void CanvasGeometryChange_IsChangeGated_OnCachedWidthAndHeight()
+        {
+            // Mirrors SafeAreaController's cache-and-compare pattern — a
+            // spurious geometry event that didn't actually resize the canvas
+            // must be a cheap no-op, not a redundant reapplication.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private float _lastCanvasWidth;", source);
+            StringAssert.Contains("private float _lastCanvasHeight;", source);
+            StringAssert.Contains("if (width == _lastCanvasWidth && height == _lastCanvasHeight)", source);
+            StringAssert.Contains("return;", source);
+        }
+
+        [Test]
+        public void CanvasGeometryCallback_IsUnregistered_OnDisable_NoLeak()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_canvas?.UnregisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);", source);
+        }
+
+        [Test]
+        public void ResizeHandling_DoesNotPollEveryFrame_NoUpdateMethodAdded()
+        {
+            // The fix must be purely event-driven (GeometryChangedEvent), not
+            // a MonoBehaviour.Update() loop doing per-frame layout work.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("private void Update()", source);
+        }
+
+        [Test]
+        public void MarkerClickHandlers_AreWiredOnlyOnceAtBind_NotOnEveryResize()
+        {
+            // Click-handler wiring must stay a one-time bind-time concern,
+            // separate from ApplyAllMissionPositions — resizing must never
+            // re-subscribe/duplicate click handlers.
+            string source = File.ReadAllText(SourcePath);
+            int wireIndex = source.IndexOf("_levelClickHandlers[i] = handler;", System.StringComparison.Ordinal);
+            int applyAllIndex = source.IndexOf("private void ApplyAllMissionPositions()", System.StringComparison.Ordinal);
+            Assert.Greater(wireIndex, -1, "Expected click-handler wiring in BindWhenReady.");
+            Assert.Greater(applyAllIndex, -1, "Expected ApplyAllMissionPositions to exist.");
+            StringAssert.DoesNotContain("_levelClickHandlers[i] = handler;", source.Substring(applyAllIndex));
         }
 
         [Test]
