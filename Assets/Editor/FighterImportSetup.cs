@@ -113,6 +113,23 @@ namespace Mikey.FightEditor
             importer.SaveAndReimport();
         }
 
+        /// <summary>FightSandbox's key light, colour times intensity, as URP hands it to the
+        /// shader: a warm directional at intensity 11, so (1, 0.78, 0.5) * 11.
+        ///
+        /// Read from the scene rather than guessed — `Key Sun` in FightSandbox.unity. If that
+        /// light is retuned, these numbers go stale and every fighter tint drifts with it.
+        /// The alternative, sampling the light at import time, would tie asset import to
+        /// whichever scene happened to be open, which is worse.</summary>
+        static readonly Color KeySun = new Color(11.0f, 8.58f, 5.50f);
+
+        /// <summary>Takes the colour we want ON SCREEN and returns the tint that produces it,
+        /// by dividing out the key light. Without this every tint here is really a tint times
+        /// eleven, which is how a 0.07 "black" kimono ended up rendering tan-gold.</summary>
+        static Color Lit(float r, float g, float b)
+        {
+            return new Color(r / KeySun.r, g / KeySun.g, b / KeySun.b);
+        }
+
         static void CreateMaterials()
         {
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
@@ -127,25 +144,27 @@ namespace Mikey.FightEditor
             // No skin material: the bodies arrive from Mixamo with their own materials and face
             // textures, and painting a flat colour over them would undo exactly that.
             //
-            // Both cloths are black. The cream player cloth read as warm brown blotches in
-            // play: the base map here is the baked AO (the kimono has no albedo texture), AO
-            // is mottled by nature, and this scene's sunset key is strong and orange — a light
-            // tint takes that colour straight on. Black is the one tint that survives it.
+            // Both cloths are black, and the accents are blue for the player, RED for the
+            // enemy — the colours originally specified. (A round of these was briefly two
+            // blues, which lost the red; reverted.)
             //
-            // The accents stay blue for the player and RED for the enemy, as originally
-            // specified. A round of these was briefly recoloured to two blues; that lost the
-            // red the owner wanted and is reverted here.
+            // The tints go through Lit() rather than being written literally. Character.shader
+            // computes `albedo * mainLight.color`, and in URP mainLight.color already carries
+            // the light's intensity — so a tint is not what lands on screen. A plain 0.07
+            // "near-black" rendered as 0.07 * 11 = 0.77 red: the tan-gold, blotchy, glowing
+            // garment the owner kept reporting. The accent at 0.48 went to 5.3 and blew out
+            // to white-hot. Both were me picking colours as if the light were 1.0.
             Kimono(shader, CharacterDir + "/M_Player_Kimono.mat", normal, ao,
-                   new Color(0.07f, 0.07f, 0.08f), new Color(0.23f, 0.29f, 0.62f));
+                   Lit(0.13f, 0.115f, 0.12f), Lit(0.10f, 0.17f, 0.55f));
             Kimono(shader, CharacterDir + "/M_Enemy_Kimono.mat", normal, ao,
-                   new Color(0.07f, 0.07f, 0.08f), new Color(0.48f, 0.12f, 0.16f));
+                   Lit(0.13f, 0.115f, 0.12f), Lit(0.52f, 0.09f, 0.11f));
 
             // Belt is its own submesh again (kimono_fit.py: capture_belt_mask /
             // apply_belt_split), so it gets its own material rather than borrowing the rim.
             Belt(shader, CharacterDir + "/M_Player_Belt.mat", normal, ao,
-                 new Color(0.23f, 0.29f, 0.62f));
+                 Lit(0.10f, 0.17f, 0.55f));
             Belt(shader, CharacterDir + "/M_Enemy_Belt.mat", normal, ao,
-                 new Color(0.48f, 0.12f, 0.16f));
+                 Lit(0.52f, 0.09f, 0.11f));
         }
 
         /// <summary>The kimono has no albedo texture — all five of its source materials are flat
