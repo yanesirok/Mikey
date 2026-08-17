@@ -745,6 +745,19 @@ def bake(low, high, out_dir):
 # чтобы не поставить на месте старого разрыва новый.
 SKIRT_BAND = 0.08
 
+# Проходов сглаживания весов после переноса: снимают ступеньку на швах, где
+# соседние вершины взяли веса разных частей тела. Больше — ткань становится
+# ватной и перестаёт следовать телу.
+SEAM_SMOOTH = 3
+
+# Насколько сильно подол сажается на таз, 0..1. Единица делает его жёстким
+# конусом: не рвётся, но нога проходит сквозь него на высоком ударе. Ноль
+# отдаёт подол ногам целиком — и он рвётся на перемычке между ними (замер без
+# посадки: p99 растяжения 4.83 против 2.31, 4 рваных ребра). Промежуточное
+# значение оставляет подолу возможность следовать за ногой, ограничивая
+# расхождение.
+SKIRT_PIN = 0.65
+
 # Порог приёмки скиннинга: во сколько раз ребру позволено растянуться на
 # проверочной позе. Здоровая ткань на замерах не переходит 4x, разрыв даёт
 # десятки — 5.0 разделяет их с запасом и не ловит честное натяжение подола.
@@ -757,57 +770,91 @@ GUARD_POSE = (('LeftUpLeg', 'x', 70), ('RightUpLeg', 'x', -40),
               ('LeftForeArm', 'y', -70), ('LeftShoulder', 'z', -30))
 
 
-def skin_cloth(low, arm):
-    """Скиннинг ткани костным тепловым расчётом.
+def wear_body_weights(low, body_meshes, arm):
+    """Одевает ткань как одежду ЭТОГО тела: отдаёт ей веса самого тела.
 
-    До этого веса переносились с уже отскиненного тела модификатором
-    DATA_TRANSFER в режиме POLYINTERP_NEAREST. Такой перенос точен, но
-    разрывен: там, где ткань перекрывает промежуток между частями тела —
-    пах, подмышки, — соседние вершины берут веса ближайшей грани, а
-    ближайшими у них оказываются разные конечности. Никакого перехода между
-    ними нет: замер показал соседей в 4.5 см с весами LeftLeg 0.80 и
-    RightLeg 0.74 соответственно, без единой общей кости. В bind pose ноги
-    рядом и шва не видно, а на ударе полотно между ними разлетается плоскими
-    плитами — ровно то, что было видно в Play.
+    Собственная одежда персонажа Mixamo деформируется безупречно ровно
+    потому, что сшита на это тело и носит его веса. Ткань, привязанная к
+    костям отдельно от тела (тепловым расчётом), движется по своей идее о
+    скелете, а тело по своей — и на анимации они расходятся: из плеча лезет
+    клин, корпус складывается доской, футболка проступает наружу.
 
-    Тепловой расчёт решает диффузию по мешу и разрывов не даёт по
-    построению. На проверочной позе: рёбер с растяжением больше пятикратного
-    261 -> 24, максимум 58x -> 9.6x.
+    Перенос весов уже пробовался раньше и дал разрывы: соседние вершины
+    подола брали веса разных ног без перехода (LeftLeg 0.80 против RightLeg
+    0.74 в 4.5 см друг от друга). Но тогда халат висел мимо фигуры — посадка
+    по глубине была смещена на 8 см, и подол болтался далеко от тела, так что
+    «ближайшая грань» для него значила мало. После seat_on_body ткань лежит по
+    телу, и перенос попадает туда, куда должен.
 
-    Вторая причина отказаться от переноса: он копирует только те группы, что
-    есть у тела, а у тел Mixamo нет групп Hips, Spine, Spine1, LeftUpLeg и
-    RightUpLeg вовсе (45 групп на 65 костей — проверено на сыром файле, наш
-    импорт тут ничего не теряет). Подолу халата было буквально не за что
-    держаться, кроме голеней. Тепловой расчёт берёт веса со скелета и даёт
-    все 65.
+    Разрыв в паху всё равно возможен — подол физически натянут между ног, —
+    поэтому следом идёт pin_skirt_to_hips, а сглаживание снимает ступеньку на
+    границе. Если что-то останется, это поймает verify_deform.
     """
-    # Веса тепловой расчёт берёт по текущему положению меша, поэтому парентим
-    # до правки трансформа, пока кимоно стоит ровно по телу.
-    world = low.matrix_world.copy()
+    src = [o for o in body_meshes
+           if not any(k in o.name.lower() for k in FIT_IGNORE)]
+    assert src, 'не с чего переносить веса — остались одни волосы?'
+
+    # DATA_TRANSFER принимает один объект, тело приходит несколькими мешами.
+    # Склеиваем копию: оригиналы уезжают в экспорт, их трогать нельзя.
+    # join() сводит группы весов по именам, так что копия несёт их все.
+    copies = []
+    for o in src:
+        c = o.copy()
+        c.data = o.data.copy()
+        c.modifiers.clear()
+        bpy.context.collection.objects.link(c)
+        copies.append(c)
+    bpy.ops.object.select_all(action='DESELECT')
+    for c in copies:
+        c.select_set(True)
+    bpy.context.view_layer.objects.active = copies[0]
+    if len(copies) > 1:
+        bpy.ops.object.join()
+    shell = bpy.context.view_layer.objects.active
+
+    for vg in shell.vertex_groups:
+        if vg.name not in low.vertex_groups:
+            low.vertex_groups.new(name=vg.name)
+
+    mod = low.modifiers.new('weights', 'DATA_TRANSFER')
+    mod.object = shell
+    mod.use_vert_data = True
+    mod.data_types_verts = {'VGROUP_WEIGHTS'}
+    mod.vert_mapping = 'POLYINTERP_NEAREST'
+    bpy.context.view_layer.objects.active = low
+    apply_mods(low)
+    bpy.data.objects.remove(shell, do_unlink=True)
+
+    armmod = low.modifiers.new('Armature', 'ARMATURE')
+    armmod.object = arm
+
+    # parent_set сам считает matrix_parent_inverse. Руками её задавать нельзя:
+    # экспортёр FBX реконструирует для такого объекта другой Lcl Rotation, и
+    # кимоно приезжало в Unity повёрнутым на 90° (см. историю правок).
     bpy.ops.object.select_all(action='DESELECT')
     low.select_set(True)
     arm.select_set(True)
     bpy.context.view_layer.objects.active = arm
-    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
-    # parent_set(ARMATURE_AUTO), в отличие от parent_set(keep_transform=True),
-    # мирового положения не сохраняет: замер показал уезд кимоно с z 0.147..1.628
-    # под пол, в -0.282..0.101. Дальше pin_skirt_to_hips сравнивает высоту вершин
-    # с высотой паха, и на уехавшем меше под посадку попадали все вершины разом —
-    # кимоно становилось монолитом, а verify_deform показывал ровно 1.00 и
-    # пропускал это как успех.
-    #
-    # Возвращаем ткань туда, где она стояла, и заодно в ту же локальную систему,
-    # в какой приезжают меши тела: единичная matrix_parent_inverse, весь трансформ
-    # унаследован от арматуры. Раньше у ткани был собственный масштаб 0.0024
-    # против 0.0102 у тела; теперь они совпадают, и экспорт связки идёт по уже
-    # проверенному на телах пути.
-    low.data.transform(arm.matrix_world.inverted() @ world)
-    low.matrix_parent_inverse.identity()
-    low.matrix_basis.identity()
-    bpy.context.view_layer.update()
+    weighted = sum(1 for v in low.data.vertices if v.groups)
+    print(f'kimono_fit: ткань одета весами тела — взвешено {weighted} '
+          f'из {len(low.data.vertices)} вершин, групп {len(low.vertex_groups)}')
 
-    fill_unweighted(low)
+
+def smooth_cloth_weights(low, repeat):
+    """Снимает ступеньку весов на швах переноса."""
+    if repeat <= 0:
+        return
+    bpy.ops.object.select_all(action='DESELECT')
+    low.select_set(True)
+    bpy.context.view_layer.objects.active = low
+    bpy.ops.object.mode_set(mode='WEIGHT_PAINT')
+    bpy.ops.object.vertex_group_smooth(group_select_mode='ALL', factor=0.5,
+                                       repeat=repeat, expand=0.0)
+    bpy.ops.object.vertex_group_normalize_all(group_select_mode='ALL',
+                                              lock_active=False)
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 
 def fill_unweighted(low):
@@ -870,6 +917,7 @@ def pin_skirt_to_hips(low, arm):
     for v in low.data.vertices:
         # t: 0 на верхней кромке полосы, 1 у паха и ниже.
         t = max(0.0, min(1.0, (crotch + band - (matrix @ v.co).z) / max(band, 1e-9)))
+        t *= SKIRT_PIN
         if t <= 1e-4:
             continue
         for g in list(v.groups):
@@ -1145,8 +1193,10 @@ def main():
     # приехало бы 305k.
     bpy.data.objects.remove(kimono, do_unlink=True)
 
-    skin_cloth(low, arm)
+    wear_body_weights(low, body_meshes, arm)
+    fill_unweighted(low)
     pin_skirt_to_hips(low, arm)
+    smooth_cloth_weights(low, SEAM_SMOOTH)
 
     skinned = sum(1 for v in low.data.vertices if v.groups)
     assert skinned == len(low.data.vertices), (
