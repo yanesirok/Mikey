@@ -57,6 +57,64 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapCloudMath.EaseInOutCubic(float.NaN), 0.0001f);
         }
 
+        // ---------- EaseInOutQuart ----------
+
+        [Test]
+        public void EaseInOutQuart_BoundariesAreExact()
+        {
+            Assert.AreEqual(0f, MapCloudMath.EaseInOutQuart(0f), 0.0001f);
+            Assert.AreEqual(1f, MapCloudMath.EaseInOutQuart(1f), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutQuart_Midpoint_IsExactlyHalf_Symmetric()
+        {
+            Assert.AreEqual(0.5f, MapCloudMath.EaseInOutQuart(0.5f), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutQuart_NeverOvershoots_StaysWithin0And1()
+        {
+            for (float t = 0f; t <= 1f; t += 0.05f)
+            {
+                float eased = MapCloudMath.EaseInOutQuart(t);
+                Assert.GreaterOrEqual(eased, 0f, $"t={t}");
+                Assert.LessOrEqual(eased, 1f, $"t={t}");
+            }
+        }
+
+        [Test]
+        public void EaseInOutQuart_IsMonotonicallyIncreasing_NoBounce()
+        {
+            float previous = MapCloudMath.EaseInOutQuart(0f);
+            for (float t = 0.05f; t <= 1f; t += 0.05f)
+            {
+                float current = MapCloudMath.EaseInOutQuart(t);
+                Assert.GreaterOrEqual(current, previous, $"t={t}");
+                previous = current;
+            }
+        }
+
+        [Test]
+        public void EaseInOutQuart_NonFiniteInput_FallsBackSafely()
+        {
+            Assert.AreEqual(0f, MapCloudMath.EaseInOutQuart(float.NaN), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutQuart_IsSteeperThanCubic_NearTheMiddle()
+        {
+            // The whole point of adding a quartic option: a more dramatic,
+            // pronounced spread through the middle of the close phase than
+            // the gentler cubic reveal — at t=0.25 (still in the
+            // slow-start half for both), quart must be further behind (a
+            // slower start) than cubic.
+            Assert.Less(MapCloudMath.EaseInOutQuart(0.25f), MapCloudMath.EaseInOutCubic(0.25f));
+            // ... but by t=0.75 (already in the fast-catch-up half for
+            // both), quart must have overtaken cubic's progress.
+            Assert.Greater(MapCloudMath.EaseInOutQuart(0.75f), MapCloudMath.EaseInOutCubic(0.75f));
+        }
+
         // ---------- LocalProgress ----------
 
         [Test]
@@ -245,6 +303,66 @@ namespace Mikey.UI.Map.Tests
             var to = new CloudLayout(0.01f, 0.14f, 0.98f, 0.73f, -180f, 1.0f);
             var result = MapCloudMath.Lerp(from, to, 0.5f);
             Assert.AreEqual(-180f, result.RotationDegrees, 0.0001f);
+        }
+
+        // ---------- LerpWithEasing: injectable curve (close uses quart, reveal uses cubic) ----------
+
+        [Test]
+        public void LerpWithEasing_UsingCubic_MatchesPlainLerp()
+        {
+            var from = new CloudLayout(0.1f, 0.2f, 0.3f, 0.4f, 0f, 0.74f);
+            var to = new CloudLayout(0.9f, 0.8f, 0.7f, 0.6f, -180f, 1.0f);
+            for (float t = 0f; t <= 1f; t += 0.25f)
+            {
+                var viaLerp = MapCloudMath.Lerp(from, to, t);
+                var viaEasing = MapCloudMath.LerpWithEasing(from, to, t, MapCloudMath.EaseInOutCubic);
+                Assert.AreEqual(viaLerp.NormalizedX, viaEasing.NormalizedX, 0.0001f, $"t={t}");
+                Assert.AreEqual(viaLerp.Opacity, viaEasing.Opacity, 0.0001f, $"t={t}");
+            }
+        }
+
+        [Test]
+        public void LerpWithEasing_AtT0_EqualsFrom_RegardlessOfEasing()
+        {
+            var from = new CloudLayout(0.1f, 0.2f, 0.3f, 0.4f, 0f, 0.74f);
+            var to = new CloudLayout(0.9f, 0.8f, 0.7f, 0.6f, -180f, 1.0f);
+            var result = MapCloudMath.LerpWithEasing(from, to, 0f, MapCloudMath.EaseInOutQuart);
+            Assert.AreEqual(from.NormalizedX, result.NormalizedX, 0.0001f);
+            Assert.AreEqual(from.Opacity, result.Opacity, 0.0001f);
+        }
+
+        [Test]
+        public void LerpWithEasing_AtT1_EqualsTo_RegardlessOfEasing()
+        {
+            var from = new CloudLayout(0.1f, 0.2f, 0.3f, 0.4f, 0f, 0.74f);
+            var to = new CloudLayout(0.9f, 0.8f, 0.7f, 0.6f, -180f, 1.0f);
+            var result = MapCloudMath.LerpWithEasing(from, to, 1f, MapCloudMath.EaseInOutQuart);
+            Assert.AreEqual(to.NormalizedX, result.NormalizedX, 0.0001f);
+            Assert.AreEqual(to.Opacity, result.Opacity, 0.0001f);
+        }
+
+        [Test]
+        public void LerpWithEasing_QuartVsCubic_ProduceDifferentMidwayResults()
+        {
+            // The whole reason MapCloudTransitionController uses a
+            // different easing per phase — a quart-eased close must not be
+            // indistinguishable from the old cubic-eased motion partway
+            // through.
+            var rest = new CloudLayout(0.1f, 0.1f, 0.3f, 0.3f, 0f, 0.66f);
+            var closed = MapCloudMath.ComputeClosedLayout(rest, CloudExpansionAnchor.LeftEdge, MapCloudLayout.CloseExpansionFactor, 1.0f);
+            var viaCubic = MapCloudMath.LerpWithEasing(rest, closed, 0.25f, MapCloudMath.EaseInOutCubic);
+            var viaQuart = MapCloudMath.LerpWithEasing(rest, closed, 0.25f, MapCloudMath.EaseInOutQuart);
+            Assert.AreNotEqual(viaCubic.NormalizedWidth, viaQuart.NormalizedWidth);
+        }
+
+        [Test]
+        public void LerpWithEasing_NullEasing_FallsBackToCubic()
+        {
+            var from = new CloudLayout(0.1f, 0.2f, 0.3f, 0.4f, 0f, 0.74f);
+            var to = new CloudLayout(0.9f, 0.8f, 0.7f, 0.6f, -180f, 1.0f);
+            var viaNull = MapCloudMath.LerpWithEasing(from, to, 0.3f, null);
+            var viaCubic = MapCloudMath.LerpWithEasing(from, to, 0.3f, MapCloudMath.EaseInOutCubic);
+            Assert.AreEqual(viaCubic.NormalizedX, viaNull.NormalizedX, 0.0001f);
         }
     }
 }

@@ -154,5 +154,58 @@ namespace Mikey.UI.Map
             element.style.left = new Length(viewportNormalizedX * 100f, LengthUnit.Percent);
             element.style.top = new Length(viewportNormalizedY * 100f, LengthUnit.Percent);
         }
+
+        /// <summary>
+        /// MVP-simple "current chapter" resolution for the Japan world map's
+        /// opening camera focus (see MapPanZoomController): the LAST chapter
+        /// in south-to-north <see cref="Chapters"/> order whose
+        /// <see cref="ChapterMarkerLayout.Unlocked"/> is true — i.e. the
+        /// furthest chapter the player has reached, since this MVP's
+        /// chapters unlock strictly in a fixed sequence (Okinawa, then
+        /// Fukuoka, then Hiroshima). Falls back to
+        /// <see cref="OkinawaChapterId"/> (this MVP's only real playable
+        /// chapter) if somehow none are marked unlocked.
+        ///
+        /// Deliberately reads the SAME centralized <see cref="Chapters"/>
+        /// data already used for marker placement rather than introducing a
+        /// separate "current chapter" store that could drift out of sync —
+        /// so unlocking Fukuoka/Hiroshima later (flipping their Unlocked
+        /// flag here) makes the opening map camera follow automatically,
+        /// with no camera code changes required.
+        /// </summary>
+        public static string ResolveCurrentChapterId()
+        {
+            string current = OkinawaChapterId;
+            foreach (var chapter in Chapters)
+            {
+                if (chapter.Unlocked)
+                    current = chapter.Id;
+            }
+            return current;
+        }
+
+        /// <summary>
+        /// The current chapter's own marker coordinate (see
+        /// <see cref="ResolveCurrentChapterId"/>) — the Japan world map's
+        /// opening camera focal point, in the same SOURCE-IMAGE-normalized
+        /// basis as every other coordinate in this class. False only if
+        /// <see cref="Chapters"/> somehow has no entry for the resolved id
+        /// (never happens with the current fixed 3-chapter MVP set).
+        /// </summary>
+        public static bool TryGetCurrentChapterFocalPoint(out float sourceNormalizedX, out float sourceNormalizedY)
+        {
+            string currentChapterId = ResolveCurrentChapterId();
+            foreach (var chapter in Chapters)
+            {
+                if (chapter.Id != currentChapterId)
+                    continue;
+                sourceNormalizedX = chapter.NormalizedX;
+                sourceNormalizedY = chapter.NormalizedY;
+                return true;
+            }
+            sourceNormalizedX = 0f;
+            sourceNormalizedY = 0f;
+            return false;
+        }
     }
 }

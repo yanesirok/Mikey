@@ -109,9 +109,13 @@ namespace Mikey.UI.Map.Tests
         [Test]
         public void EnteringItsConfiguredScreen_ResetsPanAndZoom()
         {
+            // OnScreenChanged now early-returns for a different screen AND
+            // (camera refinement pass) for an in-progress cloud transition —
+            // see OnScreenChanged_SkipsResetTransform_WhileCloudTransitionIsRunning
+            // — rather than nesting the whole body inside a positive check.
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("private void OnScreenChanged(string changedScreenId)", source);
-            StringAssert.Contains("if (changedScreenId == screenId)", source);
+            StringAssert.Contains("if (changedScreenId != screenId)", source);
             StringAssert.Contains("ResetTransform();", source);
         }
 
@@ -293,7 +297,181 @@ namespace Mikey.UI.Map.Tests
             // mechanism that only helps with marker taps/outside-tap close.
             string source = File.ReadAllText(SourcePath);
             int occurrences = CountOccurrences(source, "MapCloudTransitionController.IsTransitioning");
-            Assert.AreEqual(3, occurrences, "Expected exactly 3 guard sites: Update(), OnPointerDown(), OnWheel().");
+            Assert.AreEqual(4, occurrences, "Expected 4 guard sites: Update(), OnPointerDown(), OnWheel(), and (camera refinement pass) OnScreenChanged().");
+        }
+
+        // ---------- OnScreenChanged must not fight a transferred cloud-transition view ----------
+
+        [Test]
+        public void OnScreenChanged_SkipsResetTransform_WhileCloudTransitionIsRunning()
+        {
+            // A Japan<->Okinawa cloud transition sets the destination
+            // screen's view itself (SetViewToSourceFocalPoint, called by
+            // MapCloudTransitionController while hidden) — the normal
+            // fresh-entry ResetTransform() must not run mid-transition and
+            // overwrite that transferred, spatially-continuous view.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnScreenChanged(string changedScreenId)", System.StringComparison.Ordinal);
+            int methodStart2 = source.IndexOf("private void ResetTransform()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            Assert.Greater(methodStart2, methodStart);
+            string body = source.Substring(methodStart, methodStart2 - methodStart);
+
+            int guardIndex = body.IndexOf("if (MapCloudTransitionController.IsTransitioning)", System.StringComparison.Ordinal);
+            int resetIndex = body.IndexOf("ResetTransform();", System.StringComparison.Ordinal);
+            Assert.Greater(guardIndex, -1, "Expected an IsTransitioning guard inside OnScreenChanged.");
+            Assert.Greater(resetIndex, -1);
+            Assert.Less(guardIndex, resetIndex, "The guard must come before the ResetTransform() call it protects.");
+        }
+
+        [Test]
+        public void ResetTransform_HasExactlyTwoCallSites_BindAndScreenChanged_UnchangedByTheGuard()
+        {
+            // The guard added to OnScreenChanged must short-circuit BEFORE
+            // calling ResetTransform(), not remove or duplicate the call
+            // site itself.
+            string source = File.ReadAllText(SourcePath);
+            int callCount = CountOccurrences(source, "ResetTransform();");
+            Assert.AreEqual(2, callCount);
+        }
+
+        // ---------- Japan world map's opening camera focuses on the player's current chapter ----------
+
+        [Test]
+        public void JapanWorldScreenId_MatchesTheConfiguredJapanScreenId_Map()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const string JapanWorldScreenId = \"map\";", source);
+        }
+
+        [Test]
+        public void PlayIntroZoomAnimation_ResolvesChapterFocus_OnlyForTheJapanWorldScreen()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private IEnumerator PlayIntroZoomAnimation()", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("private void ApplyZoomTowardChapterFocus", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("screenId == JapanWorldScreenId", body);
+            StringAssert.Contains("MapMarkerLayout.TryGetCurrentChapterFocalPoint(out focusSourceX, out focusSourceY)", body);
+        }
+
+        [Test]
+        public void PlayIntroZoomAnimation_UsesChapterFocusBranch_ButKeepsThePlainCenterPathIntact()
+        {
+            // The non-focus path (Okinawa's own screen, or Japan if no
+            // focal point resolves) must still literally use the original
+            // SetZoom(Mathf.LerpUnclamped(...)) calls — proves the existing
+            // plain-center opening behavior is preserved unchanged, not
+            // replaced outright.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));", source);
+            StringAssert.Contains("SetZoom(targetZoom);", source);
+            StringAssert.Contains("ApplyZoomTowardChapterFocus(Mathf.LerpUnclamped(startZoom, targetZoom, t), focusSourceX, focusSourceY);", source);
+            StringAssert.Contains("ApplyZoomTowardChapterFocus(targetZoom, focusSourceX, focusSourceY);", source);
+        }
+
+        [Test]
+        public void ApplyZoomTowardChapterFocus_RoutesThroughSourceToViewport_AndPanForTarget()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void ApplyZoomTowardChapterFocus", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("public bool TryGetCurrentSourceFocalPoint", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("MapCoordinateMapping.SourceToViewport(", body);
+            StringAssert.Contains("MapPanZoomMath.PanForTarget(canvasNormalizedX, 0.5f, _zoom, viewportWidth)", body);
+            StringAssert.Contains("MapPanZoomMath.PanForTarget(canvasNormalizedY, ChapterFocusTargetNormalizedY, _zoom, viewportHeight)", body);
+        }
+
+        [Test]
+        public void ChapterFocusTarget_IsBelowDeadCenter_SoTheMarkerNeverSitsUnderTheTopbar()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float ChapterFocusTargetNormalizedY = 0.56f;", source);
+        }
+
+        [Test]
+        public void ChapterFocus_NeverMutatesStoredMarkerCoordinates_OnlyReadsThem()
+        {
+            // MapMarkerLayout.TryGetCurrentChapterFocalPoint is a read-only
+            // query; nothing in this controller may write back to
+            // MapMarkerLayout's chapter data.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("MapMarkerLayout.Chapters[", source);
+        }
+
+        // ---------- spatial continuity: capture and reconstruct a view across a Japan<->Okinawa cloud transition ----------
+
+        [Test]
+        public void ScreenId_And_CurrentZoom_AreExposedReadOnly_ForMapCloudTransitionController()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("public string ScreenId => screenId;", source);
+            StringAssert.Contains("public float CurrentZoom => _zoom;", source);
+        }
+
+        [Test]
+        public void TryGetCurrentSourceFocalPoint_InvertsThroughCanvasNormalizedAtViewportCenter_AndViewportToSource()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public bool TryGetCurrentSourceFocalPoint", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("public void SetViewToSourceFocalPoint", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("MapPanZoomMath.CanvasNormalizedAtViewportCenter(_panX, _zoom, viewportWidth)", body);
+            StringAssert.Contains("MapPanZoomMath.CanvasNormalizedAtViewportCenter(_panY, _zoom, viewportHeight)", body);
+            StringAssert.Contains("MapCoordinateMapping.ViewportToSource(", body);
+            StringAssert.Contains("return false;", body, "Must report failure (not a fabricated point) while not yet bound/laid out.");
+        }
+
+        [Test]
+        public void TryGetCurrentSourceFocalPoint_RequiresBound_AndAPositiveViewportSize()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public bool TryGetCurrentSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public void SetViewToSourceFocalPoint", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.Contains("!_bound || viewportWidth <= 0f || viewportHeight <= 0f", body);
+        }
+
+        [Test]
+        public void SetViewToSourceFocalPoint_IsPublic_BypassesTheOpeningAnimation_AndClampsZoom()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1, "Expected a public SetViewToSourceFocalPoint(sourceNormalizedX, sourceNormalizedY, zoom) method.");
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("CancelIntroZoomAnimation();", body, "Must cancel any in-flight opening animation rather than fighting it.");
+            StringAssert.Contains("MapPanZoomMath.ClampZoom(zoom)", body);
+            StringAssert.Contains("MapCoordinateMapping.SourceToViewport(", body);
+            StringAssert.Contains("MapPanZoomMath.PanForTarget(canvasNormalizedX, 0.5f, _zoom, viewportWidth)", body);
+            StringAssert.Contains("MapPanZoomMath.PanForTarget(canvasNormalizedY, 0.5f, _zoom, viewportHeight)", body, "Spatial continuity targets dead viewport center — never the chapter-focus off-center offset.");
+        }
+
+        [Test]
+        public void SetViewToSourceFocalPoint_NeverMutatesStoredMarkerOrChapterData()
+        {
+            // Reading MapMarkerLayout.SourceImageWidth/Height (the shared
+            // source-image dimensions, same as every other coordinate
+            // conversion in this codebase) is legitimate and required here
+            // — what must never appear is a write back into the stored
+            // Chapters/Missions arrays themselves.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.DoesNotContain("MapMarkerLayout.Chapters[", body);
+            StringAssert.DoesNotContain("MapMarkerLayout.Missions[", body);
         }
     }
 }

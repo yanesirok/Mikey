@@ -153,5 +153,68 @@ namespace Mikey.UI.Map.Tests
             Assert.IsFalse(float.IsNaN(vx));
             Assert.IsFalse(float.IsNaN(vy));
         }
+
+        // ---------- ViewportToSource: the exact inverse, used to capture "what is the player looking at" for cross-map spatial continuity ----------
+
+        [Test]
+        public void ViewportToSource_IsTheExactInverseOfSourceToViewport_RoundTrip_NarrowViewport()
+        {
+            foreach (var (sx, sy) in new[] { (0.27809f, 0.81250f), (0.37484f, 0.50112f), (0.1f, 0.1f), (0.5f, 0.5f), (0.9f, 0.9f) })
+            {
+                MapCoordinateMapping.SourceToViewport(sx, sy, SourceWidth, SourceHeight, NarrowViewportWidth, NarrowViewportHeight, out float vx, out float vy);
+                MapCoordinateMapping.ViewportToSource(vx, vy, SourceWidth, SourceHeight, NarrowViewportWidth, NarrowViewportHeight, out float rx, out float ry);
+                Assert.AreEqual(sx, rx, Tolerance, $"source=({sx},{sy})");
+                Assert.AreEqual(sy, ry, Tolerance, $"source=({sx},{sy})");
+            }
+        }
+
+        [Test]
+        public void ViewportToSource_IsTheExactInverseOfSourceToViewport_RoundTrip_WideViewport()
+        {
+            foreach (var (sx, sy) in new[] { (0.27809f, 0.81250f), (0.42140f, 0.46615f), (0.1f, 0.1f), (0.5f, 0.5f), (0.9f, 0.9f) })
+            {
+                MapCoordinateMapping.SourceToViewport(sx, sy, SourceWidth, SourceHeight, WideViewportWidth, WideViewportHeight, out float vx, out float vy);
+                MapCoordinateMapping.ViewportToSource(vx, vy, SourceWidth, SourceHeight, WideViewportWidth, WideViewportHeight, out float rx, out float ry);
+                Assert.AreEqual(sx, rx, Tolerance, $"source=({sx},{sy})");
+                Assert.AreEqual(sy, ry, Tolerance, $"source=({sx},{sy})");
+            }
+        }
+
+        [Test]
+        public void ViewportToSource_ViewportCenter_AlwaysMapsToSourceCenter_RegardlessOfAspectRatio()
+        {
+            // Inverse of SourceCenter_AlwaysMapsToViewportCenter_RegardlessOfAspectRatio.
+            MapCoordinateMapping.ViewportToSource(0.5f, 0.5f, SourceWidth, SourceHeight, NarrowViewportWidth, NarrowViewportHeight, out float nx, out float ny);
+            Assert.AreEqual(0.5f, nx, Tolerance);
+            Assert.AreEqual(0.5f, ny, Tolerance);
+
+            MapCoordinateMapping.ViewportToSource(0.5f, 0.5f, SourceWidth, SourceHeight, WideViewportWidth, WideViewportHeight, out float wx, out float wy);
+            Assert.AreEqual(0.5f, wx, Tolerance);
+            Assert.AreEqual(0.5f, wy, Tolerance);
+        }
+
+        [Test]
+        public void ViewportToSource_MatchingAspectRatio_IsIdentity()
+        {
+            MapCoordinateMapping.ViewportToSource(
+                0.27809f, 0.81250f, SourceWidth, SourceHeight,
+                SourceWidth * 0.5f, SourceHeight * 0.5f,
+                out float sx, out float sy);
+            Assert.AreEqual(0.27809f, sx, Tolerance);
+            Assert.AreEqual(0.81250f, sy, Tolerance);
+        }
+
+        [TestCase(0f, 100f)]
+        [TestCase(100f, 0f)]
+        [TestCase(-100f, 100f)]
+        [TestCase(float.NaN, 100f)]
+        public void ViewportToSource_DegenerateViewportSize_FallsBackToIdentityMapping_NeverNaNOrDivideByZero(float viewportWidth, float viewportHeight)
+        {
+            MapCoordinateMapping.ViewportToSource(0.27809f, 0.81250f, SourceWidth, SourceHeight, viewportWidth, viewportHeight, out float sx, out float sy);
+            Assert.AreEqual(0.27809f, sx, Tolerance);
+            Assert.AreEqual(0.81250f, sy, Tolerance);
+            Assert.IsFalse(float.IsNaN(sx));
+            Assert.IsFalse(float.IsNaN(sy));
+        }
     }
 }

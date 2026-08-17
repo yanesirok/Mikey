@@ -46,6 +46,12 @@ namespace Mikey.UI.Map
         /// <summary>How long the opening zoom (MinZoom -> DefaultZoom) takes on a fresh entry to this map screen.</summary>
         private const float IntroZoomDurationSeconds = 0.4f;
 
+        /// <summary>Only the Japan world map screen has an opening "focus on the player's current chapter" camera — see PlayIntroZoomAnimation. Other map screens (Okinawa's own) keep the existing centered opening view.</summary>
+        private const string JapanWorldScreenId = "map";
+
+        /// <summary>Where the current chapter marker lands vertically when the Japan world map opens focused on it — slightly below dead center (0.5) so the marker is never crowded under the topbar at the top of the screen. Horizontal framing stays dead center (0.5); the topbar doesn't constrain that axis.</summary>
+        private const float ChapterFocusTargetNormalizedY = 0.56f;
+
         [Tooltip("The ScreenManager screen id this instance belongs to (e.g. 'map' or 'mapOkinawa'). Pan/zoom resets whenever this screen becomes active.")]
         [SerializeField] private string screenId = "map";
 
@@ -82,6 +88,12 @@ namespace Mikey.UI.Map
         private Coroutine _bindRoutine;
         private Coroutine _introZoomRoutine;
         private bool _bound;
+
+        /// <summary>This instance's configured screen id — exposed read-only so MapCloudTransitionController can tell apart the Japan ("map") and Okinawa ("mapOkinawa") sibling instances when transferring view state across a chapter transition.</summary>
+        public string ScreenId => screenId;
+
+        /// <summary>Current zoom level, for capturing view state before a Japan&lt;-&gt;Okinawa cloud transition (see MapCloudTransitionController).</summary>
+        public float CurrentZoom => _zoom;
 
         private void OnEnable()
         {
@@ -296,8 +308,20 @@ namespace Mikey.UI.Map
 
         private void OnScreenChanged(string changedScreenId)
         {
-            if (changedScreenId == screenId)
-                ResetTransform();
+            if (changedScreenId != screenId)
+                return;
+
+            // A Japan<->Okinawa cloud transition already positions this
+            // screen's view itself (see SetViewToSourceFocalPoint, called by
+            // MapCloudTransitionController while fully hidden under cloud
+            // cover) — the normal "fresh entry" reset must not fight that
+            // transferred, spatially-continuous view. IsTransitioning stays
+            // true for the whole close-hold-reveal sequence, which safely
+            // spans the Show() call that fires this event.
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
+
+            ResetTransform();
         }
 
         /// <summary>
@@ -318,10 +342,19 @@ namespace Mikey.UI.Map
 
         /// <summary>
         /// Short, decelerating zoom-in from MinZoom to DefaultZoom, pivoting
-        /// around the canvas's own center (pan stays at its reset 0,0 the whole
-        /// time) — "world map appears, glides inward, settles". Any real input
-        /// (drag past threshold, wheel, pinch start) cancels this immediately
-        /// via CancelIntroZoomAnimation and is never queued afterward.
+        /// around the canvas's own center. On the Japan world map only
+        /// (screenId == "map"), this also pans toward the player's current
+        /// chapter (see MapMarkerLayout.TryGetCurrentChapterFocalPoint) as
+        /// zoom increases, so the reveal reads as "world map appears, glides
+        /// toward where the player's story currently is, settles" rather
+        /// than a generic center zoom — the chapter marker lands at a
+        /// comfortable off-center composition (see
+        /// ChapterFocusTargetNormalizedY), never under the topbar. Every
+        /// other screen (Okinawa's own) keeps the original plain-center
+        /// behavior: pan stays at its reset 0,0 the whole time. Any real
+        /// input (drag past threshold, wheel, pinch start) cancels this
+        /// immediately via CancelIntroZoomAnimation and is never queued
+        /// afterward.
         /// </summary>
         private IEnumerator PlayIntroZoomAnimation()
         {
@@ -329,16 +362,132 @@ namespace Mikey.UI.Map
             float targetZoom = MapPanZoomMath.DefaultZoom;
             float elapsed = 0f;
 
+            float focusSourceX = 0f, focusSourceY = 0f;
+            bool hasChapterFocus = screenId == JapanWorldScreenId
+                && MapMarkerLayout.TryGetCurrentChapterFocalPoint(out focusSourceX, out focusSourceY);
+
             while (elapsed < IntroZoomDurationSeconds)
             {
                 elapsed += Time.deltaTime;
                 float t = MapPanZoomMath.EaseOutCubic(elapsed / IntroZoomDurationSeconds);
-                SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
+                if (hasChapterFocus)
+                    ApplyZoomTowardChapterFocus(Mathf.LerpUnclamped(startZoom, targetZoom, t), focusSourceX, focusSourceY);
+                else
+                    SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
                 yield return null;
             }
 
-            SetZoom(targetZoom);
+            if (hasChapterFocus)
+                ApplyZoomTowardChapterFocus(targetZoom, focusSourceX, focusSourceY);
+            else
+                SetZoom(targetZoom);
             _introZoomRoutine = null;
+        }
+
+        /// <summary>
+        /// Sets zoom and pans so the given SOURCE-image-normalized point
+        /// (the current chapter's marker — never a stored marker coordinate
+        /// mutation, purely a display-time camera target) lands at
+        /// <see cref="ChapterFocusTargetNormalizedY"/> vertically and dead
+        /// center horizontally, at the given zoom. Called every frame of the
+        /// opening animation so the chapter marker stays pinned at that
+        /// framing throughout the zoom-in, not just at the end.
+        /// </summary>
+        private void ApplyZoomTowardChapterFocus(float zoom, float focusSourceX, float focusSourceY)
+        {
+            _zoom = MapPanZoomMath.ClampZoom(zoom);
+            ApplyZoom();
+
+            float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
+            float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
+            if (viewportWidth <= 0f || viewportHeight <= 0f)
+            {
+                SetPan(_panX, _panY);
+                return;
+            }
+
+            MapCoordinateMapping.SourceToViewport(
+                focusSourceX, focusSourceY,
+                MapMarkerLayout.SourceImageWidth, MapMarkerLayout.SourceImageHeight,
+                viewportWidth, viewportHeight,
+                out float canvasNormalizedX, out float canvasNormalizedY);
+
+            float panX = MapPanZoomMath.PanForTarget(canvasNormalizedX, 0.5f, _zoom, viewportWidth);
+            float panY = MapPanZoomMath.PanForTarget(canvasNormalizedY, ChapterFocusTargetNormalizedY, _zoom, viewportHeight);
+            SetPan(panX, panY);
+        }
+
+        /// <summary>
+        /// The source-image-normalized point currently sitting at the
+        /// viewport's exact center, derived by inverting the pan/zoom
+        /// transform and the cover-fit crop (see
+        /// MapCoordinateMapping.ViewportToSource) — used only by
+        /// MapCloudTransitionController to capture "what is the player
+        /// currently looking at" before a Japan&lt;-&gt;Okinawa chapter
+        /// transition, so the destination map can reconstruct the same
+        /// framing (see <see cref="SetViewToSourceFocalPoint"/>). False
+        /// while not yet bound/laid out.
+        /// </summary>
+        public bool TryGetCurrentSourceFocalPoint(out float sourceNormalizedX, out float sourceNormalizedY)
+        {
+            sourceNormalizedX = 0f;
+            sourceNormalizedY = 0f;
+
+            float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
+            float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
+            if (!_bound || viewportWidth <= 0f || viewportHeight <= 0f)
+                return false;
+
+            float canvasNormalizedX = MapPanZoomMath.CanvasNormalizedAtViewportCenter(_panX, _zoom, viewportWidth);
+            float canvasNormalizedY = MapPanZoomMath.CanvasNormalizedAtViewportCenter(_panY, _zoom, viewportHeight);
+
+            MapCoordinateMapping.ViewportToSource(
+                canvasNormalizedX, canvasNormalizedY,
+                MapMarkerLayout.SourceImageWidth, MapMarkerLayout.SourceImageHeight,
+                viewportWidth, viewportHeight,
+                out sourceNormalizedX, out sourceNormalizedY);
+            return true;
+        }
+
+        /// <summary>
+        /// Immediately (no animation) positions this canvas so the given
+        /// source-image-normalized point sits at the viewport's exact
+        /// center, at the given zoom — used only by
+        /// MapCloudTransitionController to reconstruct spatial continuity on
+        /// the destination screen WHILE FULLY HIDDEN under cloud cover,
+        /// mirroring how it snaps the destination's clouds to their own
+        /// closed layout before the swap. Bypasses the normal opening-zoom
+        /// animation and any chapter-focus default entirely — the
+        /// transferred view always wins during a cloud transition (see
+        /// OnScreenChanged's IsTransitioning guard).
+        /// </summary>
+        public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)
+        {
+            if (_viewport == null || _canvas == null)
+                return;
+
+            CancelIntroZoomAnimation();
+
+            _zoom = MapPanZoomMath.ClampZoom(zoom);
+            ApplyZoom();
+
+            float viewportWidth = _viewport.resolvedStyle.width;
+            float viewportHeight = _viewport.resolvedStyle.height;
+            if (viewportWidth <= 0f || viewportHeight <= 0f)
+            {
+                SetPan(0f, 0f);
+                return;
+            }
+
+            MapCoordinateMapping.SourceToViewport(
+                sourceNormalizedX, sourceNormalizedY,
+                MapMarkerLayout.SourceImageWidth, MapMarkerLayout.SourceImageHeight,
+                viewportWidth, viewportHeight,
+                out float canvasNormalizedX, out float canvasNormalizedY);
+
+            float panX = MapPanZoomMath.PanForTarget(canvasNormalizedX, 0.5f, _zoom, viewportWidth);
+            float panY = MapPanZoomMath.PanForTarget(canvasNormalizedY, 0.5f, _zoom, viewportHeight);
+            SetPan(panX, panY);
         }
 
         private void CancelIntroZoomAnimation()

@@ -7,18 +7,25 @@ namespace Mikey.UI.Map
 {
     /// <summary>
     /// Drives the sumi-e cloud transition between the Japan world map and the
-    /// Okinawa chapter map (Map Pass 3B, corrected architecture): Phase A
-    /// EXPANDS the SOURCE screen's clouds from their rest layout toward a
-    /// per-cloud computed closed layout (see MapCloudMath.ComputeClosedLayout
-    /// — each cloud grows from its own resting rectangle while one edge/
-    /// corner stays fixed, never a slide toward the center) while ramping
-    /// opacity to fully opaque, fully hiding the map. Phase B swaps the
-    /// active screen while covered (the DESTINATION screen's clouds are set
-    /// to ITS OWN computed closed layout instantly, invisibly, just before
-    /// the swap). Phase C contracts the DESTINATION screen's clouds from
-    /// closed back down to its own rest layout, ramping opacity back to each
-    /// cloud's resting value. One instance owns both screens' cloud elements
-    /// since a single transition must coordinate across them.
+    /// Okinawa chapter map (Map Pass 3B/3C, corrected architecture + camera
+    /// refinement pass): Phase A EXPANDS the SOURCE screen's clouds from
+    /// their rest layout toward a per-cloud computed closed layout (see
+    /// MapCloudMath.ComputeClosedLayout — each cloud grows from its own
+    /// resting rectangle while one edge/corner stays fixed, never a slide
+    /// toward the center) while ramping opacity to fully opaque, fully
+    /// hiding the map. Phase B swaps the active screen while covered (the
+    /// DESTINATION screen's clouds are set to ITS OWN computed closed layout
+    /// instantly, invisibly, just before the swap — and, in the same
+    /// invisible instant, the destination's pan/zoom camera is set to
+    /// reproduce the SOURCE screen's exact spatial framing (see
+    /// <see cref="PlayJapanToOkinawa"/>/<see cref="PlayOkinawaToJapan"/>'s
+    /// use of MapPanZoomController.TryGetCurrentSourceFocalPoint/
+    /// SetViewToSourceFocalPoint), so the swap never reads as a camera
+    /// teleport underneath the clouds). Phase C contracts the DESTINATION
+    /// screen's clouds from closed back down to its own rest layout, ramping
+    /// opacity back to each cloud's resting value. One instance owns both
+    /// screens' cloud AND pan/zoom elements since a single transition must
+    /// coordinate across them.
     ///
     /// Clouds are part of the painted map composition, not screen-fixed
     /// atmospheric HUD: they are children of the SAME transformed
@@ -31,6 +38,28 @@ namespace Mikey.UI.Map
     /// size, this controller reapplies the CURRENT rest preset on canvas
     /// resize while no transition is running (mirrors
     /// JapanMapController/OkinawaMapController's marker resize reprojection).
+    ///
+    /// Spatial continuity: since Japan and Okinawa share the exact same
+    /// source image dimensions (MapMarkerLayout.SourceImageWidth/Height),
+    /// "what source-image point is under the viewport center right now" (see
+    /// MapPanZoomController.TryGetCurrentSourceFocalPoint) is directly
+    /// meaningful on either screen with no remapping — captured from the
+    /// SOURCE screen at the very start of the transition (its camera never
+    /// moves during the close/hold/reveal sequence, only its clouds do) and
+    /// applied to the DESTINATION screen instantly while hidden (see
+    /// <see cref="MapPanZoomController.SetViewToSourceFocalPoint"/>), zoom
+    /// included. MapPanZoomController.OnScreenChanged separately guards
+    /// against its own normal "fresh entry" reset fighting this transferred
+    /// view (checks <see cref="IsTransitioning"/> itself).
+    ///
+    /// Cloud motion quality: close and reveal use DIFFERENT eased curves
+    /// (MapCloudMath.EaseInOutQuart for close — a steeper, more dramatic
+    /// "gather and spread" — MapCloudMath.EaseInOutCubic for reveal — a
+    /// gentler "settle"), and the 4 clouds start at very slightly different
+    /// offsets within each phase (see the per-cloud *StaggerSeconds
+    /// constants) so all 4 never move in obvious lockstep, without
+    /// reintroducing the old "four blobs sliding" bug (motion is still pure
+    /// anchor-preserving expansion, never a slide).
     ///
     /// Input lock: each screen's cloud-layer container's own picking-mode is
     /// the map-content-area input blocker during a transition (Position
@@ -51,20 +80,39 @@ namespace Mikey.UI.Map
     {
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>How long each cloud's expansion/contraction takes. All 4 clouds move together — no staggered start delay (see class remarks: the previous "four blobs sliding" bug came from slide motion, not from being staggered, and expansion alone already reads as organic).</summary>
-        private const float CloudMoveDurationSeconds = 0.75f;
+        /// <summary>How long the close phase (rest -> full cover) takes, before any per-cloud stagger. Slower than the reveal (see class remarks: close should read as a more deliberate "gathering").</summary>
+        private const float CloudCloseDurationSeconds = 1.05f;
 
-        /// <summary>Brief hold at full cover so the (invisible) screen swap never feels rushed or clipped.</summary>
-        private const float FullCoverHoldSeconds = 0.08f;
+        /// <summary>How long the reveal phase (full cover -> destination rest) takes, before any per-cloud stagger.</summary>
+        private const float CloudRevealDurationSeconds = 0.95f;
+
+        /// <summary>Brief hold at full cover so the (invisible) screen swap and camera transfer never feel rushed or clipped.</summary>
+        private const float FullCoverHoldSeconds = 0.12f;
 
         /// <summary>Every cloud reads as fully opaque at full cover, regardless of its own rest opacity, so the map is completely hidden.</summary>
         private const float FullCoverOpacity = 1.0f;
+
+        /// <summary>
+        /// Small per-cloud start-delay stagger, applied identically to both
+        /// close and reveal, so the 4 clouds never move in obvious lockstep
+        /// (see class remarks). Deliberately tiny relative to the phase
+        /// durations above — this is a subtle desynchronization, not a
+        /// sequential reveal. Follows the shared paint order (Right1, Left1,
+        /// Left2, Bottom1 — see MikeyApp.uxml/Map.uss).
+        /// </summary>
+        private const float Right1StaggerSeconds = 0f;
+        private const float Left1StaggerSeconds = 0.025f;
+        private const float Left2StaggerSeconds = 0.05f;
+        private const float Bottom1StaggerSeconds = 0.075f;
+        private const float MaxCloudStaggerSeconds = Bottom1StaggerSeconds;
 
         /// <summary>True for the whole close-hold-reveal sequence, from Phase A start to Phase C end. Static/session-scoped like MapNavigationState: other Map controllers (including MapPanZoomController) check this to ignore input mid-transition and to prevent a transition starting twice.</summary>
         public static bool IsTransitioning { get; private set; }
 
         private VisualElement _root;
         private IScreenNavigator _navigator;
+        private MapPanZoomController _japanPanZoom;
+        private MapPanZoomController _okinawaPanZoom;
 
         private VisualElement _japanCanvas;
         private VisualElement _japanCloudLayer;
@@ -110,6 +158,8 @@ namespace Mikey.UI.Map
 
             _root = null;
             _navigator = null;
+            _japanPanZoom = null;
+            _okinawaPanZoom = null;
             _bound = false;
             IsTransitioning = false;
         }
@@ -155,6 +205,14 @@ namespace Mikey.UI.Map
             }
 
             _navigator = GetComponent<IScreenNavigator>();
+
+            foreach (var controller in GetComponents<MapPanZoomController>())
+            {
+                if (controller.ScreenId == "map")
+                    _japanPanZoom = controller;
+                else if (controller.ScreenId == "mapOkinawa")
+                    _okinawaPanZoom = controller;
+            }
 
             // First entry to either screen (from Main Menu, or reopening Map
             // in whichever context MapNavigationState already holds) shows
@@ -220,11 +278,19 @@ namespace Mikey.UI.Map
                 yield break;
             IsTransitioning = true;
 
+            // Captured before anything closes: the source screen's own
+            // camera never moves during the close/hold/reveal sequence
+            // (only its clouds do), so the view right now IS the view the
+            // player leaves Japan looking at.
+            float focusX = 0f, focusY = 0f;
+            bool hasView = _japanPanZoom != null && _japanPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY);
+            float capturedZoom = _japanPanZoom != null ? _japanPanZoom.CurrentZoom : MapPanZoomMath.DefaultZoom;
+
             SetInputLock(_japanCloudLayer, true);
             float japanWidth = _japanCanvas.resolvedStyle.width;
             float japanHeight = _japanCanvas.resolvedStyle.height;
             MapCloudPreset japanClosed = ComputeClosedPreset(MapCloudLayout.JapanRest);
-            yield return AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, MapCloudLayout.JapanRest, japanClosed, japanWidth, japanHeight);
+            yield return AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, MapCloudLayout.JapanRest, japanClosed, japanWidth, japanHeight, CloudCloseDurationSeconds, MapCloudMath.EaseInOutQuart);
 
             yield return new WaitForSeconds(FullCoverHoldSeconds);
 
@@ -232,16 +298,21 @@ namespace Mikey.UI.Map
             // shown) — snapping them to THEIR OWN computed closed layout
             // here, before the swap, means the swap itself is never visible:
             // both screens read as identically "fully covered" at the
-            // instant it happens.
+            // instant it happens. The camera transfer happens in this same
+            // invisible instant, so Okinawa is already framed at Japan's
+            // captured view before a single pixel of it is ever shown —
+            // never a teleport underneath the clouds.
             float okinawaWidth = _okinawaCanvas.resolvedStyle.width;
             float okinawaHeight = _okinawaCanvas.resolvedStyle.height;
             MapCloudPreset okinawaClosed = ComputeClosedPreset(MapCloudLayout.OkinawaRest);
             MapCloudLayout.ApplyPreset(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, okinawaWidth, okinawaHeight);
             SetInputLock(_okinawaCloudLayer, true);
+            if (hasView)
+                _okinawaPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);
 
             _navigator?.Show("mapOkinawa");
 
-            yield return AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, MapCloudLayout.OkinawaRest, okinawaWidth, okinawaHeight);
+            yield return AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, MapCloudLayout.OkinawaRest, okinawaWidth, okinawaHeight, CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic);
 
             SetInputLock(_japanCloudLayer, false);
             SetInputLock(_okinawaCloudLayer, false);
@@ -255,11 +326,15 @@ namespace Mikey.UI.Map
                 yield break;
             IsTransitioning = true;
 
+            float focusX = 0f, focusY = 0f;
+            bool hasView = _okinawaPanZoom != null && _okinawaPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY);
+            float capturedZoom = _okinawaPanZoom != null ? _okinawaPanZoom.CurrentZoom : MapPanZoomMath.DefaultZoom;
+
             SetInputLock(_okinawaCloudLayer, true);
             float okinawaWidth = _okinawaCanvas.resolvedStyle.width;
             float okinawaHeight = _okinawaCanvas.resolvedStyle.height;
             MapCloudPreset okinawaClosed = ComputeClosedPreset(MapCloudLayout.OkinawaRest);
-            yield return AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, MapCloudLayout.OkinawaRest, okinawaClosed, okinawaWidth, okinawaHeight);
+            yield return AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, MapCloudLayout.OkinawaRest, okinawaClosed, okinawaWidth, okinawaHeight, CloudCloseDurationSeconds, MapCloudMath.EaseInOutQuart);
 
             yield return new WaitForSeconds(FullCoverHoldSeconds);
 
@@ -268,6 +343,8 @@ namespace Mikey.UI.Map
             MapCloudPreset japanClosed = ComputeClosedPreset(MapCloudLayout.JapanRest);
             MapCloudLayout.ApplyPreset(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, japanWidth, japanHeight);
             SetInputLock(_japanCloudLayer, true);
+            if (hasView)
+                _japanPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);
 
             // The explicit "return to world map" context reset — replicates
             // what OnTopbarMapClicked used to do directly before this pass;
@@ -276,7 +353,7 @@ namespace Mikey.UI.Map
             MapNavigationState.Current = MapContext.JapanWorld;
             _navigator?.Show("map");
 
-            yield return AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, MapCloudLayout.JapanRest, japanWidth, japanHeight);
+            yield return AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, MapCloudLayout.JapanRest, japanWidth, japanHeight, CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic);
 
             SetInputLock(_okinawaCloudLayer, false);
             SetInputLock(_japanCloudLayer, false);
@@ -299,22 +376,40 @@ namespace Mikey.UI.Map
                 bottom1: MapCloudMath.ComputeClosedLayout(rest.Bottom1, MapCloudLayout.Bottom1Anchor, MapCloudLayout.CloseExpansionFactor, FullCoverOpacity));
         }
 
-        /// <summary>Animates all 4 clouds of one screen from <paramref name="from"/> to <paramref name="to"/> (all together, no stagger), then snaps exactly to <paramref name="to"/> so no rounding ever leaves a cloud a fraction short of its destination.</summary>
-        private static IEnumerator AnimateCloudSet(VisualElement left1, VisualElement left2, VisualElement right1, VisualElement bottom1, MapCloudPreset from, MapCloudPreset to, float viewportWidth, float viewportHeight)
+        /// <summary>
+        /// Animates all 4 clouds of one screen from <paramref name="from"/>
+        /// to <paramref name="to"/> over <paramref name="phaseDurationSeconds"/>,
+        /// eased via <paramref name="easing"/> (steeper EaseInOutQuart for
+        /// close, gentler EaseInOutCubic for reveal — see class remarks),
+        /// with each cloud starting at its own small fixed stagger offset
+        /// (see the *StaggerSeconds constants) so all 4 never move in
+        /// obvious lockstep — each cloud's OWN local duration is shortened
+        /// by the largest stagger so every cloud still finishes exactly at
+        /// <paramref name="phaseDurationSeconds"/>. Snaps exactly to
+        /// <paramref name="to"/> afterward so no rounding ever leaves a
+        /// cloud a fraction short of its destination.
+        /// </summary>
+        private static IEnumerator AnimateCloudSet(VisualElement left1, VisualElement left2, VisualElement right1, VisualElement bottom1, MapCloudPreset from, MapCloudPreset to, float viewportWidth, float viewportHeight, float phaseDurationSeconds, System.Func<float, float> easing)
         {
+            float cloudDurationSeconds = phaseDurationSeconds - MaxCloudStaggerSeconds;
             float elapsed = 0f;
-            while (elapsed < CloudMoveDurationSeconds)
+            while (elapsed < phaseDurationSeconds)
             {
                 elapsed += Time.deltaTime;
-                float t = MapCloudMath.LocalProgress(elapsed, 0f, CloudMoveDurationSeconds);
-                MapCloudLayout.Apply(left1, MapCloudMath.Lerp(from.Left1, to.Left1, t), viewportWidth, viewportHeight);
-                MapCloudLayout.Apply(left2, MapCloudMath.Lerp(from.Left2, to.Left2, t), viewportWidth, viewportHeight);
-                MapCloudLayout.Apply(right1, MapCloudMath.Lerp(from.Right1, to.Right1, t), viewportWidth, viewportHeight);
-                MapCloudLayout.Apply(bottom1, MapCloudMath.Lerp(from.Bottom1, to.Bottom1, t), viewportWidth, viewportHeight);
+                ApplyStaggeredFrame(left1, from.Left1, to.Left1, elapsed, Left1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);
+                ApplyStaggeredFrame(left2, from.Left2, to.Left2, elapsed, Left2StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);
+                ApplyStaggeredFrame(right1, from.Right1, to.Right1, elapsed, Right1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);
+                ApplyStaggeredFrame(bottom1, from.Bottom1, to.Bottom1, elapsed, Bottom1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);
                 yield return null;
             }
 
             MapCloudLayout.ApplyPreset(left1, left2, right1, bottom1, to, viewportWidth, viewportHeight);
+        }
+
+        private static void ApplyStaggeredFrame(VisualElement element, CloudLayout from, CloudLayout to, float elapsed, float staggerSeconds, float cloudDurationSeconds, System.Func<float, float> easing, float viewportWidth, float viewportHeight)
+        {
+            float t = MapCloudMath.LocalProgress(elapsed, staggerSeconds, cloudDurationSeconds);
+            MapCloudLayout.Apply(element, MapCloudMath.LerpWithEasing(from, to, t, easing), viewportWidth, viewportHeight);
         }
 
         /// <summary>The cloud layer's own picking-mode is the map-content-area input blocker — Position while locked (transitioning), Ignore at rest (mirrors ".map-outside-catcher"). The four decorative cloud sprites underneath always stay non-picking.</summary>

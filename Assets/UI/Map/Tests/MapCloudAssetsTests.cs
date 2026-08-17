@@ -121,6 +121,62 @@ namespace Mikey.UI.Map.Tests
             }
         }
 
+        // ---------- boundary investigation regression (camera refinement pass): no cropping, no masking workaround introduced ----------
+
+        [TestCase(".map-cloud {")]
+        public void CloudSprites_UseStretchScaleMode_NeverCropTheSourceCanvas(string selector)
+        {
+            // "scale-and-crop" (cover-fit) would crop away part of the PNG's
+            // own canvas to fill a mismatched-aspect box — "stretch" always
+            // renders the FULL canvas (including any transparent padding it
+            // has), non-uniformly scaled to fit. Investigation (see the
+            // pixel-level report) found the reported hard rectangular edge
+            // is caused by the source art itself having zero transparent
+            // padding on the affected edges, not by a Unity-side crop — this
+            // guards against ever silently reintroducing an ADDITIONAL crop
+            // on top of that.
+            string uss = File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            StringAssert.Contains("-unity-background-scale-mode: stretch;", block);
+            StringAssert.DoesNotContain("scale-and-crop", block);
+        }
+
+        [Test]
+        public void NoMaskingOrDarkeningWorkaroundWasIntroduced_ToHideTheReportedRectangularEdge()
+        {
+            // The investigation found the edge is baked into the source art
+            // (no transparent padding on the affected edges) — the correct
+            // response is a BLOCKED re-export request (see the pass's final
+            // report), never papering over it with an opaque panel, a
+            // fabricated gradient mask, or a blur. This guards against ever
+            // taking that shortcut in Map.uss.
+            string uss = File.ReadAllText(UssPath);
+            foreach (var selector in new[] { ".map-cloud-layer {", ".map-cloud {", ".map-cloud--left-01 {", ".map-cloud--left-02 {", ".map-cloud--right-01 {", ".map-cloud--bottom-01 {" })
+            {
+                string block = ExtractRuleBlock(uss, selector);
+                Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+                StringAssert.DoesNotContain("background-color", block, $"'{selector}' must not paint an opaque/dark backing rectangle behind the cloud PNG.");
+                StringAssert.DoesNotContain("mask", block, $"'{selector}' must not fake a fade with a CSS mask.");
+                StringAssert.DoesNotContain("blur", block, $"'{selector}' must not blur its way around the hard edge.");
+            }
+        }
+
+        [Test]
+        public void MapCloudLayoutApply_StillUsesAUniformScaleTransform_NeverAPerAxisCrop()
+        {
+            // SourceRectToViewport is a similarity transform (translate +
+            // per-axis scale) applied identically to position AND size —
+            // never a crop that could clip part of a cloud's rectangle
+            // independent of its neighbors. Confirms the transition/resize
+            // math itself isn't the source of the reported edge either
+            // (investigation ruled this out — see the final report).
+            string source = File.ReadAllText("Assets/UI/Map/MapCloudLayout.cs");
+            StringAssert.Contains("MapCoordinateMapping.SourceRectToViewport(", source);
+            StringAssert.DoesNotContain("Crop", source);
+            StringAssert.DoesNotContain("Clip", source);
+        }
+
         // ---------- structure: overlay is now INSIDE the transformed canvas ----------
 
         [Test]

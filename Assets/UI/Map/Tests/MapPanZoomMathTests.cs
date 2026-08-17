@@ -200,5 +200,89 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapPanZoomMath.EaseOutCubic(2f));
             Assert.AreEqual(0f, MapPanZoomMath.EaseOutCubic(float.NaN));
         }
+
+        // ---------- PanForTarget / CanvasNormalizedAtViewportCenter: chapter-focus opening + cross-map spatial continuity ----------
+
+        [Test]
+        public void PanForTarget_CanvasCenterToViewportCenter_IsZero_AtAnyZoom()
+        {
+            // The canvas's own center point never needs a pan offset to
+            // land at the viewport's center, regardless of zoom.
+            Assert.AreEqual(0f, MapPanZoomMath.PanForTarget(0.5f, 0.5f, 1f, 1280f), 0.001f);
+            Assert.AreEqual(0f, MapPanZoomMath.PanForTarget(0.5f, 0.5f, 1.4f, 1280f), 0.001f);
+            Assert.AreEqual(0f, MapPanZoomMath.PanForTarget(0.5f, 0.5f, 2.5f, 1280f), 0.001f);
+        }
+
+        [Test]
+        public void PanForTarget_OffCenterCanvasPoint_ToViewportCenter_GrowsWithZoom()
+        {
+            // A canvas point left of center (0.3) needs a positive
+            // (rightward) pan to reach the viewport's center, and MORE so
+            // at higher zoom (the canvas is magnified, so the same relative
+            // offset covers more viewport pixels). This is the UNCLAMPED
+            // ideal pan — SetPan (the only caller) still clamps it via
+            // MapPanZoomMath.ClampPan, which is what actually enforces "zero
+            // achievable pan at MinZoom" (MaxPanForZoom(1,_) == 0), a
+            // separate, later step from this pure targeting formula.
+            float panAt1 = MapPanZoomMath.PanForTarget(0.3f, 0.5f, 1f, 1000f);
+            float panAt2 = MapPanZoomMath.PanForTarget(0.3f, 0.5f, 2f, 1000f);
+            Assert.AreEqual(200f, panAt1, 0.001f, "1000*(0.5-0.3) = 200.");
+            Assert.AreEqual(400f, panAt2, 0.001f, "1000*2*(0.5-0.3) = 400 — double the zoom, double the ideal pan.");
+            Assert.Greater(panAt2, panAt1);
+        }
+
+        [Test]
+        public void PanForTarget_NonCenterTarget_OffsetsByExactlyTheTargetDelta_AtMinZoom()
+        {
+            // At zoom==1 the canvas-normalized-to-target term still applies
+            // even though the zoom*(0.5-canvasNormalized) term is zero for
+            // canvasNormalized==0.5 — isolates the "comfortable offset"
+            // term used by the chapter-focus opening (target != 0.5).
+            float pan = MapPanZoomMath.PanForTarget(0.5f, 0.56f, 1f, 1000f);
+            Assert.AreEqual(60f, pan, 0.001f, "(0.56-0.5)*1000 = 60.");
+        }
+
+        [Test]
+        public void CanvasNormalizedAtViewportCenter_ZeroPan_IsCanvasCenter()
+        {
+            Assert.AreEqual(0.5f, MapPanZoomMath.CanvasNormalizedAtViewportCenter(0f, 1.4f, 1280f), 0.0001f);
+        }
+
+        [Test]
+        public void CanvasNormalizedAtViewportCenter_IsTheExactInverseOfPanForTarget_RoundTrip()
+        {
+            // Capture (CanvasNormalizedAtViewportCenter) must exactly invert
+            // apply (PanForTarget with target=0.5) — this is the round trip
+            // MapCloudTransitionController relies on to reproduce a
+            // captured view on the destination map.
+            foreach (float canvasNormalized in new[] { 0.1f, 0.3f, 0.5f, 0.7f, 0.9f })
+            {
+                foreach (float zoom in new[] { 1f, 1.4f, 2.5f })
+                {
+                    float pan = MapPanZoomMath.PanForTarget(canvasNormalized, 0.5f, zoom, 1000f);
+                    float recovered = MapPanZoomMath.CanvasNormalizedAtViewportCenter(pan, zoom, 1000f);
+                    Assert.AreEqual(canvasNormalized, recovered, 0.001f, $"canvasNormalized={canvasNormalized}, zoom={zoom}");
+                }
+            }
+        }
+
+        [Test]
+        public void PanForTarget_NonFiniteInput_FallsBackToZero()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.PanForTarget(float.NaN, 0.5f, 1.4f, 1000f));
+            Assert.AreEqual(0f, MapPanZoomMath.PanForTarget(0.5f, 0.5f, float.PositiveInfinity, 1000f));
+        }
+
+        [Test]
+        public void CanvasNormalizedAtViewportCenter_ZeroZoomOrViewport_FallsBackToCenter_NoDivideByZero()
+        {
+            float result = MapPanZoomMath.CanvasNormalizedAtViewportCenter(10f, 0f, 1000f);
+            Assert.AreEqual(0.5f, result);
+            Assert.IsFalse(float.IsNaN(result));
+            Assert.IsFalse(float.IsInfinity(result));
+
+            float result2 = MapPanZoomMath.CanvasNormalizedAtViewportCenter(10f, 1.4f, 0f);
+            Assert.AreEqual(0.5f, result2);
+        }
     }
 }

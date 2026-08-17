@@ -207,6 +207,58 @@ namespace Mikey.UI.Map.Tests
             CollectionAssert.Contains(values, MissionMarkerType.BossFight);
         }
 
+        // ---------- current-chapter resolution (Japan world map's opening camera focus) ----------
+
+        [Test]
+        public void ResolveCurrentChapterId_IsOkinawa_TheOnlyUnlockedMvpChapter()
+        {
+            Assert.AreEqual(MapMarkerLayout.OkinawaChapterId, MapMarkerLayout.ResolveCurrentChapterId());
+        }
+
+        [Test]
+        public void ResolveCurrentChapterId_ResolvesTheLastUnlockedChapter_InArrayOrder()
+        {
+            // This MVP's chapters unlock strictly in the fixed order stored
+            // in Chapters (Okinawa, then Fukuoka, then Hiroshima) — the
+            // resolver must walk that exact order and keep the LAST
+            // unlocked one, so it automatically tracks whichever chapter
+            // becomes current later without any camera code changes. With
+            // today's data (only Okinawa unlocked), this is Okinawa; the
+            // logic itself is exercised generically here rather than only
+            // re-asserting today's fixed outcome.
+            int lastUnlockedIndex = -1;
+            for (int i = 0; i < MapMarkerLayout.Chapters.Length; i++)
+            {
+                if (MapMarkerLayout.Chapters[i].Unlocked)
+                    lastUnlockedIndex = i;
+            }
+            Assert.GreaterOrEqual(lastUnlockedIndex, 0, "Expected at least one unlocked chapter in the MVP data.");
+            Assert.AreEqual(MapMarkerLayout.Chapters[lastUnlockedIndex].Id, MapMarkerLayout.ResolveCurrentChapterId());
+        }
+
+        [Test]
+        public void TryGetCurrentChapterFocalPoint_ReturnsTheCurrentChaptersOwnMarkerCoordinate()
+        {
+            bool found = MapMarkerLayout.TryGetCurrentChapterFocalPoint(out float x, out float y);
+            Assert.IsTrue(found);
+
+            var okinawa = FindChapter(MapMarkerLayout.OkinawaChapterId);
+            Assert.AreEqual(okinawa.NormalizedX, x, CoordinateTolerance);
+            Assert.AreEqual(okinawa.NormalizedY, y, CoordinateTolerance);
+        }
+
+        [Test]
+        public void TryGetCurrentChapterFocalPoint_NeverMutatesTheStoredChapterCoordinates()
+        {
+            float beforeX = FindChapter(MapMarkerLayout.OkinawaChapterId).NormalizedX;
+            float beforeY = FindChapter(MapMarkerLayout.OkinawaChapterId).NormalizedY;
+
+            MapMarkerLayout.TryGetCurrentChapterFocalPoint(out _, out _);
+
+            Assert.AreEqual(beforeX, FindChapter(MapMarkerLayout.OkinawaChapterId).NormalizedX);
+            Assert.AreEqual(beforeY, FindChapter(MapMarkerLayout.OkinawaChapterId).NormalizedY);
+        }
+
         private static ChapterMarkerLayout FindChapter(string id)
         {
             foreach (var chapter in MapMarkerLayout.Chapters)

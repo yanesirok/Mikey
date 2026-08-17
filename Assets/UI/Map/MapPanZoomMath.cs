@@ -107,6 +107,46 @@ namespace Mikey.UI.Map
             return 1f - inv * inv * inv;
         }
 
+        /// <summary>
+        /// The pan offset (one axis) that places a given point of the
+        /// UNSCALED canvas (<paramref name="canvasNormalized"/>, 0-1 against
+        /// the canvas's own box before any zoom/pan is applied — e.g. from
+        /// <see cref="Mikey.UI.Map.MapCoordinateMapping.SourceToViewport"/>)
+        /// at a given target position within the viewport
+        /// (<paramref name="targetNormalized"/>, 0-1, 0.5 = dead center),
+        /// given the canvas is scaled by <paramref name="zoom"/> around its
+        /// own center (the transform pivot <see cref="Mikey.UI.Map.MapPanZoomController"/>
+        /// already relies on). Not clamped — callers should still clamp via
+        /// <see cref="ClampPan"/> so an off-canvas or extreme target never
+        /// exposes background. Used both for the Japan world map's opening
+        /// "focus on the current chapter" framing (target != 0.5, a
+        /// deliberate comfortable offset) and for reproducing a captured
+        /// view across a Japan&lt;-&gt;Okinawa cloud transition (target == 0.5,
+        /// dead center, an exact carry-over — see
+        /// MapCloudTransitionController).
+        /// </summary>
+        public static float PanForTarget(float canvasNormalized, float targetNormalized, float zoom, float viewportDimension)
+        {
+            if (!IsFinite(canvasNormalized) || !IsFinite(targetNormalized) || !IsFinite(zoom) || !IsFinite(viewportDimension))
+                return 0f;
+            return viewportDimension * ((targetNormalized - 0.5f) + zoom * (0.5f - canvasNormalized));
+        }
+
+        /// <summary>
+        /// Inverse of <see cref="PanForTarget"/> for the case
+        /// <c>targetNormalized == 0.5</c> (viewport dead center): given the
+        /// CURRENT pan/zoom, which point of the unscaled canvas currently
+        /// sits at the viewport's exact center. Used to capture "what is the
+        /// player currently looking at" before a cloud transition (see
+        /// MapCloudTransitionController).
+        /// </summary>
+        public static float CanvasNormalizedAtViewportCenter(float pan, float zoom, float viewportDimension)
+        {
+            if (!IsFinite(pan) || !IsFinite(zoom) || zoom == 0f || !IsFinite(viewportDimension) || viewportDimension == 0f)
+                return 0.5f;
+            return 0.5f - pan / (zoom * viewportDimension);
+        }
+
         private static float Clamp(float v, float min, float max) => v < min ? min : (v > max ? max : v);
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);

@@ -1,3 +1,5 @@
+using System;
+
 namespace Mikey.UI.Map
 {
     /// <summary>
@@ -30,6 +32,25 @@ namespace Mikey.UI.Map
             return clamped < 0.5f
                 ? 4f * clamped * clamped * clamped
                 : 1f - Pow3(-2f * clamped + 2f) * 0.5f;
+        }
+
+        /// <summary>
+        /// Symmetric ease-in-out quartic: a steeper, more dramatic version of
+        /// <see cref="EaseInOutCubic"/> — slower start, a stronger, more
+        /// pronounced spread through the middle, softer arrival — used for
+        /// the cloud transition's CLOSE phase (see
+        /// MapCloudTransitionController), where the ink mass should read as
+        /// gathering and spreading with more conviction than the gentler
+        /// reveal. Same guarantees as <see cref="EaseInOutCubic"/>: t is
+        /// clamped to [0, 1], boundaries are exact, monotonically
+        /// increasing, never overshoots.
+        /// </summary>
+        public static float EaseInOutQuart(float t)
+        {
+            float clamped = Clamp01(IsFinite(t) ? t : 0f);
+            return clamped < 0.5f
+                ? 8f * Pow4(clamped)
+                : 1f - Pow4(-2f * clamped + 2f) * 0.5f;
         }
 
         /// <summary>
@@ -89,10 +110,21 @@ namespace Mikey.UI.Map
             }
         }
 
-        /// <summary>Eases <paramref name="t"/> and linearly interpolates every field (including opacity) of a <see cref="CloudLayout"/> between two endpoints.</summary>
-        public static CloudLayout Lerp(CloudLayout from, CloudLayout to, float t)
+        /// <summary>Eases <paramref name="t"/> via <see cref="EaseInOutCubic"/> and linearly interpolates every field (including opacity) of a <see cref="CloudLayout"/> between two endpoints — the reveal phase's curve (see MapCloudTransitionController). Equivalent to <c>LerpWithEasing(from, to, t, EaseInOutCubic)</c>.</summary>
+        public static CloudLayout Lerp(CloudLayout from, CloudLayout to, float t) => LerpWithEasing(from, to, t, EaseInOutCubic);
+
+        /// <summary>
+        /// Eases <paramref name="t"/> via the given <paramref name="easing"/>
+        /// function and linearly interpolates every field (including
+        /// opacity) of a <see cref="CloudLayout"/> between two endpoints —
+        /// lets the close phase use a different (steeper) curve than the
+        /// reveal phase (see MapCloudTransitionController) without
+        /// duplicating the field-by-field interpolation. Falls back to
+        /// <see cref="EaseInOutCubic"/> if <paramref name="easing"/> is null.
+        /// </summary>
+        public static CloudLayout LerpWithEasing(CloudLayout from, CloudLayout to, float t, Func<float, float> easing)
         {
-            float eased = EaseInOutCubic(t);
+            float eased = (easing ?? EaseInOutCubic)(t);
             return new CloudLayout(
                 LerpFloat(from.NormalizedX, to.NormalizedX, eased),
                 LerpFloat(from.NormalizedY, to.NormalizedY, eased),
@@ -105,6 +137,12 @@ namespace Mikey.UI.Map
         private static float LerpFloat(float a, float b, float t) => a + (b - a) * t;
 
         private static float Pow3(float v) => v * v * v;
+
+        private static float Pow4(float v)
+        {
+            float sq = v * v;
+            return sq * sq;
+        }
 
         private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
 

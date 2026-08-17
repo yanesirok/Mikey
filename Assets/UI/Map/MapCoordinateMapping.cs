@@ -107,6 +107,45 @@ namespace Mikey.UI.Map
             viewportNormalizedHeight = sourceNormalizedHeight * ky;
         }
 
+        /// <summary>
+        /// Inverse of <see cref="SourceToViewport"/>: converts a normalized
+        /// VIEWPORT point back into the normalized SOURCE-image point that
+        /// renders there, accounting for the same cover-fit scale+crop.
+        /// Used to capture "what source-image location is the player
+        /// currently looking at" (e.g. the point at the viewport's center)
+        /// before a Japan&lt;-&gt;Okinawa cloud transition, so the destination
+        /// map can be positioned to reproduce the identical framing (see
+        /// MapPanZoomController.TryGetCurrentSourceFocalPoint/
+        /// SetViewToSourceFocalPoint). Falls back to an identity mapping for
+        /// degenerate/not-yet-laid-out input, same as
+        /// <see cref="SourceToViewport"/>.
+        /// </summary>
+        public static void ViewportToSource(
+            float viewportNormalizedX, float viewportNormalizedY,
+            float sourceWidth, float sourceHeight,
+            float viewportWidth, float viewportHeight,
+            out float sourceNormalizedX, out float sourceNormalizedY)
+        {
+            if (!IsFinite(viewportNormalizedX) || !IsFinite(viewportNormalizedY)
+                || !IsPositiveFinite(sourceWidth) || !IsPositiveFinite(sourceHeight)
+                || !IsPositiveFinite(viewportWidth) || !IsPositiveFinite(viewportHeight))
+            {
+                sourceNormalizedX = viewportNormalizedX;
+                sourceNormalizedY = viewportNormalizedY;
+                return;
+            }
+
+            float scale = Max(viewportWidth / sourceWidth, viewportHeight / sourceHeight);
+            float renderedWidth = sourceWidth * scale;
+            float renderedHeight = sourceHeight * scale;
+
+            float renderedPixelX = viewportNormalizedX * viewportWidth;
+            float renderedPixelY = viewportNormalizedY * viewportHeight;
+
+            sourceNormalizedX = (renderedPixelX + (renderedWidth - viewportWidth) * 0.5f) / renderedWidth;
+            sourceNormalizedY = (renderedPixelY + (renderedHeight - viewportHeight) * 0.5f) / renderedHeight;
+        }
+
         private static float Max(float a, float b) => a > b ? a : b;
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
