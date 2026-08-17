@@ -68,16 +68,16 @@ namespace Mikey.UI.Map.Tests
         public void Okinawa_CoordinateMatchesExactPixelMeasurement()
         {
             var chapter = FindChapter(MapMarkerLayout.OkinawaChapterId);
-            Assert.AreEqual(0.28125f, chapter.NormalizedX, CoordinateTolerance);
-            Assert.AreEqual(0.62686f, chapter.NormalizedY, CoordinateTolerance);
+            Assert.AreEqual(0.27809f, chapter.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(0.81250f, chapter.NormalizedY, CoordinateTolerance);
         }
 
         [Test]
         public void Fukuoka_CoordinateMatchesExactPixelMeasurement()
         {
             var chapter = FindChapter(MapMarkerLayout.FukuokaChapterId);
-            Assert.AreEqual(0.37121f, chapter.NormalizedX, CoordinateTolerance);
-            Assert.AreEqual(0.50186f, chapter.NormalizedY, CoordinateTolerance);
+            Assert.AreEqual(0.37484f, chapter.NormalizedX, CoordinateTolerance);
+            Assert.AreEqual(0.50112f, chapter.NormalizedY, CoordinateTolerance);
         }
 
         [Test]
