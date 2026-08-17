@@ -60,11 +60,35 @@ namespace Mikey.UI.Map.Tests
         // ---------- missions ----------
 
         [Test]
-        public void Missions_HasExactlySixDefinitions_ForLvl0Through5()
+        public void Missions_HasExactlyFiveMvpDefinitions_ForLvl0Through4()
         {
-            Assert.AreEqual(6, MapMarkerLayout.Missions.Length);
-            for (int i = 0; i < 6; i++)
+            // Okinawa's MVP mission set is exactly 5 missions (3 Training + 2
+            // Fight) — LVL 5 was dropped entirely, not just hidden/locked.
+            Assert.AreEqual(5, MapMarkerLayout.Missions.Length);
+            for (int i = 0; i < 5; i++)
                 Assert.AreEqual(i, MapMarkerLayout.Missions[i].LevelIndex, $"Missions[{i}] must describe LVL {i}.");
+        }
+
+        [Test]
+        public void Missions_HasNoLvl5Definition()
+        {
+            foreach (var mission in MapMarkerLayout.Missions)
+                Assert.AreNotEqual(5, mission.LevelIndex, "LVL 5 must not appear in MapMarkerLayout.Missions.");
+        }
+
+        [Test]
+        public void Missions_HasExactlyThreeTrainingAndTwoFight()
+        {
+            int training = 0, fight = 0;
+            foreach (var mission in MapMarkerLayout.Missions)
+            {
+                if (mission.Type == MissionMarkerType.Training)
+                    training++;
+                else
+                    fight++;
+            }
+            Assert.AreEqual(3, training, "Okinawa MVP must have exactly 3 Training missions.");
+            Assert.AreEqual(2, fight, "Okinawa MVP must have exactly 2 Fight missions.");
         }
 
         [TestCase(0)]
@@ -72,7 +96,6 @@ namespace Mikey.UI.Map.Tests
         [TestCase(2)]
         [TestCase(3)]
         [TestCase(4)]
-        [TestCase(5)]
         public void AllMissionCoordinates_AreNormalized0to1(int levelIndex)
         {
             var mission = MapMarkerLayout.Missions[levelIndex];
@@ -95,13 +118,31 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void Lvl2_IsFight()
+        {
+            Assert.AreEqual(MissionMarkerType.Fight, MapMarkerLayout.Missions[2].Type);
+        }
+
+        [Test]
+        public void Lvl3_IsTraining()
+        {
+            Assert.AreEqual(MissionMarkerType.Training, MapMarkerLayout.Missions[3].Type);
+        }
+
+        [Test]
+        public void Lvl4_IsFight()
+        {
+            Assert.AreEqual(MissionMarkerType.Fight, MapMarkerLayout.Missions[4].Type);
+        }
+
+        [Test]
         public void MissionMarkerType_SupportsBothTrainingAndFight()
         {
-            // The marker system must support both categories even though no
-            // current LVL 2-5 slot has real gameplay assigning it Fight yet
-            // (see MapMarkerLayout's doc comment) — covered by the icon-class
-            // mapping in OkinawaMapController.ApplyMissionLayout and the
-            // ".level-node__icon--fight" rule in Map.uss (MapMarkerAssetsTests).
+            // Both categories are real, distinct enum members backing the two
+            // supplied marker icons — covered by the icon-class mapping in
+            // OkinawaMapController.ApplyMissionLayout and the
+            // ".level-node__icon--fight"/"--training" rules in Map.uss
+            // (MapMarkerAssetsTests).
             var values = (MissionMarkerType[])System.Enum.GetValues(typeof(MissionMarkerType));
             CollectionAssert.Contains(values, MissionMarkerType.Training);
             CollectionAssert.Contains(values, MissionMarkerType.Fight);

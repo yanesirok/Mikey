@@ -28,7 +28,7 @@ namespace Mikey.UI.Map
         }
     }
 
-    /// <summary>Normalized (0-1, relative to the Okinawa map artwork) placement + mission type for one LVL 0-5 marker.</summary>
+    /// <summary>Normalized (0-1, relative to the Okinawa map artwork) placement + mission type for one LVL 0-4 marker.</summary>
     public readonly struct MissionMarkerLayout
     {
         public readonly int LevelIndex;
@@ -55,7 +55,7 @@ namespace Mikey.UI.Map
     /// marker (e.g. "Fukuoka 2% left, 3% down") only ever requires editing its
     /// entry here; Map.uss no longer hardcodes any marker's left/top.
     ///
-    /// Lock/progression state is NOT duplicated here for missions: LVL 0-5's
+    /// Lock/progression state is NOT duplicated here for missions: LVL 0-4's
     /// live lock state still comes from OkinawaMapController.IsLevelLocked
     /// reading TutorialProgressState, exactly as before this pass. Chapter
     /// unlocked state IS centralized here since — unlike LVL 0/1 — no chapter
@@ -82,21 +82,24 @@ namespace Mikey.UI.Map
         };
 
         /// <summary>
-        /// LVL 0-5 mission markers. LVL 0 (assessment) and LVL 1 (existing
-        /// techniques/foundations route) are both non-combat, so Training.
-        /// LVL 2-5 have no gameplay built yet (OkinawaMapController.
-        /// IsLevelLocked always locks them) — defaulted to Training rather
-        /// than inventing a Fight destination that doesn't exist; change the
-        /// entries below once real level design assigns their final type.
+        /// Okinawa MVP mission set: exactly 5 missions (LVL 0-4), 3 Training +
+        /// 2 Fight. LVL 0 (assessment) and LVL 1 (existing techniques/
+        /// foundations route) are both non-combat, so Training — both already
+        /// have real routes (see OkinawaMapController.OnLevelCtaClicked) and
+        /// are unaffected by this set. LVL 2-4 have no gameplay built yet
+        /// (OkinawaMapController.IsLevelLocked always locks them) but their
+        /// mission TYPE is assigned here regardless — type and progression
+        /// state are separate concerns, so a locked Fight mission still shows
+        /// the Fight marker. LVL 5 was dropped from the MVP entirely; it must
+        /// not appear here or anywhere in the Okinawa UXML/USS/runtime data.
         /// </summary>
         public static readonly MissionMarkerLayout[] Missions =
         {
             new MissionMarkerLayout(0, 0.22f, 0.78f, MissionMarkerType.Training),
             new MissionMarkerLayout(1, 0.34f, 0.60f, MissionMarkerType.Training),
-            new MissionMarkerLayout(2, 0.48f, 0.68f, MissionMarkerType.Training),
+            new MissionMarkerLayout(2, 0.48f, 0.68f, MissionMarkerType.Fight),
             new MissionMarkerLayout(3, 0.60f, 0.48f, MissionMarkerType.Training),
-            new MissionMarkerLayout(4, 0.72f, 0.58f, MissionMarkerType.Training),
-            new MissionMarkerLayout(5, 0.82f, 0.36f, MissionMarkerType.Training),
+            new MissionMarkerLayout(4, 0.72f, 0.58f, MissionMarkerType.Fight),
         };
 
         /// <summary>Writes a normalized (0-1) position onto an element as percentage style.left/style.top.</summary>

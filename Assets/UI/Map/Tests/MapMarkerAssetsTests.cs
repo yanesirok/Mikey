@@ -103,7 +103,7 @@ namespace Mikey.UI.Map.Tests
             var root = BuildTree();
             foreach (var name in new[] { "chapter-node-okinawa", "chapter-node-fukuoka", "chapter-node-hiroshima" })
                 Assert.IsTrue(root.Q<Button>(name).ClassListContains("tap-target-lg"), $"'{name}' must keep a >=touch-target class.");
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 5; i++)
                 Assert.IsTrue(root.Q<Button>($"level-node-{i}").ClassListContains("tap-target-lg"), $"'level-node-{i}' must keep a >=touch-target class.");
         }
 
@@ -129,7 +129,7 @@ namespace Mikey.UI.Map.Tests
             var root = BuildTree();
             var canvas = root.Q<VisualElement>("okinawa-canvas");
             Assert.IsNotNull(canvas, "Expected the '.pan-canvas' element named 'okinawa-canvas'.");
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 5; i++)
             {
                 var node = root.Q<Button>($"level-node-{i}");
                 Assert.IsNotNull(node, $"Expected 'level-node-{i}'.");

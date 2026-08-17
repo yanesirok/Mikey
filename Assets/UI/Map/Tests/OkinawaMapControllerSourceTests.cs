@@ -25,6 +25,13 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void LevelCount_IsFive_MatchingOkinawasMvpMissionSet()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const int LevelCount = 5;", source);
+        }
+
+        [Test]
         public void Level0_IsAlwaysUnlocked()
         {
             string source = File.ReadAllText(SourcePath);
@@ -39,8 +46,10 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Levels2Through5_AreAlwaysLocked_NoGameplayYet()
+        public void Levels2Through4_AreAlwaysLocked_NoGameplayYet()
         {
+            // LevelCount == 5 (LVL 0-4) means this "default:" case only ever
+            // matches indices 2-4 now that LVL 5 has been dropped.
             string source = File.ReadAllText(SourcePath);
             StringAssert.IsMatch(@"default:\s*return true;", source);
         }
