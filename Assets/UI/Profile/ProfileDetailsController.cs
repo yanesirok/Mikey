@@ -15,10 +15,19 @@ namespace Mikey.UI.Profile
     /// (mirrors OkinawaMapController's ScreenChanged-driven refresh pattern) so
     /// Cancel (a plain "go-profile" navigator — nothing is written until Save, so
     /// there is nothing to explicitly revert) always shows the last-saved state
-    /// next time. Save validates every field, persists the whole
-    /// <see cref="ProfileUserData"/> as one JSON blob, then navigates back to
-    /// "profile" itself (not a "go-" navigator, since a failed validation must not
-    /// navigate).
+    /// next time.
+    ///
+    /// Save validates every field (not just the first failing one) and shows a
+    /// specific crimson message under each invalid field rather than one vague
+    /// global error, then persists the whole <see cref="ProfileUserData"/> as one
+    /// JSON blob and navigates back to "profile" (not itself a "go-" navigator,
+    /// since a failed validation must not navigate).
+    ///
+    /// Gender is wired with Button's own ".clicked" event (matching every other
+    /// Button in this app — SettingsModalController, the Attribute popup's Close
+    /// button, etc.) rather than a manually-registered ClickEvent callback, and
+    /// delegates the "exactly one selected" logic to the pure, unit-tested
+    /// <see cref="ProfileDetailsGenderSelection"/>.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class ProfileDetailsController : MonoBehaviour
@@ -26,7 +35,9 @@ namespace Mikey.UI.Profile
         private const int MaxRootResolveFrames = 30;
         private const string ScreenId = "profileDetails";
         private const string SelectedGenderClass = "profile-details-gender-option--selected";
-        private const string ErrorVisibleClass = "profile-details-error--visible";
+        private const string InvalidInputClass = "profile-details-field__input--invalid";
+        private const string InvalidGenderGroupClass = "profile-details-gender-group--invalid";
+        private const string ErrorVisibleClass = "profile-details-field__error--visible";
         private const int GenderCount = 4;
 
         private static readonly string[] GenderValues =
@@ -42,11 +53,17 @@ namespace Mikey.UI.Profile
         private TextField _ageField;
         private TextField _weightField;
         private TextField _heightField;
-        private Label _errorLabel;
+        private VisualElement _genderGroup;
         private Button _saveButton;
 
+        private Label _displayNameError;
+        private Label _genderError;
+        private Label _ageError;
+        private Label _weightError;
+        private Label _heightError;
+
         private readonly Button[] _genderButtons = new Button[GenderCount];
-        private readonly EventCallback<ClickEvent>[] _genderCallbacks = new EventCallback<ClickEvent>[GenderCount];
+        private readonly System.Action[] _genderClickedHandlers = new System.Action[GenderCount];
         private string _selectedGender = string.Empty;
 
         private IScreenNavigator _navigator;
@@ -75,8 +92,8 @@ namespace Mikey.UI.Profile
 
                 for (int i = 0; i < GenderCount; i++)
                 {
-                    if (_genderButtons[i] != null && _genderCallbacks[i] != null)
-                        _genderButtons[i].UnregisterCallback(_genderCallbacks[i]);
+                    if (_genderButtons[i] != null && _genderClickedHandlers[i] != null)
+                        _genderButtons[i].clicked -= _genderClickedHandlers[i];
                 }
             }
 
@@ -88,12 +105,17 @@ namespace Mikey.UI.Profile
             _ageField = null;
             _weightField = null;
             _heightField = null;
-            _errorLabel = null;
+            _genderGroup = null;
             _saveButton = null;
+            _displayNameError = null;
+            _genderError = null;
+            _ageError = null;
+            _weightError = null;
+            _heightError = null;
             for (int i = 0; i < GenderCount; i++)
             {
                 _genderButtons[i] = null;
-                _genderCallbacks[i] = null;
+                _genderClickedHandlers[i] = null;
             }
             _selectedGender = string.Empty;
             _bound = false;
@@ -121,8 +143,14 @@ namespace Mikey.UI.Profile
             _ageField = root.Q<TextField>("profile-details-age");
             _weightField = root.Q<TextField>("profile-details-weight");
             _heightField = root.Q<TextField>("profile-details-height");
-            _errorLabel = root.Q<Label>("profile-details-error");
+            _genderGroup = root.Q<VisualElement>("profile-details-gender-group");
             _saveButton = root.Q<Button>("profile-details-save");
+
+            _displayNameError = root.Q<Label>("profile-details-display-name-error");
+            _genderError = root.Q<Label>("profile-details-gender-error");
+            _ageError = root.Q<Label>("profile-details-age-error");
+            _weightError = root.Q<Label>("profile-details-weight-error");
+            _heightError = root.Q<Label>("profile-details-height-error");
 
             for (int i = 0; i < GenderCount; i++)
                 _genderButtons[i] = root.Q<Button>(GenderButtonNames[i]);
@@ -138,10 +166,9 @@ namespace Mikey.UI.Profile
             {
                 if (_genderButtons[i] == null)
                     continue;
-                int index = i;
-                EventCallback<ClickEvent> callback = _ => SelectGender(GenderValues[index]);
-                _genderButtons[i].RegisterCallback(callback);
-                _genderCallbacks[i] = callback;
+                int index = i; // captured once per iteration — a fresh local, not the shared loop variable
+                _genderClickedHandlers[i] = () => SelectGender(GenderValues[index]);
+                _genderButtons[i].clicked += _genderClickedHandlers[i];
             }
 
             _saveButton.clicked += OnSaveClicked;
@@ -178,58 +205,62 @@ namespace Mikey.UI.Profile
                 _heightField.value = data.HeightCm > 0 ? data.HeightCm.ToString(CultureInfo.InvariantCulture) : string.Empty;
 
             SelectGender(data.Gender);
-            HideError();
+            ClearAllFieldErrors();
         }
 
+        /// <summary>Updates the selected gender value and each chip's visual state via the pure, unit-tested selection logic.</summary>
         private void SelectGender(string gender)
         {
             _selectedGender = gender;
+            bool[] selected = ProfileDetailsGenderSelection.ComputeSelectedFlags(GenderValues, gender);
             for (int i = 0; i < GenderCount; i++)
             {
                 if (_genderButtons[i] == null)
                     continue;
-                if (GenderValues[i] == gender)
+                if (selected[i])
                     _genderButtons[i].AddToClassList(SelectedGenderClass);
                 else
                     _genderButtons[i].RemoveFromClassList(SelectedGenderClass);
             }
+
+            _genderGroup?.RemoveFromClassList(InvalidGenderGroupClass);
+            HideFieldError(_genderError);
         }
 
+        /// <summary>
+        /// Validates every field (not just the first failure) so every invalid
+        /// field is highlighted at once, then saves only if all five pass.
+        /// </summary>
         private void OnSaveClicked()
         {
+            ClearAllFieldErrors();
+
             string displayName = ProfileDisplayNameStorage.Validate(_displayNameField?.value);
-            if (displayName == null)
-            {
-                ShowError("Enter a display name.");
-                return;
-            }
+            bool displayNameValid = displayName != null;
+            if (!displayNameValid)
+                MarkFieldInvalid(_displayNameField, _displayNameError, "Display name is required.");
 
-            if (!ProfileUserDataValidation.IsValidGender(_selectedGender))
-            {
-                ShowError("Select a gender.");
-                return;
-            }
+            bool genderValid = ProfileUserDataValidation.IsValidGender(_selectedGender);
+            if (!genderValid)
+                MarkGenderInvalid("Select a gender.");
 
-            if (!int.TryParse(_ageField?.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int age)
-                || !ProfileUserDataValidation.IsValidAge(age))
-            {
-                ShowError("Enter an age between 10 and 100.");
-                return;
-            }
+            bool ageParsed = int.TryParse(_ageField?.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int age);
+            bool ageValid = ageParsed && ProfileUserDataValidation.IsValidAge(age);
+            if (!ageValid)
+                MarkFieldInvalid(_ageField, _ageError, "Age must be between 10 and 100.");
 
-            if (!float.TryParse(_weightField?.value, NumberStyles.Float, CultureInfo.InvariantCulture, out float weightKg)
-                || !ProfileUserDataValidation.IsValidWeightKg(weightKg))
-            {
-                ShowError("Enter a weight between 30 and 300 kg.");
-                return;
-            }
+            bool weightParsed = float.TryParse(_weightField?.value, NumberStyles.Float, CultureInfo.InvariantCulture, out float weightKg);
+            bool weightValid = weightParsed && ProfileUserDataValidation.IsValidWeightKg(weightKg);
+            if (!weightValid)
+                MarkFieldInvalid(_weightField, _weightError, "Weight must be between 30 and 300 kg.");
 
-            if (!int.TryParse(_heightField?.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int heightCm)
-                || !ProfileUserDataValidation.IsValidHeightCm(heightCm))
-            {
-                ShowError("Enter a height between 100 and 250 cm.");
+            bool heightParsed = int.TryParse(_heightField?.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int heightCm);
+            bool heightValid = heightParsed && ProfileUserDataValidation.IsValidHeightCm(heightCm);
+            if (!heightValid)
+                MarkFieldInvalid(_heightField, _heightError, "Height must be between 100 and 250 cm.");
+
+            if (!displayNameValid || !genderValid || !ageValid || !weightValid || !heightValid)
                 return;
-            }
 
             var data = new ProfileUserData
             {
@@ -241,18 +272,44 @@ namespace Mikey.UI.Profile
             };
             ProfileUserDataStorage.Save(data);
 
-            HideError();
             _navigator?.Show("profile");
         }
 
-        private void ShowError(string message)
+        private void ClearAllFieldErrors()
         {
-            if (_errorLabel == null)
-                return;
-            _errorLabel.text = message;
-            _errorLabel.AddToClassList(ErrorVisibleClass);
+            _displayNameField?.RemoveFromClassList(InvalidInputClass);
+            _ageField?.RemoveFromClassList(InvalidInputClass);
+            _weightField?.RemoveFromClassList(InvalidInputClass);
+            _heightField?.RemoveFromClassList(InvalidInputClass);
+            _genderGroup?.RemoveFromClassList(InvalidGenderGroupClass);
+
+            HideFieldError(_displayNameError);
+            HideFieldError(_genderError);
+            HideFieldError(_ageError);
+            HideFieldError(_weightError);
+            HideFieldError(_heightError);
         }
 
-        private void HideError() => _errorLabel?.RemoveFromClassList(ErrorVisibleClass);
+        private static void MarkFieldInvalid(VisualElement input, Label error, string message)
+        {
+            input?.AddToClassList(InvalidInputClass);
+            ShowFieldError(error, message);
+        }
+
+        private void MarkGenderInvalid(string message)
+        {
+            _genderGroup?.AddToClassList(InvalidGenderGroupClass);
+            ShowFieldError(_genderError, message);
+        }
+
+        private static void ShowFieldError(Label error, string message)
+        {
+            if (error == null)
+                return;
+            error.text = message;
+            error.AddToClassList(ErrorVisibleClass);
+        }
+
+        private static void HideFieldError(Label error) => error?.RemoveFromClassList(ErrorVisibleClass);
     }
 }

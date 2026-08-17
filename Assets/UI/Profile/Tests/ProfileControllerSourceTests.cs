@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 
@@ -62,66 +61,38 @@ namespace Mikey.UI.Profile.Tests
             Assert.LessOrEqual(seconds, 0.75f);
         }
 
-        // ---------- radar glow: fill-only layers, one crisp main outline ----------
+        // ---------- radar glow: removed entirely, one clean fill+stroke polygon ----------
 
         [Test]
-        public void RadarChart_HasFourGlowLayers_FillOnly_ScaledAroundTheDataPolygon()
+        public void RadarChart_HasNoExpandedGlowPolygons_GlowLayersArrayIsGone()
         {
             string source = File.ReadAllText(ChartPath);
-            var arrayBlock = ExtractArrayInitializer(source, "GlowLayers");
-            Assert.IsNotNull(arrayBlock, "Expected a 'GlowLayers' array.");
-
-            // Anchored on "new Color(" immediately following so this only matches
-            // each tuple's own scale value, not the inner Color constructor's
-            // first (red-channel) argument.
-            var scales = Regex.Matches(arrayBlock, @"\((\d+\.\d+)f,\s*new Color\(");
-            Assert.GreaterOrEqual(scales.Count, 2, "Expected 2-4 progressively larger glow layers.");
-            Assert.LessOrEqual(scales.Count, 4, "Expected 2-4 progressively larger glow layers.");
-
-            StringAssert.Contains("foreach (var (scale, color) in GlowLayers)", source);
-            StringAssert.Contains("DrawPolygonFill(painter, ScalePolygon(data, center, scale), color);", source,
-                "Every glow layer must be fill-only.");
+            StringAssert.DoesNotContain("GlowLayers", source,
+                "The layered/expanding-polygon glow approximation must be fully removed, not just unused.");
+            StringAssert.DoesNotContain("ScalePolygon", source,
+                "ScalePolygon existed only to enlarge copies of the data polygon for the old glow effect and must be deleted as dead code.");
         }
 
         [Test]
-        public void RadarGlow_OpacityDecreasesOutward_NoneApproachTheMainFillsStrength()
-        {
-            string source = File.ReadAllText(ChartPath);
-            var arrayBlock = ExtractArrayInitializer(source, "GlowLayers");
-            Assert.IsNotNull(arrayBlock);
-
-            // Colors appear outermost-first in source (see the layer-ordering
-            // comment in ProfileRadarChart.cs); each successive (inner) layer must
-            // be more opaque than the one before it, and even the strongest must
-            // stay well under DataFill's 0.32 alpha.
-            var alphas = Regex.Matches(arrayBlock, @"0\.7765f,\s*0\.1569f,\s*0\.1569f,\s*(\d+(\.\d+)?)f\)")
-                .Select(m => float.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
-                .ToList();
-            Assert.GreaterOrEqual(alphas.Count, 2);
-
-            for (int i = 1; i < alphas.Count; i++)
-                Assert.Greater(alphas[i], alphas[i - 1], "Opacity must increase layer-by-layer toward the center (i.e. decrease outward).");
-
-            Assert.Less(alphas[alphas.Count - 1], 0.32f, "Even the strongest glow layer must stay clearly under the main fill's opacity.");
-        }
-
-        [Test]
-        public void RadarChart_MainPolygonIsTheOnlyStrokedShape_GlowLayersHaveNoOutline()
+        public void RadarChart_MainPolygonIsTheOnlyFillAndOnlyStroke_AfterTheGuideGrid()
         {
             string source = File.ReadAllText(ChartPath);
             string drawBody = ExtractMethodBody(source, "OnGenerateVisualContent");
             Assert.IsNotNull(drawBody, "Expected to find OnGenerateVisualContent.");
 
-            // Within the glow+data drawing section (after the grid/axis lines,
-            // which legitimately use DrawPolygonOutline for the guide grid), the
-            // only stroke must be the main data polygon's.
+            // Within the data-drawing section (after the grid/axis lines, which
+            // legitimately use DrawPolygonOutline for the guide grid), exactly one
+            // fill and one stroke may appear: the main data polygon's.
             int progressGuardIndex = drawBody.IndexOf("if (_progress <= 0f)", System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(progressGuardIndex, 0, "Expected the early-out guard before glow/data drawing.");
-            string glowAndDataSection = drawBody.Substring(progressGuardIndex);
+            Assert.GreaterOrEqual(progressGuardIndex, 0, "Expected the early-out guard before data drawing.");
+            string dataSection = drawBody.Substring(progressGuardIndex);
 
-            Assert.AreEqual(1, CountOccurrences(glowAndDataSection, "DrawPolygonOutline("),
+            Assert.AreEqual(1, CountOccurrences(dataSection, "DrawPolygonFill("),
+                "Exactly one filled shape (the main data polygon) may appear after the grid/axis lines — no glow layers.");
+            Assert.AreEqual(1, CountOccurrences(dataSection, "DrawPolygonOutline("),
                 "Exactly one stroked shape (the main data polygon) may appear after the grid/axis lines.");
-            StringAssert.Contains("DrawPolygonOutline(painter, data, DataStroke, 2.5f);", glowAndDataSection);
+            StringAssert.Contains("DrawPolygonFill(painter, data, DataFill);", dataSection);
+            StringAssert.Contains("DrawPolygonOutline(painter, data, DataStroke, 2.5f);", dataSection);
         }
 
         [Test]
@@ -266,30 +237,6 @@ namespace Mikey.UI.Profile.Tests
                 return semicolon < 0 ? null : source.Substring(cursor, semicolon - cursor);
             }
 
-            return null;
-        }
-
-        /// <summary>Body of a "private static readonly ... fieldName = { ... };" array/collection initializer.</summary>
-        private static string ExtractArrayInitializer(string source, string fieldName)
-        {
-            int nameIndex = source.IndexOf(fieldName + " =", System.StringComparison.Ordinal);
-            if (nameIndex < 0)
-                return null;
-            int open = source.IndexOf('{', nameIndex);
-            if (open < 0)
-                return null;
-            int depth = 0;
-            for (int i = open; i < source.Length; i++)
-            {
-                if (source[i] == '{')
-                    depth++;
-                else if (source[i] == '}')
-                {
-                    depth--;
-                    if (depth == 0)
-                        return source.Substring(open + 1, i - open - 1);
-                }
-            }
             return null;
         }
 

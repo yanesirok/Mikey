@@ -1102,37 +1102,47 @@
              ONE place Profile identity is edited. -->
         <ui:VisualElement name="profileDetails" class="screen profile-details-screen">
             <Style src="Profile/ProfileDetails.uss" />
-            <ui:VisualElement class="profile-details-bg" picking-mode="Ignore" />
+            <!-- Reuses the same final Profile background art as the "profile"
+                 screen (source bytes untouched) under a strong scrim, so this
+                 stays atmospheric without ever competing with the form. -->
+            <ui:VisualElement class="profile-details-bg" picking-mode="Ignore">
+                <ui:VisualElement class="profile-details-scrim" picking-mode="Ignore" />
+            </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="profile-details-layout">
 
-                <ui:Label text="Profile Details" class="profile-details-title" />
-                <ui:Label text="Tell Mikey about you. These details will help personalize your training." class="profile-details-subtitle" />
-
                 <ui:VisualElement class="profile-details-form">
+                    <!-- LEFT: heading + Display Name + Gender + Age -->
                     <ui:VisualElement class="profile-details-column">
+                        <ui:Label text="Profile Details" class="profile-details-title" />
+                        <ui:Label text="Tell Mikey about you. These details will help personalize your training." class="profile-details-subtitle" />
+
                         <ui:VisualElement class="profile-details-field">
                             <ui:Label text="Display Name" class="profile-details-field__label" />
                             <ui:TextField name="profile-details-display-name" max-length="24" class="profile-details-field__input" />
+                            <ui:Label name="profile-details-display-name-error" text="" class="profile-details-field__error" />
                         </ui:VisualElement>
 
                         <ui:VisualElement class="profile-details-field">
                             <ui:Label text="Gender" class="profile-details-field__label" />
-                            <ui:VisualElement class="profile-details-gender-group">
+                            <ui:VisualElement name="profile-details-gender-group" class="profile-details-gender-group">
                                 <ui:Button name="profile-details-gender-male" text="Male" class="profile-details-gender-option tap-target" />
                                 <ui:Button name="profile-details-gender-female" text="Female" class="profile-details-gender-option tap-target" />
                                 <ui:Button name="profile-details-gender-other" text="Other" class="profile-details-gender-option tap-target" />
                                 <ui:Button name="profile-details-gender-undisclosed" text="Prefer not to say" class="profile-details-gender-option tap-target" />
                             </ui:VisualElement>
+                            <ui:Label name="profile-details-gender-error" text="" class="profile-details-field__error" />
                         </ui:VisualElement>
 
                         <ui:VisualElement class="profile-details-field">
                             <ui:Label text="Age" class="profile-details-field__label" />
                             <ui:TextField name="profile-details-age" class="profile-details-field__input profile-details-field__input--narrow" />
+                            <ui:Label name="profile-details-age-error" text="" class="profile-details-field__error" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
+                    <!-- RIGHT: Weight + Height + a short explanatory note -->
                     <ui:VisualElement class="profile-details-column profile-details-column--right">
                         <ui:VisualElement class="profile-details-field">
                             <ui:Label text="Weight" class="profile-details-field__label" />
@@ -1140,6 +1150,7 @@
                                 <ui:TextField name="profile-details-weight" class="profile-details-field__input profile-details-field__input--narrow" />
                                 <ui:Label text="kg" class="profile-details-field__unit" />
                             </ui:VisualElement>
+                            <ui:Label name="profile-details-weight-error" text="" class="profile-details-field__error" />
                         </ui:VisualElement>
 
                         <ui:VisualElement class="profile-details-field">
@@ -1148,9 +1159,10 @@
                                 <ui:TextField name="profile-details-height" class="profile-details-field__input profile-details-field__input--narrow" />
                                 <ui:Label text="cm" class="profile-details-field__unit" />
                             </ui:VisualElement>
+                            <ui:Label name="profile-details-height-error" text="" class="profile-details-field__error" />
                         </ui:VisualElement>
 
-                        <ui:Label name="profile-details-error" text="" class="profile-details-error" />
+                        <ui:Label text="Used to personalize future training statistics." class="profile-details-note" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

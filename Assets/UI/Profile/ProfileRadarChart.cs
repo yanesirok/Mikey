@@ -6,16 +6,19 @@ namespace Mikey.UI.Profile
 {
     /// <summary>
     /// Self-contained five-axis capability radar for Profile's hero element: nested
-    /// guide-grid pentagons, axis lines, a soft layered red glow, and the data
-    /// polygon, all drawn with <see cref="Painter2D"/> inside
-    /// <c>generateVisualContent</c> (no shader/third-party chart package). Vertex
-    /// geometry is delegated to <see cref="ProfileRadarMath"/> so it stays directly
-    /// unit-testable. The five vertex/value labels are real <see cref="Label"/>
-    /// children (crisp text, not drawn into the mesh), repositioned alongside the
-    /// polygon. <see cref="Progress"/> drives the 0 (collapsed at center) -> 1
-    /// (full target values) entrance animation; <see cref="ProfileController"/> owns
-    /// the coroutine that animates it, so this class itself never runs a per-frame
-    /// Update loop and only repaints when something actually changes.
+    /// guide-grid pentagons, axis lines, and the data polygon (translucent fill +
+    /// crisp stroke), all drawn with <see cref="Painter2D"/> inside
+    /// <c>generateVisualContent</c> (no shader/third-party chart package,
+    /// no layered-polygon glow approximation — Painter2D has no blur filter for
+    /// arbitrary shapes, so the radar stays a single clean fill+stroke rather than
+    /// faking one). Vertex geometry is delegated to <see cref="ProfileRadarMath"/>
+    /// so it stays directly unit-testable. The five vertex/value labels are real
+    /// <see cref="Label"/> children (crisp text, not drawn into the mesh),
+    /// repositioned alongside the polygon. <see cref="Progress"/> drives the 0
+    /// (collapsed at center) -> 1 (full target values) entrance animation;
+    /// <see cref="ProfileController"/> owns the coroutine that animates it, so this
+    /// class itself never runs a per-frame Update loop and only repaints when
+    /// something actually changes.
     /// </summary>
     public sealed class ProfileRadarChart : VisualElement
     {
@@ -33,23 +36,6 @@ namespace Mikey.UI.Profile
         private static readonly Color AxisColor = new Color(0.75f, 0.72f, 0.65f, 0.12f);
         private static readonly Color DataFill = new Color(0.7765f, 0.1569f, 0.1569f, 0.32f);
         private static readonly Color DataStroke = new Color(0.7765f, 0.1569f, 0.1569f, 0.95f);
-
-        // Glow layers: fill-only (never Stroke()'d — see DrawPolygonFill) copies
-        // of the data polygon behind it, small scale steps + low alpha so the
-        // boundary between each layer reads as soft falloff rather than distinct
-        // nested polygon outlines (Painter2D has no blur filter for arbitrary
-        // shapes, so many small steps is the closest approximation available).
-        // Ordered outermost (faintest) -> innermost (strongest, but still far
-        // below DataFill's 0.32); drawn in that order so each layer paints under
-        // the next, ending with the crisp DataStroke on top as the only visible
-        // outline anywhere in the whole radar.
-        private static readonly (float scale, Color color)[] GlowLayers =
-        {
-            (1.32f, new Color(0.7765f, 0.1569f, 0.1569f, 0.02f)),
-            (1.22f, new Color(0.7765f, 0.1569f, 0.1569f, 0.035f)),
-            (1.13f, new Color(0.7765f, 0.1569f, 0.1569f, 0.055f)),
-            (1.05f, new Color(0.7765f, 0.1569f, 0.1569f, 0.09f)),
-        };
 
         private float[] _targetValues = new float[ProfileRadarMath.AxisCount];
         private float _maxValue = 100f;
@@ -183,19 +169,8 @@ namespace Mikey.UI.Profile
 
             Vector2[] data = ProfileRadarMath.Polygon(_targetValues, _maxValue, radius * _progress, center);
 
-            foreach (var (scale, color) in GlowLayers)
-                DrawPolygonFill(painter, ScalePolygon(data, center, scale), color);
-
             DrawPolygonFill(painter, data, DataFill);
             DrawPolygonOutline(painter, data, DataStroke, 2.5f);
-        }
-
-        private static Vector2[] ScalePolygon(Vector2[] points, Vector2 center, float scale)
-        {
-            var scaled = new Vector2[points.Length];
-            for (int i = 0; i < points.Length; i++)
-                scaled[i] = center + (points[i] - center) * scale;
-            return scaled;
         }
 
         private static void DrawPolygonFill(Painter2D painter, Vector2[] points, Color color)
