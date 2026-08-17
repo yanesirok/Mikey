@@ -40,11 +40,14 @@ namespace Mikey.UI.Audio
         /// other screen is not part of the hub: Logo Intro and Lore (before the
         /// hub — the soundtrack has not started yet) and training/gameplay
         /// content (combineIntro, camTest, combine, practice — the soundtrack
-        /// fades out for these).
+        /// fades out for these). "profileDetails" is part of the Profile hub
+        /// flow (edit icon / one-time incomplete-profile redirect), so it's a
+        /// hub screen too — Profile -&gt; Profile Details -&gt; Profile must never
+        /// restart or re-fade the music.
         /// </summary>
         public static readonly HashSet<string> HubScreenIds = new HashSet<string>
         {
-            "menu", "map", "mapOkinawa", "profile", "techniques",
+            "menu", "map", "mapOkinawa", "profile", "techniques", "profileDetails",
         };
 
         [SerializeField] private AudioClip menuMusicClip;

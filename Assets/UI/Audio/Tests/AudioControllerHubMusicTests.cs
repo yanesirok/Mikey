@@ -5,8 +5,8 @@ namespace Mikey.UI.Audio.Tests
     /// <summary>
     /// Direct behavioral coverage for the hub soundtrack's transition policy:
     /// <see cref="AudioController.IsHubScreen"/> classifies every production
-    /// screen id into hub (Main Menu, Japan/Okinawa Map, Profile, Techniques) or
-    /// non-hub (Logo Intro, Lore, and training/gameplay: combineIntro, camTest,
+    /// screen id into hub (Main Menu, Japan/Okinawa Map, Profile, Profile
+    /// Details, Techniques) or non-hub (Logo Intro, Lore, and training/gameplay: combineIntro, camTest,
     /// combine, practice), and the pure <see cref="AudioController.ShouldStartHubMusic"/>
     /// / <see cref="AudioController.ShouldStopHubMusic"/> decisions prove the
     /// exact continuity matrix the launch/shell flow depends on — hub-to-hub
@@ -27,6 +27,7 @@ namespace Mikey.UI.Audio.Tests
         [TestCase("mapOkinawa", true)]
         [TestCase("profile", true)]
         [TestCase("techniques", true)]
+        [TestCase("profileDetails", true)]
         [TestCase("title", false)]
         [TestCase("intro", false)]
         [TestCase("combineIntro", false)]
@@ -45,6 +46,8 @@ namespace Mikey.UI.Audio.Tests
         [TestCase("map", "profile")]
         [TestCase("profile", "techniques")]
         [TestCase("techniques", "menu")]
+        [TestCase("profile", "profileDetails")]
+        [TestCase("profileDetails", "profile")]
         public void HubToHubTransition_NeitherStartsNorStops_KeepsPlayingContinuously(string from, string to)
         {
             bool wasInHub = AudioController.IsHubScreen(from);

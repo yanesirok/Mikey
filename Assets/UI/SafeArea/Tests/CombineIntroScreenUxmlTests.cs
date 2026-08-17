@@ -243,12 +243,12 @@ namespace Mikey.UI.SafeArea.Tests
                 "The .ci-btn rule must size via flex, not width:100% that overflows the sibling action.");
         }
 
-        // 15 — production screen count is eleven (Profile, Okinawa chapter map added).
+        // 15 — production screen count is twelve (Profile, Okinawa chapter map, Profile Details added).
         [Test]
-        public void ProductionScreenCount_IsEleven()
+        public void ProductionScreenCount_IsTwelve()
         {
-            Assert.AreEqual(11, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
-                "There must be exactly eleven production screens.");
+            Assert.AreEqual(12, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
+                "There must be exactly twelve production screens.");
         }
 
         // 16 — Title → Intro → Home remains unchanged (Title's own route into

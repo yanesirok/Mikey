@@ -275,14 +275,15 @@
     white-space: normal;
 }
 
-/* ---------- shared Profile-local popup shell ----------
-   Used by both the Attribute Details popup and the Username edit popup —
-   neither is a new screen id (see ProfileController): a full-screen overlay
-   toggled by ".profile-popup--open", scrim declared before the card so a tap
-   lands on the card when over it and the scrim everywhere else (same
-   technique as Map's ".map-outside-catcher"). Heavily-tinted dark glass with
-   a subtle crimson edge — never a generic white card, never five separate
-   cards for the attribute list. */
+/* ---------- Profile-local popup shell (Attribute Details) ----------
+   Not a new screen id (see ProfileController): a full-screen overlay toggled
+   by ".profile-popup--open", scrim declared before the card so a tap lands on
+   the card when over it and the scrim everywhere else (same technique as
+   Map's ".map-outside-catcher"). Heavily-tinted dark glass with a subtle
+   crimson edge — never a generic white card, never five separate cards for
+   the attribute list. (The old username-edit popup that used to share this
+   shell is gone — editing identity is now the full "profileDetails" screen,
+   see ProfileDetails.uss.) */
 .profile-popup {
     display: none;
     position: absolute;
@@ -315,11 +316,6 @@
     width: 78%;
     max-width: 980px;
 }
-.profile-popup__card--narrow {
-    width: 50%;
-    min-width: 380px;
-    max-width: 520px;
-}
 .profile-popup__title {
     font-size: 34px;
     -unity-font-style: bold;
@@ -328,14 +324,7 @@
     text-shadow: 0 0 12px rgba(198, 40, 40, 0.35);
     margin-bottom: 24px;
 }
-.profile-popup__title--compact {
-    font-size: 26px;
-    margin-bottom: 18px;
-    text-shadow: none;
-}
-.profile-popup__close,
-.profile-popup__primary-btn,
-.profile-popup__secondary-btn {
+.profile-popup__close {
     align-self: center;
     min-width: 160px;
     height: 54px;
@@ -344,8 +333,6 @@
     -unity-text-align: middle-center;
     font-size: 20px;
     -unity-font-style: bold;
-}
-.profile-popup__close {
     margin-top: 28px;
     border-width: 1px;
     border-color: rgba(237, 230, 216, 0.25);
@@ -355,26 +342,6 @@
 .profile-popup__close:hover {
     border-color: var(--bone);
     background-color: rgba(237, 230, 216, 0.12);
-}
-.profile-popup__secondary-btn {
-    border-width: 1px;
-    border-color: rgba(237, 230, 216, 0.25);
-    background-color: rgba(237, 230, 216, 0.06);
-    color: var(--bone);
-    margin-right: 16px;
-}
-.profile-popup__secondary-btn:hover {
-    border-color: var(--bone);
-    background-color: rgba(237, 230, 216, 0.12);
-}
-.profile-popup__primary-btn {
-    border-width: 1px;
-    border-color: var(--crimson);
-    background-color: var(--crimson);
-    color: var(--bone);
-}
-.profile-popup__primary-btn:hover {
-    background-color: var(--crimson-deep);
 }
 
 /* ---------- attribute details popup content ---------- */
@@ -398,32 +365,4 @@
     font-size: 18px;
     color: rgba(237, 230, 216, 0.85);
     white-space: normal;
-}
-
-/* ---------- username edit popup content ---------- */
-.profile-username-edit__field {
-    margin-top: 6px;
-    font-size: 22px;
-}
-.profile-username-edit__field .unity-base-field__input {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-width: 1px;
-    border-color: rgba(237, 230, 216, 0.2);
-    border-radius: 8px;
-    padding: 10px 14px;
-    color: var(--bone);
-}
-.profile-username-edit__error {
-    display: none;
-    font-size: 15px;
-    color: var(--crimson);
-    margin-top: 8px;
-}
-.profile-username-edit__error--visible {
-    display: flex;
-}
-.profile-username-edit__actions {
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 24px;
 }

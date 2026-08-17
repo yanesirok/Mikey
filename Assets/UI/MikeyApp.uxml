@@ -983,7 +983,11 @@
                     <ui:Label text="PROFILE" class="profile-kicker" />
                     <ui:VisualElement class="profile-name-row">
                         <ui:Label name="profile-display-name" text="Mikey" class="profile-name" />
-                        <ui:Button name="profile-name-edit-open" class="profile-name-edit-btn tap-target">
+                        <!-- Plain, unconditional navigation to Profile Details — no
+                             gating, so a generic ScreenManager "go-" navigator needs
+                             zero controller code (see ProfileDetailsController for
+                             the screen it opens). -->
+                        <ui:Button name="go-profileDetails" class="profile-name-edit-btn tap-target">
                             <ui:VisualElement class="profile-name-edit-icon" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
@@ -1083,22 +1087,78 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Username edit popup — also Profile-local. No outside-tap-to-close
-                 (a scrim without a click handler still blocks taps from reaching
-                 Profile underneath, it just doesn't dismiss on its own) so an
-                 accidental tap while typing can't silently discard the edit;
-                 Cancel/Save are the only ways out. -->
-            <ui:VisualElement name="profile-username-edit-popup" class="profile-popup">
-                <ui:VisualElement name="profile-username-edit-scrim" class="profile-popup__scrim" />
-                <ui:VisualElement class="profile-popup__card profile-popup__card--narrow">
-                    <ui:Label text="Display Name" class="profile-popup__title profile-popup__title--compact" />
-                    <ui:TextField name="profile-username-edit-field" max-length="24" class="profile-username-edit__field" />
-                    <ui:Label name="profile-username-edit-error" text="Display name cannot be empty." class="profile-username-edit__error" />
-                    <ui:VisualElement class="profile-username-edit__actions">
-                        <ui:Button name="profile-username-edit-cancel" text="Cancel" class="profile-popup__secondary-btn tap-target" />
-                        <ui:Button name="profile-username-edit-save" text="Save" class="profile-popup__primary-btn tap-target" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 10b - PROFILE DETAILS (Display Name / Gender / Age / Weight / Height).
+             A proper full screen (not a popup), reached only from Profile's edit
+             icon ("go-profileDetails") or the one-time incomplete-profile
+             redirect (see ProfileController). Save validates everything and
+             returns to "profile" (ProfileDetailsController); Cancel is a plain
+             "go-profile" — nothing is written until Save, so there is nothing to
+             "revert". Classified as a hub screen (see AudioController.HubScreenIds)
+             so hub music never stops/restarts crossing into or out of it. Replaces
+             the old Profile-local username-only popup entirely — this is now the
+             ONE place Profile identity is edited. -->
+        <ui:VisualElement name="profileDetails" class="screen profile-details-screen">
+            <Style src="Profile/ProfileDetails.uss" />
+            <ui:VisualElement class="profile-details-bg" picking-mode="Ignore" />
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="profile-details-layout">
+
+                <ui:Label text="Profile Details" class="profile-details-title" />
+                <ui:Label text="Tell Mikey about you. These details will help personalize your training." class="profile-details-subtitle" />
+
+                <ui:VisualElement class="profile-details-form">
+                    <ui:VisualElement class="profile-details-column">
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Display Name" class="profile-details-field__label" />
+                            <ui:TextField name="profile-details-display-name" max-length="24" class="profile-details-field__input" />
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Gender" class="profile-details-field__label" />
+                            <ui:VisualElement class="profile-details-gender-group">
+                                <ui:Button name="profile-details-gender-male" text="Male" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-female" text="Female" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-other" text="Other" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-undisclosed" text="Prefer not to say" class="profile-details-gender-option tap-target" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Age" class="profile-details-field__label" />
+                            <ui:TextField name="profile-details-age" class="profile-details-field__input profile-details-field__input--narrow" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="profile-details-column profile-details-column--right">
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Weight" class="profile-details-field__label" />
+                            <ui:VisualElement class="profile-details-field__input-row">
+                                <ui:TextField name="profile-details-weight" class="profile-details-field__input profile-details-field__input--narrow" />
+                                <ui:Label text="kg" class="profile-details-field__unit" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Height" class="profile-details-field__label" />
+                            <ui:VisualElement class="profile-details-field__input-row">
+                                <ui:TextField name="profile-details-height" class="profile-details-field__input profile-details-field__input--narrow" />
+                                <ui:Label text="cm" class="profile-details-field__unit" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <ui:Label name="profile-details-error" text="" class="profile-details-error" />
                     </ui:VisualElement>
                 </ui:VisualElement>
+
+                <ui:VisualElement class="profile-details-actions">
+                    <ui:Button name="go-profile" text="Cancel" class="profile-details-btn profile-details-btn--secondary tap-target" />
+                    <ui:Button name="profile-details-save" text="Save" class="profile-details-btn profile-details-btn--primary tap-target" />
+                </ui:VisualElement>
+
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

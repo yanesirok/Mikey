@@ -15,26 +15,28 @@ namespace Mikey.UI.Profile
     /// let the player through. Techniques keeps its existing
     /// <see cref="TutorialProgressPresenter.IsTechniquesUnlocked"/> gate,
     /// unchanged. Also mounts/animates the capability radar (see
-    /// <see cref="ProfileRadarChart"/>), and owns two Profile-LOCAL overlays (no
-    /// new screen ids): the Attribute Details popup (opened by tapping the radar)
-    /// and the username edit popup (opened by the edit icon next to the
-    /// displayed name, backed by <see cref="ProfileDisplayNameStorage"/>'s one
-    /// approved PlayerPrefs key). Neither popup ever touches
-    /// <see cref="IScreenNavigator"/>, so opening/closing them can never replay
-    /// the radar's entrance animation — that only reacts to
+    /// <see cref="ProfileRadarChart"/>), owns the Attribute Details popup (opened
+    /// by tapping the radar — a Profile-local overlay, no new screen id), and
+    /// keeps the displayed name in sync with <see cref="ProfileUserDataStorage"/>
+    /// (the edit icon itself is a plain "go-profileDetails" navigator — see
+    /// MikeyApp.uxml — needing no click wiring here at all). The Attribute popup
+    /// never touches <see cref="IScreenNavigator"/>, so opening/closing it can
+    /// never replay the radar's entrance animation — that only reacts to
     /// <see cref="IScreenNavigator.ScreenChanged"/> firing for "profile" (mirrors
-    /// OkinawaMapController's OnEnteredScreen pattern). Every Profile number
-    /// below (LVL, XP, streak, chapter progress, radar values) is frontend mock
-    /// data centralized here; see the class-level REAL/PLACEHOLDER split in the
-    /// PR description.
+    /// OkinawaMapController's OnEnteredScreen pattern), which is also where the
+    /// name refresh and the one-time incomplete-profile redirect to
+    /// "profileDetails" live (see <see cref="HandleProfileEntered"/>). Every other
+    /// Profile number (LVL, XP, streak, chapter progress, radar values) is
+    /// frontend mock data centralized here; see the class-level REAL/PLACEHOLDER
+    /// split in the PR description.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class ProfileController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
         private const string ScreenId = "profile";
+        private const string ProfileDetailsScreenId = "profileDetails";
         private const string PopupOpenClass = "profile-popup--open";
-        private const string UsernameErrorVisibleClass = "profile-username-edit__error--visible";
         private const float RadarEntranceSeconds = 0.65f;
         private const float RadarMaxValue = 100f;
 
@@ -51,12 +53,6 @@ namespace Mikey.UI.Profile
         private Button _attributePopupClose;
 
         private Label _displayNameLabel;
-        private Button _nameEditOpenButton;
-        private VisualElement _usernameEditPopup;
-        private TextField _usernameField;
-        private Label _usernameError;
-        private Button _usernameSaveButton;
-        private Button _usernameCancelButton;
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
@@ -69,6 +65,15 @@ namespace Mikey.UI.Profile
         private Coroutine _bindRoutine;
         private Coroutine _radarEntranceRoutine;
         private bool _bound;
+
+        /// <summary>
+        /// In-memory only (never persisted): true once we've either auto-redirected
+        /// to Profile Details this session or the profile was already complete on
+        /// first check. Guarantees the incomplete-profile redirect fires at most
+        /// once per app session — the player can always Cancel out of Profile
+        /// Details and simply browse Profile afterward without being bounced back.
+        /// </summary>
+        private bool _profileDetailsRedirectOffered;
 
         private void OnEnable()
         {
@@ -102,12 +107,6 @@ namespace Mikey.UI.Profile
                     _attributePopupScrim.UnregisterCallback(_attributeScrimClickCallback);
                 if (_attributePopupClose != null)
                     _attributePopupClose.clicked -= CloseAttributePopup;
-                if (_nameEditOpenButton != null)
-                    _nameEditOpenButton.clicked -= OpenUsernameEditPopup;
-                if (_usernameSaveButton != null)
-                    _usernameSaveButton.clicked -= OnUsernameSaveClicked;
-                if (_usernameCancelButton != null)
-                    _usernameCancelButton.clicked -= CloseUsernameEditPopup;
             }
 
             if (_navigator != null)
@@ -123,12 +122,6 @@ namespace Mikey.UI.Profile
             _attributePopupScrim = null;
             _attributePopupClose = null;
             _displayNameLabel = null;
-            _nameEditOpenButton = null;
-            _usernameEditPopup = null;
-            _usernameField = null;
-            _usernameError = null;
-            _usernameSaveButton = null;
-            _usernameCancelButton = null;
             _navMapClickCallback = null;
             _navTechniquesClickCallback = null;
             _radarClickCallback = null;
@@ -163,12 +156,6 @@ namespace Mikey.UI.Profile
             _attributePopupClose = root.Q<Button>("profile-attribute-popup-close");
 
             _displayNameLabel = root.Q<Label>("profile-display-name");
-            _nameEditOpenButton = root.Q<Button>("profile-name-edit-open");
-            _usernameEditPopup = root.Q<VisualElement>("profile-username-edit-popup");
-            _usernameField = root.Q<TextField>("profile-username-edit-field");
-            _usernameError = root.Q<Label>("profile-username-edit-error");
-            _usernameSaveButton = root.Q<Button>("profile-username-edit-save");
-            _usernameCancelButton = root.Q<Button>("profile-username-edit-cancel");
 
             if (_navMap == null || _navTechniques == null)
             {
@@ -206,20 +193,11 @@ namespace Mikey.UI.Profile
             if (_attributePopupClose != null)
                 _attributePopupClose.clicked += CloseAttributePopup;
 
-            if (_displayNameLabel != null)
-                _displayNameLabel.text = ProfileDisplayNameStorage.Load();
-            if (_nameEditOpenButton != null)
-                _nameEditOpenButton.clicked += OpenUsernameEditPopup;
-            if (_usernameSaveButton != null)
-                _usernameSaveButton.clicked += OnUsernameSaveClicked;
-            if (_usernameCancelButton != null)
-                _usernameCancelButton.clicked += CloseUsernameEditPopup;
-
             if (_navigator != null)
             {
                 _navigator.ScreenChanged += OnScreenChanged;
                 if (_navigator.CurrentScreen == ScreenId)
-                    PlayRadarEntrance();
+                    HandleProfileEntered();
             }
 
             _bound = true;
@@ -242,7 +220,36 @@ namespace Mikey.UI.Profile
         private void OnScreenChanged(string screenId)
         {
             if (screenId == ScreenId)
-                PlayRadarEntrance();
+                HandleProfileEntered();
+        }
+
+        /// <summary>
+        /// Runs on every fresh entry to "profile": refreshes the displayed name
+        /// from storage (it may have just changed in Profile Details) and, at most
+        /// once per session, redirects to Profile Details if the data has never
+        /// been completed — see <see cref="_profileDetailsRedirectOffered"/>.
+        /// </summary>
+        private void HandleProfileEntered()
+        {
+            RefreshDisplayName();
+
+            if (!_profileDetailsRedirectOffered)
+            {
+                _profileDetailsRedirectOffered = true;
+                if (!ProfileUserDataStorage.IsComplete(ProfileUserDataStorage.Load()))
+                {
+                    _navigator?.Show(ProfileDetailsScreenId);
+                    return; // leaving again immediately; skip the entrance animation this pass
+                }
+            }
+
+            PlayRadarEntrance();
+        }
+
+        private void RefreshDisplayName()
+        {
+            if (_displayNameLabel != null)
+                _displayNameLabel.text = ProfileUserDataStorage.Load().DisplayName;
         }
 
         private void PlayRadarEntrance()
@@ -289,37 +296,5 @@ namespace Mikey.UI.Profile
         private void OpenAttributePopup() => _attributePopup?.AddToClassList(PopupOpenClass);
 
         private void CloseAttributePopup() => _attributePopup?.RemoveFromClassList(PopupOpenClass);
-
-        // ---------- username edit popup (Profile-local overlay) ----------
-
-        private void OpenUsernameEditPopup()
-        {
-            if (_usernameField != null)
-                _usernameField.value = _displayNameLabel != null ? _displayNameLabel.text : ProfileDisplayNameStorage.DefaultDisplayName;
-
-            HideUsernameError();
-            _usernameEditPopup?.AddToClassList(PopupOpenClass);
-        }
-
-        private void CloseUsernameEditPopup() => _usernameEditPopup?.RemoveFromClassList(PopupOpenClass);
-
-        private void OnUsernameSaveClicked()
-        {
-            string validated = ProfileDisplayNameStorage.Validate(_usernameField?.value);
-            if (validated == null)
-            {
-                ShowUsernameError();
-                return;
-            }
-
-            ProfileDisplayNameStorage.Save(validated);
-            if (_displayNameLabel != null)
-                _displayNameLabel.text = validated;
-            CloseUsernameEditPopup();
-        }
-
-        private void ShowUsernameError() => _usernameError?.AddToClassList(UsernameErrorVisibleClass);
-
-        private void HideUsernameError() => _usernameError?.RemoveFromClassList(UsernameErrorVisibleClass);
     }
 }

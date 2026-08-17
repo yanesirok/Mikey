@@ -8,9 +8,10 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Verifies the MikeyApp.uxml structural contract: exactly eleven production
+    /// Verifies the MikeyApp.uxml structural contract: exactly twelve production
     /// screens (the six post-consolidation entry/Combine screens plus the
-    /// Techniques hub, Practice slice and the two-tier Map flow), one dedicated
+    /// Techniques hub, Practice slice, the two-tier Map flow, and Profile
+    /// Details), one dedicated
     /// ".safe-area-content" per screen, full-bleed elements outside the wrappers,
     /// the mapped foreground elements inside them, Logo Intro's button-free
     /// contract (TitleController drives navigation itself), and the untouched
@@ -42,22 +43,23 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The eleven production screens: the six post-consolidation entry/Combine
-        // screens plus the Techniques lesson hub, the Practice training slice and
-        // the two-tier Map flow (the Japan world map plus the Okinawa chapter map).
+        // The twelve production screens: the six post-consolidation entry/Combine
+        // screens plus the Techniques lesson hub, the Practice training slice, the
+        // two-tier Map flow (the Japan world map plus the Okinawa chapter map),
+        // and Profile Details (Display Name/Gender/Age/Weight/Height).
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
 
         // 1
         [Test]
-        public void HasExactlyElevenScreens()
+        public void HasExactlyTwelveScreens()
         {
-            Assert.AreEqual(11, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(12, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheElevenProductionScreens()
+        public void ScreenIds_AreExactlyTheTwelveProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);

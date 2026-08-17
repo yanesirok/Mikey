@@ -23,7 +23,7 @@ namespace Mikey.UI.Profile.Tests
         private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile" };
+            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
 
         private static VisualElement BuildTree()
         {
@@ -55,12 +55,12 @@ namespace Mikey.UI.Profile.Tests
         private static List<Label> Labels(VisualElement el) => el.Query<Label>().ToList();
 
         [Test]
-        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsEleven()
+        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsTwelve()
         {
             var root = BuildTree();
             var screens = root.Query<VisualElement>(className: "screen").ToList();
             Assert.AreEqual(1, screens.Count(s => s.name == "profile"), "There must be exactly one profile screen.");
-            Assert.AreEqual(11, screens.Count, "There must be exactly eleven production screens.");
+            Assert.AreEqual(12, screens.Count, "There must be exactly twelve production screens (Profile Details is new).");
             CollectionAssert.AreEquivalent(ExpectedScreenIds, screens.Select(s => s.name).ToList());
         }
 
@@ -260,25 +260,33 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void UsernameEdit_ExistsBesideDisplayName_WithEditIconAsset()
+        public void EditIcon_ExistsBesideDisplayName_AndNavigatesToProfileDetails()
         {
-            var screen = Profile(BuildTree());
+            var root = BuildTree();
+            var screen = Profile(root);
 
             var nameLabel = screen.Q<Label>("profile-display-name");
             Assert.IsNotNull(nameLabel, "Expected the display name Label.");
             Assert.AreEqual("Mikey", nameLabel.text, "Default display name must be 'Mikey'.");
 
-            Assert.IsNotNull(screen.Q<Button>("profile-name-edit-open"), "Expected an edit button beside the display name.");
+            // Plain "go-profileDetails" navigator — no gating, so ScreenManager's
+            // generic wiring handles the click with zero controller code.
+            var editButton = screen.Q<Button>("go-profileDetails");
+            Assert.IsNotNull(editButton, "Expected a 'go-profileDetails' edit button beside the display name.");
+            Assert.IsTrue(Screen(root, "profileDetails").ClassListContains("screen"), "'go-profileDetails' target must exist.");
 
             string uss = File.ReadAllText("Assets/UI/Profile/Profile.uss");
             StringAssert.Contains("Media/Images/edit_icon.png", uss, "Must use the supplied edit_icon.png asset.");
+        }
 
-            var popup = screen.Q<VisualElement>("profile-username-edit-popup");
-            Assert.IsNotNull(popup, "Expected a Profile-local username edit overlay.");
-            Assert.IsNotNull(popup.Q<TextField>("profile-username-edit-field"), "Expected a Display Name text field.");
-            Assert.IsNotNull(popup.Q<Button>("profile-username-edit-save"), "Expected a Save control.");
-            Assert.IsNotNull(popup.Q<Button>("profile-username-edit-cancel"), "Expected a Cancel control.");
-            Assert.IsNotNull(popup.Q<Label>("profile-username-edit-error"), "Expected an empty-name validation message.");
+        [Test]
+        public void OldUsernameOnlyPopup_IsFullyRemoved()
+        {
+            var screen = Profile(BuildTree());
+            Assert.IsNull(screen.Q<VisualElement>("profile-username-edit-popup"),
+                "The old username-only popup must be gone — Profile Details is now the one place identity is edited.");
+            Assert.IsNull(screen.Q<Button>("profile-name-edit-open"),
+                "The old controller-bound edit button must be gone, replaced by the 'go-profileDetails' navigator.");
         }
 
         [Test]

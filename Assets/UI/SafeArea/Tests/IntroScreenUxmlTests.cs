@@ -260,10 +260,10 @@ namespace Mikey.UI.SafeArea.Tests
 
         // 10 (suite-level) — production screen count is eleven (Profile, Okinawa chapter map added).
         [Test]
-        public void ProductionScreenCount_IsEleven()
+        public void ProductionScreenCount_IsTwelve()
         {
-            Assert.AreEqual(11, ByClass(BuildTree(), "screen").Count,
-                "The application must keep exactly eleven production screens.");
+            Assert.AreEqual(12, ByClass(BuildTree(), "screen").Count,
+                "The application must keep exactly twelve production screens.");
         }
 
         // 11 (suite-level) — unrelated screen ids and forward routes are intact.
@@ -271,9 +271,9 @@ namespace Mikey.UI.SafeArea.Tests
         public void NoUnrelatedScreenIdsOrRoutes_Changed()
         {
             var root = BuildTree();
-            var expected = new[] { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile" };
+            var expected = new[] { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
             var ids = ByClass(root, "screen").Select(s => s.name).ToList();
-            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the eleven production screens.");
+            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the twelve production screens.");
 
             // Key forward navigators must still be present (routes intact). Title's
             // own route into Intro is no longer "go-intro" — TitleController drives

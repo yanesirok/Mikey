@@ -1,0 +1,192 @@
+/* ============================================================
+   Profile Details — a proper full screen (landscape Android first), not a
+   popup: Display Name / Gender / Age / Weight / Height. Reached only from
+   Profile's edit icon or the one-time incomplete-profile redirect (see
+   ProfileController/ProfileDetailsController). Black/near-black, off-white,
+   crimson — same restrained visual language as the rest of Profile, inheriting
+   the global mikey_ui.otf font (see theme.uss ".mikey-app" — this file never
+   redeclares it). Local frontend data only; no backend/account system exists
+   yet (see ProfileUserDataStorage).
+   ============================================================ */
+
+.profile-details-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base);
+}
+
+/* ---------- touch-target kit (scoped, matches every other screen) ---------- */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+
+.profile-details-layout {
+    flex-grow: 1;
+    width: 100%;
+    max-width: 1200px;
+    align-self: center;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px 40px;
+}
+
+.profile-details-title {
+    font-size: 44px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: var(--bone);
+}
+.profile-details-subtitle {
+    font-size: 19px;
+    color: var(--muted);
+    margin-top: 8px;
+    white-space: normal;
+}
+
+/* ---------- two-column form ---------- */
+.profile-details-form {
+    flex-direction: row;
+    margin-top: 30px;
+}
+.profile-details-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-direction: column;
+    min-width: 0;
+}
+.profile-details-column--right {
+    margin-left: 64px;
+}
+
+.profile-details-field {
+    margin-bottom: 24px;
+}
+.profile-details-field__label {
+    font-size: 23px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+/* Targets UI Toolkit's own inner input box (".unity-base-field__input",
+   shared by every BaseField-derived control) rather than the TextField
+   element itself, mirroring the technique already used for the retired
+   username popup's field. */
+.profile-details-field__input {
+    margin: 0;
+    font-size: 24px;
+}
+.profile-details-field__input .unity-base-field__input {
+    height: 56px;
+    padding: 0 16px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.2);
+    border-radius: 8px;
+    color: var(--bone);
+}
+.profile-details-field__input--narrow {
+    max-width: 220px;
+}
+
+.profile-details-field__input-row {
+    flex-direction: row;
+    align-items: center;
+}
+.profile-details-field__unit {
+    font-size: 20px;
+    color: var(--muted);
+    margin-left: 12px;
+}
+
+/* ---------- gender selection ----------
+   Four tappable chips, not a desktop-style dropdown (poor on mobile) and not
+   a generic PopupField/DropdownField control. Wraps to a 2x2 grid on
+   landscape-column widths. */
+.profile-details-gender-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+.profile-details-gender-option {
+    flex-basis: 46%;
+    flex-grow: 1;
+    height: 52px;
+    margin: 0 8px 10px 0;
+    padding: 0 12px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.2);
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    font-size: 19px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+.profile-details-gender-option:hover {
+    border-color: rgba(237, 230, 216, 0.4);
+}
+.profile-details-gender-option--selected {
+    border-color: var(--crimson);
+    background-color: rgba(198, 40, 40, 0.18);
+    color: var(--bone);
+}
+
+/* ---------- validation error ----------
+   One compact, restrained crimson message — never a popup alert dialog. */
+.profile-details-error {
+    display: none;
+    font-size: 17px;
+    color: var(--crimson);
+    margin-top: 16px;
+    white-space: normal;
+}
+.profile-details-error--visible {
+    display: flex;
+}
+
+/* ---------- actions ---------- */
+.profile-details-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 26px;
+}
+.profile-details-btn {
+    min-width: 160px;
+    height: 56px;
+    padding: 0 32px;
+    border-radius: 8px;
+    font-size: 24px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-left: 16px;
+}
+.profile-details-btn--secondary {
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(237, 230, 216, 0.06);
+    color: var(--bone);
+}
+.profile-details-btn--secondary:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.12);
+}
+.profile-details-btn--primary {
+    border-width: 1px;
+    border-color: var(--crimson);
+    background-color: var(--crimson);
+    color: var(--bone);
+}
+.profile-details-btn--primary:hover {
+    background-color: var(--crimson-deep);
+}

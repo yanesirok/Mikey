@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 
@@ -60,14 +62,66 @@ namespace Mikey.UI.Profile.Tests
             Assert.LessOrEqual(seconds, 0.75f);
         }
 
+        // ---------- radar glow: fill-only layers, one crisp main outline ----------
+
         [Test]
-        public void RadarChart_ImplementsALayeredGlow_BehindTheMainPolygon()
+        public void RadarChart_HasFourGlowLayers_FillOnly_ScaledAroundTheDataPolygon()
         {
             string source = File.ReadAllText(ChartPath);
-            StringAssert.Contains("GlowOuter", source);
-            StringAssert.Contains("GlowInner", source);
-            StringAssert.Contains("ScalePolygon(data, center,", source,
-                "Glow must be drawn as larger, lower-alpha copies of the same data polygon behind it.");
+            var arrayBlock = ExtractArrayInitializer(source, "GlowLayers");
+            Assert.IsNotNull(arrayBlock, "Expected a 'GlowLayers' array.");
+
+            // Anchored on "new Color(" immediately following so this only matches
+            // each tuple's own scale value, not the inner Color constructor's
+            // first (red-channel) argument.
+            var scales = Regex.Matches(arrayBlock, @"\((\d+\.\d+)f,\s*new Color\(");
+            Assert.GreaterOrEqual(scales.Count, 2, "Expected 2-4 progressively larger glow layers.");
+            Assert.LessOrEqual(scales.Count, 4, "Expected 2-4 progressively larger glow layers.");
+
+            StringAssert.Contains("foreach (var (scale, color) in GlowLayers)", source);
+            StringAssert.Contains("DrawPolygonFill(painter, ScalePolygon(data, center, scale), color);", source,
+                "Every glow layer must be fill-only.");
+        }
+
+        [Test]
+        public void RadarGlow_OpacityDecreasesOutward_NoneApproachTheMainFillsStrength()
+        {
+            string source = File.ReadAllText(ChartPath);
+            var arrayBlock = ExtractArrayInitializer(source, "GlowLayers");
+            Assert.IsNotNull(arrayBlock);
+
+            // Colors appear outermost-first in source (see the layer-ordering
+            // comment in ProfileRadarChart.cs); each successive (inner) layer must
+            // be more opaque than the one before it, and even the strongest must
+            // stay well under DataFill's 0.32 alpha.
+            var alphas = Regex.Matches(arrayBlock, @"0\.7765f,\s*0\.1569f,\s*0\.1569f,\s*(\d+(\.\d+)?)f\)")
+                .Select(m => float.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
+                .ToList();
+            Assert.GreaterOrEqual(alphas.Count, 2);
+
+            for (int i = 1; i < alphas.Count; i++)
+                Assert.Greater(alphas[i], alphas[i - 1], "Opacity must increase layer-by-layer toward the center (i.e. decrease outward).");
+
+            Assert.Less(alphas[alphas.Count - 1], 0.32f, "Even the strongest glow layer must stay clearly under the main fill's opacity.");
+        }
+
+        [Test]
+        public void RadarChart_MainPolygonIsTheOnlyStrokedShape_GlowLayersHaveNoOutline()
+        {
+            string source = File.ReadAllText(ChartPath);
+            string drawBody = ExtractMethodBody(source, "OnGenerateVisualContent");
+            Assert.IsNotNull(drawBody, "Expected to find OnGenerateVisualContent.");
+
+            // Within the glow+data drawing section (after the grid/axis lines,
+            // which legitimately use DrawPolygonOutline for the guide grid), the
+            // only stroke must be the main data polygon's.
+            int progressGuardIndex = drawBody.IndexOf("if (_progress <= 0f)", System.StringComparison.Ordinal);
+            Assert.GreaterOrEqual(progressGuardIndex, 0, "Expected the early-out guard before glow/data drawing.");
+            string glowAndDataSection = drawBody.Substring(progressGuardIndex);
+
+            Assert.AreEqual(1, CountOccurrences(glowAndDataSection, "DrawPolygonOutline("),
+                "Exactly one stroked shape (the main data polygon) may appear after the grid/axis lines.");
+            StringAssert.Contains("DrawPolygonOutline(painter, data, DataStroke, 2.5f);", glowAndDataSection);
         }
 
         [Test]
@@ -113,11 +167,7 @@ namespace Mikey.UI.Profile.Tests
         public void PopupToggles_NeverCallPlayRadarEntranceOrNavigate_SoTheyCannotReplayTheEntranceAnimation()
         {
             string source = File.ReadAllText(ControllerPath);
-            foreach (var method in new[]
-            {
-                "OpenAttributePopup", "CloseAttributePopup", "ToggleAttributePopup",
-                "OpenUsernameEditPopup", "CloseUsernameEditPopup", "OnUsernameSaveClicked"
-            })
+            foreach (var method in new[] { "OpenAttributePopup", "CloseAttributePopup", "ToggleAttributePopup" })
             {
                 string body = ExtractMethodBody(source, method);
                 Assert.IsNotNull(body, $"Expected to find method '{method}'.");
@@ -126,28 +176,50 @@ namespace Mikey.UI.Profile.Tests
             }
         }
 
-        // ---------- editable username ----------
+        // ---------- Profile Details: edit navigation, display-name refresh, one-time redirect ----------
 
         [Test]
-        public void DisplayName_LoadsFromStorage_OnBind_AndSavesOnSave()
+        public void EditIconWiring_NoLongerExistsInController_ItsAPlainGoNavigatorNow()
         {
             string source = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("_displayNameLabel.text = ProfileDisplayNameStorage.Load();", source);
-            StringAssert.Contains("ProfileDisplayNameStorage.Validate(_usernameField?.value)", source);
-            StringAssert.Contains("ProfileDisplayNameStorage.Save(validated);", source);
-            StringAssert.Contains("_displayNameLabel.text = validated;", source,
-                "Saving must update the displayed name immediately.");
+            StringAssert.DoesNotContain("profile-name-edit-open", source,
+                "The edit button is now 'go-profileDetails' (see MikeyApp.uxml) — needs zero controller wiring.");
+            StringAssert.DoesNotContain("OpenUsernameEditPopup", source, "The old username-only modal flow must be fully removed.");
+            StringAssert.DoesNotContain("ProfileDisplayNameStorage.Save", source,
+                "ProfileController must no longer write display name directly — ProfileUserDataStorage is the primary store now.");
         }
 
         [Test]
-        public void EmptyUsername_IsRejected_ShowsErrorInsteadOfSaving()
+        public void DisplayName_RefreshesFromProfileUserDataStorage_OnEveryProfileEntry()
         {
             string source = File.ReadAllText(ControllerPath);
-            string saveBody = ExtractMethodBody(source, "OnUsernameSaveClicked");
-            Assert.IsNotNull(saveBody);
-            StringAssert.Contains("if (validated == null)", saveBody);
-            StringAssert.Contains("ShowUsernameError();", saveBody);
-            StringAssert.Contains("return;", saveBody);
+            string refreshBody = ExtractMethodBody(source, "RefreshDisplayName");
+            Assert.IsNotNull(refreshBody, "Expected a RefreshDisplayName method.");
+            StringAssert.Contains("_displayNameLabel.text = ProfileUserDataStorage.Load().DisplayName;", refreshBody);
+
+            string handleEnteredBody = ExtractMethodBody(source, "HandleProfileEntered");
+            Assert.IsNotNull(handleEnteredBody, "Expected a HandleProfileEntered method driving every fresh 'profile' entry.");
+            StringAssert.Contains("RefreshDisplayName();", handleEnteredBody);
+            StringAssert.Contains("_navigator.ScreenChanged += OnScreenChanged;", source);
+        }
+
+        [Test]
+        public void IncompleteProfile_RedirectsToProfileDetailsOnce_NeverLoops()
+        {
+            string source = File.ReadAllText(ControllerPath);
+            string handleEnteredBody = ExtractMethodBody(source, "HandleProfileEntered");
+            Assert.IsNotNull(handleEnteredBody);
+
+            StringAssert.Contains("_profileDetailsRedirectOffered", handleEnteredBody,
+                "Must consult an in-memory (session-only) flag so the redirect fires at most once per session.");
+            StringAssert.Contains("ProfileUserDataStorage.IsComplete(ProfileUserDataStorage.Load())", handleEnteredBody);
+            StringAssert.Contains("_navigator?.Show(ProfileDetailsScreenId);", handleEnteredBody);
+
+            // The flag must be a plain instance field, never written through
+            // PlayerPrefs — it must not survive/leak across sessions or force a
+            // permanent redirect loop.
+            StringAssert.Contains("private bool _profileDetailsRedirectOffered;", source);
+            StringAssert.DoesNotContain("PlayerPrefs", source);
         }
 
         /// <summary>
@@ -195,6 +267,42 @@ namespace Mikey.UI.Profile.Tests
             }
 
             return null;
+        }
+
+        /// <summary>Body of a "private static readonly ... fieldName = { ... };" array/collection initializer.</summary>
+        private static string ExtractArrayInitializer(string source, string fieldName)
+        {
+            int nameIndex = source.IndexOf(fieldName + " =", System.StringComparison.Ordinal);
+            if (nameIndex < 0)
+                return null;
+            int open = source.IndexOf('{', nameIndex);
+            if (open < 0)
+                return null;
+            int depth = 0;
+            for (int i = open; i < source.Length; i++)
+            {
+                if (source[i] == '{')
+                    depth++;
+                else if (source[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                        return source.Substring(open + 1, i - open - 1);
+                }
+            }
+            return null;
+        }
+
+        private static int CountOccurrences(string haystack, string needle)
+        {
+            int count = 0;
+            int index = 0;
+            while ((index = haystack.IndexOf(needle, index, System.StringComparison.Ordinal)) != -1)
+            {
+                count++;
+                index += needle.Length;
+            }
+            return count;
         }
     }
 }

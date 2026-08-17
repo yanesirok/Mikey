@@ -43,11 +43,12 @@ namespace Mikey.UI.Audio.Tests
         }
 
         [Test]
-        public void HubScreenIds_CoversExactlyTheFiveShellNavigationScreens()
+        public void HubScreenIds_CoversExactlyTheSixShellNavigationScreens()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("\"menu\", \"map\", \"mapOkinawa\", \"profile\", \"techniques\",", source,
-                "The hub soundtrack must cover Main Menu, Japan Map, Okinawa Map, Profile and Techniques — training/gameplay screens (combineIntro, camTest, combine, practice) and pre-hub screens (title, intro) must not be included.");
+            StringAssert.Contains("\"menu\", \"map\", \"mapOkinawa\", \"profile\", \"techniques\", \"profileDetails\",", source,
+                "The hub soundtrack must cover Main Menu, Japan Map, Okinawa Map, Profile, Techniques and Profile Details — " +
+                "training/gameplay screens (combineIntro, camTest, combine, practice) and pre-hub screens (title, intro) must not be included.");
         }
 
         [Test]
