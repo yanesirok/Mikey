@@ -33,14 +33,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AlbedoGamma: 0.45
-    - _BumpScale: 1.4
+    - _AlbedoGamma: 0.2
+    - _BumpScale: 0.3
     - _RimPower: 3.5
     - _RimStrength: 0.7
     - _Smoothness: 0.12
-    - _SpecStrength: 0.5
+    - _SpecStrength: 0.060606062
     m_Colors:
-    - _BaseColor: {r: 0.16883115, g: 0.03746254, b: 0.07142857, a: 1}
-    - _RimColor: {r: 0.16883115, g: 0.03746254, b: 0.07142857, a: 1}
+    - _BaseColor: {r: 0.07878787, g: 0.017482517, b: 0.03333333, a: 1}
+    - _RimColor: {r: 0.07878787, g: 0.017482517, b: 0.03333333, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

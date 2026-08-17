@@ -56,13 +56,29 @@ def world_bbox(objs):
     return mn, mx
 
 
-# Меши собственной одежды и обуви персонажа Mixamo. Под кимоно они не нужны, а
-# карате босое, поэтому обувь уходит обязательно. Лицо остаётся: Hair, Eyes,
-# Eyelashes не входят в этот список намеренно.
-# Проверено импортом обеих моделей: у Ch28 это Hoody/Pants/Sneakers, у Remy —
-# Tops/Bottoms/Shoes. Меш тела при этом полный, от стоп до макушки (Ch28_Body
-# z 0.064..1.764, Body z 0.094..3.742), поэтому под снятой одеждой дыр нет.
-CHARACTER_CLOTHING = ('hoody', 'pants', 'sneakers', 'tops', 'bottoms', 'shoes')
+# Здесь стоял список мешей одежды персонажа, которые пайплайн снимал, и рядом
+# с ним — обоснование: «меш тела при этом полный, от стоп до макушки (Ch28_Body
+# z 0.064..1.764), поэтому под снятой одеждой дыр нет». Обоснование было
+# ложным, и проверяли его негодной мерой: bbox тела действительно тянется от
+# 0.064 до 1.764, но только потому, что сверху голова, а снизу ступни. Между
+# ними пусто. Габарит не умеет отличить целое тело от головы со ступнями, а
+# гистограмму вершин по высоте никто не снял. См. import_body, ревизия 4.
+
+# С персонажа Mixamo снимается ТОЛЬКО обувь: тела она не несёт (ступни лежат
+# в самом меше Body), а карате босое.
+#
+# Всё остальное — тело. Проверено кадром с выключенным кимоно: без Tops и
+# Bottoms от бойца остаются голова, две отдельно висящие в воздухе руки от
+# локтя, и голени со ступнями. Торс и плечи лежат в Tops, бёдра в Bottoms.
+# Промежуточный заход снимал Tops (он пробивал халат сзади) — и вернул ровно
+# ту картину, с которой всё началось. Пробой лечится посадкой кимоно, см.
+# seat_on_body, а не снятием тела.
+CHARACTER_STRIP = ('sneakers', 'shoes', 'boots')
+
+# Собственная одежда персонажа: её можно резать там, где закрыло кимоно.
+# Кожа (Body) в список не входит — это лицо, кисти и ступни, всё видимое.
+CHARACTER_CLOTHES = ('hoody', 'tops', 'pants', 'bottoms')
+
 
 # Оба бойца приводятся к одному росту: они дерутся друг с другом, а приходят
 # в разном масштабе — 1.767 м у Ch28 и 3.784 м у Remy.
@@ -119,20 +135,39 @@ def import_body(path):
     meshes = [o for o in new if o.type == 'MESH']
     assert meshes, f'в {path} нет ни одного меша'
 
+    # Ревизия 4: одежда персонажа больше НЕ снимается.
+    #
+    # Персонажи Mixamo смоделированы одетыми, и меш 'Body' у них — только
+    # открытая кожа. Снимая Hoody и Pants, мы уносили вместе с ними торс и
+    # ноги. Замер готовой сцены: у Ch28_Body 9466 вершин лежат на высотах
+    # 1.7/1.6/1.5/1.4 м (голова, шея, плечи, руки) и 0.1/0.0 м (ступни), а
+    # между 0.2 и 1.3 м нет ни одной. Боец состоял из головы, рук и ступней,
+    # висящих в воздухе; кимоно работало не одеждой поверх тела, а
+    # единственной оболочкой вместо тела.
+    #
+    # Отсюда росли жалобы, которые я лечил не там: «оторванные куски в
+    # воздухе» — это кисти без рук, «плоские крылья» — треугольники от culla
+    # плеча к этим кистям, «одежда сидит неестественно» — под ней нечему
+    # быть. Первая жалоба владельца в этой работе была именно про руки.
+    #
+    # Одежда персонажа теперь остаётся телом под кимоно. Кимоно — халат в пол
+    # с широкими рукавами, так что от неё видно только предплечья и щиколотки.
+    #
+    # Снимается только то, что перечислено в CHARACTER_STRIP: обувь и верх.
+    # Штаны остаются — они и есть ноги, которые видно из-под подола.
     doomed = [o for o in meshes
-              if any(c in o.name.lower() for c in CHARACTER_CLOTHING)]
+              if any(c in o.name.lower() for c in CHARACTER_STRIP)]
+    # Имена снимаем до удаления: после remove() объект — мёртвый StructRNA, и
+    # обращение к .name в печати роняет прогон (проверено, ReferenceError).
     doomed_names = [o.name for o in doomed]
     for o in doomed:
         bpy.data.objects.remove(o, do_unlink=True)
     meshes = [o for o in meshes if o not in doomed]
-    assert meshes, 'после снятия одежды не осталось ни одного меша'
+    assert meshes, 'у персонажа не осталось ни одного меша'
 
     k = normalize_height(arm, meshes)
-    # Имена, а не только счётчики: по «снято 3» не отличить «снято всё, что
-    # нужно» от «снято 3, а Jacket/Dress/Boots третьего персонажа пропущены» —
-    # CHARACTER_CLOTHING покрывает ровно этих двух бойцов и молчит про остальных.
-    print(f'kimono_fit: персонаж {os.path.basename(path)} — снято мешей одежды '
-          f'{len(doomed)} {doomed_names}, осталось {len(meshes)} '
+    print(f'kimono_fit: персонаж {os.path.basename(path)} — снято '
+          f'{doomed_names}, мешей {len(meshes)} '
           f'{[o.name for o in meshes]}, масштаб {k:.4f}')
     return arm, meshes
 
@@ -259,6 +294,172 @@ def fit(kimono, arm, meshes, scale_mul, offset_z):
     kimono.location.z += toe - kmn.z + offset_z
     bpy.context.view_layer.update()
     return s
+
+
+# Меши, которые не участвуют в посадке: волосы, ресницы, глаза. Волосы
+# особенно — хвост на затылке сдвинул бы весь халат вперёд.
+FIT_IGNORE = ('hair', 'eyelash', 'eye')
+
+# Зазор между телом и тканью по глубине, в метрах. Ткань обязана лежать НАД
+# телом с запасом: в bind pose хватило бы и миллиметра, но на анимации меши
+# деформируются по-разному, и впритык посаженная ткань начинает пропускать
+# тело наружу.
+#
+# 2 см оказалось мало: у врага расчёт дал расширение ×1.00 (то есть ткань
+# прошла ровно впритык, с запасом в 2 мм по полуразмаху), и на кадре сзади
+# сквозь лопатки проступала футболка. 4 см требуют расширения ×1.13 и
+# закрывают её.
+FIT_CLEARANCE = 0.04
+
+# Потолок расширения по глубине. Больше — значит халат вообще не по фигуре,
+# и растягивать его дальше уже нельзя; лучше упасть и разбираться.
+FIT_MAX_WIDEN = 1.5
+
+
+def _depth_bands(objs, lo, hi, bands=6):
+    """Для каждого пояса высот: (центр, полуразмах) по глубине (ось Y)."""
+    out = []
+    step = (hi - lo) / bands
+    for i in range(bands):
+        z0, z1 = lo + i * step, lo + (i + 1) * step
+        ys = [(o.matrix_world @ v.co).y for o in objs for v in o.data.vertices
+              if z0 <= (o.matrix_world @ v.co).z < z1]
+        out.append(((min(ys) + max(ys)) / 2, (max(ys) - min(ys)) / 2) if ys else None)
+    return out
+
+
+def seat_on_body(kimono, body_meshes, arm):
+    """Сажает кимоно на тело по глубине: центрует и добавляет недостающую ширину.
+
+    fit() выставляет только рост (воротник к шее, подол к стопе) и центрует по
+    ОБЩЕМУ габариту. Для этого халата общий габарит врёт: распахнутые передние
+    полы уводят его центр вперёд, и на теле кимоно садится со сдвигом. Замер по
+    поясам высот: ткань спереди доходит до -0.28, сзади только до +0.06..+0.10,
+    а спина тела — на +0.13..+0.15. Восемь сантиметров спины оказывались
+    снаружи халата, и на кадре сзади сквозь него была видна футболка и шорты.
+
+    Здесь считается честная поправка: по поясам от паха до шеи берём центр и
+    полуразмах тела и ткани, сдвигаем ткань на разницу центров и растягиваем
+    по глубине ровно настолько, чтобы тело поместилось с зазором.
+
+    Ось Y (глубина), а не общий обхват: по ширине мешают руки, разведённые в
+    T-позе, — они дают «телу» полуразмах в 0.9 м и требование расширить халат
+    втрое. Проверено: первый заход считал именно так и просил ×3.08.
+    """
+    body = [o for o in body_meshes
+            if not any(k in o.name.lower() for k in FIT_IGNORE)]
+    assert body, 'не из чего собрать цель посадки — остались одни волосы?'
+
+    lo = bone_head_z(arm, ':LeftUpLeg')
+    hi = bone_head_z(arm, ':Neck')
+    b = _depth_bands(body, lo, hi)
+    k = _depth_bands([kimono], lo, hi)
+    pairs = [(bb, kk) for bb, kk in zip(b, k) if bb and kk]
+    assert pairs, 'посадка: пояса высот пусты, мерить нечего'
+
+    shift = sum(bb[0] - kk[0] for bb, kk in pairs) / len(pairs)
+    widen = max([(bb[1] + FIT_CLEARANCE) / kk[1] for bb, kk in pairs] + [1.0])
+    assert widen <= FIT_MAX_WIDEN, (
+        f'кимоно пришлось бы расширить по глубине в {widen:.2f} раза '
+        f'(потолок {FIT_MAX_WIDEN}) — халат не по этой фигуре')
+
+    centre = sum(bb[0] for bb, _ in pairs) / len(pairs)
+    m = kimono.matrix_world
+    inv = m.inverted()
+    for v in kimono.data.vertices:
+        p = m @ v.co
+        p.y = centre + (p.y + shift - centre) * widen
+        v.co = inv @ p
+    kimono.data.update()
+    print(f'kimono_fit: посадка по глубине — сдвиг {shift * 100:+.1f} см, '
+          f'расширение ×{widen:.2f}, зазор {FIT_CLEARANCE * 100:.1f} см')
+
+
+# Запас при вырезании укрытой геометрии, в метрах: тело считается укрытым,
+# только если ткань лежит дальше него хотя бы на столько. Меньше — и на
+# границе появится рваный край.
+COVER_MARGIN = 0.012
+
+# Сетка, по которой меряется укрытость: угол вокруг вертикальной оси и высота.
+COVER_ANGLES = 48
+COVER_LEVELS = 40
+
+
+def strip_covered(kimono, body_meshes, arm):
+    """Удаляет геометрию тела там, где её закрывает кимоно.
+
+    Зазора мало. В bind pose тело помещается внутрь ткани полностью (замер:
+    0% вершин снаружи), но на анимации меши деформируются по-разному, и на
+    клипе Punch наружу выходит 2079 вершин у врага и 3709 у игрока — серые
+    пятна футболки и белая нога прямо сквозь халат. Увеличение зазора это не
+    лечит: на любой запас найдётся поза.
+
+    Единственное надёжное — не иметь под тканью того, что может из неё выйти.
+    Укрытость меряется честно: строим по сетке (угол, высота) максимальный
+    радиус кимоно и удаляем те грани тела, все вершины которых лежат глубже
+    ткани на COVER_MARGIN. Грань у самого края остаётся, поэтому на границе
+    видимого и укрытого рваного шва не возникает.
+
+    Кожа (меш Body) не трогается вовсе: это лицо, кисти и ступни — всё
+    видимое. Режется только собственная одежда персонажа, которую кимоно
+    и закрывает.
+    """
+    kmn, kmx = world_bbox([kimono])
+    bmn, bmx = world_bbox(body_meshes)
+    axis = ((bmn.x + bmx.x) / 2, (bmn.y + bmx.y) / 2)
+    lo, hi = kmn.z, kmx.z
+    if hi - lo < 1e-6:
+        return
+
+    # Максимальный радиус ткани по ячейкам (угол, высота).
+    grid = [[0.0] * COVER_LEVELS for _ in range(COVER_ANGLES)]
+    m = kimono.matrix_world
+    for v in kimono.data.vertices:
+        p = m @ v.co
+        li = int((p.z - lo) / (hi - lo) * COVER_LEVELS)
+        li = min(COVER_LEVELS - 1, max(0, li))
+        dx, dy = p.x - axis[0], p.y - axis[1]
+        ai = int((math.atan2(dy, dx) + math.pi) / (2 * math.pi) * COVER_ANGLES)
+        ai = min(COVER_ANGLES - 1, max(0, ai)) 
+        r = math.hypot(dx, dy)
+        if r > grid[ai][li]:
+            grid[ai][li] = r
+
+    total = 0
+    for o in body_meshes:
+        if not any(c in o.name.lower() for c in CHARACTER_CLOTHES):
+            continue
+        mo = o.matrix_world
+        covered = set()
+        for v in o.data.vertices:
+            p = mo @ v.co
+            if not (lo <= p.z <= hi):
+                continue
+            li = int((p.z - lo) / (hi - lo) * COVER_LEVELS)
+            li = min(COVER_LEVELS - 1, max(0, li))
+            dx, dy = p.x - axis[0], p.y - axis[1]
+            ai = int((math.atan2(dy, dx) + math.pi) / (2 * math.pi) * COVER_ANGLES)
+            ai = min(COVER_ANGLES - 1, max(0, ai))
+            if grid[ai][li] > math.hypot(dx, dy) + COVER_MARGIN:
+                covered.add(v.index)
+
+        doomed = [p.index for p in o.data.polygons
+                  if all(vi in covered for vi in p.vertices)]
+        if not doomed:
+            continue
+        bpy.context.view_layer.objects.active = o
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for i in doomed:
+            o.data.polygons[i].select = True
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.delete(type='FACE')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        total += len(doomed)
+        print(f'kimono_fit: с {o.name} снято укрытых граней {len(doomed)}')
+    print(f'kimono_fit: вырезано укрытой геометрии — граней {total}, '
+          f'запас {COVER_MARGIN * 100:.1f} см')
 
 
 def make_low(high, target_tris):
@@ -606,6 +807,41 @@ def skin_cloth(low, arm):
     low.matrix_basis.identity()
     bpy.context.view_layer.update()
 
+    fill_unweighted(low)
+
+
+def fill_unweighted(low):
+    """Вершинам, которых не достал тепловой расчёт, отдаёт веса ближайшей соседки.
+
+    Костное тепловое взвешивание решает диффузию и на отдельных вершинах
+    решения не находит — обычно там, где геометрия сложилась в почти
+    вырожденный лоскут. После добавления подгонки по обхвату таких вершин
+    стало 2399, и прогон вставал на проверке 'ткань останется висеть в
+    воздухе'. Проверку убирать нельзя: невзвешенная вершина — это дыра,
+    которая в Unity замирает в bind pose, пока вокруг всё движется.
+
+    Ближайшая взвешенная соседка — честная замена: веса скиннинга меняются
+    по мешу плавно, поэтому на расстоянии одного ребра ошибка мала.
+    """
+    weighted = [v.index for v in low.data.vertices if v.groups]
+    orphans = [v.index for v in low.data.vertices if not v.groups]
+    if not orphans:
+        return
+    assert weighted, 'тепловой расчёт не взвесил ни одной вершины'
+
+    tree = mathutils.kdtree.KDTree(len(weighted))
+    for n, vi in enumerate(weighted):
+        tree.insert(low.data.vertices[vi].co, n)
+    tree.balance()
+
+    by_index = {g.index: g for g in low.vertex_groups}
+    for vi in orphans:
+        _, n, _ = tree.find(low.data.vertices[vi].co)
+        src = low.data.vertices[weighted[n]]
+        for g in src.groups:
+            by_index[g.group].add([vi], g.weight, 'REPLACE')
+    print(f'kimono_fit: добрано весов ближайшей соседкой: {len(orphans)} вершин')
+
 
 def pin_skirt_to_hips(low, arm):
     """Всё ниже паха — жёстко на таз.
@@ -691,7 +927,15 @@ def verify_deform(low, arm):
     # который был до правки скиннинга, уводил рёбра в 490 см при той же
     # медиане: он валит оба условия сразу. Поэтому рвано = растянулось
     # сильно И стало длиннее, чем почти всё в меше.
-    long_rest = sorted(rest)[int(n * 0.99)]
+    # Порог длины — вдвое больше p99 покоя, а не сам p99.
+    #
+    # Сначала здесь стоял голый p99, и он споткнулся о безобидное: после
+    # посадки кимоно по глубине 4 ребра дали 7x при длине 25.8 против p99
+    # 22.15, то есть всего на 16% длиннее обычного длинного ребра меша —
+    # увидеть там нечего. Настоящий разрыв, который эта проверка и писалась
+    # ловить, уводил рёбра на 423.6 при p99 92.9, вчетверо с лишним за него.
+    # Двойка лежит между этими случаями с большим запасом с обеих сторон.
+    long_rest = sorted(rest)[int(n * 0.99)] * 2.0
     ratios = sorted(p / max(r, 1e-9) for p, r in zip(posed, rest))
     torn = [(p / max(r, 1e-9), p) for p, r in zip(posed, rest)
             if p / max(r, 1e-9) > STRETCH_MAX and p > long_rest]
@@ -878,6 +1122,9 @@ def main():
     kmn, kmx = world_bbox([kimono])
     assert kmn.z >= bmn.z - 0.05, 'кимоно провалилось ниже стоп'
     assert kmx.z <= bmx.z + 0.01, 'кимоно выше макушки — масштаб не тот'
+
+    seat_on_body(kimono, body_meshes, arm)
+    strip_covered(kimono, body_meshes, arm)
 
     low, high_tris = make_low(kimono, a.tris)
     got = tri_count(low)

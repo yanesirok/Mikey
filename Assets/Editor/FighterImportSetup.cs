@@ -123,15 +123,16 @@ namespace Mikey.FightEditor
         static readonly Color KeySun = new Color(11.0f, 8.58f, 5.50f);
 
         /// <summary>What the base map contributes to albedo on a typical texel, after
-        /// _AlbedoGamma. The map is the baked AO, and raw AO is dark: median 0.063 over the
-        /// atlas. Under gamma 0.45 that lifts to 0.063^0.45 ≈ 0.28, which is the number the
-        /// tints below are calibrated against.
+        /// _AlbedoGamma. The map is the baked AO and raw AO is very dark here — median 0.063
+        /// over the atlas — because the garment is layered and everything between jacket,
+        /// shirt and pants bakes near black. Under gamma 0.2 that floor lifts to 0.063^0.2 ≈
+        /// 0.58, so the map shades the cloth instead of staining it.
         ///
-        /// Gamma matters here precisely because the AO is so contrasty. At gamma 1 the same
-        /// tint renders anywhere from 0.06x to 1.0x depending on the texel — the mottled,
-        /// blotchy garment — and a belt tint chosen for the bright end goes black across most
-        /// of its area, which is what happened when the red and blue stripes disappeared.</summary>
-        const float AoTypical = 0.28f;
+        /// This is what the camouflage blotching was: an occlusion map doing an albedo's job
+        /// at full contrast. The kimono has no albedo texture at all, so AO is the only map
+        /// there is — the fix is not to remove it but to flatten its range until it reads as
+        /// soft shading in folds.</summary>
+        const float AoTypical = 0.60f;
 
         /// <summary>Takes the colour we want ON SCREEN and returns the tint that produces it,
         /// dividing out both things that sit between a tint and a pixel: the key light and the
@@ -222,21 +223,44 @@ namespace Mikey.FightEditor
             mat.SetTexture("_BaseMap", ao);
             mat.SetTexture("_BumpMap", normal);
             mat.SetColor("_BaseColor", baseColor);
-            // Gamma 0.45, the shader's own default, not 1. An earlier note here said 0.45
-            // "would wash an AO map out" — it has that backwards for this map. Raw AO runs
-            // median 0.063 with a long bright tail, so at gamma 1 the tint is multiplied by
-            // anything from 0.06 to 1.0 across the garment: that spread IS the blotchiness,
-            // and it is what swallowed the red and blue belts. 0.45 compresses the floor to
-            // ~0.28 and leaves the occlusion readable as shading rather than as stains.
-            mat.SetFloat("_AlbedoGamma", 0.45f);
+            // Gamma 0.2, the shader's floor, not the 1 that was forced here before. An
+            // earlier note claimed 0.45 "would wash an AO map out"; it has that backwards.
+            // Raw AO runs median 0.063 with a long bright tail, so at gamma 1 the tint is
+            // multiplied by anything from 0.06 to 1.0 across the garment — that spread IS
+            // the blotching, and it is also what swallowed the coloured belts. 0.2 pulls the
+            // range to roughly 0.58..1.0: folds still read, stains do not.
+            mat.SetFloat("_AlbedoGamma", 0.2f);
             // Character.shader ADDS the rim: color += _RimColor * rim * _RimStrength. Its 1.4
             // default was tuned against a pale cloth, where the added light barely registers.
             // On black cloth the same rim is the brightest thing on the fighter and reads as
             // the garment glowing — which is exactly what it looked like. Halved rather than
             // removed: the rim is what separates a dark fighter from the misty background.
             mat.SetFloat("_RimStrength", 0.7f);
-            mat.SetFloat("_BumpScale", 1.4f);
+            // THE camouflage. The baked normal map is not usable at full strength: its blue
+            // channel averages 0.641 with sigma 0.377, where a sound tangent-space map sits
+            // near 1.0 almost everywhere. Normals that far off vertical are not folds, they
+            // are noise — the bake has 12k target triangles and only 5% UV coverage, so a
+            // texel spans far too much surface to hold a fold. At _BumpScale 1.4 that noise
+            // drove the diffuse term and painted the garment in dark camouflage blotches.
+            //
+            // Verified by substitution, not by argument: rendered at 0 the cloth came out
+            // clean and even, at 1.4 blotched. 0.3 keeps a trace of relief without the noise
+            // taking over. The real repair is the bake — see the UV coverage note — and when
+            // that lands this can go back up.
+            mat.SetFloat("_BumpScale", 0.3f);
             mat.SetFloat("_Smoothness", 0.12f);   // cotton, not silk
+
+            // THE glow. Character.shader computes specular as mainLight.color * _SpecStrength
+            // * _Smoothness, and mainLight.color carries the light's intensity — so the 0.5
+            // default peaked at 11 * 0.5 * 0.12 = 0.66 warm, five times the cloth's own 0.13,
+            // smeared over the whole garment because _Smoothness 0.12 makes specPower only
+            // 2^2.2 ≈ 4.6, a lobe wide enough to catch almost every surface facing the sun.
+            // That is the gold-orange sheen that kept coming back after each tint fix: it was
+            // never the tint and never the rim, it was the highlight.
+            //
+            // Set so the peak lands near 0.08 — cotton keeps a soft sheen instead of reading
+            // as a flat void, but the cloth's own colour stays the brightest thing on it.
+            mat.SetFloat("_SpecStrength", 0.08f / (KeySun.r * 0.12f));
             return mat;
         }
 
