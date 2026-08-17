@@ -693,6 +693,42 @@
     opacity: 1;
 }
 
+/* ---------- Map Pass 3B decorative cloud overlay ----------
+   The four sumi-e cloud PNGs, positioned/sized/rotated per
+   MapCloudLayout — a plain percentage overlay against this element's own
+   box (NOT the source map image, unlike markers), since clouds are
+   foreground decoration that must never pan/zoom with the map art. This
+   is why the layer sits as a sibling of ".pan-stage" inside ".map-root",
+   never a child of ".pan-canvas". overflow:hidden clips cloud bleed to
+   the map-content region so it never paints over the topbar below (a
+   later, higher sibling). Percentage styling here means resize is already
+   handled automatically by UI Toolkit's layout engine — no explicit
+   reprojection needed, unlike marker positions. */
+.map-cloud-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+.map-cloud {
+    position: absolute;
+    -unity-background-scale-mode: stretch;
+}
+.map-cloud--left-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_01.png");
+}
+.map-cloud--left-02 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_02.png");
+}
+.map-cloud--right-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_right_01.png");
+}
+.map-cloud--bottom-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_bottom_01.png");
+}
+
 /* The map-local Settings modal (previously here) is retired: Settings is
    now the one shared modal for the whole app — see
    Assets/UI/Settings/Settings.uss and SettingsModalController. The

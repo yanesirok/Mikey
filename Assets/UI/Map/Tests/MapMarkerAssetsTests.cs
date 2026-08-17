@@ -217,16 +217,11 @@ namespace Mikey.UI.Map.Tests
             }
         }
 
-        // ---------- clouds have NOT been introduced (out of scope until Pass 3B) ----------
-
-        [Test]
-        public void NoCloudAssetsOrOverlays_HaveBeenIntroduced()
-        {
-            string uss = File.ReadAllText(UssPath).ToLowerInvariant();
-            string uxml = File.ReadAllText(UxmlPath).ToLowerInvariant();
-            StringAssert.DoesNotContain("cloud", uss, "Clouds are Map Pass 3B — not this pass.");
-            StringAssert.DoesNotContain("cloud", uxml, "Clouds are Map Pass 3B — not this pass.");
-        }
+        // Clouds are Map Pass 3B, which has now landed — see MapCloudAssetsTests
+        // and MapCloudLayoutTests for their contract. The regression guard that
+        // used to live here (asserting no "cloud" text existed anywhere) was
+        // specifically scoped to passes BEFORE 3B and is retired now that
+        // clouds are an intentional, tested part of the map.
 
         private static bool IsDescendantOf(VisualElement element, VisualElement ancestor)
         {

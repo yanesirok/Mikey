@@ -13,6 +13,23 @@ namespace Mikey.UI.Map.Tests
         private const string SourcePath = "Assets/UI/Map/OkinawaMapController.cs";
 
         [Test]
+        public void OnEnteredScreen_NeverTriggersACloudTransition_OnlyTheMapButtonDoes()
+        {
+            // Reopening Okinawa (redirected here from Japan's OnScreenChanged,
+            // or fresh) must never play the close/open cloud sequence — only
+            // the explicit top-bar "Map" action (leaving Okinawa) does.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnEnteredScreen()", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            string body = source.Substring(methodStart);
+            int nextBrace = body.IndexOf("\n        }", System.StringComparison.Ordinal);
+            Assert.Greater(nextBrace, -1);
+            body = body.Substring(0, nextBrace);
+            StringAssert.DoesNotContain("MapCloudTransitionController", body);
+            StringAssert.DoesNotContain("PlayOkinawaToJapan", body);
+        }
+
+        [Test]
         public void MissionMarkers_PositionAndTypeAreAppliedFromCentralizedMapMarkerLayout()
         {
             // Mission type must not be inferred from a static CSS class baked
@@ -202,16 +219,28 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void TopbarMapButton_IsTheExplicitReturnToWorldAction_ResetsContextToJapan_BeforeNavigating()
+        public void TopbarMapButton_PlaysTheCloudTransition_WhichResetsContextToJapan()
         {
-            // Custom-wired (not a plain "go-" navigator): the context write
-            // must happen deterministically before Show() is called, which a
-            // second handler on ScreenManager's generically-wired click
-            // couldn't guarantee the ordering of.
+            // Map Pass 3B: the old instant swap is replaced by
+            // MapCloudTransitionController.PlayOkinawaToJapan(), which sets
+            // MapNavigationState.Current = MapContext.JapanWorld and calls
+            // Show(JapanMapScreenId) itself at the correct full-cover moment.
+            // The direct MapNavigationState/Show calls here are only the
+            // fallback for the (should-never-happen) case where that
+            // controller is missing from the scene.
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("private void OnTopbarMapClicked()", source);
+            StringAssert.Contains("_cloudTransitionRoutine = StartCoroutine(PlayCloudTransitionThenReturnToJapan());", source);
+            StringAssert.Contains("yield return cloudTransition.PlayOkinawaToJapan();", source);
             StringAssert.Contains("MapNavigationState.Current = MapContext.JapanWorld;", source);
             StringAssert.Contains("_navigator?.Show(JapanMapScreenId);", source);
+        }
+
+        [Test]
+        public void TopbarMapButton_IgnoredWhileACloudTransitionIsAlreadyInFlight()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("if (MapCloudTransitionController.IsTransitioning)", source);
         }
 
         [Test]

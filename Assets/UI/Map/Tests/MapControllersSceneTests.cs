@@ -9,9 +9,10 @@ namespace Mikey.UI.Map.Tests
 {
     /// <summary>
     /// Scene-wiring contract for the rebuilt Map flow: the "UI" GameObject
-    /// carries JapanMapController and OkinawaMapController (replacing the
-    /// retired MapLevelPreviewController), and the Okinawa preview clip is
-    /// still wired so the chapter panel's video isn't silently broken.
+    /// carries JapanMapController, OkinawaMapController, and (Map Pass 3B)
+    /// MapCloudTransitionController (replacing the retired
+    /// MapLevelPreviewController), and the Okinawa preview clip is still
+    /// wired so the chapter panel's video isn't silently broken.
     /// </summary>
     public class MapControllersSceneTests
     {
@@ -45,6 +46,14 @@ namespace Mikey.UI.Map.Tests
             GameObject ui = OpenUiGameObject();
             Assert.IsNotNull(ui.GetComponent<OkinawaMapController>(),
                 "UI GameObject must have an OkinawaMapController for the Okinawa chapter map to run in a real build.");
+        }
+
+        [Test]
+        public void UiGameObject_HasMapCloudTransitionController()
+        {
+            GameObject ui = OpenUiGameObject();
+            Assert.IsNotNull(ui.GetComponent<MapCloudTransitionController>(),
+                "UI GameObject must have a MapCloudTransitionController for the Map Pass 3B cloud transition to run in a real build.");
         }
 
         [Test]

@@ -65,6 +65,7 @@ namespace Mikey.UI.Map
 
         private int _selectedLevel = -1;
         private Coroutine _bindRoutine;
+        private Coroutine _cloudTransitionRoutine;
         private bool _bound;
 
         private void OnEnable()
@@ -80,6 +81,11 @@ namespace Mikey.UI.Map
             {
                 StopCoroutine(_bindRoutine);
                 _bindRoutine = null;
+            }
+            if (_cloudTransitionRoutine != null)
+            {
+                StopCoroutine(_cloudTransitionRoutine);
+                _cloudTransitionRoutine = null;
             }
 
             if (_bound)
@@ -442,23 +448,52 @@ namespace Mikey.UI.Map
 
         private void OnProgressChanged() => RefreshLevelLockStates();
 
+        /// <summary>
+        /// The explicit "return to world map" action from inside Okinawa —
+        /// now plays the Map Pass 3B cloud transition (see
+        /// MapCloudTransitionController) instead of an instant swap; that
+        /// controller sets MapNavigationState.Current = MapContext.JapanWorld
+        /// itself at the correct moment (the one case where context must
+        /// reset to Japan even though the player is deliberately leaving
+        /// Okinawa).
+        /// </summary>
         private void OnTopbarMapClicked()
         {
-            // The explicit "return to world map" action from inside Okinawa —
-            // the one case where context must reset to Japan even though the
-            // player is deliberately leaving Okinawa (see MapNavigationState).
-            MapNavigationState.Current = MapContext.JapanWorld;
-            _navigator?.Show(JapanMapScreenId);
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
+            _cloudTransitionRoutine = StartCoroutine(PlayCloudTransitionThenReturnToJapan());
+        }
+
+        private IEnumerator PlayCloudTransitionThenReturnToJapan()
+        {
+            var cloudTransition = GetComponent<MapCloudTransitionController>();
+            if (cloudTransition != null)
+            {
+                yield return cloudTransition.PlayOkinawaToJapan();
+            }
+            else
+            {
+                MapNavigationState.Current = MapContext.JapanWorld;
+                _navigator?.Show(JapanMapScreenId);
+            }
+            _cloudTransitionRoutine = null;
         }
 
         private void OnTopbarTechniquesClicked()
         {
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
             if (_progress != null && !TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))
                 return;
             _navigator?.Show(TechniquesScreenId);
         }
 
-        private void OnTopbarStatsClicked() => _navigator?.Show("profile");
+        private void OnTopbarStatsClicked()
+        {
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
+            _navigator?.Show("profile");
+        }
 
         private void RefreshTechniquesGate()
         {

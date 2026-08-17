@@ -50,6 +50,22 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void OnScreenChanged_NeverTriggersACloudTransition_OnlyEnterChapterDoes()
+        {
+            // Reopening Map (from Stats/Techniques/Settings, or fresh from
+            // Main Menu) must never play the close/open cloud sequence —
+            // only the explicit "Enter Chapter" action does.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnScreenChanged(string screenId)", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("\n        private ", methodStart + 1, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, -1);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.DoesNotContain("MapCloudTransitionController", body);
+            StringAssert.DoesNotContain("PlayJapanToOkinawa", body);
+        }
+
+        [Test]
         public void ChapterMarkers_PositionIsAppliedFromCentralizedMapMarkerLayout()
         {
             // Coordinates must not be scattered through UXML/USS — only
@@ -132,11 +148,17 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void EnterChapter_PlaysInkFadeTransition_ThenShowsOkinawaChapterScreen()
+        public void EnterChapter_PlaysTheCloudTransition_ThenHasEnteredOkinawaChapterScreen()
         {
+            // Map Pass 3B: the old ink-fade swap is replaced by
+            // MapCloudTransitionController.PlayJapanToOkinawa(), which owns
+            // the Show(OkinawaChapterScreenId) call internally at the correct
+            // full-cover moment. The immediate _navigator?.Show(...) here is
+            // only the fallback for the (should-never-happen) case where that
+            // controller is missing from the scene.
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("_transitionOverlay?.AddToClassList(TransitionVisibleClass);", source);
-            StringAssert.Contains("yield return new WaitForSeconds(TransitionSeconds);", source);
+            StringAssert.Contains("var cloudTransition = GetComponent<MapCloudTransitionController>();", source);
+            StringAssert.Contains("yield return cloudTransition.PlayJapanToOkinawa();", source);
             StringAssert.Contains("_navigator?.Show(OkinawaChapterScreenId);", source);
             StringAssert.Contains("OkinawaChapterScreenId = \"mapOkinawa\";", source);
         }

@@ -46,7 +46,6 @@ namespace Mikey.UI.Map
         private const string LockedCtaClass = "detail-panel__cta--locked";
         private const string TransitionVisibleClass = "map-transition-overlay--visible";
         private const string NavLockedClass = "map-topbar__nav-btn--locked";
-        private const float TransitionSeconds = 0.35f;
 
         [Tooltip("Inline looping preview clip shown in the Okinawa chapter panel.")]
         [SerializeField] private VideoClip okinawaPreviewClip;
@@ -392,20 +391,35 @@ namespace Mikey.UI.Map
             _transitionRoutine = StartCoroutine(PlayTransitionThenEnterOkinawa());
         }
 
+        /// <summary>
+        /// Replaces the old instantaneous ink-fade swap with the Map Pass 3B
+        /// cloud transition (see MapCloudTransitionController) — falls back
+        /// to an immediate Show() if that controller is somehow missing from
+        /// the scene rather than leaving the player stuck.
+        /// </summary>
         private IEnumerator PlayTransitionThenEnterOkinawa()
         {
             _transitioning = true;
-            _transitionOverlay?.AddToClassList(TransitionVisibleClass);
 
-            yield return new WaitForSeconds(TransitionSeconds);
+            var cloudTransition = GetComponent<MapCloudTransitionController>();
+            if (cloudTransition != null)
+                yield return cloudTransition.PlayJapanToOkinawa();
+            else
+                _navigator?.Show(OkinawaChapterScreenId);
 
-            _navigator?.Show(OkinawaChapterScreenId);
             _transitioning = false;
             _transitionRoutine = null;
         }
 
         private void OnTopbarMapClicked()
         {
+            // Ignored mid cloud-transition — see MapCloudTransitionController;
+            // navigating away here while Phase A/B/C is still driving the
+            // canvas/screen swap would leave the transition's own Show() call
+            // fighting this one.
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
+
             // The explicit "return to world map" action: always resets context
             // to Japan, even if it was already Japan. Already on Japan: Show()
             // is a safe no-op if nothing changed, but the reset must still
@@ -418,12 +432,19 @@ namespace Mikey.UI.Map
 
         private void OnTopbarTechniquesClicked()
         {
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
             if (_progress != null && !TutorialProgressPresenter.IsTechniquesUnlocked(_progress.State))
                 return;
             _navigator?.Show(TechniquesScreenId);
         }
 
-        private void OnTopbarStatsClicked() => _navigator?.Show(StatsScreenId);
+        private void OnTopbarStatsClicked()
+        {
+            if (MapCloudTransitionController.IsTransitioning)
+                return;
+            _navigator?.Show(StatsScreenId);
+        }
 
         private void RefreshTechniquesGate()
         {
