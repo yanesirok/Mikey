@@ -3,20 +3,6 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Which edge/corner of a cloud's REST box stays fixed while it expands
-    /// toward full cover (see <see cref="MapCloudMath.ComputeClosedLayout"/>).
-    /// Fixed per cloud slot, not per preset — Left1/Left2 always anchor their
-    /// left edge, Right1 its right edge, Bottom1 its bottom-right corner,
-    /// matching how each was authored in the user's Canva composition.
-    /// </summary>
-    public enum CloudExpansionAnchor
-    {
-        LeftEdge,
-        RightEdge,
-        BottomRightCorner
-    }
-
-    /// <summary>
     /// Normalized (SOURCE-IMAGE-relative, same basis as MapMarkerLayout — see
     /// remarks on <see cref="MapCloudLayout"/>) placement/size/rotation/opacity
     /// for one decorative cloud element. X/Y/Width/Height may legitimately be
@@ -62,12 +48,15 @@ namespace Mikey.UI.Map
 
     /// <summary>
     /// ONE centralized source of truth for the 4 decorative cloud elements'
-    /// placement, opacity, and expansion behavior (Map Pass 3B, corrected).
+    /// placement and opacity (Map Pass 3D, cleanup). The clouds are painted
+    /// atmospheric parts of the map now — this class only ever describes a
+    /// STATIC resting composition, applied whenever a screen is shown and
+    /// reapplied on resize (see MapCloudTransitionController); nothing here
+    /// animates or computes a "closed"/expanded state.
     ///
     /// <para>
-    /// <b>Coordinate basis:</b> unlike the first cloud implementation, these
-    /// coordinates are normalized against the SOURCE MAP IMAGE
-    /// (SourceImageWidth x SourceImageHeight, same basis as
+    /// <b>Coordinate basis:</b> these coordinates are normalized against the
+    /// SOURCE MAP IMAGE (SourceImageWidth x SourceImageHeight, same basis as
     /// MapMarkerLayout — the user's Canva reference canvases, 2046x868 for
     /// Japan and 2048x869.1 for Okinawa, share the source image's own
     /// 2.357:1 aspect ratio), NOT the on-screen viewport. Clouds are part of
@@ -77,19 +66,17 @@ namespace Mikey.UI.Map
     /// together with it, and a cloud's SOURCE-normalized rectangle is
     /// converted through the same cover-fit crop as a marker's coordinate
     /// (see MapCoordinateMapping.SourceRectToViewport) — never applied as a
-    /// raw percentage of the viewport.
+    /// raw percentage of the viewport. This is also why the clouds appear to
+    /// move during a Japan&lt;-&gt;Okinawa transition despite never being
+    /// touched directly: it's the CANVAS's pan/zoom transform (see
+    /// MapPanZoomController) carrying its children along, exactly like the
+    /// map art and markers.
     /// </para>
     ///
     /// <para>
-    /// <b>Rest vs. closed:</b> <see cref="JapanRest"/>/<see cref="OkinawaRest"/>
-    /// are the user's exact final decorative compositions, applied whenever
-    /// no transition is in flight. There is no longer a single hand-picked
-    /// "Cover" preset — a transition's fully-closed state is COMPUTED per
-    /// cloud from its own rest layout via <see cref="MapCloudMath.ComputeClosedLayout"/>,
-    /// expanding by <see cref="CloseExpansionFactor"/> while keeping the
-    /// cloud's own <see cref="CloudExpansionAnchor"/> edge/corner fixed —
-    /// the dominant transition motion is the ink mass visibly spreading
-    /// from its resting position, never a slide into the center.
+    /// <b><see cref="JapanRest"/>/<see cref="OkinawaRest"/></b> are the
+    /// user's exact final decorative compositions — the only two states
+    /// that ever exist.
     /// </para>
     /// </summary>
     public static class MapCloudLayout
@@ -97,22 +84,6 @@ namespace Mikey.UI.Map
         /// <summary>Pixel dimensions of japan_map_final.jpg and okinawa_map_final.jpg — every stored coordinate below is normalized against these, matching MapMarkerLayout.</summary>
         public const float SourceImageWidth = MapMarkerLayout.SourceImageWidth;
         public const float SourceImageHeight = MapMarkerLayout.SourceImageHeight;
-
-        /// <summary>
-        /// How much each cloud's rest size grows at full close, derived from
-        /// the user's Canva concept for Right1: rest width 1689.9 @ x1116.3
-        /// (right edge 2806.2) expanding to width 2806.1 @ x0 (right edge
-        /// 2806.1, i.e. the right edge stays effectively fixed) on the
-        /// 2046x868 Japan reference canvas — 2806.1 / 1689.9 ~= 1.6605. The
-        /// SAME factor is reused for all 4 clouds rather than a per-cloud
-        /// guess, per the task's explicit instruction.
-        /// </summary>
-        public const float CloseExpansionFactor = 1.6605f;
-
-        public const CloudExpansionAnchor Left1Anchor = CloudExpansionAnchor.LeftEdge;
-        public const CloudExpansionAnchor Left2Anchor = CloudExpansionAnchor.LeftEdge;
-        public const CloudExpansionAnchor Right1Anchor = CloudExpansionAnchor.RightEdge;
-        public const CloudExpansionAnchor Bottom1Anchor = CloudExpansionAnchor.BottomRightCorner;
 
         /// <summary>Rest opacity is identical across both chapters' presets (see class remarks) — Left1 0.74, Left2 0.77, Right1 1.00 (fully opaque), Bottom1 0.66.</summary>
         private const float Left1RestOpacity = 0.74f;

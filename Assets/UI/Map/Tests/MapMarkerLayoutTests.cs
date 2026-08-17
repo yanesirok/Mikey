@@ -259,6 +259,51 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(beforeY, FindChapter(MapMarkerLayout.OkinawaChapterId).NormalizedY);
         }
 
+        // ---------- TryGetChapterFocalPoint: a specific chapter's marker, by id (Map Pass 3D: the transition's "dive toward this chapter" camera target) ----------
+
+        [Test]
+        public void TryGetChapterFocalPoint_ByOkinawaId_ReturnsOkinawasOwnMarkerCoordinate()
+        {
+            bool found = MapMarkerLayout.TryGetChapterFocalPoint(MapMarkerLayout.OkinawaChapterId, out float x, out float y);
+            Assert.IsTrue(found);
+            var okinawa = FindChapter(MapMarkerLayout.OkinawaChapterId);
+            Assert.AreEqual(okinawa.NormalizedX, x, CoordinateTolerance);
+            Assert.AreEqual(okinawa.NormalizedY, y, CoordinateTolerance);
+        }
+
+        [Test]
+        public void TryGetChapterFocalPoint_ByFukuokaId_ReturnsFukuokasOwnMarkerCoordinate_EvenThoughLocked()
+        {
+            // A specific-chapter lookup is independent of unlock/current
+            // state — locked chapters still have a valid, resolvable marker
+            // coordinate for future use.
+            bool found = MapMarkerLayout.TryGetChapterFocalPoint(MapMarkerLayout.FukuokaChapterId, out float x, out float y);
+            Assert.IsTrue(found);
+            var fukuoka = FindChapter(MapMarkerLayout.FukuokaChapterId);
+            Assert.AreEqual(fukuoka.NormalizedX, x, CoordinateTolerance);
+            Assert.AreEqual(fukuoka.NormalizedY, y, CoordinateTolerance);
+        }
+
+        [Test]
+        public void TryGetChapterFocalPoint_UnknownId_ReturnsFalse_NeverAFabricatedPoint()
+        {
+            bool found = MapMarkerLayout.TryGetChapterFocalPoint("not-a-real-chapter", out float x, out float y);
+            Assert.IsFalse(found);
+            Assert.AreEqual(0f, x);
+            Assert.AreEqual(0f, y);
+        }
+
+        [Test]
+        public void TryGetCurrentChapterFocalPoint_DelegatesTo_TryGetChapterFocalPoint_WithTheResolvedCurrentId()
+        {
+            // Confirms the two methods share one implementation (no
+            // duplicated lookup logic to drift out of sync).
+            MapMarkerLayout.TryGetCurrentChapterFocalPoint(out float currentX, out float currentY);
+            MapMarkerLayout.TryGetChapterFocalPoint(MapMarkerLayout.ResolveCurrentChapterId(), out float byIdX, out float byIdY);
+            Assert.AreEqual(byIdX, currentX, CoordinateTolerance);
+            Assert.AreEqual(byIdY, currentY, CoordinateTolerance);
+        }
+
         private static ChapterMarkerLayout FindChapter(string id)
         {
             foreach (var chapter in MapMarkerLayout.Chapters)

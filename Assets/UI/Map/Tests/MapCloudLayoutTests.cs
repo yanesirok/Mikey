@@ -3,11 +3,13 @@ using NUnit.Framework;
 namespace Mikey.UI.Map.Tests
 {
     /// <summary>
-    /// Direct behavioral contract for MapCloudLayout (Map Pass 3B,
-    /// corrected): the one centralized source of truth for the 4 decorative
-    /// cloud elements' resting compositions, rest opacity, and expansion
-    /// behavior. Exact-value tests guard against silent drift away from the
-    /// user's supplied Canva reference layouts, mirroring
+    /// Direct behavioral contract for MapCloudLayout (Map Pass 3D, cleanup):
+    /// the one centralized source of truth for the 4 decorative cloud
+    /// elements' STATIC resting compositions and rest opacity — there is no
+    /// expansion/closed state any more (see
+    /// MapCloudTransitionControllerSourceTests for proof the transition is
+    /// camera-only). Exact-value tests guard against silent drift away from
+    /// the user's supplied Canva reference layouts, mirroring
     /// MapMarkerLayoutTests' exact-coordinate tests for the same reason.
     /// </summary>
     public class MapCloudLayoutTests
@@ -122,40 +124,15 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapCloudLayout.OkinawaRest.Right1.RotationDegrees);
         }
 
-        // ---------- expansion factor and per-cloud anchors ----------
+        // ---------- no expansion/closed-state concept remains (Map Pass 3D cleanup) ----------
 
         [Test]
-        public void CloseExpansionFactor_MatchesTheDerivedRightCloudConcept()
+        public void MapCloudLayout_HasNoCloseExpansionFactor_NoClosedStateConceptRemains()
         {
-            // 1689.9 @ x1116.3 (right edge 2806.2) -> 2806.1 @ x0 (right edge
-            // 2806.1) on the 2046-wide Japan reference canvas: 2806.1/1689.9.
-            Assert.AreEqual(1.6605f, MapCloudLayout.CloseExpansionFactor, 0.0001f);
-        }
-
-        [Test]
-        public void CloseExpansionFactor_IsSharedAcrossAllFourClouds_NotAPerCloudGuess()
-        {
-            // A single centralized constant, not four different scale values.
-            Assert.AreEqual(MapCloudLayout.CloseExpansionFactor, MapCloudLayout.CloseExpansionFactor);
-        }
-
-        [Test]
-        public void LeftClouds_AnchorTheirLeftEdge()
-        {
-            Assert.AreEqual(CloudExpansionAnchor.LeftEdge, MapCloudLayout.Left1Anchor);
-            Assert.AreEqual(CloudExpansionAnchor.LeftEdge, MapCloudLayout.Left2Anchor);
-        }
-
-        [Test]
-        public void RightCloud_AnchorsItsRightEdge()
-        {
-            Assert.AreEqual(CloudExpansionAnchor.RightEdge, MapCloudLayout.Right1Anchor);
-        }
-
-        [Test]
-        public void BottomCloud_AnchorsItsBottomRightCorner()
-        {
-            Assert.AreEqual(CloudExpansionAnchor.BottomRightCorner, MapCloudLayout.Bottom1Anchor);
+            string source = System.IO.File.ReadAllText("Assets/UI/Map/MapCloudLayout.cs");
+            StringAssert.DoesNotContain("CloseExpansionFactor", source);
+            StringAssert.DoesNotContain("CloudExpansionAnchor", source);
+            StringAssert.DoesNotContain("Anchor", source);
         }
 
         private static void AssertCloud(CloudLayout cloud, float x, float y, float w, float h, float rotation, float opacity)

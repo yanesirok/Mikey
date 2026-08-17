@@ -188,16 +188,27 @@ namespace Mikey.UI.Map
         /// The current chapter's own marker coordinate (see
         /// <see cref="ResolveCurrentChapterId"/>) — the Japan world map's
         /// opening camera focal point, in the same SOURCE-IMAGE-normalized
-        /// basis as every other coordinate in this class. False only if
-        /// <see cref="Chapters"/> somehow has no entry for the resolved id
-        /// (never happens with the current fixed 3-chapter MVP set).
+        /// basis as every other coordinate in this class.
         /// </summary>
         public static bool TryGetCurrentChapterFocalPoint(out float sourceNormalizedX, out float sourceNormalizedY)
+            => TryGetChapterFocalPoint(ResolveCurrentChapterId(), out sourceNormalizedX, out sourceNormalizedY);
+
+        /// <summary>
+        /// A specific chapter's own marker coordinate, by id — the Japan
+        /// world map's chapter-transition "dive toward this chapter" camera
+        /// target (see MapCloudTransitionController.PlayJapanToOkinawa),
+        /// which targets the chapter actually being ENTERED, not necessarily
+        /// whichever chapter <see cref="ResolveCurrentChapterId"/> would
+        /// resolve to (the two coincide for this MVP's single playable
+        /// chapter, but won't necessarily once revisiting an earlier chapter
+        /// is possible). False if <see cref="Chapters"/> has no entry for
+        /// <paramref name="chapterId"/>.
+        /// </summary>
+        public static bool TryGetChapterFocalPoint(string chapterId, out float sourceNormalizedX, out float sourceNormalizedY)
         {
-            string currentChapterId = ResolveCurrentChapterId();
             foreach (var chapter in Chapters)
             {
-                if (chapter.Id != currentChapterId)
+                if (chapter.Id != chapterId)
                     continue;
                 sourceNormalizedX = chapter.NormalizedX;
                 sourceNormalizedY = chapter.NormalizedY;

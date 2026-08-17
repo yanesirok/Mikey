@@ -201,6 +201,61 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapPanZoomMath.EaseOutCubic(float.NaN));
         }
 
+        // ---------- EaseInOutCubic: the chapter-transition's approach/settle camera easing (Map Pass 3D) ----------
+
+        [Test]
+        public void EaseInOutCubic_BoundariesAreExact()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseInOutCubic(0f), 0.0001f);
+            Assert.AreEqual(1f, MapPanZoomMath.EaseInOutCubic(1f), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutCubic_Midpoint_IsExactlyHalf_Symmetric()
+        {
+            Assert.AreEqual(0.5f, MapPanZoomMath.EaseInOutCubic(0.5f), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutCubic_NeverOvershoots_StaysWithin0And1()
+        {
+            for (float t = 0f; t <= 1f; t += 0.05f)
+            {
+                float eased = MapPanZoomMath.EaseInOutCubic(t);
+                Assert.GreaterOrEqual(eased, 0f, $"t={t}");
+                Assert.LessOrEqual(eased, 1f, $"t={t}");
+            }
+        }
+
+        [Test]
+        public void EaseInOutCubic_IsMonotonicallyIncreasing_NoBounce()
+        {
+            float previous = MapPanZoomMath.EaseInOutCubic(0f);
+            for (float t = 0.05f; t <= 1f; t += 0.05f)
+            {
+                float current = MapPanZoomMath.EaseInOutCubic(t);
+                Assert.GreaterOrEqual(current, previous, $"t={t}");
+                previous = current;
+            }
+        }
+
+        [Test]
+        public void EaseInOutCubic_NonFiniteInput_FallsBackSafely()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseInOutCubic(float.NaN), 0.0001f);
+        }
+
+        [Test]
+        public void EaseInOutCubic_HasASlowStart_UnlikeEaseOutCubic()
+        {
+            // EaseInOutCubic starts slow (ease-in) then accelerates, unlike
+            // EaseOutCubic which is fast from t=0 — at an early t, EaseInOutCubic
+            // must be further BEHIND linear progress than EaseOutCubic.
+            const float earlyT = 0.2f;
+            Assert.Less(MapPanZoomMath.EaseInOutCubic(earlyT), earlyT, "Ease-in should lag behind linear progress early on.");
+            Assert.Greater(MapPanZoomMath.EaseOutCubic(earlyT), earlyT, "Ease-out should lead linear progress early on.");
+        }
+
         // ---------- PanForTarget / CanvasNormalizedAtViewportCenter: chapter-focus opening + cross-map spatial continuity ----------
 
         [Test]

@@ -447,7 +447,7 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)", System.StringComparison.Ordinal);
             Assert.Greater(methodStart, -1, "Expected a public SetViewToSourceFocalPoint(sourceNormalizedX, sourceNormalizedY, zoom) method.");
-            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", methodStart, System.StringComparison.Ordinal);
             Assert.Greater(methodEnd, methodStart);
             string body = source.Substring(methodStart, methodEnd - methodStart);
 
@@ -468,10 +468,114 @@ namespace Mikey.UI.Map.Tests
             // Chapters/Missions arrays themselves.
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)", System.StringComparison.Ordinal);
-            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", methodStart, System.StringComparison.Ordinal);
             string body = source.Substring(methodStart, methodEnd - methodStart);
             StringAssert.DoesNotContain("MapMarkerLayout.Chapters[", body);
             StringAssert.DoesNotContain("MapMarkerLayout.Missions[", body);
+        }
+
+        // ---------- AnimateViewToSourceFocalPoint: the transition's shared smooth camera move (Map Pass 3D) ----------
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_IsPublic_ReturnsAnEnumerator_ForTheCallerToOwnTheCoroutine()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("public IEnumerator AnimateViewToSourceFocalPoint(float targetSourceX, float targetSourceY, float targetZoom, float durationSeconds)", source);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_CancelsAnyInFlightOpeningAnimation()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.Contains("CancelIntroZoomAnimation();", body);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_InterpolatesBothPanAndZoom_FromTheirCurrentValues()
+        {
+            // Must capture the CURRENT pan/zoom as the interpolation start —
+            // a genuine smooth move from wherever the camera already is,
+            // never a jump-then-zoom.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("float startPanX = _panX;", body);
+            StringAssert.Contains("float startPanY = _panY;", body);
+            StringAssert.Contains("float startZoom = _zoom;", body);
+            StringAssert.Contains("Mathf.LerpUnclamped(startZoom, clampedTargetZoom, t)", body);
+            StringAssert.Contains("Mathf.LerpUnclamped(startPanX, targetPanX, t)", body);
+            StringAssert.Contains("Mathf.LerpUnclamped(startPanY, targetPanY, t)", body);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_UsesEaseInOutCubic_NotEaseOutCubic()
+        {
+            // Distinct from the plain opening animation's EaseOutCubic (which
+            // assumes a dead-stop start at MinZoom) — this one starts from an
+            // arbitrary in-progress view, so it needs a full ease-in-out.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.Contains("MapPanZoomMath.EaseInOutCubic(elapsed / durationSeconds)", body);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_ComputesTheTargetPanOnce_UsingTheFinalTargetZoom_NotRecomputedEveryFrame()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            int targetComputedIndex = body.IndexOf("MapCoordinateMapping.SourceToViewport(", System.StringComparison.Ordinal);
+            int loopIndex = body.IndexOf("while (elapsed < durationSeconds)", System.StringComparison.Ordinal);
+            Assert.Greater(targetComputedIndex, -1);
+            Assert.Greater(loopIndex, -1);
+            Assert.Less(targetComputedIndex, loopIndex, "The target pan must be computed once, BEFORE the animation loop starts.");
+            StringAssert.DoesNotContain("MapCoordinateMapping.SourceToViewport(", body.Substring(loopIndex), "SourceToViewport must not be called again inside the loop.");
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_SnapsExactlyToTheTargetAfterTheLoop()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            int loopEnd = body.LastIndexOf("yield return null;", System.StringComparison.Ordinal);
+            Assert.Greater(loopEnd, -1);
+            string afterLoop = body.Substring(loopEnd);
+            StringAssert.Contains("_zoom = clampedTargetZoom;", afterLoop);
+            StringAssert.Contains("SetPan(targetPanX, targetPanY);", afterLoop);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_ClampsTheTargetZoom_NeverExceedsMinOrMaxZoom()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.Contains("float clampedTargetZoom = MapPanZoomMath.ClampZoom(targetZoom);", body);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_NeverCallsStartCoroutine_TheCallerOwnsTheCoroutine()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator AnimateViewToSourceFocalPoint", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void CancelIntroZoomAnimation()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+            StringAssert.DoesNotContain("StartCoroutine", body);
         }
     }
 }

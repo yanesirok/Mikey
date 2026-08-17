@@ -108,6 +108,29 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
+        /// Symmetric ease-in-out cubic: slow start, fast middle, slow finish
+        /// — no bounce/overshoot/elastic. Used by the Japan&lt;-&gt;Okinawa
+        /// chapter transition's approach/settle camera motion (see
+        /// MapPanZoomController.AnimateViewToSourceFocalPoint), a distinct
+        /// animation from the plain per-screen opening zoom above (which
+        /// deliberately stays decelerate-only via <see cref="EaseOutCubic"/>,
+        /// since it always starts from a dead stop at MinZoom rather than
+        /// from an arbitrary in-progress view). <paramref name="t"/> is
+        /// clamped to [0, 1]; EaseInOutCubic(0) == 0, EaseInOutCubic(1) == 1,
+        /// EaseInOutCubic(0.5) == 0.5, monotonically increasing, never
+        /// overshoots.
+        /// </summary>
+        public static float EaseInOutCubic(float t)
+        {
+            float clamped = Clamp(IsFinite(t) ? t : 0f, 0f, 1f);
+            return clamped < 0.5f
+                ? 4f * clamped * clamped * clamped
+                : 1f - Pow3(-2f * clamped + 2f) * 0.5f;
+        }
+
+        private static float Pow3(float v) => v * v * v;
+
+        /// <summary>
         /// The pan offset (one axis) that places a given point of the
         /// UNSCALED canvas (<paramref name="canvasNormalized"/>, 0-1 against
         /// the canvas's own box before any zoom/pan is applied — e.g. from

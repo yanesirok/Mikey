@@ -490,6 +490,67 @@ namespace Mikey.UI.Map
             SetPan(panX, panY);
         }
 
+        /// <summary>
+        /// Smoothly animates this canvas's pan/zoom from its CURRENT view
+        /// toward the given source-image-normalized focal point and zoom,
+        /// over <paramref name="durationSeconds"/>, eased via
+        /// MapPanZoomMath.EaseInOutCubic — the Japan&lt;-&gt;Okinawa chapter
+        /// transition's approach/settle camera motion (see
+        /// MapCloudTransitionController.PlayJapanToOkinawa/PlayOkinawaToJapan),
+        /// never the plain per-screen opening animation (PlayIntroZoomAnimation
+        /// is a separate animation that always starts from a dead stop at
+        /// MinZoom). Both pan AND zoom are interpolated directly from their
+        /// CURRENT values to the values needed to land the given focal point
+        /// at the viewport's exact center at the target zoom — computed once
+        /// up front, not re-targeted every frame — so this is a genuine
+        /// smooth move from wherever the camera already is, not a snap. The
+        /// caller owns the coroutine via <c>yield return</c> (this method
+        /// only returns the enumerator, never calls StartCoroutine itself),
+        /// so MapCloudTransitionController can drive both screens' cameras
+        /// from its own single coordinating coroutine without either screen
+        /// owning a duplicate camera system.
+        /// </summary>
+        public IEnumerator AnimateViewToSourceFocalPoint(float targetSourceX, float targetSourceY, float targetZoom, float durationSeconds)
+        {
+            CancelIntroZoomAnimation();
+
+            float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
+            float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
+
+            float startPanX = _panX;
+            float startPanY = _panY;
+            float startZoom = _zoom;
+            float clampedTargetZoom = MapPanZoomMath.ClampZoom(targetZoom);
+
+            float targetPanX = startPanX;
+            float targetPanY = startPanY;
+            if (viewportWidth > 0f && viewportHeight > 0f)
+            {
+                MapCoordinateMapping.SourceToViewport(
+                    targetSourceX, targetSourceY,
+                    MapMarkerLayout.SourceImageWidth, MapMarkerLayout.SourceImageHeight,
+                    viewportWidth, viewportHeight,
+                    out float canvasNormalizedX, out float canvasNormalizedY);
+                targetPanX = MapPanZoomMath.PanForTarget(canvasNormalizedX, 0.5f, clampedTargetZoom, viewportWidth);
+                targetPanY = MapPanZoomMath.PanForTarget(canvasNormalizedY, 0.5f, clampedTargetZoom, viewportHeight);
+            }
+
+            float elapsed = 0f;
+            while (elapsed < durationSeconds)
+            {
+                elapsed += Time.deltaTime;
+                float t = MapPanZoomMath.EaseInOutCubic(elapsed / durationSeconds);
+                _zoom = MapPanZoomMath.ClampZoom(Mathf.LerpUnclamped(startZoom, clampedTargetZoom, t));
+                ApplyZoom();
+                SetPan(Mathf.LerpUnclamped(startPanX, targetPanX, t), Mathf.LerpUnclamped(startPanY, targetPanY, t));
+                yield return null;
+            }
+
+            _zoom = clampedTargetZoom;
+            ApplyZoom();
+            SetPan(targetPanX, targetPanY);
+        }
+
         private void CancelIntroZoomAnimation()
         {
             if (_introZoomRoutine == null)

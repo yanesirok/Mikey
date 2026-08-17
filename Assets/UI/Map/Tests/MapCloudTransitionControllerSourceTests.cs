@@ -4,85 +4,222 @@ using NUnit.Framework;
 namespace Mikey.UI.Map.Tests
 {
     /// <summary>
-    /// Contract for MapCloudTransitionController's phase ordering, expansion-
-    /// based (not slide-based) closed layout, timing/easing/stagger quality,
-    /// cross-map spatial-continuity transfer, resize reprojection, input
-    /// lock, and re-entrancy guard (Map Pass 3B/3C). Read via source
-    /// assertion for the same reason as the other Map controller source-text
-    /// tests (MonoBehaviour coroutine internals aren't practical to exercise
-    /// in EditMode).
+    /// Contract for MapCloudTransitionController (Map Pass 3D, cleanup): the
+    /// Japan&lt;-&gt;Okinawa transition is now a smooth CAMERA pan/zoom move
+    /// only — no cloud animation of any kind remains — plus cloud rest
+    /// reprojection on resize, input lock, and re-entrancy guard. Read via
+    /// source assertion for the same reason as the other Map controller
+    /// source-text tests (MonoBehaviour coroutine internals aren't practical
+    /// to exercise in EditMode).
     /// </summary>
     public class MapCloudTransitionControllerSourceTests
     {
         private const string SourcePath = "Assets/UI/Map/MapCloudTransitionController.cs";
 
-        // ---------- Japan -> Okinawa: close, swap only while covered, reveal to OkinawaRest ----------
+        // ---------- no cloud animation remains at all ----------
 
         [Test]
-        public void JapanToOkinawa_ClosesJapanCloudsFirst_FromJapanRestToItsOwnClosedPreset()
+        public void NoCloudAnimationMethodsRemain()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("AnimateCloudSet", source);
+            StringAssert.DoesNotContain("ApplyStaggeredFrame", source);
+            StringAssert.DoesNotContain("ComputeClosedPreset", source);
+        }
+
+        [Test]
+        public void NoCloseExpansionFactor_UsedByActiveTransitionLogic()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("CloseExpansionFactor", source);
+            StringAssert.DoesNotContain("ComputeClosedLayout", source);
+            StringAssert.DoesNotContain("CloudExpansionAnchor", source);
+        }
+
+        [Test]
+        public void NoDecorativeCloudOpacityRamp_UsedByActiveTransitionLogic()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("FullCoverOpacity", source);
+            StringAssert.DoesNotContain(".style.opacity", source);
+        }
+
+        [Test]
+        public void NoStaggerOrCloseRevealTimingConstantsRemain()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("StaggerSeconds", source);
+            StringAssert.DoesNotContain("CloudCloseDurationSeconds", source);
+            StringAssert.DoesNotContain("CloudRevealDurationSeconds", source);
+            StringAssert.DoesNotContain("FullCoverHoldSeconds", source);
+        }
+
+        [Test]
+        public void NoMapCloudMathReference_TheClassWasDeleted()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("MapCloudMath", source);
+        }
+
+        [Test]
+        public void MapCloudMathClassFile_NoLongerExists()
+        {
+            Assert.IsFalse(File.Exists("Assets/UI/Map/MapCloudMath.cs"), "MapCloudMath.cs should have been deleted — it existed solely to drive the removed cloud animation.");
+        }
+
+        [Test]
+        public void PlayJapanToOkinawa_And_PlayOkinawaToJapan_NeverApplyAnyCloudPresetDuringTheTransition()
+        {
+            // Clouds stay at their fixed rest composition the whole time —
+            // the only two call sites for MapCloudLayout.ApplyPreset in this
+            // whole file are the bind-time/resize-reprojection helpers
+            // (ApplyJapanRest/ApplyOkinawaRest), never inside the transition
+            // methods themselves.
+            string source = File.ReadAllText(SourcePath);
+            int japanToOkinawaStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
+            int japanToOkinawaEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", japanToOkinawaStart, System.StringComparison.Ordinal);
+            Assert.Greater(japanToOkinawaStart, -1);
+            Assert.Greater(japanToOkinawaEnd, japanToOkinawaStart);
+            string japanToOkinawaBody = source.Substring(japanToOkinawaStart, japanToOkinawaEnd - japanToOkinawaStart);
+            StringAssert.DoesNotContain("MapCloudLayout.ApplyPreset", japanToOkinawaBody);
+            StringAssert.DoesNotContain("MapCloudLayout.Apply(", japanToOkinawaBody);
+
+            int okinawaToJapanEnd = source.IndexOf("private static void SetInputLock", japanToOkinawaEnd, System.StringComparison.Ordinal);
+            Assert.Greater(okinawaToJapanEnd, japanToOkinawaEnd);
+            string okinawaToJapanBody = source.Substring(japanToOkinawaEnd, okinawaToJapanEnd - japanToOkinawaEnd);
+            StringAssert.DoesNotContain("MapCloudLayout.ApplyPreset", okinawaToJapanBody);
+            StringAssert.DoesNotContain("MapCloudLayout.Apply(", okinawaToJapanBody);
+        }
+
+        // ---------- Japan -> Okinawa: camera approach dives toward the Okinawa marker, then settles deeper ----------
+
+        [Test]
+        public void JapanToOkinawa_ApproachDivesTowardTheOkinawaChapterMarker()
         {
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
             Assert.Greater(methodStart, -1);
-            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
-            Assert.Greater(methodEnd, -1);
+            Assert.Greater(methodEnd, methodStart);
             string body = source.Substring(methodStart, methodEnd - methodStart);
 
-            int closeIndex = body.IndexOf("AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, MapCloudLayout.JapanRest, japanClosed, japanWidth, japanHeight, CloudCloseDurationSeconds, MapCloudMath.EaseInOutQuart);", System.StringComparison.Ordinal);
-            int coverOkinawaIndex = body.IndexOf("MapCloudLayout.ApplyPreset(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, okinawaWidth, okinawaHeight);", System.StringComparison.Ordinal);
-            int showIndex = body.IndexOf("_navigator?.Show(\"mapOkinawa\");", System.StringComparison.Ordinal);
-            int revealIndex = body.IndexOf("AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, MapCloudLayout.OkinawaRest, okinawaWidth, okinawaHeight, CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic);", System.StringComparison.Ordinal);
-
-            Assert.Greater(closeIndex, -1, "Expected Phase A: Japan clouds animate JapanRest -> its own computed closed layout, eased via EaseInOutQuart.");
-            Assert.Greater(coverOkinawaIndex, -1, "Expected Okinawa's clouds snapped to ITS OWN closed layout before the swap.");
-            Assert.Greater(showIndex, -1, "Expected the screen swap.");
-            Assert.Greater(revealIndex, -1, "Expected Phase C: Okinawa clouds animate its closed layout -> OkinawaRest, eased via EaseInOutCubic.");
-
-            Assert.Less(closeIndex, coverOkinawaIndex, "Close must happen before Okinawa's clouds are set to closed.");
-            Assert.Less(coverOkinawaIndex, showIndex, "Okinawa's clouds must already be fully closed BEFORE the screen swap — the swap must never be visible.");
-            Assert.Less(showIndex, revealIndex, "Reveal must happen after the swap, not before.");
+            StringAssert.Contains("MapMarkerLayout.TryGetChapterFocalPoint(MapMarkerLayout.OkinawaChapterId, out float okinawaMarkerX, out float okinawaMarkerY)", body);
+            StringAssert.Contains("_japanPanZoom.AnimateViewToSourceFocalPoint(okinawaMarkerX, okinawaMarkerY, TransitionApproachZoom, ApproachDurationSeconds)", body);
         }
 
         [Test]
-        public void JapanToOkinawa_HoldsAtFullCover_BetweenCloseAndSwap()
+        public void JapanToOkinawa_CapturesSourceFocalPointAndZoom_AfterTheApproach()
         {
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
             int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
             string body = source.Substring(methodStart, methodEnd - methodStart);
-            StringAssert.Contains("yield return new WaitForSeconds(FullCoverHoldSeconds);", body);
+
+            int approachIndex = body.IndexOf("AnimateViewToSourceFocalPoint(okinawaMarkerX, okinawaMarkerY", System.StringComparison.Ordinal);
+            int captureIndex = body.IndexOf("_japanPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY)", System.StringComparison.Ordinal);
+            int zoomCaptureIndex = body.IndexOf("_japanPanZoom.CurrentZoom", System.StringComparison.Ordinal);
+
+            Assert.Greater(approachIndex, -1);
+            Assert.Greater(captureIndex, -1, "Expected the source focal point captured via TryGetCurrentSourceFocalPoint.");
+            Assert.Greater(zoomCaptureIndex, -1, "Expected zoom captured via CurrentZoom.");
+            Assert.Less(approachIndex, captureIndex, "Capture must happen AFTER the approach, reading back wherever it actually landed.");
         }
 
         [Test]
-        public void JapanToOkinawa_RevealEndsExactlyAtOkinawaRest()
+        public void JapanToOkinawa_AppliesTheCapturedViewToOkinawa_BeforeTheSwap()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, MapCloudLayout.OkinawaRest, okinawaWidth, okinawaHeight, CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic);", source);
+            int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            int transferIndex = body.IndexOf("_okinawaPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);", System.StringComparison.Ordinal);
+            int showIndex = body.IndexOf("_navigator?.Show(\"mapOkinawa\");", System.StringComparison.Ordinal);
+            Assert.Greater(transferIndex, -1, "Expected the captured view transferred to Okinawa's own MapPanZoomController via SetViewToSourceFocalPoint.");
+            Assert.Greater(showIndex, -1);
+            Assert.Less(transferIndex, showIndex, "The view must already be reconstructed on Okinawa BEFORE the screen swap.");
         }
 
-        // ---------- Okinawa -> Japan: closes first, reveal ends at JapanRest ----------
+        [Test]
+        public void JapanToOkinawa_SettlesDeeper_AfterTheSwap()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            int showIndex = body.IndexOf("_navigator?.Show(\"mapOkinawa\");", System.StringComparison.Ordinal);
+            int settleIndex = body.IndexOf("_okinawaPanZoom.AnimateViewToSourceFocalPoint(focusX, focusY, OkinawaSettleZoom, SettleDurationSeconds)", System.StringComparison.Ordinal);
+            Assert.Greater(showIndex, -1);
+            Assert.Greater(settleIndex, -1, "Expected the destination to keep animating (settle) toward a deeper zoom at the SAME focal point after the swap.");
+            Assert.Less(showIndex, settleIndex, "Settle must happen after the swap, not before.");
+        }
 
         [Test]
-        public void OkinawaToJapan_ClosesOkinawaCloudsFirst_FromOkinawaRestToItsOwnClosedPreset()
+        public void OkinawaSettleZoom_IsDeeperThan_TransitionApproachZoom()
+        {
+            // "Zoomed deeper into the same physical location" requires the
+            // settle target to exceed the approach/transfer zoom.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float TransitionApproachZoom = 1.6f;", source);
+            StringAssert.Contains("private const float OkinawaSettleZoom = 2.0f;", source);
+            Assert.Greater(2.0f, 1.6f);
+        }
+
+        // ---------- Okinawa -> Japan: camera captures current view, zooms out, settles further out at the corresponding place ----------
+
+        [Test]
+        public void OkinawaToJapan_ApproachZoomsOutInPlace_FromWhereverThePlayerCurrentlyIs()
         {
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
             Assert.Greater(methodStart, -1);
             string body = source.Substring(methodStart);
 
-            int closeIndex = body.IndexOf("AnimateCloudSet(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, MapCloudLayout.OkinawaRest, okinawaClosed, okinawaWidth, okinawaHeight, CloudCloseDurationSeconds, MapCloudMath.EaseInOutQuart);", System.StringComparison.Ordinal);
-            int coverJapanIndex = body.IndexOf("MapCloudLayout.ApplyPreset(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, japanWidth, japanHeight);", System.StringComparison.Ordinal);
+            StringAssert.Contains("_okinawaPanZoom.TryGetCurrentSourceFocalPoint(out startFocusX, out startFocusY)", body);
+            StringAssert.Contains("_okinawaPanZoom.AnimateViewToSourceFocalPoint(startFocusX, startFocusY, TransitionApproachZoom, ApproachDurationSeconds)", body, "The approach's target focal point must be the SAME point it started from (zoom-only, no pan) — reversing the 'dive in' into a 'pull back in place'.");
+        }
+
+        [Test]
+        public void OkinawaToJapan_CapturesSourceFocalPointAndZoom_AfterTheApproach()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart);
+
+            int approachIndex = body.IndexOf("AnimateViewToSourceFocalPoint(startFocusX, startFocusY", System.StringComparison.Ordinal);
+            int captureIndex = body.IndexOf("_okinawaPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY)", System.StringComparison.Ordinal);
+            Assert.Greater(approachIndex, -1);
+            Assert.Greater(captureIndex, -1);
+            Assert.Less(approachIndex, captureIndex);
+        }
+
+        [Test]
+        public void OkinawaToJapan_AppliesTheCapturedViewToJapan_BeforeTheSwap()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart);
+
+            int transferIndex = body.IndexOf("_japanPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);", System.StringComparison.Ordinal);
             int showIndex = body.IndexOf("_navigator?.Show(\"map\");", System.StringComparison.Ordinal);
-            int revealIndex = body.IndexOf("AnimateCloudSet(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, MapCloudLayout.JapanRest, japanWidth, japanHeight, CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic);", System.StringComparison.Ordinal);
+            Assert.Greater(transferIndex, -1);
+            Assert.Greater(showIndex, -1);
+            Assert.Less(transferIndex, showIndex, "The view must already be reconstructed on Japan BEFORE the screen swap.");
+        }
 
-            Assert.Greater(closeIndex, -1, "Expected Phase A: Okinawa clouds animate OkinawaRest -> its own computed closed layout, eased via EaseInOutQuart.");
-            Assert.Greater(coverJapanIndex, -1, "Expected Japan's clouds snapped to ITS OWN closed layout before the swap.");
-            Assert.Greater(showIndex, -1, "Expected the screen swap.");
-            Assert.Greater(revealIndex, -1, "Expected Phase C: Japan clouds animate its closed layout -> JapanRest, eased via EaseInOutCubic.");
+        [Test]
+        public void OkinawaToJapan_SettlesFurtherOut_TowardJapansOwnDefaultZoom_AfterTheSwap()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart);
 
-            Assert.Less(closeIndex, coverJapanIndex);
-            Assert.Less(coverJapanIndex, showIndex, "Japan's clouds must already be fully closed BEFORE the screen swap.");
-            Assert.Less(showIndex, revealIndex);
+            int showIndex = body.IndexOf("_navigator?.Show(\"map\");", System.StringComparison.Ordinal);
+            int settleIndex = body.IndexOf("_japanPanZoom.AnimateViewToSourceFocalPoint(focusX, focusY, MapPanZoomMath.DefaultZoom, SettleDurationSeconds)", System.StringComparison.Ordinal);
+            Assert.Greater(showIndex, -1);
+            Assert.Greater(settleIndex, -1, "Expected Japan to keep animating (settle) toward its own DefaultZoom at the SAME focal point — never a snap, never a generic center reset.");
+            Assert.Less(showIndex, settleIndex);
         }
 
         [Test]
@@ -98,278 +235,61 @@ namespace Mikey.UI.Map.Tests
             Assert.Less(contextIndex, showIndex);
         }
 
-        // ---------- expansion, not slide: closed layouts are derived per-cloud from rest, never a shared literal preset ----------
+        // ---------- neither direction ever resets to a generic center ----------
 
         [Test]
-        public void NoSharedCoverPreset_EachScreenComputesItsOwnClosedLayoutFromItsOwnRest()
+        public void NeitherDirection_EverUsesAGenericCenterReset()
         {
-            // The old "slide toward a shared center/cover rectangle" concept
-            // is gone entirely — there is no MapCloudLayout.Cover any more.
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.DoesNotContain("MapCloudLayout.Cover", source);
-        }
-
-        [Test]
-        public void ComputeClosedPreset_DerivesEachCloudFromItsOwnRestLayoutAndFixedAnchor()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("private static MapCloudPreset ComputeClosedPreset(MapCloudPreset rest)", System.StringComparison.Ordinal);
-            Assert.Greater(methodStart, -1, "Expected a ComputeClosedPreset(MapCloudPreset rest) helper.");
-            int methodEnd = source.IndexOf("private static IEnumerator AnimateCloudSet", methodStart, System.StringComparison.Ordinal);
-            Assert.Greater(methodEnd, -1);
-            string body = source.Substring(methodStart, methodEnd - methodStart);
-
-            StringAssert.Contains("MapCloudMath.ComputeClosedLayout(rest.Left1, MapCloudLayout.Left1Anchor, MapCloudLayout.CloseExpansionFactor, FullCoverOpacity)", body);
-            StringAssert.Contains("MapCloudMath.ComputeClosedLayout(rest.Left2, MapCloudLayout.Left2Anchor, MapCloudLayout.CloseExpansionFactor, FullCoverOpacity)", body);
-            StringAssert.Contains("MapCloudMath.ComputeClosedLayout(rest.Right1, MapCloudLayout.Right1Anchor, MapCloudLayout.CloseExpansionFactor, FullCoverOpacity)", body);
-            StringAssert.Contains("MapCloudMath.ComputeClosedLayout(rest.Bottom1, MapCloudLayout.Bottom1Anchor, MapCloudLayout.CloseExpansionFactor, FullCoverOpacity)", body);
-        }
-
-        [Test]
-        public void ClosedLayouts_UseTheSharedExpansionFactor_NotFourDifferentGuesses()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int occurrences = CountOccurrences(source, "MapCloudLayout.CloseExpansionFactor");
-            Assert.AreEqual(4, occurrences, "Expected all 4 clouds (Left1, Left2, Right1, Bottom1) to share the exact same expansion factor constant.");
-        }
-
-        [Test]
-        public void ClosedLayouts_AreFullyOpaque_RegardlessOfEachCloudsOwnRestOpacity()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const float FullCoverOpacity = 1.0f;", source);
-        }
-
-        // ---------- timing: close/reveal are slower than the previous pass, and asymmetric (close slower than reveal) ----------
-
-        [Test]
-        public void CloudCloseDuration_IsWithinTheApprovedSlowerRange_AndSlowerThanThePreviousPass()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const float CloudCloseDurationSeconds = 1.05f;", source);
-        }
-
-        [Test]
-        public void CloudRevealDuration_IsWithinTheApprovedSlowerRange_AndSlowerThanThePreviousPass()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const float CloudRevealDurationSeconds = 0.95f;", source);
-        }
-
-        [Test]
-        public void CloudCloseAndRevealDurations_AreWithinTheApprovedRange()
-        {
-            // Close ~0.95-1.15s, reveal ~0.90-1.10s per the approved
-            // cinematic-but-still-responsive brief.
-            Assert.GreaterOrEqual(1.05f, 0.95f);
-            Assert.LessOrEqual(1.05f, 1.15f);
-            Assert.GreaterOrEqual(0.95f, 0.90f);
-            Assert.LessOrEqual(0.95f, 1.10f);
-        }
-
-        [Test]
-        public void FullCoverHold_IsWithinTheApprovedSlowerRange()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const float FullCoverHoldSeconds = 0.12f;", source);
-        }
-
-        // ---------- easing: close and reveal use DIFFERENT curves; no bounce/overshoot possible (delegates to MapCloudMath) ----------
-
-        [Test]
-        public void Close_UsesTheSteeperQuarticEasing()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("CloudCloseDurationSeconds, MapCloudMath.EaseInOutQuart", source);
-        }
-
-        [Test]
-        public void Reveal_UsesTheGentlerCubicEasing()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("CloudRevealDurationSeconds, MapCloudMath.EaseInOutCubic", source);
-        }
-
-        [Test]
-        public void CloseAndReveal_NeverShareTheSameEasingCurve()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.DoesNotContain("CloudCloseDurationSeconds, MapCloudMath.EaseInOutCubic", source);
-            StringAssert.DoesNotContain("CloudRevealDurationSeconds, MapCloudMath.EaseInOutQuart", source);
-        }
-
-        [Test]
-        public void AnimateCloudSet_InterpolatesThroughLerpWithEasing_NotTheHardcodedCubicLerp()
-        {
-            // MapCloudMath.Lerp (hardcoded EaseInOutCubic) would silently
-            // ignore the injected easing parameter — the per-cloud frame
-            // application must route through LerpWithEasing so close can
-            // actually differ from reveal.
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("private static void ApplyStaggeredFrame", System.StringComparison.Ordinal);
-            Assert.Greater(methodStart, -1);
-            int methodEnd = source.IndexOf("private static void SetInputLock", methodStart, System.StringComparison.Ordinal);
-            Assert.Greater(methodEnd, -1);
-            string body = source.Substring(methodStart, methodEnd - methodStart);
-            StringAssert.Contains("MapCloudMath.LerpWithEasing(from, to, t, easing)", body);
-        }
-
-        // ---------- stagger: the 4 clouds start at slightly different offsets, so they never move in obvious lockstep ----------
-
-        [Test]
-        public void FourClouds_HaveDistinctSmallStaggerOffsets_NoObviousFourElementSynchronization()
-        {
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const float Right1StaggerSeconds = 0f;", source);
-            StringAssert.Contains("private const float Left1StaggerSeconds = 0.025f;", source);
-            StringAssert.Contains("private const float Left2StaggerSeconds = 0.05f;", source);
-            StringAssert.Contains("private const float Bottom1StaggerSeconds = 0.075f;", source);
-        }
-
-        [Test]
-        public void MaxStagger_IsTinyRelativeToThePhaseDurations_NotASequentialReveal()
-        {
-            // 0.075s max stagger against ~1s phase durations — a subtle
-            // desynchronization, never a visible one-after-another reveal.
-            Assert.Less(0.075f, 1.05f * 0.1f);
-        }
-
-        [Test]
-        public void AnimateCloudSet_AppliesEachCloudWithItsOwnStaggerOffset_AndAShortenedLocalDuration()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("private static IEnumerator AnimateCloudSet", System.StringComparison.Ordinal);
-            Assert.Greater(methodStart, -1);
-            int methodEnd = source.IndexOf("private static void ApplyStaggeredFrame", methodStart, System.StringComparison.Ordinal);
-            Assert.Greater(methodEnd, -1);
-            string body = source.Substring(methodStart, methodEnd - methodStart);
-
-            StringAssert.Contains("float cloudDurationSeconds = phaseDurationSeconds - MaxCloudStaggerSeconds;", body);
-            StringAssert.Contains("ApplyStaggeredFrame(left1, from.Left1, to.Left1, elapsed, Left1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);", body);
-            StringAssert.Contains("ApplyStaggeredFrame(left2, from.Left2, to.Left2, elapsed, Left2StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);", body);
-            StringAssert.Contains("ApplyStaggeredFrame(right1, from.Right1, to.Right1, elapsed, Right1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);", body);
-            StringAssert.Contains("ApplyStaggeredFrame(bottom1, from.Bottom1, to.Bottom1, elapsed, Bottom1StaggerSeconds, cloudDurationSeconds, easing, viewportWidth, viewportHeight);", body);
-        }
-
-        [Test]
-        public void EveryCloud_FinishesExactlyAtThePhaseDuration_DespiteItsStagger()
-        {
-            // cloudDuration = phaseDuration - maxStagger, and the largest-
-            // staggered cloud starts at maxStagger — so
-            // maxStagger + cloudDuration == phaseDuration exactly for every
-            // cloud, none finishing early or late relative to the shared
-            // hold/swap that follows.
-            const float maxStagger = 0.075f;
-            const float closeCloudDuration = 1.05f - maxStagger;
-            Assert.AreEqual(1.05f, maxStagger + closeCloudDuration, 0.0001f);
-        }
-
-        // ---------- shared: AnimateCloudSet always snaps exactly to its destination ----------
-
-        [Test]
-        public void AnimateCloudSet_SnapsExactlyToDestination_AfterTheLoop()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int loopEnd = source.IndexOf("MapCloudLayout.ApplyPreset(left1, left2, right1, bottom1, to, viewportWidth, viewportHeight);", System.StringComparison.Ordinal);
-            Assert.Greater(loopEnd, -1, "Expected an exact snap-to-destination after the animation loop, so no floating-point rounding ever leaves a cloud short of rest/closed.");
-        }
-
-        // ---------- spatial continuity: capture the source screen's view, transfer it to the destination while hidden ----------
-
-        [Test]
-        public void JapanToOkinawa_CapturesJapansCurrentViewBeforeAnythingCloses()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
-            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
-            string body = source.Substring(methodStart, methodEnd - methodStart);
-
-            int captureIndex = body.IndexOf("_japanPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY)", System.StringComparison.Ordinal);
-            int closeIndex = body.IndexOf("AnimateCloudSet(_japanLeft1", System.StringComparison.Ordinal);
-            Assert.Greater(captureIndex, -1, "Expected the source view captured via MapPanZoomController.TryGetCurrentSourceFocalPoint.");
-            Assert.Greater(closeIndex, -1);
-            Assert.Less(captureIndex, closeIndex, "The view must be captured before the close animation starts moving anything.");
-        }
-
-        [Test]
-        public void JapanToOkinawa_AppliesTheCapturedViewToOkinawa_BeforeTheSwap_WhileHidden()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("public IEnumerator PlayJapanToOkinawa()", System.StringComparison.Ordinal);
-            int methodEnd = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", methodStart, System.StringComparison.Ordinal);
-            string body = source.Substring(methodStart, methodEnd - methodStart);
-
-            int coverOkinawaIndex = body.IndexOf("MapCloudLayout.ApplyPreset(_okinawaLeft1, _okinawaLeft2, _okinawaRight1, _okinawaBottom1, okinawaClosed, okinawaWidth, okinawaHeight);", System.StringComparison.Ordinal);
-            int transferIndex = body.IndexOf("_okinawaPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);", System.StringComparison.Ordinal);
-            int showIndex = body.IndexOf("_navigator?.Show(\"mapOkinawa\");", System.StringComparison.Ordinal);
-
-            Assert.Greater(coverOkinawaIndex, -1);
-            Assert.Greater(transferIndex, -1, "Expected the captured view applied to Okinawa's own MapPanZoomController via SetViewToSourceFocalPoint.");
-            Assert.Greater(showIndex, -1);
-
-            Assert.Greater(transferIndex, coverOkinawaIndex, "The view transfer happens alongside snapping Okinawa's clouds closed (same hidden instant), after Okinawa's clouds are set up.");
-            Assert.Less(transferIndex, showIndex, "The view must already be transferred BEFORE the screen swap — never visible as a teleport.");
-        }
-
-        [Test]
-        public void OkinawaToJapan_CapturesOkinawasCurrentViewBeforeAnythingCloses()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
-            Assert.Greater(methodStart, -1);
-            string body = source.Substring(methodStart);
-
-            int captureIndex = body.IndexOf("_okinawaPanZoom.TryGetCurrentSourceFocalPoint(out focusX, out focusY)", System.StringComparison.Ordinal);
-            int closeIndex = body.IndexOf("AnimateCloudSet(_okinawaLeft1", System.StringComparison.Ordinal);
-            Assert.Greater(captureIndex, -1);
-            Assert.Greater(closeIndex, -1);
-            Assert.Less(captureIndex, closeIndex);
-        }
-
-        [Test]
-        public void OkinawaToJapan_AppliesTheCapturedViewToJapan_BeforeTheSwap_WhileHidden()
-        {
-            string source = File.ReadAllText(SourcePath);
-            int methodStart = source.IndexOf("public IEnumerator PlayOkinawaToJapan()", System.StringComparison.Ordinal);
-            Assert.Greater(methodStart, -1);
-            string body = source.Substring(methodStart);
-
-            int coverJapanIndex = body.IndexOf("MapCloudLayout.ApplyPreset(_japanLeft1, _japanLeft2, _japanRight1, _japanBottom1, japanClosed, japanWidth, japanHeight);", System.StringComparison.Ordinal);
-            int transferIndex = body.IndexOf("_japanPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);", System.StringComparison.Ordinal);
-            int showIndex = body.IndexOf("_navigator?.Show(\"map\");", System.StringComparison.Ordinal);
-
-            Assert.Greater(coverJapanIndex, -1);
-            Assert.Greater(transferIndex, -1);
-            Assert.Greater(showIndex, -1);
-            Assert.Greater(transferIndex, coverJapanIndex);
-            Assert.Less(transferIndex, showIndex);
-        }
-
-        [Test]
-        public void SpatialContinuity_NeverRunsAGenericCenterReset_TheCapturedViewIsUsedWheneverAvailable()
-        {
-            // The transfer is gated only on "was a view successfully
-            // captured" (hasView), never on any generic recentring call —
-            // there is no ResetTransform/center call anywhere in this
-            // controller for either direction.
+            // No ResetTransform() call anywhere in this controller, and the
+            // transfer is always gated on "was a view successfully
+            // captured" (hasView), never a fallback to center.
             string source = File.ReadAllText(SourcePath);
             StringAssert.DoesNotContain("ResetTransform()", source);
-            StringAssert.Contains("if (hasView)", source);
+            StringAssert.DoesNotContain("SetPan(0f, 0f)", source);
+            StringAssert.DoesNotContain("SetViewToSourceFocalPoint(0f, 0f", source);
         }
 
         [Test]
-        public void BindWhenReady_ResolvesBothMapPanZoomControllers_ByScreenId()
+        public void ApproachAndSettle_UseSmoothNonLinearInterpolation_ViaMapPanZoomController()
         {
+            // The actual easing (EaseInOutCubic, no bounce/overshoot) lives
+            // in MapPanZoomController.AnimateViewToSourceFocalPoint /
+            // MapPanZoomMath — this just proves every camera move in this
+            // controller routes through that one shared method, never a
+            // hand-rolled/instant alternative.
             string source = File.ReadAllText(SourcePath);
-            int bindStart = source.IndexOf("private IEnumerator BindWhenReady()", System.StringComparison.Ordinal);
-            int bindEnd = source.IndexOf("private void OnJapanCanvasGeometryChanged", bindStart, System.StringComparison.Ordinal);
-            Assert.Greater(bindStart, -1);
-            Assert.Greater(bindEnd, -1);
-            string body = source.Substring(bindStart, bindEnd - bindStart);
+            int occurrences = CountOccurrences(source, "AnimateViewToSourceFocalPoint(");
+            Assert.AreEqual(4, occurrences, "Expected exactly 4 animated camera moves: Japan's approach + Okinawa's settle (PlayJapanToOkinawa), Okinawa's approach + Japan's settle (PlayOkinawaToJapan).");
+        }
 
-            StringAssert.Contains("GetComponents<MapPanZoomController>()", body);
-            StringAssert.Contains("controller.ScreenId == \"map\"", body);
-            StringAssert.Contains("controller.ScreenId == \"mapOkinawa\"", body);
+        // ---------- map swap: no crossfade added (swap already reads clean without one) ----------
+
+        [Test]
+        public void NoCrossfadeCode_WasAdded_TheSwapAlreadyReadsCleanWithoutOne()
+        {
+            // The class remarks document, in prose, the DECISION to omit a
+            // crossfade (the word may legitimately appear there) — what
+            // must never exist is actual fade-implementing CODE: no new
+            // VisualElement queried for a fade overlay, no opacity
+            // manipulation of the map art itself.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("Q<VisualElement>(\"map-transition-overlay\")", source);
+            StringAssert.DoesNotContain("Q<VisualElement>(\"okinawa-transition-overlay\")", source);
+            StringAssert.DoesNotContain(".style.opacity", source);
+            StringAssert.DoesNotContain("AddToClassList", source);
+        }
+
+        [Test]
+        public void NoTopbarElementIsEverQueriedOrManipulated()
+        {
+            // Class remarks explain (in prose) that input lock doesn't reach
+            // the topbar — that's expected and fine. What must never exist
+            // is actual CODE querying/animating a topbar element: no
+            // Q&lt;...&gt;("...topbar...") lookup anywhere in this file.
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("Q<VisualElement>(\"map-topbar", source);
+            StringAssert.DoesNotContain("Q<VisualElement>(\"okinawa-topbar", source);
+            StringAssert.DoesNotContain("_topbar", source);
         }
 
         // ---------- re-entrancy: cannot start twice ----------
@@ -401,7 +321,7 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("public static bool IsTransitioning { get; private set; }", source);
         }
 
-        // ---------- input lock ----------
+        // ---------- input lock: locked at start, restored at end, for BOTH directions ----------
 
         [Test]
         public void BothDirections_LockInputAtStart_AndRestoreItAtEnd()
@@ -440,7 +360,7 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("_japanBottom1.pickingMode", source);
         }
 
-        // ---------- initial entry: rest presets apply immediately, no animation ----------
+        // ---------- initial entry: rest presets apply immediately, no animation, no transition ----------
 
         [Test]
         public void BindWhenReady_AppliesBothRestPresetsImmediately_NoAnimationOnFirstEntry()
@@ -454,7 +374,6 @@ namespace Mikey.UI.Map.Tests
 
             StringAssert.Contains("ApplyJapanRest();", body);
             StringAssert.Contains("ApplyOkinawaRest();", body);
-            StringAssert.DoesNotContain("StartCoroutine(AnimateCloudSet", body, "Bind must never start an animated transition on plain screen entry.");
             StringAssert.DoesNotContain("PlayJapanToOkinawa()", body);
             StringAssert.DoesNotContain("PlayOkinawaToJapan()", body);
         }
@@ -468,6 +387,21 @@ namespace Mikey.UI.Map.Tests
             string body = source.Substring(bindStart, bindEnd - bindStart);
             StringAssert.Contains("SetInputLock(_japanCloudLayer, false);", body);
             StringAssert.Contains("SetInputLock(_okinawaCloudLayer, false);", body);
+        }
+
+        [Test]
+        public void BindWhenReady_ResolvesBothMapPanZoomControllers_ByScreenId()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int bindStart = source.IndexOf("private IEnumerator BindWhenReady()", System.StringComparison.Ordinal);
+            int bindEnd = source.IndexOf("private void OnJapanCanvasGeometryChanged", bindStart, System.StringComparison.Ordinal);
+            Assert.Greater(bindStart, -1);
+            Assert.Greater(bindEnd, -1);
+            string body = source.Substring(bindStart, bindEnd - bindStart);
+
+            StringAssert.Contains("GetComponents<MapPanZoomController>()", body);
+            StringAssert.Contains("controller.ScreenId == \"map\"", body);
+            StringAssert.Contains("controller.ScreenId == \"mapOkinawa\"", body);
         }
 
         // ---------- resize reprojection: resting clouds keep composition on canvas resize, but never fight a running transition ----------
@@ -497,7 +431,7 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void CanvasGeometryChanged_SkipsReprojection_WhileTransitioning_SoItNeverFightsARunningAnimation()
+        public void CanvasGeometryChanged_SkipsReprojection_WhileTransitioning_SoItNeverFightsARunningCameraMove()
         {
             string source = File.ReadAllText(SourcePath);
             int japanStart = source.IndexOf("private void OnJapanCanvasGeometryChanged(GeometryChangedEvent evt)", System.StringComparison.Ordinal);
@@ -526,7 +460,7 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("float height = _okinawaCanvas?.resolvedStyle.height ?? 0f;", source);
         }
 
-        // ---------- no frame polling beyond the animation coroutine itself ----------
+        // ---------- no frame polling beyond the animation coroutines themselves ----------
 
         [Test]
         public void NoUpdateMethod_ResizeOrTransitionIsPurelyEventOrCoroutineDriven()
