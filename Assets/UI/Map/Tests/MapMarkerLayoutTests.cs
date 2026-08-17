@@ -63,13 +63,13 @@ namespace Mikey.UI.Map.Tests
         }
 
         // Exact pixel-measured positions on the 6336x2688 japan_map_final.jpg:
-        // Okinawa (1762, 2368), Fukuoka (2375, 1347), Hiroshima (2670, 1253).
+        // Okinawa (1762, 2425), Fukuoka (2375, 1347), Hiroshima (2670, 1253).
         [Test]
         public void Okinawa_CoordinateMatchesExactPixelMeasurement()
         {
             var chapter = FindChapter(MapMarkerLayout.OkinawaChapterId);
             Assert.AreEqual(0.27809f, chapter.NormalizedX, CoordinateTolerance);
-            Assert.AreEqual(0.88095f, chapter.NormalizedY, CoordinateTolerance);
+            Assert.AreEqual(0.90216f, chapter.NormalizedY, CoordinateTolerance);
         }
 
         [Test]

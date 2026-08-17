@@ -94,14 +94,14 @@ namespace Mikey.UI.Map
         /// MVP chapters, south to north: Okinawa (unlocked), Fukuoka (Kyushu,
         /// locked), Hiroshima (western Honshu, locked). Coordinates are exact,
         /// measured directly on the 6336x2688 japan_map_final.jpg source —
-        /// Okinawa (1762, 2368), Fukuoka (2375, 1347), Hiroshima (2670, 1253) —
-        /// not estimated by eye. Okinawa's Y was corrected once more after
-        /// re-measurement (2184 -> 2368, +184px) — X, Fukuoka and Hiroshima
+        /// Okinawa (1762, 2425), Fukuoka (2375, 1347), Hiroshima (2670, 1253) —
+        /// not estimated by eye. Okinawa's Y has been corrected twice after
+        /// re-measurement (2184 -> 2368 -> 2425) — X, Fukuoka and Hiroshima
         /// are unaffected.
         /// </summary>
         public static readonly ChapterMarkerLayout[] Chapters =
         {
-            new ChapterMarkerLayout(OkinawaChapterId, "OKINAWA", 0.27809f, 0.88095f, unlocked: true),
+            new ChapterMarkerLayout(OkinawaChapterId, "OKINAWA", 0.27809f, 0.90216f, unlocked: true),
             new ChapterMarkerLayout(FukuokaChapterId, "FUKUOKA", 0.37484f, 0.50112f, unlocked: false),
             new ChapterMarkerLayout(HiroshimaChapterId, "HIROSHIMA", 0.42140f, 0.46615f, unlocked: false),
         };
