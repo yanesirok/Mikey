@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Mikey.UI.Map.Tests
@@ -93,6 +94,50 @@ namespace Mikey.UI.Map.Tests
             // can bleed transparent-region noise into visible edges.
             string meta = File.ReadAllText($"{CloudsRoot}/{fileName}.meta");
             StringAssert.Contains("enableMipMap: 0", meta);
+        }
+
+        // ---------- cloud_bottom_01.png sizing (Map Pass 3E: seam re-diagnosis after the re-exported, wider PNG) ----------
+
+        [Test]
+        public void CloudBottomTexture_ImportsAtItsNativeResolution_NoForcedMaxSizeDownscale()
+        {
+            // The re-exported asset is 2376px wide (was 1672px) — wider than
+            // the OLD 2048 maxTextureSize cap, which the old 1672px asset
+            // never hit. That cap would have forced a NEW, previously
+            // nonexistent downscale/resample of this asset specifically
+            // (2376 -> 2048, a ~14% non-uniform squeeze) on top of whatever
+            // the source art itself contains. 4096 is the smallest standard
+            // preset that comfortably covers the current 2376px width with
+            // headroom.
+            string meta = File.ReadAllText($"{CloudsRoot}/cloud_bottom_01.png.meta");
+            StringAssert.Contains("maxTextureSize: 4096", meta);
+            StringAssert.DoesNotContain("maxTextureSize: 2048", meta);
+        }
+
+        [Test]
+        public void CloudBottomTexture_HasTheReExportedWiderDimensions_WithLeftRightPadding()
+        {
+            // Guards against a future re-export accidentally reverting the
+            // canvas extension (+512px left, +192px right around the
+            // original 1672px-wide content, height unchanged) that this
+            // pass's diagnosis depends on.
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>($"{CloudsRoot}/cloud_bottom_01.png");
+            Assert.IsNotNull(texture);
+            Assert.AreEqual(2376, texture.width);
+            Assert.AreEqual(941, texture.height);
+        }
+
+        [Test]
+        public void CloudBottomTexture_HasNoPotScaleDistortion()
+        {
+            // nPOTScale: 1 (ToNearest) would resample this non-power-of-two
+            // texture (2376x941) to the nearest POT (2048x1024) on import —
+            // an unnecessary non-uniform resize on a target that fully
+            // supports NPOT textures (Android/DX12), removed so the
+            // imported texture matches the source PNG's pixel data exactly,
+            // with zero import-time resampling.
+            string meta = File.ReadAllText($"{CloudsRoot}/cloud_bottom_01.png.meta");
+            StringAssert.Contains("nPOTScale: 0", meta);
         }
 
         // ---------- each cloud class references the correct final PNG ----------
