@@ -10,10 +10,12 @@ namespace Mikey.UI.Home.Tests
     /// <summary>
     /// Structural contract for the rebuilt Main Menu (the "menu" screen) in
     /// MikeyApp.uxml: the supplied cinematic video background, the upper-left
-    /// Mikey logo, a right-side PLAY/PLANS/SETTINGS/QUIT navigation built from
-    /// spacing and typography rather than dashboard cards, the Plans/Settings
-    /// overlays (hidden by default, driven by HomeController), and none of the
-    /// old Home dashboard controls (CTA, ribbon, power stats, 4-tab dock, dev bar).
+    /// Mikey logo, a right-side PLAY/VOW/SETTINGS/QUIT navigation built from
+    /// spacing and typography rather than dashboard cards, the local Vow
+    /// membership overlay (hidden by default, driven by HomeController —
+    /// SETTINGS now opens the one shared Settings modal instead, see
+    /// Mikey.UI.Settings.Tests), and none of the old Home dashboard controls
+    /// (CTA, ribbon, power stats, 4-tab dock, dev bar).
     /// </summary>
     public class HomeScreenUxmlTests
     {
@@ -92,8 +94,12 @@ namespace Mikey.UI.Home.Tests
             Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
             StringAssert.Contains(LogoAssetPath, File.ReadAllText(HomeUssPath),
                 "Home.uss must reference the supplied Mikey logo asset on the Main Menu.");
+            // Title.uss must not reference the static image at all: the video
+            // itself is the logo during playback, and TitleController freezes on
+            // that SAME video's own final frame while waiting on the shell —
+            // never a separate static image (see TitleControllerSourceTests).
             StringAssert.DoesNotContain(LogoAssetPath, File.ReadAllText(TitleUssPath),
-                "Title.uss must no longer reference the static Mikey logo image — the final logo_intro.mp4 animation replaces it.");
+                "Title.uss must no longer reference the static Mikey logo image — the final logo_intro.mp4 animation (including its own final frame) replaces it.");
         }
 
         [Test]
@@ -121,53 +127,115 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void Plans_OpensLocalOverlay_WithComingSoonContent()
+        public void Plans_IsGone_VowTakesItsPlace()
         {
             var screen = MenuScreen(BuildTree());
 
-            var plansButton = screen.Q<Button>("menu-plans-open");
-            Assert.IsNotNull(plansButton, "Main Menu must expose PLANS.");
-            Assert.IsFalse(plansButton.name.StartsWith(NavPrefix),
-                "PLANS must not be a 'go-' navigator — it opens a local overlay, the menu itself doesn't change screens.");
+            Assert.IsNull(screen.Q<Button>("menu-plans-open"), "The old PLANS button must be gone.");
+            Assert.IsNull(screen.Q<VisualElement>("menu-plans-modal"), "The old Plans overlay must be gone.");
 
-            var modal = screen.Q<VisualElement>("menu-plans-modal");
-            Assert.IsNotNull(modal, "Expected a 'menu-plans-modal' overlay.");
-            Assert.AreEqual("PLANS", modal.Q<Label>(className: "menu-modal__title")?.text);
-            Assert.AreEqual("Coming soon.", modal.Q<Label>(className: "menu-modal__body")?.text);
-            Assert.IsNotNull(modal.Q<Button>("menu-plans-close"), "Plans overlay must expose a close action.");
+            var labels = screen.Query<Label>().ToList().Select(l => l.text).ToList();
+            CollectionAssert.DoesNotContain(labels, "PLANS", "'PLANS' must not appear anywhere on the visible Main Menu.");
+
+            var vowButton = screen.Q<Button>("menu-vow-open");
+            Assert.IsNotNull(vowButton, "Main Menu must expose VOW in PLANS's place.");
+            Assert.IsFalse(vowButton.name.StartsWith(NavPrefix),
+                "VOW must not be a 'go-' navigator — it opens a local overlay, the menu itself doesn't change screens.");
+            Assert.AreEqual("VOW", vowButton.Q<Label>(className: "home-nav__label")?.text);
+            Assert.IsNotNull(vowButton.Q<VisualElement>(className: "home-nav__stroke--vow"),
+                "VOW must use the same reusable per-item brushstroke system as the other menu labels.");
         }
 
         [Test]
-        public void Settings_OpensLocalOverlay_WithThreeVolumeSlidersAndClose()
+        public void VowModal_OpensAsLocalOverlay_HiddenByDefault()
         {
+            var screen = MenuScreen(BuildTree());
+            var modal = screen.Q<VisualElement>("menu-vow-modal");
+            Assert.IsNotNull(modal, "Expected a 'menu-vow-modal' overlay.");
+            Assert.IsTrue(modal.ClassListContains("vow-modal"));
+            Assert.IsNotNull(modal.Q<Button>("menu-vow-close"), "Vow overlay must expose a close action.");
+        }
+
+        [Test]
+        public void VowModal_HasCeremonialHeaderCopy()
+        {
+            var screen = MenuScreen(BuildTree());
+            var modal = screen.Q<VisualElement>("menu-vow-modal");
+            Assert.AreEqual("The Vow", modal.Q<Label>(className: "vow-header__title")?.text);
+            Assert.AreEqual("Choose how far you are willing to walk the path.", modal.Q<Label>(className: "vow-header__subtitle")?.text);
+            Assert.AreEqual("Your training begins with commitment.", modal.Q<Label>(className: "vow-header__tagline")?.text);
+        }
+
+        [Test]
+        public void VowModal_HasAllThreeVows_WithCorrectStatusAndCopy()
+        {
+            var screen = MenuScreen(BuildTree());
+            var modal = screen.Q<VisualElement>("menu-vow-modal");
+
+            var initiate = modal.Q<Button>("vow-option-initiate");
+            Assert.IsNotNull(initiate, "Expected the Initiate vow.");
+            Assert.AreEqual("Initiate", initiate.Q<Label>(className: "vow-option__name")?.text);
+            Assert.AreEqual("Free", initiate.Q<Label>(className: "vow-option__status")?.text);
+            Assert.AreEqual("Current Path", initiate.Q<Label>(className: "vow-option__cta")?.text);
+
+            var disciple = modal.Q<Button>("vow-option-disciple");
+            Assert.IsNotNull(disciple, "Expected the Disciple vow.");
+            Assert.AreEqual("Disciple", disciple.Q<Label>(className: "vow-option__name")?.text);
+            Assert.AreEqual("Monthly", disciple.Q<Label>(className: "vow-option__status")?.text);
+            Assert.AreEqual("Choose Vow", disciple.Q<Label>(className: "vow-option__cta")?.text);
+            Assert.IsTrue(disciple.ClassListContains("vow-option--recommended"), "Disciple must be marked Recommended.");
+            Assert.AreEqual("Recommended", disciple.Q<Label>(className: "vow-option__badge")?.text);
+
+            var master = modal.Q<Button>("vow-option-master");
+            Assert.IsNotNull(master, "Expected the Master vow.");
+            Assert.AreEqual("Master", master.Q<Label>(className: "vow-option__name")?.text);
+            Assert.AreEqual("Yearly", master.Q<Label>(className: "vow-option__status")?.text);
+            Assert.AreEqual("Choose Vow", master.Q<Label>(className: "vow-option__cta")?.text);
+            Assert.IsFalse(master.ClassListContains("vow-option--recommended"), "Only Disciple is Recommended.");
+        }
+
+        [Test]
+        public void VowOptions_CarryNoInventedMonetaryPrices()
+        {
+            var screen = MenuScreen(BuildTree());
+            var modal = screen.Q<VisualElement>("menu-vow-modal");
+            var labels = modal.Query<Label>().ToList().Select(l => l.text ?? string.Empty).ToList();
+            foreach (var text in labels)
+            {
+                Assert.IsFalse(text.Contains("$"), $"No invented price allowed, found in: '{text}'");
+                StringAssert.DoesNotMatch(@"\d+\.\d{2}", text, $"No invented price allowed, found in: '{text}'");
+            }
+        }
+
+        [Test]
+        public void VowModal_HasInlineEnrollmentMessage_HiddenByDefault_NeverAnotherModal()
+        {
+            var screen = MenuScreen(BuildTree());
+            var modal = screen.Q<VisualElement>("menu-vow-modal");
+            var message = modal.Q<Label>("vow-inline-message");
+            Assert.IsNotNull(message, "Expected a single inline message element for the 'not yet available' notice.");
+
+            // It must live inside the same card, not be a second overlay/modal.
+            Assert.AreEqual(1, screen.Query<VisualElement>(className: "vow-modal").ToList().Count,
+                "There must be exactly one Vow overlay — pressing a paid CTA must never open a second modal.");
+        }
+
+        [Test]
+        public void Settings_ExistsAsButton_ButNoLongerOpensALocalOverlay()
+        {
+            // SETTINGS now opens the one shared Settings modal (see
+            // Assets/UI/Settings — Mikey.UI.Settings.Tests covers its content,
+            // sizing and behavior in full); Home no longer owns a Settings
+            // modal of its own.
             var screen = MenuScreen(BuildTree());
 
             var settingsButton = screen.Q<Button>("menu-settings-open");
             Assert.IsNotNull(settingsButton, "Main Menu must expose SETTINGS.");
             Assert.IsFalse(settingsButton.name.StartsWith(NavPrefix),
-                "SETTINGS must not be a 'go-' navigator — it opens a local overlay.");
+                "SETTINGS must not be a 'go-' navigator — it opens the shared Settings modal.");
 
-            var modal = screen.Q<VisualElement>("menu-settings-modal");
-            Assert.IsNotNull(modal, "Expected a 'menu-settings-modal' overlay.");
-
-            var music = modal.Q<Slider>("menu-settings-music");
-            var sfx = modal.Q<Slider>("menu-settings-sfx");
-            var trainer = modal.Q<Slider>("menu-settings-trainer");
-            Assert.IsNotNull(music, "Expected a Music volume slider.");
-            Assert.IsNotNull(sfx, "Expected a Sound Effects volume slider.");
-            Assert.IsNotNull(trainer, "Expected a Trainer Voice volume slider.");
-
-            foreach (var slider in new[] { music, sfx, trainer })
-            {
-                Assert.AreEqual(0f, slider.lowValue, $"'{slider.name}' must range from 0.");
-                Assert.AreEqual(1f, slider.highValue, $"'{slider.name}' must range to 1.");
-            }
-
-            Assert.AreEqual(0.70f, music.value, 0.001f, "Music's markup default must match the suggested default (0.70).");
-            Assert.AreEqual(1.00f, sfx.value, 0.001f, "Sound Effects' markup default must match the suggested default (1.00).");
-            Assert.AreEqual(1.00f, trainer.value, 0.001f, "Trainer Voice's markup default must match the suggested default (1.00).");
-
-            Assert.IsNotNull(modal.Q<Button>("menu-settings-close"), "Settings overlay must expose a close action.");
+            Assert.IsNull(screen.Q<VisualElement>("menu-settings-modal"),
+                "The old local Settings overlay must be gone — Settings is unified into one shared modal.");
         }
 
         [Test]
@@ -187,14 +255,14 @@ namespace Mikey.UI.Home.Tests
             var quit = screen.Q<Button>("menu-quit");
             Assert.IsNotNull(quit, "Expected the 'menu-quit' action.");
             Assert.IsTrue(quit.ClassListContains("home-nav__item--quit"),
-                "QUIT must carry its own lowest-priority modifier class, distinct from PLAY/PLANS/SETTINGS.");
+                "QUIT must carry its own lowest-priority modifier class, distinct from PLAY/VOW/SETTINGS.");
         }
 
         [Test]
         public void AllFourNavActions_UseLargeTouchTargetClass_AndSameBaseTypographyKit()
         {
             var screen = MenuScreen(BuildTree());
-            foreach (var name in new[] { "go-map", "menu-plans-open", "menu-settings-open", "menu-quit" })
+            foreach (var name in new[] { "go-map", "menu-vow-open", "menu-settings-open", "menu-quit" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a nav action named '{name}'.");
@@ -219,10 +287,10 @@ namespace Mikey.UI.Home.Tests
         public void Modals_AreHiddenByDefault_InStylesheet()
         {
             Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
-            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), ".menu-modal {");
-            Assert.IsNotNull(block, "Expected a '.menu-modal' rule in Home.uss.");
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), ".vow-modal {");
+            Assert.IsNotNull(block, "Expected a '.vow-modal' rule in Home.uss.");
             StringAssert.Contains("display: none", block,
-                "'.menu-modal' must default to hidden (HomeController toggles it to Flex on open).");
+                "'.vow-modal' must default to hidden (HomeController toggles it to Flex on open).");
         }
 
         [Test]
@@ -267,10 +335,14 @@ namespace Mikey.UI.Home.Tests
         {
             var screen = MenuScreen(BuildTree());
             // Every Button on the rebuilt Main Menu (including inside its overlays)
-            // must be a wired "go-" navigator or a known local HomeController action.
+            // must be a wired "go-" navigator or a known local action — either
+            // HomeController's own (Vow/Quit) or the shared
+            // SettingsModalController's ("menu-settings-open"; its close button
+            // now lives outside this screen, in the shared modal).
             var localActions = new HashSet<string>
             {
-                "menu-plans-open", "menu-plans-close", "menu-settings-open", "menu-settings-close", "menu-quit",
+                "menu-vow-open", "menu-vow-close", "vow-option-initiate", "vow-option-disciple", "vow-option-master",
+                "menu-settings-open", "menu-quit",
             };
 
             foreach (var button in screen.Query<Button>().ToList())

@@ -3,8 +3,7 @@
     "rootNamespace": "Mikey.UI.Home",
     "references": [
         "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression",
-        "Mikey.UI.Audio"
+        "Mikey.UI.Progression"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

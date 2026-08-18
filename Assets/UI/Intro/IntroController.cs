@@ -7,10 +7,10 @@ namespace Mikey.UI.Intro
     /// <summary>
     /// Marks tutorial progression's <see cref="TutorialProgressState.IntroCompleted"/>
     /// the moment the player leaves the Intro screen through its normal flow (Skip or
-    /// the primary CTA) — both are plain "go-menu" ScreenManager navigators with no
-    /// controller of their own, so nothing previously recorded this transition.
-    /// Purely a progression side-effect: navigation itself is untouched, still
-    /// driven by ScreenManager exactly as before. Uses the forward-only
+    /// the primary CTA — see Mikey.UI.Intro.LoreExitController, which drives their
+    /// cinematic fade-to-black-then-navigate exit). Purely a progression
+    /// side-effect: this controller only observes whichever navigation already
+    /// happened, it never drives one itself. Uses the forward-only
     /// <see cref="ITutorialProgress.Advance"/>, so a player already beyond
     /// IntroCompleted is never regressed by this controller.
     /// </summary>

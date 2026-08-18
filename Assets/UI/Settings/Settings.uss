@@ -1,0 +1,120 @@
+/* ============================================================
+   Settings — the one shared Settings modal for the whole app. Reachable
+   from Main Menu ("menu-settings-open") and both map screens
+   ("map-topbar-settings" / "okinawa-topbar-settings"), all wired to this
+   SAME instance by SettingsModalController — there is exactly one
+   ".settings-modal" element in MikeyApp.uxml, declared as the last child of
+   the root "app" element (after every screen), so it always paints and
+   hit-tests above whichever screen is currently active, blocking
+   interaction with it while open, without needing any screen-specific
+   picking-mode toggling. Closing only removes ".settings-modal--open" —
+   it never touches ScreenManager/MapPanZoomController/MapNavigationState,
+   so the screen underneath (and, on a map screen, its camera and chapter
+   context) is always left exactly as it was.
+
+   Visual basis: the larger dark-glass panel introduced for the Map HUD
+   (commit 1186308) — Main Menu now uses this same larger design too;
+   the old small ".menu-modal"-based Settings card is retired (Home's
+   ".menu-modal" itself remains, still used by the separate Plans overlay).
+   ============================================================ */
+
+/* ---------- touch-target kit ----------
+   Same small kit duplicated per-stylesheet elsewhere in this app (Home.uss,
+   Map.uss) rather than centralized in theme.uss — this modal lives outside
+   any single screen's own stylesheet, so it needs its own copy too. */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+
+.settings-modal {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(6, 7, 9, 0.72);
+}
+.settings-modal--open {
+    display: flex;
+}
+.settings-modal__card {
+    width: 60%;
+    min-width: 480px;
+    max-width: 760px;
+    padding: 44px;
+    border-radius: 20px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.14);
+    background-color: rgba(15, 18, 22, 0.9);
+}
+.settings-modal__title {
+    font-size: 40px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    color: var(--bone);
+    margin-bottom: 30px;
+}
+.setting {
+    margin-bottom: 32px;
+}
+.setting__label {
+    font-size: 24px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+
+/* Bigger track/thumb + a taller row so every control is easy to grab with a
+   finger — touch usability over compactness. unity-base-slider__tracker /
+   __dragger are UI Toolkit's own built-in Slider part names. */
+.setting__slider {
+    height: 32px;
+}
+.setting__slider .unity-base-slider__tracker {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--line);
+}
+.setting__slider .unity-base-slider__dragger {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    margin-top: -11px;
+    background-color: var(--seal);
+    border-width: 0;
+}
+
+/* Fully self-contained (not theme.uss's shared ".btn.primary.sm") so it
+   matches this modal's own dark-glass language without fighting that
+   class's specificity. */
+.settings-modal__close {
+    align-self: center;
+    margin-top: 14px;
+    min-width: 200px;
+    height: 56px;
+    padding: 0 32px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(237, 230, 216, 0.06);
+    font-size: 24px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: var(--bone);
+    -unity-text-align: middle-center;
+}
+.settings-modal__close:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.12);
+}

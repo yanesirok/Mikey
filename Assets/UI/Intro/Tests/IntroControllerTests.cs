@@ -10,13 +10,16 @@ namespace Mikey.UI.Intro.Tests
 {
     /// <summary>
     /// Contract for the Intro-completion progression fix: leaving Intro through its
-    /// normal flow (Skip or the primary CTA — both plain "go-menu" navigators, see
-    /// IntroScreenUxmlTests) must mark <see cref="TutorialProgressState.IntroCompleted"/>,
-    /// using the forward-only Advance so a player already further along is never
-    /// regressed. Pure decision logic is unit-tested directly; the MonoBehaviour
-    /// wiring (not practical to drive through a live panel in EditMode) is verified
-    /// by reading the source, mirroring CameraTestProgressionTests /
-    /// HomeControllerSourceTests.
+    /// normal flow (Skip or the primary CTA — now "lore-skip"/"lore-continue",
+    /// driven by LoreExitController's cinematic transition, see
+    /// LoreExitControllerTests / IntroScreenUxmlTests) must mark
+    /// <see cref="TutorialProgressState.IntroCompleted"/>, using the forward-only
+    /// Advance so a player already further along is never regressed. This
+    /// controller only observes whichever navigation already happened — it does
+    /// not care who drove it. Pure decision logic is unit-tested directly; the
+    /// MonoBehaviour wiring (not practical to drive through a live panel in
+    /// EditMode) is verified by reading the source, mirroring
+    /// CameraTestProgressionTests / HomeControllerSourceTests.
     /// </summary>
     public class IntroControllerTests
     {
@@ -69,7 +72,7 @@ namespace Mikey.UI.Intro.Tests
         {
             string source = File.ReadAllText(SourcePath);
             StringAssert.DoesNotContain(".Show(", source,
-                "IntroController must only observe navigation (a progression side-effect), never drive it — Intro keeps navigating exactly as ScreenManager's existing 'go-menu' wiring already does.");
+                "IntroController must only observe navigation (a progression side-effect), never drive it — LoreExitController owns Lore's cinematic exit navigation instead.");
         }
 
         [Test]

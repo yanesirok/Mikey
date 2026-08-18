@@ -3,7 +3,8 @@
     "rootNamespace": "Mikey.UI.Map",
     "references": [
         "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression"
+        "Mikey.UI.Progression",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

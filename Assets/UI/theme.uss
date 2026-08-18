@@ -15,6 +15,11 @@
     --base-3: #1B2129;   /* card surface   */
     --line: #2A323C;     /* hairline border */
     --muted: #8B95A1;    /* muted text */
+    /* True red brand accent (Profile + shared top-nav active state) — a
+       deeper, less orange-shifted red than --seal/--ember. Additive only:
+       every existing --seal/--ember usage elsewhere is untouched. */
+    --crimson: #C62828;      /* primary red accent */
+    --crimson-deep: #8F1717; /* deeper red for larger fills */
 
     flex-grow: 1;
     background-color: var(--base);
@@ -214,3 +219,20 @@
    previous inline .camera / .cam-feed / .live / .testname / .counter / .callout /
    .pose-box / .cam-note / .cam-actions styles moved there with the landscape
    rebuild; no other screen referenced them. */
+
+/* ---------- launch transition overlay ----------
+   The one shared full-screen black fade for the Logo Intro -> Lore -> Main Menu
+   launch sequence (see TransitionOverlayController / ITransitionOverlay). Unlike
+   .screen, this is never display:none/flex-toggled by ScreenManager — it is a
+   plain always-present sibling of the screens, positioned last in MikeyApp.uxml
+   so it paints above whichever one is active, with its own opacity driven
+   directly by TransitionOverlayController. Starts fully transparent. */
+.transition-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #000000;
+    opacity: 0;
+}

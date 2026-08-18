@@ -448,13 +448,21 @@ GameObject:
   - component: {fileID: 1720403622}
   - component: {fileID: 1720403623}
   - component: {fileID: 1720403624}
-  - component: {fileID: 1720403625}
   - component: {fileID: 1720403626}
   - component: {fileID: 1720403627}
   - component: {fileID: 1720403628}
   - component: {fileID: 1720403629}
   - component: {fileID: 1720403630}
   - component: {fileID: 1720403631}
+  - component: {fileID: 1720403635}
+  - component: {fileID: 1720403634}
+  - component: {fileID: 1720403633}
+  - component: {fileID: 1720403632}
+  - component: {fileID: 1720403636}
+  - component: {fileID: 1720403637}
+  - component: {fileID: 1720403638}
+  - component: {fileID: 1720403639}
+  - component: {fileID: 1720403640}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -588,21 +596,6 @@ MonoBehaviour:
     targetElementName: map-bg-media
     clip: {fileID: 0}
     staticImage: {fileID: 2800000, guid: 508aafca3ea2f0a43a8b8eda518fce40, type: 3}
---- !u!114 &1720403625
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1720403616}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b5f9609e2e3a4017b30c5d4e86795869, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapLevelPreviewController
-  checkpoints:
-  - nodeElementName: map-node-okinawa
-    previewClip: {fileID: 32900000, guid: 3dfc5e1dfbad4f27a408c0b32699fdfd, type: 3}
 --- !u!114 &1720403626
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -613,7 +606,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 24b61cf30a6d03a44bb94e41268be26a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Progression::Mikey.UI.Progression.TutorialProgressionController
 --- !u!114 &1720403627
 MonoBehaviour:
@@ -625,7 +618,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 47d63e6efc3b99845b52497b261c0336, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Home::Mikey.UI.Home.HomeController
 --- !u!114 &1720403628
 MonoBehaviour:
@@ -637,7 +630,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: deff6b8b4b26bcfa405e4a4f1dcccde4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Intro::Mikey.UI.Intro.IntroController
 --- !u!114 &1720403629
 MonoBehaviour:
@@ -649,7 +642,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8158db38570f3b97005c4e42d0793f45, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Profile::Mikey.UI.Profile.ProfileController
 --- !u!114 &1720403630
 MonoBehaviour:
@@ -661,7 +654,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ee3995047e30c4a41bb8e8e0d3249785, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Title::Mikey.UI.Title.TitleController
   logoIntroClip: {fileID: 32900000, guid: 45b92510ca7e33f45b211e49b74c35c5, type: 3}
 --- !u!114 &1720403631
@@ -674,10 +667,125 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8d83c9d807d91145a95001fbe065082, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Audio::Mikey.UI.Audio.AudioController
   menuMusicClip: {fileID: 8300000, guid: 23cdc616676a6714da8c7efc3db76f48, type: 3}
   uiClickClip: {fileID: 8300000, guid: 692bb875ccbbc4446be6f2166f1648ee, type: 3}
+--- !u!114 &1720403632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d054b77f3225cbe44a689829a69ca13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapPanZoomController
+  screenId: mapOkinawa
+  viewportElementName: okinawa-stage
+  canvasElementName: okinawa-canvas
+--- !u!114 &1720403633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d054b77f3225cbe44a689829a69ca13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapPanZoomController
+  screenId: map
+  viewportElementName: map-stage
+  canvasElementName: map-canvas
+--- !u!114 &1720403634
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d73b03f7df1068e40b1a7ef19a0de851, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.OkinawaMapController
+--- !u!114 &1720403635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20ae86b84c6433240be3e7d5520565fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.JapanMapController
+  okinawaPreviewClip: {fileID: 32900000, guid: 3dfc5e1dfbad4f27a408c0b32699fdfd, type: 3}
+--- !u!114 &1720403636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01e6e326677a0db49b562477ebc605f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Settings::Mikey.UI.Settings.SettingsModalController
+--- !u!114 &1720403637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc0709316fea2134f81b717d0010bb99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TransitionOverlayController
+--- !u!114 &1720403638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d45d5d009a00b84684f1e24fa601356, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Intro::Mikey.UI.Intro.LoreExitController
+--- !u!114 &1720403639
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d24148500b54c14896e7cc6ce4fec42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Profile::Mikey.UI.Profile.ProfileDetailsController
+--- !u!114 &1720403640
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18faf2b2527e2324787f4a6cb8155e21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapCloudTransitionController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

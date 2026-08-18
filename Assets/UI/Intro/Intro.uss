@@ -1,39 +1,32 @@
 /* ============================================================
    Lore — landscape cold-open ("intro" screen) styles.
-   Palette custom properties (--ember, --bone, --base, --muted, --line …)
+   Palette custom properties (--ember, --bone, --base, --muted, --seal, --line …)
    cascade in from .mikey-app in theme.uss; this file only adds Intro-specific
    structure so the screen stays modular (same pattern as Home/Home.uss and
    Combine/Combine.uss). Linked from the intro screen in MikeyApp.uxml.
 
-   Temporary text-only cinematic: the old comic/silhouette placeholder cast is
-   retired. Nearly black, lots of negative space, a short sequence of lines
-   building from an opening statement to a closing beat, then CONTINUE. When
-   the full lore cinematic video exists, most of .intro-copy's content is
-   replaced by a full-screen video target; the .intro-bg / .intro-layout /
-   .intro-skip / .intro-primary structure below does not need to change.
+   Minimal premium placeholder until the real Lore cinematic exists: the
+   earlier multi-beat text sequence is retired in favor of a near-empty pure
+   black screen with a single honest "not ready yet" statement, matching
+   Mikey's black/off-white/restrained-red identity rather than reading as an
+   app screen. When the full lore cinematic video exists, this whole
+   .intro-copy/.intro-note block is replaced by a full-screen video target;
+   the .intro-bg / .intro-layout / .intro-skip / .intro-primary structure
+   below does not need to change.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Solid
-   near-black base + a barely-there centered glow — atmosphere, not artwork. */
+   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Pure
+   black, no glow/atmosphere layer — the screen is meant to feel almost
+   empty, not lit. */
 .intro-bg {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #08090B;
-    align-items: center;
-    justify-content: center;
-}
-.intro-glow {
-    position: absolute;
-    top: -120px;
-    width: 900px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.04);
+    background-color: #000000;
 }
 
 /* ---------- foreground layout ----------
@@ -49,40 +42,47 @@
     justify-content: center;
 }
 
-/* ---------- copy sequence ----------
-   A short, honest sequence of beats — no cards, no artwork, no silhouettes.
-   Generous vertical spacing between groups is the "lots of negative space"
-   the temporary screen calls for. */
+/* ---------- placeholder copy ----------
+   One honest statement, not a scripted narrative sequence — no cards, no
+   artwork, lots of negative space. A single thin red ink line (the only
+   accent color on this screen besides the tiny Continue arrow) separates
+   the primary line from the dimmer supporting line beneath it. */
 .intro-copy {
     width: 100%;
     max-width: 720px;
     align-items: center;
 }
-.intro-copy__group {
-    align-items: center;
-    margin-top: 34px;
-}
 .intro-line {
-    font-size: 16px;
-    color: var(--muted);
     -unity-text-align: middle-center;
     white-space: normal;
 }
 .intro-line--open {
-    font-size: 30px;
+    font-size: 48px;
     -unity-font-style: bold;
+    letter-spacing: 0.5px;
     color: var(--bone);
+}
+.intro-rule {
+    width: 64px;
+    height: 2px;
+    margin-top: 22px;
+    margin-bottom: 22px;
+    background-color: var(--seal);
+    opacity: 0.6;
 }
 .intro-line--support {
-    font-size: 16px;
-    color: var(--muted);
-    margin-top: 6px;
+    font-size: 24px;
+    color: rgba(237, 230, 216, 0.62);
 }
-.intro-line--close {
-    font-size: 22px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    margin-top: 6px;
+
+/* Small supporting note near the bottom of the composition — deliberately
+   its own (smaller, dimmer) class, not part of the .intro-line sequence. */
+.intro-note {
+    font-size: 19px;
+    color: var(--muted);
+    margin-top: 40px;
+    -unity-text-align: middle-center;
+    white-space: normal;
 }
 
 /* ---------- actions ---------- */
@@ -104,29 +104,41 @@
     -unity-text-align: middle-center;
     -unity-font-style: normal;
 }
+/* The tiny arrow beside CONTINUE is this screen's one deliberate red accent
+   (see spec: "tiny accent beside Continue") — restrained, not a filled
+   button. */
 .intro-icon--cta {
-    font-size: 30px;
+    font-size: 26px;
     margin-left: 10px;
+    color: var(--seal);
 }
 .intro-icon--skip {
     font-size: 22px;
     margin-left: 8px;
 }
 
-/* primary CTA: width-capped, ember, icon + label in a centered row */
+/* primary CTA: a quiet bordered control, not a solid filled ember pill —
+   this screen deliberately opts out of the shared .btn.primary treatment
+   (theme.uss) so black/off-white/red stays the only palette in view. */
 .intro-cta {
     flex-direction: row;
     align-items: center;
     justify-content: center;
     width: auto;
-    min-width: 260px;
+    min-width: 220px;
     max-width: 360px;
-    margin-top: 46px;
-    padding: 16px 28px;
+    margin-top: 40px;
+    padding: 14px 30px;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: rgba(237, 230, 216, 0.28);
+    background-color: rgba(237, 230, 216, 0.05);
 }
 .intro-cta__text {
     -unity-font-style: bold;
-    font-size: 18px;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--bone);
 }
 
 /* skip pill, top-right. Builds on the base .skip (theme.uss) but enlarges it to
@@ -169,5 +181,5 @@
 }
 .intro-cta:focus,
 .intro-skip:focus {
-    border-color: var(--ember);
+    border-color: var(--seal);
 }

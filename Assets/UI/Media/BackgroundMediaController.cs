@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.Video;
@@ -14,10 +15,19 @@ using UnityEngine.Video;
 /// with no binding, or a binding with neither a clip nor an image, simply
 /// keep their existing static USS background — that is the safe fallback if
 /// a video asset is ever missing or fails to prepare.
+///
+/// Also implements <see cref="IShellPreloader"/>: the launch shell's Logo
+/// Intro calls <see cref="BeginPreload"/> the moment it starts, so the Main
+/// Menu's video is already preparing well before Lore hands off to Menu —
+/// <see cref="IsReady"/> lets Logo Intro's final-logo hold wait on that
+/// instead of cutting to Menu with a blank first frame.
 /// </summary>
 [RequireComponent(typeof(UIDocument))]
-public class BackgroundMediaController : MonoBehaviour
+public class BackgroundMediaController : MonoBehaviour, IShellPreloader
 {
+    /// <summary>The one screen the launch shell needs pre-warmed — see <see cref="BeginPreload"/>.</summary>
+    private const string ShellPreloadScreenId = "menu";
+
     [Serializable]
     public struct ScreenVideoBinding
     {
@@ -141,6 +151,22 @@ public class BackgroundMediaController : MonoBehaviour
             player.Prepare();
         }
     }
+
+    /// <inheritdoc />
+    public void BeginPreload()
+    {
+        if (!_videoBindingsById.TryGetValue(ShellPreloadScreenId, out ScreenVideoBinding binding))
+            return;
+
+        VideoPlayer player = GetOrCreatePlayer(ShellPreloadScreenId, binding);
+        if (!player.isPrepared)
+            player.Prepare();
+    }
+
+    /// <inheritdoc />
+    public bool IsReady =>
+        !_videoBindingsById.ContainsKey(ShellPreloadScreenId) ||
+        (_players.TryGetValue(ShellPreloadScreenId, out VideoPlayer player) && player != null && player.isPrepared);
 
     private VideoPlayer GetOrCreatePlayer(string screenId, ScreenVideoBinding binding)
     {
