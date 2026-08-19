@@ -10,17 +10,26 @@ namespace Mikey.Pose
     /// collapses only when BOTH legs bend, so a walking stride (straight support leg) never
     /// looks deep. The shared <see cref="RepCounter"/> runs on this dimensionless signal
     /// (stand ≥ standAt → deep ≤ deepAt, debounced) — the pair that fixed push-up recall.
-    /// Lenient policy: a heavy torso lean at the bottom is tallied in <see cref="NoReps"/>
-    /// but does not block the count. Engine-free.
+    /// Scoring policy depends on <see cref="ScoringProfile"/>: <b>Lenient</b> (level 0) tallies a
+    /// heavy torso lean at the bottom in <see cref="NoReps"/> without blocking the count;
+    /// <b>Strict</b> (level 1 teaching) narrows the lean limit to
+    /// <see cref="StrictMaxTorsoLeanDeg"/> and sends such a rep ONLY to <see cref="NoReps"/>.
+    /// Depth needs no strict variant: the counter's own bottom threshold already requires the
+    /// hips near the knees, so a shallow squat is not a rep in either profile. Engine-free.
     /// </summary>
     public sealed class SquatAnalyzer : IExerciseAnalyzer
     {
         private const string NotVisibleCue = "В кадр";
 
+        /// <summary>Строгий предел завала корпуса (мягкий — 50°). Стартовый порог,
+        /// калибруется по записям с устройства.</summary>
+        private const float StrictMaxTorsoLeanDeg = 35f;
+
         private readonly RepCounter _counter;
         private readonly float _minVisibility;
         private readonly float _maxTorsoLeanDeg;
         private readonly float _smoothingAlpha;
+        private readonly ScoringProfile _profile;
 
         private float _smoothedSignal = float.NaN;
         private float _lastLean = float.NaN;
@@ -47,13 +56,17 @@ namespace Mikey.Pose
 
         public SquatAnalyzer(RepCounter counter = null, float minVisibility = 0.5f,
             float maxTorsoLeanDeg = 50f, float smoothingAlpha = 1f,
-            float standAt = 0.7f, float deepAt = 0.45f)
+            float standAt = 0.7f, float deepAt = 0.45f,
+            ScoringProfile profile = ScoringProfile.Lenient)
         {
             _counter = counter ?? new RepCounter(upThresholdDeg: standAt, downThresholdDeg: deepAt,
                 minRepSeconds: 0.3, downDebounceFrames: 2);
             _minVisibility = minVisibility;
-            _maxTorsoLeanDeg = maxTorsoLeanDeg;
+            // Строгий профиль сам задаёт предел завала: явный maxTorsoLeanDeg — мягкая настройка,
+            // и молча ослаблять им обучение нельзя.
+            _maxTorsoLeanDeg = profile == ScoringProfile.Strict ? StrictMaxTorsoLeanDeg : maxTorsoLeanDeg;
             _smoothingAlpha = smoothingAlpha;
+            _profile = profile;
         }
 
         public void ProcessFrame(PoseFrame frame)
@@ -105,14 +118,26 @@ namespace Mikey.Pose
             if (leanFault)
                 _leanFaultThisRep = true;
 
+            bool strict = _profile == ScoringProfile.Strict;
             FormState = leanFault ? ExerciseFormState.BadForm : ExerciseFormState.GoodForm;
-            Cue = leanFault ? "Спину прямее" : string.Empty;
+            Cue = leanFault ? (strict ? "Корпус прямо" : "Спину прямее") : string.Empty;
 
             if (completed)
             {
-                Reps++;
+                // Строгий зачёт: повтор с завалом корпуса идёт только в NoReps.
+                if (!strict || !_leanFaultThisRep)
+                    Reps++;
                 if (_leanFaultThisRep)
+                {
                     NoReps++;
+                    if (strict)
+                    {
+                        // Вердикт приходит на кадре, где человек уже встал: сам завал в
+                        // прошлом, но назвать ошибку нужно именно сейчас.
+                        Cue = "Корпус прямо";
+                        FormState = ExerciseFormState.BadForm;
+                    }
+                }
                 _leanFaultThisRep = false;
             }
 

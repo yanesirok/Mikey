@@ -35,12 +35,33 @@ namespace Mikey.Pose.DevSandbox
         private Level0Results _results;
         private PlayerStats _stats;
 
+        // Обучающий режим (уровень 1): строгий зачёт + голос. Выключен — режим оценки
+        // (уровень 0) с прежней мягкой политикой, чтобы старые прогоны не поехали.
+        private bool _teaching;
+        private Level1Progress _progress;
+        private CoachVoice _coach;
+        private AndroidVoiceAdapter _voice;
+
+        private ScoringProfile Profile => _teaching ? ScoringProfile.Strict : ScoringProfile.Lenient;
+
         private void Awake()
         {
             _controller = GetComponent<PoseController>();
             _results = Level0Results.Load();
             _stats = StatCalculator.Compute(_results);
+            _progress = Level1Progress.Load();
+            _voice = new AndroidVoiceAdapter();
+            _coach = new CoachVoice(_voice);
         }
+
+        private void Update()
+        {
+            IExerciseAnalyzer a = _controller.Analyzer;
+            if (_teaching && a != null)
+                _coach.Observe(a.Cue, a.FormState, Time.timeAsDouble);
+        }
+
+        private void OnDestroy() => _voice?.Dispose();
 
         private void Start()
         {
@@ -81,6 +102,13 @@ namespace Mikey.Pose.DevSandbox
             GUILayout.Label(
                 $"СТАТЫ  сила {_stats.Strength}  вынос {_stats.Endurance}  гибк {_stats.Flexibility}  баланс {_stats.Balance}",
                 _mid);
+
+            if (GUILayout.Button(_teaching ? "РЕЖИМ: ОБУЧЕНИЕ (голос, строго)" : "РЕЖИМ: оценка (уровень 0)",
+                    GUILayout.Height(90)))
+            {
+                _teaching = !_teaching;
+                _coach.Reset();
+            }
             GUILayout.Space(24);
 
             // Сетка 3 в ряд, не столбик: на девайсе GUI-высота ~720 (ландшафт), столбик
@@ -92,8 +120,14 @@ namespace Mikey.Pose.DevSandbox
                 for (int j = i; j < all.Count && j < i + 3; j++)
                 {
                     ExerciseDescriptor exercise = all[j];
-                    if (GUILayout.Button(exercise.DisplayName, GUILayout.Height(90)))
-                        _controller.SelectExercise(exercise.Create());
+                    string label = _teaching
+                        ? $"{exercise.DisplayName}\n{_progress.RepsFor(exercise.Id)}/{Level1Progress.Goal}"
+                        : exercise.DisplayName;
+                    if (GUILayout.Button(label, GUILayout.Height(90)))
+                    {
+                        _coach.Reset();
+                        _controller.SelectExercise(exercise.Create(Profile));
+                    }
                 }
                 GUILayout.EndHorizontal();
             }
@@ -132,11 +166,10 @@ namespace Mikey.Pose.DevSandbox
             GUILayout.BeginArea(new Rect(40, 40, Screen.width - 80, Screen.height - 80));
 
             GUILayout.Label(a.DisplayName.ToUpperInvariant(), _mid);
-            if (a.Id == "wallsit")
-                GUILayout.Label("Спиной к стене, бёдра параллельно полу", _mid);
-            if (a.Id.StartsWith("yokogeri"))
-                GUILayout.Label("Лицом к камере, можно держаться за стену", _mid);
-            GUILayout.Label(a.Reps.ToString(), _big);
+            string hint = HintFor(a.Id);
+            if (!string.IsNullOrEmpty(hint))
+                GUILayout.Label(hint, _mid);
+            GUILayout.Label(_teaching ? $"{a.Reps} / {Level1Progress.Goal}" : a.Reps.ToString(), _big);
             GUILayout.Label($"no-reps: {a.NoReps}", _mid);
 
             Color prev = GUI.color;
@@ -156,9 +189,18 @@ namespace Mikey.Pose.DevSandbox
             {
                 // Auto-save the recording on exit so a session is never lost.
                 _savedLogPath = _controller.SaveRecording();
-                _results.Absorb(a);
-                _results.Save();
-                _stats = StatCalculator.Compute(_results);
+                if (_teaching)
+                {
+                    // Обучение не портит оценку: прогресс уровня 1 живёт отдельным ключом.
+                    _progress.Absorb(a.Id, a.Reps);
+                    _progress.Save();
+                }
+                else
+                {
+                    _results.Absorb(a);
+                    _results.Save();
+                    _stats = StatCalculator.Compute(_results);
+                }
                 _controller.ClearExercise();
             }
             if (GUILayout.Button("Reset set", GUILayout.Width(200), GUILayout.Height(80)))
@@ -209,6 +251,14 @@ namespace Mikey.Pose.DevSandbox
                 GUI.DrawTexture(new Rect(x - r, y - r, r * 2f, r * 2f), _dot);
             }
             GUI.color = prev;
+        }
+
+        private static string HintFor(string id)
+        {
+            foreach (ExerciseDescriptor d in ExerciseCatalog.All)
+                if (d.Id == id)
+                    return d.Hint;
+            return string.Empty;
         }
 
         private static bool IsScored(int index)

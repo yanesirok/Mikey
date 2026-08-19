@@ -40,10 +40,7 @@ namespace Mikey.Pose
 
             float strength = (Ramp(r.PushUpReps, PushUpsFor100) + Ramp(r.SquatReps, SquatsFor100)) / 2f * 100f;
             float endurance = Ramp(r.WallSitSeconds, WallSitSecondsFor100) * 100f;
-            // Гибкость — среднее переднего (mae) и бокового (yoko) удара: это разные
-            // растяжки, один вид удара не даёт 100.
-            float flexibility = (FlexibilityByZone[ClampZone(r.MaeGeriBestZone)]
-                               + FlexibilityByZone[ClampZone(r.YokoGeriBestZone)]) / 2f;
+            float flexibility = FlexibilityByZone[ClampZone(r.YokoGeriBestZone)];
             float balance = Ramp(r.YokoGeriSlowReps, SlowRepsFor70) * 70f
                           + Ramp(r.YokoGeriHoldSeconds, HoldSecondsFor30) * 30f;
 

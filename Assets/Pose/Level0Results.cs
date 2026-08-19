@@ -18,7 +18,6 @@ namespace Mikey.Pose
         public int PushUpReps;
         public int SquatReps;
         public int YokoGeriSlowReps;       // имя для совместимости сейвов: лучший сет повторов любого варианта yoko
-        public int MaeGeriBestZone;        // (int)KickZone — JsonUtility дружит с int
         public int YokoGeriBestZone;       // (int)KickZone, лучшая зона yoko geri
         public float WallSitSeconds;
         public float YokoGeriHoldSeconds;
@@ -42,9 +41,8 @@ namespace Mikey.Pose
                     YokoGeriHoldSeconds = Math.Max(YokoGeriHoldSeconds, (float)y.TotalLiftedSeconds);
                     YokoGeriBestZone = Math.Max(YokoGeriBestZone, (int)y.BestZone);
                     break;
-                case MaeGeriAnalyzer m:
-                    MaeGeriBestZone = Math.Max(MaeGeriBestZone, (int)m.BestZone);
-                    break;
+                // Mae geri сюда не попадает: с уровня 1 он техника обучения, а не
+                // мерка оценки — его прогресс живёт в Level1Progress.
             }
         }
 

@@ -29,7 +29,6 @@ namespace Mikey.Pose.Tests
                 PushUpReps = 30,
                 SquatReps = 40,
                 WallSitSeconds = 120f,
-                MaeGeriBestZone = (int)KickZone.Jodan,
                 YokoGeriBestZone = (int)KickZone.Jodan,
                 YokoGeriSlowReps = 10,
                 YokoGeriHoldSeconds = 20f,
@@ -58,7 +57,6 @@ namespace Mikey.Pose.Tests
                 PushUpReps = 15,               // 50 из пуш-апов
                 SquatReps = 10,                // 25 из приседаний
                 WallSitSeconds = 60f,
-                MaeGeriBestZone = (int)KickZone.Chudan,
                 YokoGeriBestZone = (int)KickZone.Chudan,
                 YokoGeriSlowReps = 5,          // 35 из повторов
                 YokoGeriHoldSeconds = 10f,     // 15 из удержания
@@ -71,10 +69,10 @@ namespace Mikey.Pose.Tests
         }
 
         [Test]
-        public void FlexibilityAveragesFrontAndSideKicks()
+        public void FlexibilityComesFromSideKick()
         {
-            var r = new Level0Results { MaeGeriBestZone = (int)KickZone.Jodan };
-            Assert.AreEqual(50, StatCalculator.Compute(r).Flexibility);   // только передний удар
+            var r = new Level0Results();
+            Assert.AreEqual(0, StatCalculator.Compute(r).Flexibility);
             r.YokoGeriBestZone = (int)KickZone.Jodan;
             Assert.AreEqual(100, StatCalculator.Compute(r).Flexibility);
         }
@@ -97,13 +95,6 @@ namespace Mikey.Pose.Tests
                 wallsit.ProcessFrame(LegTestFrames.WallSit(timestamp: t));
             r.Absorb(wallsit);
             Assert.AreEqual(42f, r.WallSitSeconds, 1e-3f);
-
-            var mg = new MaeGeriAnalyzer(KickZone.Gedan, smoothingAlpha: 1f);
-            mg.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 0.0));
-            mg.ProcessFrame(LegTestFrames.Kick(0.18f, timestamp: 0.5));    // jodan
-            mg.ProcessFrame(LegTestFrames.Kick(0.9f, timestamp: 1.0));
-            r.Absorb(mg);
-            Assert.AreEqual((int)KickZone.Jodan, r.MaeGeriBestZone);
 
             var pushup = new PushUpAnalyzer(smoothingAlpha: 1f);
             // 1 повтор — меньше сохранённых 20: результат не ухудшается.

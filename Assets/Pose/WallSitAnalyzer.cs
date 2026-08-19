@@ -12,11 +12,19 @@ namespace Mikey.Pose
     /// otherwise the timer pauses with a corrective cue. The result is the longest continuous
     /// hold (via <see cref="HoldTimer"/>, tracker blinks bridged), surfaced through
     /// <see cref="Reps"/> as whole seconds because the HUD contract has no time field.
-    /// No <see cref="NoReps"/> for a hold. Engine-free.
+    /// No <see cref="NoReps"/> for a hold. <see cref="ScoringProfile.Strict"/> (level 1 teaching)
+    /// narrows the seat window; the cues are the same "Ниже"/"Выше". Engine-free.
     /// </summary>
     public sealed class WallSitAnalyzer : IExerciseAnalyzer
     {
         private const string NotVisibleCue = "В кадр";
+
+        // Строгое окно — колено 85–100°, выраженное в той же мере hip-drop margin:
+        // margin = −(бедро/голень)·cos(колено), при типичном отношении бедро/голень ≈ 1.2
+        // это [−0.10, +0.20]. Держим Y-метрику, а не угол колена: угол в 2D врёт анфас
+        // (бедро уходит в ракурс), ради чего мера и выбиралась. Пороги стартовые.
+        private const float StrictSeatLowAt = -0.1f;
+        private const float StrictSeatHighAt = 0.2f;
 
         private readonly HoldTimer _timer;
         private readonly float _minVisibility;
@@ -50,12 +58,14 @@ namespace Mikey.Pose
         public event Action Changed;
 
         public WallSitAnalyzer(HoldTimer timer = null, float minVisibility = 0.5f,
-            float seatLowAt = -0.45f, float seatHighAt = 0.5f, float maxTorsoLeanDeg = 40f)
+            float seatLowAt = -0.45f, float seatHighAt = 0.5f, float maxTorsoLeanDeg = 40f,
+            ScoringProfile profile = ScoringProfile.Lenient)
         {
             _timer = timer ?? new HoldTimer(graceSeconds: 1.0);
             _minVisibility = minVisibility;
-            _seatLowAt = seatLowAt;
-            _seatHighAt = seatHighAt;
+            bool strict = profile == ScoringProfile.Strict;
+            _seatLowAt = strict ? StrictSeatLowAt : seatLowAt;
+            _seatHighAt = strict ? StrictSeatHighAt : seatHighAt;
             _maxTorsoLeanDeg = maxTorsoLeanDeg;
         }
 

@@ -9,6 +9,9 @@ namespace Mikey.Pose
     /// </summary>
     public enum PoseLandmarkType
     {
+        /// <summary>Head anchor for jodan (head-level) targets.</summary>
+        Nose = 0,
+
         LeftShoulder = 11,
         RightShoulder = 12,
         LeftElbow = 13,
@@ -21,5 +24,12 @@ namespace Mikey.Pose
         RightKnee = 26,
         LeftAnkle = 27,
         RightAnkle = 28,
+
+        // Стопы: носок относительно пятки задаёт направление «вперёд» у стоек —
+        // единственный признак в кадре, который не путается при зеркальной стойке.
+        LeftHeel = 29,
+        RightHeel = 30,
+        LeftFootIndex = 31,
+        RightFootIndex = 32,
     }
 }

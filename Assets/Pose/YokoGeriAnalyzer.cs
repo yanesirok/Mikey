@@ -19,7 +19,8 @@ namespace Mikey.Pose
     /// zone → "Выше". <see cref="BestZone"/> keeps the highest zone this set
     /// (flexibility stat); <see cref="TotalLiftedSeconds"/> accumulates airtime of
     /// counted reps (balance stat). Holding a wall for support is allowed and not
-    /// checked. Engine-free.
+    /// checked. Both <see cref="ScoringProfile"/>s score identically — this analyzer was
+    /// already strict (see the ctor's <c>profile</c> param). Engine-free.
     /// </summary>
     public sealed class YokoGeriAnalyzer : IExerciseAnalyzer
     {
@@ -64,10 +65,16 @@ namespace Mikey.Pose
 
         public event Action Changed;
 
+        /// <param name="profile">Accepted for uniformity with the other level-0 analyzers, but
+        /// scoring is identical in both: yoko geri is already strict — only the requested zone
+        /// counts, everything else (wrong zone, no chamber, no extension) is a no-rep with a
+        /// named cue, and the level-1 dictionary asks for exactly those same phrases. Придумывать
+        /// различие ради симметрии не стали.</param>
         public YokoGeriAnalyzer(KickZone requested, LegLiftCycle cycle = null, float minVisibility = 0.6f,
             float minExtensionDeg = 150f, float smoothingAlpha = 0.6f,
             float fastKickAt = 1.2f, float kickBandAt = 0.45f, int minBandFrames = 2,
-            float chamberMaxKneeDeg = 110f)
+            float chamberMaxKneeDeg = 110f,
+            ScoringProfile profile = ScoringProfile.Lenient)
         {
             if (requested == KickZone.None)
                 throw new ArgumentOutOfRangeException(nameof(requested));

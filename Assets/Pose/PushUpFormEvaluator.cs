@@ -34,15 +34,23 @@ namespace Mikey.Pose
         /// рукой. NaN, когда тело не видно. Реп-проверку делает анализатор.</summary>
         public readonly float WristBelowHip;
 
+        /// <summary>Signed vertical offset of the hip from the shoulder→ankle line
+        /// (<see cref="PoseMath.HipVerticalOffset"/>): positive = sagging, negative = piking.
+        /// <see cref="BodyAngleDeg"/> alone is unsigned, so it cannot tell the two apart —
+        /// строгий профиль по этому знаку выбирает между «Таз выше» и «Таз ниже».</summary>
+        public readonly float HipSag;
+
         public readonly string Cue;
         public readonly float Visibility;
 
-        public FormAssessment(PushUpFault fault, float elbowAngleDeg, float bodyAngleDeg, float wristBelowHip, string cue, float visibility)
+        public FormAssessment(PushUpFault fault, float elbowAngleDeg, float bodyAngleDeg, float wristBelowHip,
+            float hipSag, string cue, float visibility)
         {
             Fault = fault;
             ElbowAngleDeg = elbowAngleDeg;
             BodyAngleDeg = bodyAngleDeg;
             WristBelowHip = wristBelowHip;
+            HipSag = hipSag;
             Cue = cue;
             Visibility = visibility;
         }
@@ -97,7 +105,7 @@ namespace Mikey.Pose
             float vis = armVis < bodyVis ? armVis : bodyVis;
 
             if (armVis < _minVisibility || bodyVis < _minVisibility)
-                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, "В кадр", vis);
+                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, float.NaN, "В кадр", vis);
 
             PoseLandmark shoulderA = frame.Get(useLeftArm ? PoseLandmarkType.LeftShoulder : PoseLandmarkType.RightShoulder);
             PoseLandmark elbow = frame.Get(useLeftArm ? PoseLandmarkType.LeftElbow : PoseLandmarkType.RightElbow);
@@ -111,7 +119,7 @@ namespace Mikey.Pose
             // и такая «уверенная» точка порождает фантомные позы. Не видно — значит не видно.
             if (!InFrame(shoulderA) || !InFrame(elbow) || !InFrame(wrist)
                 || !InFrame(shoulderB) || !InFrame(hip) || !InFrame(ankle))
-                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, "В кадр", vis);
+                return new FormAssessment(PushUpFault.BodyNotVisible, float.NaN, float.NaN, float.NaN, float.NaN, "В кадр", vis);
 
             float elbowAngle = PoseMath.AngleDeg3D(shoulderA, elbow, wrist);
             float bodyAngle = PoseMath.AngleDeg3D(shoulderB, hip, ankle);
@@ -123,12 +131,17 @@ namespace Mikey.Pose
             float torso = Dist2D(shoulderB, hip);
             float wristBelowHip = torso < 1e-4f ? float.NaN : (wrist.Y - hip.Y) / torso;
 
-            if (bodyAngle < _positionMinDeg)
-                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, wristBelowHip, "Прими упор лёжа", vis);
-            if (bodyAngle < _straightMinDeg)
-                return new FormAssessment(PushUpFault.NotStraight, elbowAngle, bodyAngle, wristBelowHip, "Держи тело прямым", vis);
+            // Знак отклонения таза от линии плечо–лодыжка: провис или пик. Считается здесь,
+            // а не в анализаторе, потому что сторона тела выбрана здесь — иначе анализатору
+            // пришлось бы повторять этот же выбор и разъезжаться с вердиктом.
+            float hipSag = PoseMath.HipVerticalOffset(shoulderB, hip, ankle);
 
-            return new FormAssessment(PushUpFault.None, elbowAngle, bodyAngle, wristBelowHip, string.Empty, vis);
+            if (bodyAngle < _positionMinDeg)
+                return new FormAssessment(PushUpFault.NotInPosition, elbowAngle, bodyAngle, wristBelowHip, hipSag, "Прими упор лёжа", vis);
+            if (bodyAngle < _straightMinDeg)
+                return new FormAssessment(PushUpFault.NotStraight, elbowAngle, bodyAngle, wristBelowHip, hipSag, "Держи тело прямым", vis);
+
+            return new FormAssessment(PushUpFault.None, elbowAngle, bodyAngle, wristBelowHip, hipSag, string.Empty, vis);
         }
 
         private static bool InFrame(PoseLandmark p) =>
