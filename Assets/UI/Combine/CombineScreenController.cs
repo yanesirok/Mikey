@@ -1,6 +1,6 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System;
 using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
@@ -9,41 +9,52 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Combine
 {
     /// <summary>
-    /// Binds a <see cref="CombineViewModel"/> to the "combine" screen inside the
-    /// shared UIDocument: shows exactly one state sub-view at a time and renders the
-    /// mock selected-item cards in the ready state.
+    /// Binds a <see cref="CombineChecklistViewModel"/> to the real "combine"
+    /// screen inside the shared UIDocument: the Level 0 checklist of five
+    /// sequential tests (Camera Test, Max Push-Ups, Max Squats, Wall Sit, Slow
+    /// Yoko-Geri) with a left preview panel and a right checklist, matching the
+    /// locked design reference. Tests unlock strictly one at a time; completing
+    /// one never auto-starts the next — the player always returns here and
+    /// presses START manually.
     ///
     /// Coexists with ScreenManager (which shows/hides whole screens) — this only
-    /// drives the Combine screen's internal Loading / Empty / Ready / Error views.
-    /// A development-only switcher bar (Editor or Development Build only) lets a
-    /// tester jump between states. Frontend / mock-only: no backend, networking,
-    /// camera, or pose code here.
+    /// drives the Combine screen's internal checklist/preview. Frontend only: no
+    /// backend, networking, camera, or pose code here — the actual test screens
+    /// (camTest and the four Level0Tests placeholders) own their own completion.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class CombineScreenController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
+        private const int RowCount = 5;
 
-        /// <summary>The screen id this controller owns; entering it through the normal flow shows results.</summary>
+        /// <summary>The screen id this controller owns.</summary>
         public const string ScreenId = "combine";
 
-        [Tooltip("State shown when the screen first binds.")]
-        [SerializeField] private CombineState _initialState = CombineState.Loading;
+        private const string RowLockedClass = "combine-row--locked";
+        private const string RowAvailableClass = "combine-row--available";
+        private const string RowCompleteClass = "combine-row--complete";
+        private const string RowSelectedClass = "combine-row--selected";
+        private const string IconCheckClass = "combine-row__icon--check";
+        private const string IconLockClass = "combine-row__icon--lock";
 
-        [Tooltip("Show the on-screen state switcher. Honoured only in the Editor or a Development Build.")]
-        [SerializeField] private bool _showDevControls = true;
+        private readonly VisualElement[] _rows = new VisualElement[RowCount];
+        private readonly VisualElement[] _rowIcons = new VisualElement[RowCount];
+        private readonly EventCallback<ClickEvent>[] _rowClickCallbacks = new EventCallback<ClickEvent>[RowCount];
 
-        private readonly CombineViewModel _viewModel = new CombineViewModel();
+        private VisualElement _illustration;
+        private Label _progressLabel;
+        private Label _testTitle;
+        private Label _testDesc;
+        private Label _testSecondary;
+        private Label _testStat;
+        private Button _startButton;
+        private Button _startLvl1Button;
 
-        // Cached elements from the combine screen subtree.
-        private readonly Dictionary<CombineState, VisualElement> _stateViews =
-            new Dictionary<CombineState, VisualElement>();
-        private readonly List<ButtonBinding> _buttonBindings = new List<ButtonBinding>();
-        private VisualElement _itemsContainer;
-        private VisualElement _devBar;
-
+        private CombineChecklistViewModel _viewModel;
+        private ILevel0Progress _level0;
         private IScreenNavigator _navigator;
-        private ITutorialProgress _progress;
+        private ITutorialProgress _tutorialProgress;
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -66,17 +77,42 @@ namespace Mikey.UI.Combine
             if (_bound)
             {
                 _viewModel.Changed -= Render;
-                UnbindButtons();
+                if (_level0 != null)
+                    _level0.Changed -= OnLevel0Changed;
+
+                for (int i = 0; i < RowCount; i++)
+                {
+                    if (_rows[i] != null && _rowClickCallbacks[i] != null)
+                        _rows[i].UnregisterCallback(_rowClickCallbacks[i]);
+                }
+
+                if (_startButton != null)
+                    _startButton.clicked -= OnStartClicked;
+                if (_startLvl1Button != null)
+                    _startLvl1Button.clicked -= OnStartLevel1;
             }
 
             if (_navigator != null)
                 _navigator.ScreenChanged -= OnScreenEntered;
 
-            _stateViews.Clear();
-            _itemsContainer = null;
-            _devBar = null;
+            for (int i = 0; i < RowCount; i++)
+            {
+                _rows[i] = null;
+                _rowIcons[i] = null;
+                _rowClickCallbacks[i] = null;
+            }
+            _illustration = null;
+            _progressLabel = null;
+            _testTitle = null;
+            _testDesc = null;
+            _testSecondary = null;
+            _testStat = null;
+            _startButton = null;
+            _startLvl1Button = null;
+            _viewModel = null;
+            _level0 = null;
             _navigator = null;
-            _progress = null;
+            _tutorialProgress = null;
             _bound = false;
         }
 
@@ -98,208 +134,256 @@ namespace Mikey.UI.Combine
 
             VisualElement root = document.rootVisualElement;
 
-            _stateViews.Clear();
-            _stateViews[CombineState.Loading] = root.Q<VisualElement>("combine-loading");
-            _stateViews[CombineState.Empty] = root.Q<VisualElement>("combine-empty");
-            _stateViews[CombineState.Ready] = root.Q<VisualElement>("combine-ready");
-            _stateViews[CombineState.Error] = root.Q<VisualElement>("combine-error");
-            _itemsContainer = root.Q<VisualElement>("combine-items");
-            _devBar = root.Q<VisualElement>("combine-devbar");
-
-            foreach (KeyValuePair<CombineState, VisualElement> pair in _stateViews)
+            for (int i = 0; i < RowCount; i++)
             {
-                if (pair.Value == null)
-                {
-                    Debug.LogError(
-                        $"[CombineScreenController] Missing '{pair.Key}' state view in the UIDocument; Combine screen not bound.", this);
-                    _bindRoutine = null;
-                    yield break;
-                }
+                _rows[i] = root.Q<VisualElement>($"combine-row-{i}");
+                _rowIcons[i] = root.Q<VisualElement>($"combine-row-{i}-icon");
             }
 
-            // Always-available retry affordance in the error state (mock: just
-            // returns to loading). Independent of the dev-only switcher.
-            BindButton(root, "combine-retry", () => _viewModel.SetState(CombineState.Loading));
+            _illustration = root.Q<VisualElement>("combine-illustration");
+            _progressLabel = root.Q<Label>("combine-progress");
+            _testTitle = root.Q<Label>("combine-test-title");
+            _testDesc = root.Q<Label>("combine-test-desc");
+            _testSecondary = root.Q<Label>("combine-test-secondary");
+            _testStat = root.Q<Label>("combine-test-stat");
+            _startButton = root.Q<Button>("combine-start");
+            _startLvl1Button = root.Q<Button>("combine-start-lvl1");
+
+            if (_rows[0] == null || _startButton == null || _progressLabel == null)
+            {
+                Debug.LogError("[CombineScreenController] Combine checklist elements missing; screen not bound.", this);
+                _bindRoutine = null;
+                yield break;
+            }
+
+            _level0 = GetComponent<ILevel0Progress>();
+            if (_level0 == null)
+            {
+                Debug.LogError("[CombineScreenController] ILevel0Progress unavailable; Combine screen not bound.", this);
+                _bindRoutine = null;
+                yield break;
+            }
+
+            _viewModel = new CombineChecklistViewModel(_level0);
+
+            for (int i = 0; i < RowCount; i++)
+            {
+                if (_rows[i] == null)
+                    continue;
+                var test = (Level0Test)i;
+                EventCallback<ClickEvent> callback = _ => _viewModel.Select(test);
+                _rowClickCallbacks[i] = callback;
+                _rows[i].RegisterCallback(callback);
+            }
+
+            _startButton.clicked += OnStartClicked;
 
             _navigator = GetComponent<IScreenNavigator>();
-            _progress = GetComponent<ITutorialProgress>();
+            _tutorialProgress = GetComponent<ITutorialProgress>();
 
-            // Ready-state progression actions.
-            BindButton(root, "combine-start-lvl1", OnStartLevel1);
-            BindButton(root, "combine-retry-assessment", OnRetryAssessment);
+            // Legacy compatibility bridge only: this does NOT mean "LVL1 Training
+            // was completed" — TutorialProgressState.Level1Unlocked is a pure
+            // access gate (Home's CTA + reaching the Map/Techniques screens at
+            // all), unrelated to the new IOkinawaProgress model, which is the
+            // sole authority for actual Okinawa LVL0-6 unlock/completion state.
+            if (_startLvl1Button != null)
+                _startLvl1Button.clicked += OnStartLevel1;
 
-            WireDevControls(root);
+            _viewModel.Changed += Render;
+            _level0.Changed += OnLevel0Changed;
 
-            // Subscribe to the navigation entry signal so a normal production entry
-            // (Camera Test completed -> "go-combine", or Home's "VIEW RESULTS" CTA)
-            // always reaches a usable result instead of being stuck on whatever
-            // state happened to be showing. OnEnable is not a reliable entry hook
-            // here: the shared UI GameObject stays enabled while ScreenManager only
-            // toggles screen visibility (see CameraTestController for the same
-            // pattern).
             if (_navigator != null)
                 _navigator.ScreenChanged += OnScreenEntered;
 
-            _viewModel.Changed += Render;
             _bound = true;
             _bindRoutine = null;
 
-            // If Combine is already the active screen at bind time, treat it as a
-            // genuine entry (shows Ready); otherwise fall back to the configured
-            // initial state (Loading by default) until a real entry occurs.
             if (_navigator != null && IsCombineEntry(_navigator.CurrentScreen))
                 OnScreenEntered(_navigator.CurrentScreen);
             else
-                _viewModel.SetState(_initialState);
+                Render();
         }
 
         /// <summary>
-        /// Navigation entry handler: every genuine entry into Combine Results from the
-        /// normal flow means the (mock) assessment data is already known, so the
-        /// screen shows the Ready result immediately — no artificial wait, and no
-        /// dependency on the Editor/Development-only dev controls to escape Loading.
+        /// Navigation entry handler: every genuine entry into Combine (from
+        /// CombineIntro, a completed test screen returning here, or Home)
+        /// re-selects the current available test (or the most recently completed
+        /// one, if Level 0 is fully complete) so a stale prior preview never lingers.
         /// </summary>
         private void OnScreenEntered(string screenId)
         {
             if (!IsCombineEntry(screenId))
                 return;
 
-            _viewModel.SetState(CombineState.Ready);
+            _viewModel.SelectDefault();
         }
 
-        /// <summary>Pure entry predicate: true only for an exact Combine Results entry. Unit-tested.</summary>
+        /// <summary>Pure entry predicate: true only for an exact Combine entry. Unit-tested.</summary>
         public static bool IsCombineEntry(string screenId) => screenId == ScreenId;
 
+        private void OnLevel0Changed() => _viewModel.NotifyProgressChanged();
+
+        private void OnStartClicked()
+        {
+            Level0Test test = _viewModel.SelectedTest;
+            if (_viewModel.StateOf(test) != Level0TestState.Available)
+                return;
+
+            _navigator?.Show(DestinationFor(test));
+        }
+
+        /// <summary>Pure test → destination-screen-id lookup. Unit-tested.</summary>
+        public static string DestinationFor(Level0Test test)
+        {
+            switch (test)
+            {
+                case Level0Test.CameraTest: return "camTest";
+                case Level0Test.PushUps: return "combinePushups";
+                case Level0Test.Squats: return "combineSquats";
+                case Level0Test.WallSit: return "combineWallsit";
+                case Level0Test.YokoGeri: return "combineYokogeri";
+                default: return ScreenId;
+            }
+        }
+
         /// <summary>
-        /// "START LVL 1": marks the Combine (LVL0) assessment completed, unlocks
-        /// Level 1, then opens the Map. Uses the forward-only Advance so this is
-        /// safe to invoke more than once (e.g. a stray extra click) without any
-        /// unexpected side effect.
+        /// Legacy compatibility bridge: only reachable once every one of the
+        /// five Level 0 tests is complete. Advances the OLD linear
+        /// TutorialProgressState (CombineCompleted -> Level1Unlocked) purely so
+        /// Home's CTA and the ability to reach the Map/Techniques screens keep
+        /// working exactly as before, then opens the Map — where the NEW
+        /// IOkinawaProgress model (not this legacy flag) determines that LVL1
+        /// Training and LVL2 Fight are now both unlocked.
         /// </summary>
         private void OnStartLevel1()
         {
-            _progress?.Advance(TutorialProgressState.CombineCompleted);
-            _progress?.Advance(TutorialProgressState.Level1Unlocked);
+            if (!_viewModel.IsLevel0Complete)
+                return;
+
+            _tutorialProgress?.Advance(TutorialProgressState.CombineCompleted);
+            _tutorialProgress?.Advance(TutorialProgressState.Level1Unlocked);
             _navigator?.Show("map");
-        }
-
-        /// <summary>
-        /// "Retry Assessment": resets only the Combine (LVL0) portion of progress
-        /// (back to IntroCompleted, i.e. "briefed but not yet re-attempted") and
-        /// returns to the Combine briefing to redo it. Only resets when progress
-        /// hasn't moved past Combine yet — if Level 1 (or anything beyond it) has
-        /// already unlocked, retrying the LVL0 baseline must not silently wipe
-        /// that real progress, so the state is left untouched in that case
-        /// (never wipes progress without explicit confirmation, which this MVP
-        /// has no dialog system to present).
-        /// </summary>
-        private void OnRetryAssessment()
-        {
-            if (_progress != null && _progress.State <= TutorialProgressState.CombineCompleted)
-                _progress.SetState(TutorialProgressState.IntroCompleted);
-            _navigator?.Show("combineIntro");
-        }
-
-        private void WireDevControls(VisualElement root)
-        {
-            bool allowed = false;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            allowed = _showDevControls;
-#endif
-            if (_devBar != null)
-                _devBar.style.display = allowed ? DisplayStyle.Flex : DisplayStyle.None;
-
-            if (!allowed)
-                return;
-
-            BindButton(root, "combine-dev-loading", () => _viewModel.SetState(CombineState.Loading));
-            BindButton(root, "combine-dev-empty", () => _viewModel.SetState(CombineState.Empty));
-            BindButton(root, "combine-dev-ready", () => _viewModel.SetState(CombineState.Ready));
-            BindButton(root, "combine-dev-error", () => _viewModel.SetState(CombineState.Error));
-            BindButton(root, "combine-dev-cycle", () => _viewModel.CycleState());
-        }
-
-        private void BindButton(VisualElement root, string name, Action onClick)
-        {
-            var button = root.Q<Button>(name);
-            if (button == null)
-                return;
-
-            button.clicked += onClick;
-            _buttonBindings.Add(new ButtonBinding(button, onClick));
-        }
-
-        private void UnbindButtons()
-        {
-            for (int i = 0; i < _buttonBindings.Count; i++)
-                _buttonBindings[i].Unbind();
-            _buttonBindings.Clear();
         }
 
         private void Render()
         {
-            foreach (KeyValuePair<CombineState, VisualElement> pair in _stateViews)
-                pair.Value.style.display = pair.Key == _viewModel.State ? DisplayStyle.Flex : DisplayStyle.None;
+            for (int i = 0; i < RowCount; i++)
+                RenderRow(i, (Level0Test)i);
 
-            if (_viewModel.State == CombineState.Ready)
-                RenderItems(_viewModel.Items);
+            RenderLeftPanel();
+
+            if (_progressLabel != null)
+                _progressLabel.text = $"{_viewModel.CompletedCount} / {RowCount} COMPLETE";
         }
 
-        private void RenderItems(IReadOnlyList<CombineItem> items)
+        private void RenderRow(int index, Level0Test test)
         {
-            if (_itemsContainer == null)
+            VisualElement row = _rows[index];
+            if (row == null)
                 return;
 
-            _itemsContainer.Clear();
-            for (int i = 0; i < items.Count; i++)
-                _itemsContainer.Add(BuildCard(items[i]));
+            Level0TestState state = _viewModel.StateOf(test);
+
+            row.RemoveFromClassList(RowLockedClass);
+            row.RemoveFromClassList(RowAvailableClass);
+            row.RemoveFromClassList(RowCompleteClass);
+            row.AddToClassList(ClassForRowState(state));
+
+            bool selected = state != Level0TestState.Locked && _viewModel.SelectedTest == test;
+            ToggleClass(row, RowSelectedClass, selected);
+
+            VisualElement icon = _rowIcons[index];
+            if (icon == null)
+                return;
+
+            icon.RemoveFromClassList(IconCheckClass);
+            icon.RemoveFromClassList(IconLockClass);
+            if (state == Level0TestState.Complete)
+                icon.AddToClassList(IconCheckClass);
+            else if (state == Level0TestState.Locked)
+                icon.AddToClassList(IconLockClass);
         }
 
-        private static VisualElement BuildCard(CombineItem item)
+        private void RenderLeftPanel()
         {
-            var card = new VisualElement();
-            card.AddToClassList("combine-card");
+            Level0Test test = _viewModel.SelectedTest;
+            Level0TestState state = _viewModel.StateOf(test);
 
-            var glyph = new Label(item.Glyph);
-            glyph.AddToClassList("combine-card__glyph");
-            glyph.AddToClassList("icon-32"); // reusable visible-icon size
-            card.Add(glyph);
+            if (_illustration != null)
+            {
+                foreach (string className in IllustrationClasses)
+                    _illustration.RemoveFromClassList(className);
+                _illustration.AddToClassList(IllustrationClassFor(test));
+            }
 
-            var value = new Label(item.Value);
-            value.AddToClassList("combine-card__value");
-            card.Add(value);
+            if (_testTitle != null)
+                _testTitle.text = Level0TestCopy.TitleFor(test);
+            if (_testDesc != null)
+                _testDesc.text = Level0TestCopy.DescriptionFor(test);
 
-            var unit = new Label(item.Unit);
-            unit.AddToClassList("combine-card__unit");
-            card.Add(unit);
+            SetOptionalLine(_testSecondary, Level0TestCopy.SecondaryFor(test));
+            SetOptionalLine(_testStat, Level0TestCopy.StatFor(test));
 
-            var name = new Label(item.Name);
-            name.AddToClassList("combine-card__name");
-            card.Add(name);
+            bool showStart = state == Level0TestState.Available;
+            if (_startButton != null)
+            {
+                _startButton.style.display = showStart ? DisplayStyle.Flex : DisplayStyle.None;
+                _startButton.SetEnabled(showStart);
+            }
 
-            var stat = new Label(item.Stat);
-            stat.AddToClassList("combine-card__stat");
-            card.Add(stat);
-
-            return card;
+            if (_startLvl1Button != null)
+                _startLvl1Button.style.display = _viewModel.IsLevel0Complete ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        private readonly struct ButtonBinding
+        private static void SetOptionalLine(Label label, string text)
         {
-            private readonly Button _button;
-            private readonly Action _callback;
+            if (label == null)
+                return;
 
-            public ButtonBinding(Button button, Action callback)
-            {
-                _button = button;
-                _callback = callback;
-            }
+            label.text = text;
+            label.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
 
-            public void Unbind()
+        private static readonly string[] IllustrationClasses =
+        {
+            "combine-illustration--camera",
+            "combine-illustration--pushups",
+            "combine-illustration--squats",
+            "combine-illustration--wallsit",
+            "combine-illustration--yokogeri",
+        };
+
+        /// <summary>Pure test → illustration CSS class lookup. Unit-tested.</summary>
+        public static string IllustrationClassFor(Level0Test test)
+        {
+            switch (test)
             {
-                if (_button != null && _callback != null)
-                    _button.clicked -= _callback;
+                case Level0Test.CameraTest: return "combine-illustration--camera";
+                case Level0Test.PushUps: return "combine-illustration--pushups";
+                case Level0Test.Squats: return "combine-illustration--squats";
+                case Level0Test.WallSit: return "combine-illustration--wallsit";
+                case Level0Test.YokoGeri: return "combine-illustration--yokogeri";
+                default: return "combine-illustration--camera";
             }
+        }
+
+        /// <summary>Pure state → row modifier class lookup. Unit-tested.</summary>
+        public static string ClassForRowState(Level0TestState state)
+        {
+            switch (state)
+            {
+                case Level0TestState.Complete: return RowCompleteClass;
+                case Level0TestState.Locked: return RowLockedClass;
+                default: return RowAvailableClass;
+            }
+        }
+
+        private static void ToggleClass(VisualElement element, string className, bool on)
+        {
+            if (on)
+                element.AddToClassList(className);
+            else
+                element.RemoveFromClassList(className);
         }
     }
 }

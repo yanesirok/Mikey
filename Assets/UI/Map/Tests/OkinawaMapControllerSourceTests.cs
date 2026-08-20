@@ -138,26 +138,30 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Level0_IsAlwaysUnlocked()
+        public void LockState_DelegatesEntirelyToOkinawaProgress_NotTheLegacyLinearEnum()
         {
+            // The paired-unlock model (IOkinawaProgress) is now the sole
+            // authority for LVL 0-6 lock state; the old hardcoded
+            // case-0/case-1/default switch (and its dependency on
+            // TutorialProgressPresenter.IsMapUnlocked) is gone entirely.
             string source = File.ReadAllText(SourcePath);
-            StringAssert.IsMatch(@"case 0:\s*return false;", source);
+            StringAssert.Contains("_okinawaProgress == null", source);
+            StringAssert.Contains("return index != 0;", source);
+            StringAssert.Contains("return !_okinawaProgress.IsUnlocked(index);", source);
+            StringAssert.DoesNotContain("TutorialProgressPresenter.IsMapUnlocked", source);
         }
 
         [Test]
-        public void Level1_GatedByLevel1Unlocked_ViaExistingPresenter()
+        public void ComingSoonCta_ShownForAnUnlockedLevelWithNoRealDestinationScreen()
         {
+            // LVL2-6 have no built mission screen yet — once unlocked they must
+            // read as genuinely available (distinct from Locked) but not
+            // actionable, rather than fabricating a destination.
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("TutorialProgressPresenter.IsMapUnlocked(_progress.State)", source);
-        }
-
-        [Test]
-        public void Levels2Through6_AreAlwaysLocked_NoGameplayYet()
-        {
-            // LevelCount == 7 (LVL 0-6) means this "default:" case now
-            // matches indices 2-6.
-            string source = File.ReadAllText(SourcePath);
-            StringAssert.IsMatch(@"default:\s*return true;", source);
+            StringAssert.Contains("private static bool HasRealDestination(int index) => index == 0 || index == 1;", source);
+            StringAssert.Contains("bool comingSoon = !locked && !HasRealDestination(index);", source);
+            StringAssert.Contains("_panelCtaText.text = \"COMING SOON\";", source);
+            StringAssert.Contains("ComingSoonCtaClass", source);
         }
 
         [Test]
@@ -268,6 +272,16 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("_progress.Changed += OnProgressChanged;", source);
             StringAssert.Contains("private void OnProgressChanged() => RefreshLevelLockStates();", source);
+        }
+
+        [Test]
+        public void OkinawaProgressChanges_AlsoRefreshLevelLockStatesLive()
+        {
+            // A single subscription to IOkinawaProgress.Changed must be enough
+            // to catch LVL0-6 unlock changes (including ones driven purely by
+            // Level 0 Combine progress, forwarded through OkinawaProgressionStore).
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_okinawaProgress.Changed += OnProgressChanged;", source);
         }
 
         [Test]

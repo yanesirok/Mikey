@@ -273,8 +273,8 @@
                         <ui:Label text="LIVE · MOCK POSE" class="cam-live__text" picking-mode="Ignore" />
                     </ui:VisualElement>
                     <ui:VisualElement class="cam-titlewrap">
-                        <ui:Label text="THE COMBINE · 1 / 4" class="kicker cam-kicker" />
-                        <ui:Label text="Push-ups" class="testname cam-title" />
+                        <ui:Label text="THE COMBINE · 1 / 5" class="kicker cam-kicker" />
+                        <ui:Label text="Camera Test" class="testname cam-title" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -311,8 +311,9 @@
                         <ui:Label text="＋" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
                         <ui:Label text="Simulate reps" class="cam-btn__text" picking-mode="Ignore" />
                     </ui:Button>
-                    <!-- production completion route → modern Combine screen -->
-                    <ui:Button name="go-combine" class="cam-btn cam-btn--primary tap-target-lg">
+                    <!-- Local action (NOT a "go-" navigator): marks Level 0's Camera Test
+                         complete, then returns to the Combine checklist. -->
+                    <ui:Button name="camera-test-complete" class="cam-btn cam-btn--primary tap-target-lg">
                         <ui:Label text="Done" class="cam-btn__text" picking-mode="Ignore" />
                         <ui:Label text="▸" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
                     </ui:Button>
@@ -325,60 +326,175 @@
         <!-- 6 - COMBINE (vertical slice: mock loading / empty / ready / error) -->
         <ui:VisualElement name="combine" class="screen">
             <Style src="Combine/Combine.uss" />
-            <!-- full-bleed background, outside the safe-area wrapper -->
+            <!-- full-bleed background, outside the safe-area wrapper. combine-bg-media
+                 is bound at the scene level (BackgroundMediaController) to the supplied
+                 static combine_background.png, same mechanism as the "map" screen. -->
             <ui:VisualElement class="combine-bg">
                 <ui:VisualElement name="combine-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="combine-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
-            <ui:VisualElement class="safe-area-content sa-center">
-                <ui:VisualElement class="content combine-content">
-                    <ui:Label text="測定 · THE COMBINE" class="kicker combine-kicker" />
-                    <ui:Label text="Your baseline" class="title" />
+            <ui:VisualElement class="safe-area-content">
 
-                    <!-- LOADING -->
-                    <ui:VisualElement name="combine-loading" class="combine-state">
-                        <ui:VisualElement class="combine-spinner" />
-                        <ui:Label text="Measuring your baseline…" class="lead combine-msg" />
+                <ui:VisualElement class="combine-topbar">
+                    <ui:VisualElement name="go-menu" class="combine-back tap-target">
+                        <ui:Label text="‹" class="combine-back__glyph" picking-mode="Ignore" />
                     </ui:VisualElement>
-
-                    <!-- EMPTY / no selected items -->
-                    <ui:VisualElement name="combine-empty" class="combine-state">
-                        <ui:Label text="No tests selected yet" class="combine-state-title" />
-                        <ui:Label text="Pick your Combine tests to build a baseline." class="lead combine-msg" />
-                    </ui:VisualElement>
-
-                    <!-- READY / success with mock selected items -->
-                    <ui:VisualElement name="combine-ready" class="combine-state">
-                        <ui:VisualElement name="combine-items" class="combine-items" />
-                        <ui:Label text="Four honest numbers. Your fighter starts here." class="lead combine-msg" />
-                        <!-- Progression forward action (NOT a "go-" navigator):
-                             CombineScreenController marks CombineCompleted, unlocks
-                             Level1Unlocked, then routes to Map. -->
-                        <ui:Button name="combine-start-lvl1" text="START LVL 1" class="btn primary combine-home icon-btn" />
-                        <!-- Progression reset action (NOT a "go-" navigator): resets only
-                             the Combine (LVL0) portion of progress, then returns to the
-                             Combine briefing to redo it. -->
-                        <ui:Button name="combine-retry-assessment" text="Retry Assessment" class="btn combine-retry icon-btn" />
-                        <!-- production exit: returns to the Home hub (ScreenManager wires go-menu -> menu) -->
-                        <ui:Button name="go-menu" text="Return Home" class="btn combine-home icon-btn" />
-                    </ui:VisualElement>
-
-                    <!-- ERROR -->
-                    <ui:VisualElement name="combine-error" class="combine-state">
-                        <ui:Label text="Couldn't load your baseline" class="combine-state-title combine-error-title" />
-                        <ui:Label text="Something went wrong. Please try again." class="lead combine-msg" />
-                        <ui:Button name="combine-retry" text="Retry" class="btn combine-retry icon-btn" />
+                    <ui:VisualElement class="combine-menu" picking-mode="Ignore">
+                        <ui:Label text="≡" class="combine-menu__glyph" picking-mode="Ignore" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- development-only state switcher (hidden outside Editor / dev build) -->
-                <ui:VisualElement name="combine-devbar" class="combine-devbar">
-                    <ui:Label text="DEV · STATE" class="combine-devbar__label" />
-                    <ui:Button name="combine-dev-loading" text="Loading" class="combine-devbtn icon-btn icon-24" />
-                    <ui:Button name="combine-dev-empty" text="Empty" class="combine-devbtn icon-btn icon-24" />
-                    <ui:Button name="combine-dev-ready" text="Ready" class="combine-devbtn icon-btn icon-24" />
-                    <ui:Button name="combine-dev-error" text="Error" class="combine-devbtn icon-btn icon-24" />
-                    <ui:Button name="combine-dev-cycle" text="Cycle ▸" class="combine-devbtn icon-btn icon-24" />
+                <ui:VisualElement class="combine-layout">
+
+                    <!-- LEFT: LEVEL 0 / COMBINE header + selected-test preview + START -->
+                    <ui:VisualElement class="combine-left">
+                        <ui:Label text="LEVEL 0" class="combine-kicker" />
+                        <ui:Label text="COMBINE" class="combine-title" />
+                        <ui:Label name="combine-progress" text="0 / 5 COMPLETE" class="combine-progress" />
+
+                        <ui:VisualElement name="combine-illustration" class="combine-illustration combine-illustration--camera" picking-mode="Ignore" />
+
+                        <ui:Label name="combine-test-title" text="" class="combine-test-title" />
+                        <ui:Label name="combine-test-desc" text="" class="lead combine-test-desc" />
+                        <ui:Label name="combine-test-secondary" text="" class="combine-test-secondary" />
+                        <ui:Label name="combine-test-stat" text="" class="combine-test-stat" />
+
+                        <!-- Local action (NOT a "go-" navigator): destination depends on
+                             the currently selected/available test — see
+                             CombineScreenController.DestinationFor. -->
+                        <ui:Button name="combine-start" class="combine-start-btn">
+                            <ui:Label text="START" class="combine-start-btn__text" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Legacy compatibility bridge (NOT a "go-" navigator), visible only
+                             once all five tests are complete: marks the OLD linear
+                             TutorialProgressState CombineCompleted/Level1Unlocked (Home's CTA
+                             and Map/Techniques access still key off it) and opens the Map,
+                             where the NEW IOkinawaProgress model unlocks LVL1+LVL2. -->
+                        <ui:Button name="combine-start-lvl1" text="CONTINUE" class="btn primary combine-continue" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="combine-divider-vertical" picking-mode="Ignore" />
+
+                    <!-- RIGHT: the five-test checklist -->
+                    <ui:VisualElement class="combine-checklist">
+
+                        <ui:VisualElement name="combine-row-0" class="combine-row">
+                            <ui:VisualElement class="combine-row__accent" picking-mode="Ignore" />
+                            <ui:Label text="1" class="combine-row__index" picking-mode="Ignore" />
+                            <ui:VisualElement class="combine-row__body" picking-mode="Ignore">
+                                <ui:Label text="Camera Test" class="combine-row__title" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="combine-row-0-icon" class="combine-row__icon" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="combine-divider-horizontal" picking-mode="Ignore" />
+
+                        <ui:VisualElement name="combine-row-1" class="combine-row">
+                            <ui:VisualElement class="combine-row__accent" picking-mode="Ignore" />
+                            <ui:Label text="2" class="combine-row__index" picking-mode="Ignore" />
+                            <ui:VisualElement class="combine-row__body" picking-mode="Ignore">
+                                <ui:Label text="Max Push-Ups" class="combine-row__title" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="combine-row-1-icon" class="combine-row__icon" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="combine-divider-horizontal" picking-mode="Ignore" />
+
+                        <ui:VisualElement name="combine-row-2" class="combine-row">
+                            <ui:VisualElement class="combine-row__accent" picking-mode="Ignore" />
+                            <ui:Label text="3" class="combine-row__index" picking-mode="Ignore" />
+                            <ui:VisualElement class="combine-row__body" picking-mode="Ignore">
+                                <ui:Label text="Max Squats" class="combine-row__title" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="combine-row-2-icon" class="combine-row__icon" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="combine-divider-horizontal" picking-mode="Ignore" />
+
+                        <ui:VisualElement name="combine-row-3" class="combine-row">
+                            <ui:VisualElement class="combine-row__accent" picking-mode="Ignore" />
+                            <ui:Label text="4" class="combine-row__index" picking-mode="Ignore" />
+                            <ui:VisualElement class="combine-row__body" picking-mode="Ignore">
+                                <ui:Label text="Wall Sit" class="combine-row__title" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="combine-row-3-icon" class="combine-row__icon" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="combine-divider-horizontal" picking-mode="Ignore" />
+
+                        <ui:VisualElement name="combine-row-4" class="combine-row">
+                            <ui:VisualElement class="combine-row__accent" picking-mode="Ignore" />
+                            <ui:Label text="5" class="combine-row__index" picking-mode="Ignore" />
+                            <ui:VisualElement class="combine-row__body" picking-mode="Ignore">
+                                <ui:Label text="Slow Yoko-Geri" class="combine-row__title" picking-mode="Ignore" />
+                                <ui:Label text="GEDAN → CHUDAN → JODAN" class="combine-row__secondary" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="combine-row-4-icon" class="combine-row__icon" picking-mode="Ignore" />
+                        </ui:VisualElement>
+
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 6b - LEVEL 0 PLACEHOLDER TEST SCREENS. No real assessment exists yet for
+             these four tests — each is the smallest honest frontend entry boundary:
+             static copy only, no camera/pose/backend code, and critically NO button
+             here ever marks the test complete (that would fake real physical
+             performance data only a real assessment can produce). Level0Progression's
+             Complete(test) exists purely for the future real implementation/backend
+             to call. -->
+        <ui:VisualElement name="combinePushups" class="screen">
+            <Style src="Level0Tests/Level0Tests.uss" />
+            <ui:VisualElement class="l0t-bg" picking-mode="Ignore" />
+            <ui:VisualElement class="safe-area-content sa-center">
+                <ui:VisualElement class="content l0t-content">
+                    <ui:VisualElement class="l0t-illustration l0t-illustration--pushups" picking-mode="Ignore" />
+                    <ui:Label text="LEVEL 0 · MAX PUSH-UPS" class="kicker l0t-kicker" />
+                    <ui:Label text="Assessment not yet implemented" class="title l0t-title" />
+                    <ui:Label text="The real push-up assessment is still being built. No repetitions are being counted and nothing here is scored yet." class="lead l0t-lead" />
+                    <ui:Button name="go-combine" text="Back to Combine" class="btn primary l0t-back" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="combineSquats" class="screen">
+            <Style src="Level0Tests/Level0Tests.uss" />
+            <ui:VisualElement class="l0t-bg" picking-mode="Ignore" />
+            <ui:VisualElement class="safe-area-content sa-center">
+                <ui:VisualElement class="content l0t-content">
+                    <ui:VisualElement class="l0t-illustration l0t-illustration--squats" picking-mode="Ignore" />
+                    <ui:Label text="LEVEL 0 · MAX SQUATS" class="kicker l0t-kicker" />
+                    <ui:Label text="Assessment not yet implemented" class="title l0t-title" />
+                    <ui:Label text="The real squat assessment is still being built. No repetitions are being counted and nothing here is scored yet." class="lead l0t-lead" />
+                    <ui:Button name="go-combine" text="Back to Combine" class="btn primary l0t-back" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="combineWallsit" class="screen">
+            <Style src="Level0Tests/Level0Tests.uss" />
+            <ui:VisualElement class="l0t-bg" picking-mode="Ignore" />
+            <ui:VisualElement class="safe-area-content sa-center">
+                <ui:VisualElement class="content l0t-content">
+                    <ui:VisualElement class="l0t-illustration l0t-illustration--wallsit" picking-mode="Ignore" />
+                    <ui:Label text="LEVEL 0 · WALL SIT" class="kicker l0t-kicker" />
+                    <ui:Label text="Assessment not yet implemented" class="title l0t-title" />
+                    <ui:Label text="The real wall-sit hold timer is still being built. No time is being tracked and nothing here is scored yet." class="lead l0t-lead" />
+                    <ui:Button name="go-combine" text="Back to Combine" class="btn primary l0t-back" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="combineYokogeri" class="screen">
+            <Style src="Level0Tests/Level0Tests.uss" />
+            <ui:VisualElement class="l0t-bg" picking-mode="Ignore" />
+            <ui:VisualElement class="safe-area-content sa-center">
+                <ui:VisualElement class="content l0t-content">
+                    <ui:VisualElement class="l0t-illustration l0t-illustration--yokogeri" picking-mode="Ignore" />
+                    <ui:Label text="LEVEL 0 · SLOW YOKO-GERI" class="kicker l0t-kicker" />
+                    <ui:Label text="GEDAN → CHUDAN → JODAN" class="l0t-secondary" />
+                    <ui:Label text="Assessment not yet implemented" class="title l0t-title" />
+                    <ui:Label text="The real slow side-kick sequence assessment is still being built. Nothing here is scored yet." class="lead l0t-lead" />
+                    <ui:Button name="go-combine" text="Back to Combine" class="btn primary l0t-back" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

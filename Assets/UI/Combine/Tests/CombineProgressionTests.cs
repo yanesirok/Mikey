@@ -1,92 +1,22 @@
 using System.IO;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine.UIElements;
 
 namespace Mikey.UI.Combine.Tests
 {
     /// <summary>
-    /// Contract for the Combine results screen's progression actions ("START LVL 1"
-    /// / "Retry Assessment"): they exist as real, controller-bound (NOT "go-")
-    /// buttons in the ready state, and the controller wires them through the
-    /// forward-only Advance / navigator as specified — verified by reading the
-    /// source, mirroring CombineScreenUxmlTests.DevControls_AreGatedToEditorOrDevelopmentBuild_InController.
+    /// Contract for the real Level 0 Combine checklist screen's progression
+    /// behavior — sequential test unlock derives entirely from
+    /// <see cref="Progression.ILevel0Progress"/> (never five unrelated UI-only
+    /// booleans), completing a test never auto-starts the next, and the legacy
+    /// "combine-start-lvl1" bridge only fires once Level 0 is fully complete.
+    /// Read via source assertion, mirroring the rest of this codebase's
+    /// controller-contract tests.
     /// </summary>
     public class CombineProgressionTests
     {
-        private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string ControllerPath = "Assets/UI/Combine/CombineScreenController.cs";
 
-        private static VisualElement BuildTree()
-        {
-            var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
-            Assert.IsNotNull(vta, $"Could not load {UxmlPath}");
-            var root = new VisualElement();
-            vta.CloneTree(root);
-            return root;
-        }
-
-        [Test]
-        public void ReadyState_HasStartLevel1AndRetryAssessmentActions_NotGoNavigators()
-        {
-            var root = BuildTree();
-            var ready = root.Q<VisualElement>("combine-ready");
-            Assert.IsNotNull(ready, "Expected the 'combine-ready' state.");
-
-            var startLevel1 = ready.Q<Button>("combine-start-lvl1");
-            Assert.IsNotNull(startLevel1, "Expected a 'combine-start-lvl1' Button in the ready state.");
-            Assert.AreEqual("START LVL 1", startLevel1.text);
-            Assert.IsFalse(startLevel1.name.StartsWith("go-"),
-                "'combine-start-lvl1' must be controller-bound, not a static 'go-' navigator.");
-            Assert.IsTrue(startLevel1.ClassListContains("icon-btn"),
-                "'combine-start-lvl1' must use the reusable '.icon-btn' touch-target class.");
-
-            var retry = ready.Q<Button>("combine-retry-assessment");
-            Assert.IsNotNull(retry, "Expected a 'combine-retry-assessment' Button in the ready state.");
-            Assert.AreEqual("Retry Assessment", retry.text);
-            Assert.IsFalse(retry.name.StartsWith("go-"),
-                "'combine-retry-assessment' must be controller-bound, not a static 'go-' navigator.");
-            Assert.IsTrue(retry.ClassListContains("icon-btn"),
-                "'combine-retry-assessment' must use the reusable '.icon-btn' touch-target class.");
-        }
-
-        [Test]
-        public void ReadyState_StillHasReturnHomeAction()
-        {
-            var root = BuildTree();
-            var ready = root.Q<VisualElement>("combine-ready");
-            Assert.IsNotNull(ready.Q<Button>("go-menu"),
-                "The ready state must keep its 'go-menu' Return Home exit alongside the new progression actions.");
-        }
-
-        [Test]
-        public void StartLevel1_AdvancesToCombineCompletedThenLevel1Unlocked_AndOpensMap()
-        {
-            string source = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("private void OnStartLevel1()", source);
-            StringAssert.Contains("_progress?.Advance(TutorialProgressState.CombineCompleted);", source);
-            StringAssert.Contains("_progress?.Advance(TutorialProgressState.Level1Unlocked);", source);
-            StringAssert.Contains("_navigator?.Show(\"map\");", source);
-        }
-
-        [Test]
-        public void RetryAssessment_OnlyResetsBeforeCombineCompleted_AndReturnsToCombineIntro()
-        {
-            string source = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("private void OnRetryAssessment()", source);
-            StringAssert.Contains("_progress.State <= TutorialProgressState.CombineCompleted", source,
-                "Retry Assessment must not silently regress progress already made beyond Combine.");
-            StringAssert.Contains("_progress.SetState(TutorialProgressState.IntroCompleted);", source);
-            StringAssert.Contains("_navigator?.Show(\"combineIntro\");", source);
-        }
-
-        [Test]
-        public void BindWhenReady_WiresBothNewProgressionButtons()
-        {
-            string source = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("BindButton(root, \"combine-start-lvl1\", OnStartLevel1);", source);
-            StringAssert.Contains("BindButton(root, \"combine-retry-assessment\", OnRetryAssessment);", source);
-        }
+        private static string Source() => File.ReadAllText(ControllerPath);
 
         [Test]
         public void IsCombineEntry_TrueOnlyForCombineScreenId()
@@ -97,37 +27,86 @@ namespace Mikey.UI.Combine.Tests
             Assert.IsFalse(CombineScreenController.IsCombineEntry(null));
         }
 
-        /// <summary>
-        /// Production-blocker fix: a normal completed-assessment entry (Camera Test's
-        /// "go-combine", or Home's "VIEW RESULTS" CTA) must reach the Ready result
-        /// immediately, without any dependency on the Editor/Development-only dev
-        /// controls — otherwise a real player gets stuck on the Loading spinner and
-        /// can never see 'START LVL 1'.
-        /// </summary>
         [Test]
-        public void NormalEntry_ReachesReadyWithoutDevControls_SoStartLevel1BecomesAvailable()
+        public void GenuineEntry_AlwaysReSelectsTheCurrentDefaultTest()
         {
-            string source = File.ReadAllText(ControllerPath);
+            string source = Source();
             StringAssert.Contains("private void OnScreenEntered(string screenId)", source);
             StringAssert.Contains("if (!IsCombineEntry(screenId))", source);
-            StringAssert.Contains("_viewModel.SetState(CombineState.Ready);", source,
-                "A genuine Combine entry must show Ready directly — no artificial wait, no dev-control dependency.");
+            StringAssert.Contains("_viewModel.SelectDefault();", source,
+                "A genuine Combine entry must re-select the current available (or most recently completed) test.");
         }
 
         [Test]
-        public void BindWhenReady_SubscribesToScreenChanged_AndTreatsAlreadyActiveCombineAsEntry()
+        public void StartButton_OnlyActsOnTheCurrentlyAvailableSelectedTest()
         {
-            string source = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("_navigator.ScreenChanged += OnScreenEntered;", source);
-            StringAssert.Contains("if (_navigator != null && IsCombineEntry(_navigator.CurrentScreen))", source,
-                "If Combine is already the active screen at bind time, it must be treated as a genuine entry (shows Ready), not left on the configured initial state.");
+            string source = Source();
+            StringAssert.Contains("private void OnStartClicked()", source);
+            StringAssert.Contains("if (_viewModel.StateOf(test) != Level0TestState.Available)", source);
+            StringAssert.Contains("return;", source);
         }
 
         [Test]
-        public void OnDisable_UnsubscribesFromScreenChanged_NoLeak()
+        public void DestinationFor_RoutesEachTestToItsOwnScreen()
         {
-            string source = File.ReadAllText(ControllerPath);
+            Assert.AreEqual("camTest", CombineScreenController.DestinationFor(Progression.Level0Test.CameraTest));
+            Assert.AreEqual("combinePushups", CombineScreenController.DestinationFor(Progression.Level0Test.PushUps));
+            Assert.AreEqual("combineSquats", CombineScreenController.DestinationFor(Progression.Level0Test.Squats));
+            Assert.AreEqual("combineWallsit", CombineScreenController.DestinationFor(Progression.Level0Test.WallSit));
+            Assert.AreEqual("combineYokogeri", CombineScreenController.DestinationFor(Progression.Level0Test.YokoGeri));
+        }
+
+        [Test]
+        public void CompletingATest_NeverAutoNavigates_TheOnlyNavigationHereIsTheExplicitStartAction()
+        {
+            // Completion of every one of the five tests happens on OTHER screens
+            // (camTest's camera-test-complete, or — for the four not-yet-built
+            // tests — nowhere at all, since no button anywhere calls
+            // Complete(test) for those). CombineScreenController itself never
+            // calls Complete on anything; it only reads state and renders it.
+            string source = Source();
+            StringAssert.DoesNotContain(".Complete(", source,
+                "CombineScreenController must never mark a test complete itself — only the owning test screen (or the real backend) does that.");
+        }
+
+        [Test]
+        public void LegacyBridge_OnlyFiresOnceLevel0IsFullyComplete()
+        {
+            string source = Source();
+            StringAssert.Contains("private void OnStartLevel1()", source);
+            StringAssert.Contains("if (!_viewModel.IsLevel0Complete)", source);
+            StringAssert.Contains("return;", source);
+        }
+
+        [Test]
+        public void LegacyBridge_AdvancesCombineCompletedThenLevel1Unlocked_AndOpensMap()
+        {
+            string source = Source();
+            StringAssert.Contains("_tutorialProgress?.Advance(TutorialProgressState.CombineCompleted);", source);
+            StringAssert.Contains("_tutorialProgress?.Advance(TutorialProgressState.Level1Unlocked);", source);
+            StringAssert.Contains("_navigator?.Show(\"map\");", source);
+        }
+
+        [Test]
+        public void LegacyBridgeButton_IsControllerBound_NotAStaticGoNavigator()
+        {
+            string source = Source();
+            StringAssert.Contains("_startLvl1Button.clicked += OnStartLevel1;", source);
+        }
+
+        [Test]
+        public void RowClicks_SelectThatRowsTest_ViaTheViewModel_WhichGuardsLockedRows()
+        {
+            string source = Source();
+            StringAssert.Contains("_viewModel.Select(test);", source);
+        }
+
+        [Test]
+        public void OnDisable_UnsubscribesFromScreenChangedAndLevel0Changed_NoLeak()
+        {
+            string source = Source();
             StringAssert.Contains("_navigator.ScreenChanged -= OnScreenEntered;", source);
+            StringAssert.Contains("_level0.Changed -= OnLevel0Changed;", source);
         }
     }
 }

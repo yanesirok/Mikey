@@ -88,7 +88,7 @@ namespace Mikey.UI.CameraTest.Tests
                     $".{className} must be inside .safe-area-content.");
             }
 
-            foreach (var name in new[] { "camera-simulate-rep", "go-combine" })
+            foreach (var name in new[] { "camera-simulate-rep", "camera-test-complete" })
             {
                 var btn = screen.Q<Button>(name);
                 Assert.IsNotNull(btn, $"Expected a Button named '{name}'.");
@@ -99,17 +99,22 @@ namespace Mikey.UI.CameraTest.Tests
 
         // 5 + 6
         [Test]
-        public void GoCombine_ExistsOnCamTest_AndTargetsModernCombineScreen()
+        public void CompleteButton_ExistsOnCamTest_AndTargetsTheCombineChecklistScreen()
         {
             var root = BuildTree();
             var screen = CamScreen(root);
 
-            var done = screen.Q<Button>("go-combine");
-            Assert.IsNotNull(done, "camTest must keep its 'go-combine' completion route.");
+            // Deliberately NOT a "go-" navigator: completing Camera Test also has
+            // the side effect of marking Level 0's Camera Test complete (see
+            // CameraTestController.OnCompleteClicked), so it needs an explicit
+            // controller-bound handler rather than ScreenManager's generic swap.
+            var done = screen.Q<Button>("camera-test-complete");
+            Assert.IsNotNull(done, "camTest must keep its 'camera-test-complete' completion route.");
+            Assert.IsFalse(done.name.StartsWith("go-"),
+                "'camera-test-complete' must NOT be a bare 'go-' navigator — it has a progression side effect.");
 
-            // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
             var combine = root.Q<VisualElement>("combine");
-            Assert.IsNotNull(combine, "'go-combine' must target an existing 'combine' screen.");
+            Assert.IsNotNull(combine, "The Camera Test completion route must target an existing 'combine' screen.");
             Assert.IsTrue(combine.ClassListContains("screen"), "'combine' target must be a screen.");
         }
 
@@ -129,7 +134,7 @@ namespace Mikey.UI.CameraTest.Tests
         public void BothBottomControls_UseMinimumTouchTargetClass()
         {
             var screen = CamScreen(BuildTree());
-            foreach (var name in new[] { "camera-simulate-rep", "go-combine" })
+            foreach (var name in new[] { "camera-simulate-rep", "camera-test-complete" })
             {
                 var btn = screen.Q<Button>(name);
                 Assert.IsNotNull(btn, $"Expected a Button named '{name}'.");
@@ -221,6 +226,28 @@ namespace Mikey.UI.CameraTest.Tests
                 "CameraTestController must remove the simulate callback on disable.");
             StringAssert.Contains("_simulate.clicked += _model.SimulateRep", src,
                 "CameraTestController must bind the simulate callback explicitly once during setup.");
+        }
+
+        [Test]
+        public void Controller_UnbindsCompleteButtonOnDisable()
+        {
+            string src = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("private Button _complete", src,
+                "CameraTestController must retain the complete button reference for teardown.");
+            StringAssert.Contains("_complete.clicked -= OnCompleteClicked", src,
+                "CameraTestController must remove the complete callback on disable.");
+            StringAssert.Contains("_complete.clicked += OnCompleteClicked", src,
+                "CameraTestController must bind the complete callback explicitly once during setup.");
+        }
+
+        [Test]
+        public void CompleteButton_MarksLevel0CameraTestComplete_ThenReturnsToCombine()
+        {
+            string src = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("_level0?.Complete(Level0Test.CameraTest);", src,
+                "Completing Camera Test must mark Level 0's Camera Test complete.");
+            StringAssert.Contains("_navigator?.Show(\"combine\");", src,
+                "Completing Camera Test must return to the Combine checklist, never auto-start the next test.");
         }
     }
 }

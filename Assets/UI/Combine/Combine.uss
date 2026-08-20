@@ -1,192 +1,259 @@
 /* ============================================================
-   Combine screen — vertical slice styles.
-   Palette custom properties (--ember, --jade, --bone, …) cascade in
-   from .mikey-app in theme.uss; this file only adds combine-specific
-   structure so the slice stays modular. Landscape-first: the content
-   column is width-capped and centered, matching .content in theme.uss.
+   Combine screen — LEVEL 0 checklist (locked design reference).
+   Palette custom properties (--ember, --seal, --bone, …) cascade in
+   from .mikey-app in theme.uss; this file only adds Combine-specific
+   structure so the screen stays modular. Landscape-only: a left preview
+   panel + a right checklist, matching the locked mockup's two-column
+   composition.
    ============================================================ */
 
 /* Full-bleed background layer. Lives OUTSIDE .safe-area-content so it
-   bleeds under device insets, like .cam-feed / .title-bg on other screens. */
+   bleeds under device insets, like .cam-feed / .title-bg on other screens.
+   The real art (combine_background.png) is bound at the scene level onto
+   combine-bg-media (see BackgroundMediaController) as a static image, same
+   mechanism as the "map" screen — this color is only the pre-load fallback. */
 .combine-bg {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #0D1117;
+    background-color: #0B0E11;
 }
 
-/* Legibility scrim over the background media (video or fallback) — the
-   Combine result text has no card backing of its own, unlike Home/Map. */
+/* Legibility scrim over the background art — kept light so the supplied
+   textured artwork still reads through, per the locked reference. */
 .combine-scrim {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(13, 17, 23, 0.5);
+    background-color: rgba(6, 8, 10, 0.35);
 }
 
-/* Centered landscape content column for the Combine screen. */
-.combine-content {
-    align-items: center;
-    justify-content: center;
-}
-.combine-kicker {
-    -unity-text-align: middle-center;
-}
-
-/* One state sub-view; the controller shows exactly one at a time. The
-   inline display set by the controller overrides this default-hidden rule. */
-.combine-state {
-    display: none;
-    width: 100%;
-    align-items: center;
-    justify-content: center;
-    margin-top: 24px;
-}
-.combine-state-title {
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: var(--bone);
-    margin-bottom: 6px;
-}
-.combine-error-title {
-    color: var(--seal);
-}
-.combine-msg {
-    -unity-text-align: middle-center;
-    margin-top: 8px;
-}
-
-/* Loading spinner placeholder (static ring; no animation needed for the slice). */
-.combine-spinner {
-    width: 46px;
-    height: 46px;
-    border-radius: 23px;
-    border-width: 3px;
-    border-color: var(--line);
-    border-top-color: var(--ember);
-    margin-bottom: 16px;
-}
-
-/* Ready state: row of mock selected-item cards, wraps on narrow widths. */
-.combine-items {
+/* ---------- top bar: back (left) / menu glyph (right) ---------- */
+.combine-topbar {
     flex-direction: row;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.combine-back {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
     justify-content: center;
 }
-.combine-card {
-    width: 150px;
-    align-items: center;
-    background-color: var(--base-2);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 12px;
-    padding: 16px 12px;
-    margin: 6px;
-}
-.combine-card__glyph {
-    /* visible-icon size comes from the reusable .icon-32 variant (added in the controller) */
-    color: var(--seal);
-}
-.combine-card__value {
+.combine-back__glyph {
     font-size: 30px;
-    -unity-font-style: bold;
-    color: var(--jade);
+    color: var(--bone);
+}
+.combine-menu {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+}
+.combine-menu__glyph {
+    font-size: 26px;
+    color: var(--bone);
+    opacity: 0.85;
+}
+
+/* ---------- two-column layout ---------- */
+.combine-layout {
+    flex-direction: row;
+    flex-grow: 1;
+    width: 100%;
+    align-items: stretch;
     margin-top: 6px;
 }
-.combine-card__unit {
+
+/* LEFT: LEVEL 0 / COMBINE header + selected-test preview + START. */
+.combine-left {
+    width: 56%;
+    flex-direction: column;
+    padding-right: 22px;
+    justify-content: flex-start;
+}
+.combine-kicker {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--muted);
+}
+.combine-title {
+    font-size: 46px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-top: 2px;
+}
+.combine-progress {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--seal);
+    margin-top: 6px;
+    margin-bottom: 12px;
+}
+
+.combine-illustration {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 8px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+.combine-illustration--camera { background-image: url("/Assets/UI/Media/Images/combine/combine_camera.png"); }
+.combine-illustration--pushups { background-image: url("/Assets/UI/Media/Images/combine/combine_pushups.png"); }
+.combine-illustration--squats { background-image: url("/Assets/UI/Media/Images/combine/combine_squats.png"); }
+.combine-illustration--wallsit { background-image: url("/Assets/UI/Media/Images/combine/combine_wallsit.png"); }
+.combine-illustration--yokogeri { background-image: url("/Assets/UI/Media/Images/combine/combine_yokogeri.png"); }
+
+.combine-test-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.combine-test-desc {
+    margin-top: 4px;
+    max-width: 420px;
+}
+.combine-test-secondary {
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: var(--seal);
+    margin-top: 8px;
+}
+.combine-test-stat {
     font-size: 11px;
     letter-spacing: 2px;
     color: var(--muted);
+    margin-top: 10px;
 }
-.combine-card__name {
-    font-size: 13px;
+
+/* Prominent painted START button — the supplied red brushstroke asset, not a
+   generated shape. */
+.combine-start-btn {
+    width: 100%;
+    max-width: 340px;
+    height: 68px;
+    margin-top: 20px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: url("/Assets/UI/Media/Images/combine/combine_start_brush.png");
+    -unity-background-scale-mode: scale-and-crop;
+    align-items: center;
+    justify-content: center;
+}
+.combine-start-btn__text {
+    font-size: 20px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
     color: var(--bone);
-    margin-top: 8px;
-    -unity-text-align: middle-center;
-    white-space: normal;
 }
-.combine-card__stat {
-    font-size: 11px;
+
+/* Legacy compatibility bridge CTA — visible only once all five tests are
+   complete. Reuses the shared .btn.primary look (theme.uss) rather than the
+   painted brush, since it is a distinct "leave Combine" action, not another
+   test START. */
+.combine-continue {
+    max-width: 300px;
+    margin-top: 12px;
+}
+
+/* Vertical brush-stroke divider between the two panels. */
+.combine-divider-vertical {
+    width: 26px;
+    background-image: url("/Assets/UI/Media/Images/combine/combine_divider_vertical.png");
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+/* RIGHT: the five-row checklist. */
+.combine-checklist {
+    width: 44%;
+    flex-direction: column;
+    padding-left: 22px;
+    justify-content: center;
+}
+
+.combine-divider-horizontal {
+    height: 12px;
+    margin: 2px 0;
+    background-image: url("/Assets/UI/Media/Images/combine/combine_divider_horizontal.png");
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+.combine-row {
+    position: relative;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 10px;
+}
+.combine-row__accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    background-image: url("/Assets/UI/Media/Images/combine/combine_selected_red.png");
+    -unity-background-scale-mode: scale-and-crop;
+}
+.combine-row--selected .combine-row__accent {
+    display: flex;
+}
+
+.combine-row__index {
+    width: 26px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--muted);
+    -unity-text-align: middle-left;
+}
+.combine-row__body {
+    flex-grow: 1;
+    flex-direction: column;
+}
+.combine-row__title {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+.combine-row__secondary {
+    font-size: 10px;
+    letter-spacing: 1px;
     color: var(--muted);
     margin-top: 2px;
-    -unity-text-align: middle-center;
 }
-
-/* ---------- reusable icon-button kit ----------
-   Interactive icon/glyph controls share these classes so touch targets and
-   visible-icon sizes are defined once instead of being repeated per element.
-   ~48x48 logical minimum keeps controls reliably tappable in the Device
-   Simulator; flex-shrink:0 stops them collapsing in the wrapping dev row at
-   small landscape sizes; content stays centered. Scoped to the Combine screen
-   (this file) so other screens are unaffected. */
-.icon-btn {
-    min-width: 48px;
-    min-height: 48px;
+.combine-row__icon {
+    width: 22px;
+    height: 22px;
+    margin-left: 10px;
     flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
+    -unity-background-scale-mode: scale-to-fit;
 }
-/* Visible-icon size variants for glyph/icon content (logical px). */
-.icon-24 {
-    font-size: 24px;
+.combine-row__icon--check {
+    background-image: url("/Assets/UI/Media/Images/combine/combine_check.png");
 }
-.icon-32 {
-    font-size: 32px;
+.combine-row__icon--lock {
+    background-image: url("/Assets/UI/Media/Images/combine/combine_lock.png");
 }
 
-/* Error-state retry button: width-capped, not full-bleed. */
-.combine-retry {
-    max-width: 240px;
-    margin-top: 16px;
+/* Row state modifiers — locked rows read subdued, complete rows read
+   readable-but-secondary, available/selected rows read brightest. */
+.combine-row--locked .combine-row__index,
+.combine-row--locked .combine-row__title {
+    color: var(--muted);
+    opacity: 0.55;
 }
-
-/* Ready-state production exit ("Return Home"): width-capped like retry so the
-   primary CTA stays consistent with the Combine layout, not edge-to-edge. */
-.combine-home {
-    max-width: 240px;
-    margin-top: 18px;
+.combine-row--complete .combine-row__title {
+    opacity: 0.8;
 }
-
-/* ---------- development-only state switcher ----------
-   Hidden by the controller outside the Editor / a Development Build. */
-.combine-devbar {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(0, 0, 0, 0.55);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 12px;
-    padding: 6px;
-}
-.combine-devbar__label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--ember);
-    margin: 0 8px;
-}
-/* Dev switcher button = reusable .icon-btn (size/centering/no-shrink) +
-   .icon-24 (visible label size) + these colours. No size literals repeated. */
-.combine-devbtn {
-    margin: 3px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--line);
-    background-color: var(--base-3);
+.combine-row--available .combine-row__title {
     color: var(--bone);
-    -unity-font-style: bold;
+    opacity: 1;
 }
-.combine-devbtn:hover {
-    border-color: var(--bone);
+.combine-row--selected .combine-row__title {
+    color: var(--bone);
+    opacity: 1;
 }

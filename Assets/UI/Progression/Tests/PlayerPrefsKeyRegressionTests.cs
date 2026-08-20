@@ -25,6 +25,8 @@ namespace Mikey.UI.Progression.Tests
             "PlayerPrefsAudioSettingsStorage.cs",
             "ProfileDisplayNameStorage.cs",
             "ProfileUserDataStorage.cs",
+            "PlayerPrefsLevel0ProgressStorage.cs",
+            "PlayerPrefsOkinawaProgressStorage.cs",
             // this file itself: the assertion text below legitimately contains the
             // literal string "PlayerPrefs.Set" it's scanning for.
             nameof(PlayerPrefsKeyRegressionTests) + ".cs",

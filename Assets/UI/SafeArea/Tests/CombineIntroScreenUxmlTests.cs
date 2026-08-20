@@ -243,12 +243,13 @@ namespace Mikey.UI.SafeArea.Tests
                 "The .ci-btn rule must size via flex, not width:100% that overflows the sibling action.");
         }
 
-        // 15 — production screen count is twelve (Profile, Okinawa chapter map, Profile Details added).
+        // 15 — production screen count is sixteen (Profile, Okinawa chapter map,
+        // Profile Details, and the four Level 0 placeholder test screens added).
         [Test]
-        public void ProductionScreenCount_IsTwelve()
+        public void ProductionScreenCount_IsSixteen()
         {
-            Assert.AreEqual(12, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
-                "There must be exactly twelve production screens.");
+            Assert.AreEqual(16, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
+                "There must be exactly sixteen production screens.");
         }
 
         // 16 — Title → Intro → Home remains unchanged (Title's own route into
@@ -277,8 +278,8 @@ namespace Mikey.UI.SafeArea.Tests
             var root = BuildTree();
             var camTest = root.Q<VisualElement>("camTest");
             Assert.IsNotNull(camTest, "Expected a 'camTest' screen.");
-            Assert.IsNotNull(camTest.Q<Button>("go-combine"),
-                "camTest must keep its 'go-combine' route to the Combine screen.");
+            Assert.IsNotNull(camTest.Q<Button>("camera-test-complete"),
+                "camTest must keep its 'camera-test-complete' route to the Combine screen.");
 
             var combine = root.Q<VisualElement>("combine");
             Assert.IsNotNull(combine, "Expected a 'combine' screen.");

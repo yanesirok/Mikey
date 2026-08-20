@@ -672,6 +672,14 @@
     border-color: var(--line);
     background-color: var(--base-3);
 }
+/* Unlocked but no mission screen built yet (LVL2-6 pending real gameplay) —
+   visually distinct from --locked: the mission genuinely IS available, there
+   is just nowhere to route yet. */
+.detail-panel__cta--soon {
+    opacity: 0.7;
+    border-color: var(--seal);
+    background-color: var(--base-3);
+}
 
 /* ---------- Japan -> Okinawa ink-fade transition ----------
    A short, simple full-stage fade (never an elaborate cinematic system).

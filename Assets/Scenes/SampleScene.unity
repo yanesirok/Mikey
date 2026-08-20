@@ -463,6 +463,8 @@ GameObject:
   - component: {fileID: 1720403638}
   - component: {fileID: 1720403639}
   - component: {fileID: 1720403640}
+  - component: {fileID: 1720403642}
+  - component: {fileID: 1720403641}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -545,8 +547,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6c4663e3336de643b4b9ec40a4a3a07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Combine::Mikey.UI.Combine.CombineScreenController
-  _initialState: 0
-  _showDevControls: 1
 --- !u!114 &1720403622
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -590,8 +590,8 @@ MonoBehaviour:
     staticImage: {fileID: 0}
   - screenId: combine
     targetElementName: combine-bg-media
-    clip: {fileID: 32900000, guid: e40462fad4fbd9243980ee3922018ce8, type: 3}
-    staticImage: {fileID: 0}
+    clip: {fileID: 0}
+    staticImage: {fileID: 2800000, guid: 93a55d685986d794d985a097c4b02fd3, type: 3}
   - screenId: map
     targetElementName: map-bg-media
     clip: {fileID: 0}
@@ -786,6 +786,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18faf2b2527e2324787f4a6cb8155e21, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapCloudTransitionController
+--- !u!114 &1720403641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d2924a955d8dd24eb4b18c58ac8057e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Progression::Mikey.UI.Progression.OkinawaProgressionController
+--- !u!114 &1720403642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07620c4524dde474c95cdbb02b09dddd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Progression::Mikey.UI.Progression.Level0ProgressionController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

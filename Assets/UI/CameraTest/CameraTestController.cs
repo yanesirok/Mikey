@@ -38,9 +38,11 @@ namespace Mikey.UI.CameraTest
         private Label _statusGlyph;
         private VisualElement _statusPill;
         private Button _simulate;
+        private Button _complete;
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
+        private ILevel0Progress _level0;
 
         private Coroutine _bindRoutine;
         private bool _bound;
@@ -66,6 +68,8 @@ namespace Mikey.UI.CameraTest
 
                 if (_simulate != null)
                     _simulate.clicked -= _model.SimulateRep;
+                if (_complete != null)
+                    _complete.clicked -= OnCompleteClicked;
             }
 
             // Unsubscribe from the navigator so re-enabling never stacks a second
@@ -77,12 +81,14 @@ namespace Mikey.UI.CameraTest
             }
 
             _progress = null;
+            _level0 = null;
 
             _repCount = null;
             _statusText = null;
             _statusGlyph = null;
             _statusPill = null;
             _simulate = null;
+            _complete = null;
             _bound = false;
         }
 
@@ -122,6 +128,14 @@ namespace Mikey.UI.CameraTest
             if (_simulate != null)
                 _simulate.clicked += _model.SimulateRep;
 
+            // Also NOT a "go-" navigator: completing Camera Test has a side effect
+            // (marking Level 0's Camera Test complete) before returning to the
+            // Combine checklist, so it needs an explicit controller-bound handler
+            // rather than ScreenManager's generic screen swap.
+            _complete = root.Q<Button>("camera-test-complete");
+            if (_complete != null)
+                _complete.clicked += OnCompleteClicked;
+
             _model.Changed += Render;
 
             // Subscribe to the navigation entry signal. OnEnable is not a reliable
@@ -133,6 +147,7 @@ namespace Mikey.UI.CameraTest
                 _navigator.ScreenChanged += OnScreenEntered;
 
             _progress = GetComponent<ITutorialProgress>();
+            _level0 = GetComponent<ILevel0Progress>();
 
             _bound = true;
             _bindRoutine = null;
@@ -169,6 +184,20 @@ namespace Mikey.UI.CameraTest
 
         /// <summary>Pure entry predicate: true only for an exact camTest entry. Unit-tested.</summary>
         public static bool IsCamTestEntry(string screenId) => screenId == ScreenId;
+
+        /// <summary>
+        /// "Done": marks Level 0's Camera Test complete — this already-built (if
+        /// mocked) rep-counting interaction is the genuine, pre-existing Camera
+        /// Test implementation, unlike the four Level0Tests placeholder screens,
+        /// which never call Complete from a button — then returns to the Combine
+        /// checklist, where the next test (Max Push-Ups) becomes available. Does
+        /// NOT auto-start the next test.
+        /// </summary>
+        private void OnCompleteClicked()
+        {
+            _level0?.Complete(Level0Test.CameraTest);
+            _navigator?.Show("combine");
+        }
 
         private void Render()
         {
