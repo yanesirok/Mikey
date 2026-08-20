@@ -12,28 +12,56 @@ namespace Mikey.UI.Progression
     /// <see cref="TutorialProgressionController"/> exactly. Backed by PlayerPrefs
     /// (survives app/Editor restart); reloads on every enable so a domain reload
     /// always reflects the last saved value.
+    ///
+    /// <see cref="Store"/> builds the underlying store lazily, on first access,
+    /// rather than only in <see cref="Awake"/>: Unity does not guarantee this
+    /// component's Awake runs before a sibling component's own
+    /// initialization reaches in and reads/subscribes to this one — a real
+    /// path here is <c>OkinawaProgressionController</c>, which subscribes to
+    /// this component's <see cref="Changed"/> event as part of building its
+    /// own store. Every public member goes through <see cref="Store"/>, never
+    /// the backing field directly, so the store is guaranteed constructed no
+    /// matter which order components initialize in.
     /// </summary>
     public sealed class Level0ProgressionController : MonoBehaviour, ILevel0Progress
     {
         private Level0ProgressionStore _store;
 
-        public event Action Changed
+        /// <summary>
+        /// The store, constructed on first access if it doesn't exist yet.
+        /// Idempotent: a later call (e.g. from <see cref="Awake"/>, if it
+        /// hasn't already run) sees <see cref="_store"/> already set and does
+        /// no extra work.
+        /// </summary>
+        private Level0ProgressionStore Store
         {
-            add { _store.Changed += value; }
-            remove { _store.Changed -= value; }
+            get
+            {
+                if (_store == null)
+                    _store = new Level0ProgressionStore(new PlayerPrefsLevel0ProgressStorage());
+                return _store;
+            }
         }
 
-        public Level0TestState StateOf(Level0Test test) => _store.StateOf(test);
-        public Level0Test CurrentTest => _store.CurrentTest;
-        public int CompletedCount => _store.CompletedCount;
-        public bool IsComplete => _store.IsComplete;
+        public event Action Changed
+        {
+            add { Store.Changed += value; }
+            remove { Store.Changed -= value; }
+        }
+
+        public Level0TestState StateOf(Level0Test test) => Store.StateOf(test);
+        public Level0Test CurrentTest => Store.CurrentTest;
+        public int CompletedCount => Store.CompletedCount;
+        public bool IsComplete => Store.IsComplete;
 
         private void Awake()
         {
-            _store = new Level0ProgressionStore(new PlayerPrefsLevel0ProgressStorage());
+            // Forces the normal, early construction point; a no-op if
+            // something already accessed Store before Awake ran.
+            _ = Store;
         }
 
-        public void Complete(Level0Test test) => _store.Complete(test);
-        public void Reset() => _store.Reset();
+        public void Complete(Level0Test test) => Store.Complete(test);
+        public void Reset() => Store.Reset();
     }
 }
