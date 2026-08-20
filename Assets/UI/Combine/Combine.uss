@@ -5,6 +5,14 @@
    structure so the screen stays modular. Landscape-only: a left preview
    panel + a right checklist, matching the locked mockup's two-column
    composition.
+
+   Asset proportions matter here — several supplied brush assets are
+   extremely elongated (combine_selected_red.png is a ~200x2758 vertical
+   stroke; combine_start_brush.png is a ~2400x98 horizontal stroke) and
+   must render at their own aspect ratio (scale-to-fit / contain), never
+   scale-and-crop stretched to fill an unrelated box shape — that is what
+   previously turned the selected-row accent into a huge smeared
+   rectangle instead of a narrow vertical mark.
    ============================================================ */
 
 /* Full-bleed background layer. Lives OUTSIDE .safe-area-content so it
@@ -21,15 +29,18 @@
     background-color: #0B0E11;
 }
 
-/* Legibility scrim over the background art — kept light so the supplied
-   textured artwork still reads through, per the locked reference. */
+/* Legibility scrim — kept very light. combine_background.png is already
+   near-black/charcoal with no bright imagery to knock down, so this only
+   exists as a hook for the (rare) case foreground text needs a touch more
+   separation; darkening it further has no legibility benefit and just
+   flattens the supplied texture. */
 .combine-scrim {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(6, 8, 10, 0.35);
+    background-color: rgba(4, 5, 6, 0.12);
 }
 
 /* ---------- top bar: back (left) / menu glyph (right) ---------- */
@@ -61,45 +72,73 @@
     opacity: 0.85;
 }
 
-/* ---------- two-column layout ---------- */
+/* ---------- two-column layout ----------
+   ~57 / ~43 split, matching the locked reference's major proportions. */
 .combine-layout {
     flex-direction: row;
     flex-grow: 1;
     width: 100%;
     align-items: stretch;
-    margin-top: 6px;
+    margin-top: 4px;
 }
 
-/* LEFT: LEVEL 0 / COMBINE header + selected-test preview + START. */
+/* LEFT: LEVEL 0 / COMBINE header + selected-test preview + START. The
+   outer .combine-left centers the inner column both ways so the panel
+   never reads as content glued into a corner with dead space around it;
+   .combine-left-inner width-caps that column so it stays a deliberate,
+   readable composition instead of stretching thin on very wide viewports. */
 .combine-left {
-    width: 56%;
-    flex-direction: column;
-    padding-right: 22px;
-    justify-content: flex-start;
+    width: 57%;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
 }
+.combine-left-inner {
+    width: 100%;
+    max-width: 620px;
+    min-width: 380px;
+    align-items: center;
+    flex-direction: column;
+}
+
 .combine-kicker {
-    font-size: 12px;
-    letter-spacing: 4px;
+    font-size: 15px;
+    letter-spacing: 6px;
     color: var(--muted);
+    -unity-text-align: middle-center;
 }
 .combine-title {
-    font-size: 46px;
+    font-size: 76px;
     -unity-font-style: bold;
     color: var(--bone);
+    letter-spacing: 2px;
     margin-top: 2px;
+    -unity-text-align: middle-center;
+}
+.combine-progress-rule {
+    width: 64px;
+    height: 3px;
+    margin-top: 12px;
+    background-color: var(--seal);
 }
 .combine-progress {
-    font-size: 12px;
-    letter-spacing: 2px;
+    font-size: 14px;
+    letter-spacing: 3px;
     color: var(--seal);
-    margin-top: 6px;
-    margin-bottom: 12px;
+    margin-top: 8px;
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
 }
 
+/* Large selected-test illustration — dominates the panel's center, like
+   the locked reference. scale-to-fit preserves each PNG's real aspect
+   ratio (no stretching/distortion); the illustrations already carry their
+   own soft ink-wash backdrop, so no extra frame/card is needed behind them. */
 .combine-illustration {
     width: 100%;
-    height: 200px;
-    margin-bottom: 8px;
+    height: 300px;
+    margin-top: 4px;
+    margin-bottom: 4px;
     -unity-background-scale-mode: scale-to-fit;
 }
 .combine-illustration--camera { background-image: url("/Assets/UI/Media/Images/combine/combine_camera.png"); }
@@ -109,46 +148,56 @@
 .combine-illustration--yokogeri { background-image: url("/Assets/UI/Media/Images/combine/combine_yokogeri.png"); }
 
 .combine-test-title {
-    font-size: 28px;
+    font-size: 34px;
     -unity-font-style: bold;
     color: var(--bone);
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
 }
 .combine-test-desc {
-    margin-top: 4px;
-    max-width: 420px;
+    font-size: 15px;
+    margin-top: 6px;
+    max-width: 460px;
+    -unity-text-align: middle-center;
 }
 .combine-test-secondary {
-    font-size: 13px;
+    font-size: 15px;
     -unity-font-style: bold;
     letter-spacing: 2px;
     color: var(--seal);
-    margin-top: 8px;
+    margin-top: 10px;
+    -unity-text-align: middle-center;
 }
 .combine-test-stat {
-    font-size: 11px;
-    letter-spacing: 2px;
+    font-size: 12px;
+    letter-spacing: 3px;
     color: var(--muted);
-    margin-top: 10px;
+    margin-top: 12px;
+    -unity-text-align: middle-center;
 }
 
-/* Prominent painted START button — the supplied red brushstroke asset, not a
-   generated shape. */
+/* Prominent painted START button — the supplied red brushstroke asset,
+   used at its own aspect ratio (scale-to-fit: the ~2400x98 stroke is
+   naturally a thin painted swipe, never stretched into a filled
+   rectangle). The button's own clickable area is generously sized for a
+   confident tap target and for the bold overlaid "START" label; the
+   brush renders centered within it at true proportions. */
 .combine-start-btn {
     width: 100%;
-    max-width: 340px;
-    height: 68px;
-    margin-top: 20px;
+    max-width: 460px;
+    height: 96px;
+    margin-top: 26px;
     border-width: 0;
     background-color: rgba(0, 0, 0, 0);
     background-image: url("/Assets/UI/Media/Images/combine/combine_start_brush.png");
-    -unity-background-scale-mode: scale-and-crop;
+    -unity-background-scale-mode: scale-to-fit;
     align-items: center;
     justify-content: center;
 }
 .combine-start-btn__text {
-    font-size: 20px;
+    font-size: 26px;
     -unity-font-style: bold;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     color: var(--bone);
 }
 
@@ -157,28 +206,39 @@
    painted brush, since it is a distinct "leave Combine" action, not another
    test START. */
 .combine-continue {
-    max-width: 300px;
-    margin-top: 12px;
+    max-width: 320px;
+    margin-top: 14px;
 }
 
-/* Vertical brush-stroke divider between the two panels. */
+/* Vertical brush-stroke divider between the two panels — a thin painted
+   stroke at true aspect ratio (scale-to-fit), not stretched to fill a wide
+   column. */
 .combine-divider-vertical {
-    width: 26px;
+    width: 44px;
     background-image: url("/Assets/UI/Media/Images/combine/combine_divider_vertical.png");
-    -unity-background-scale-mode: stretch-to-fill;
+    -unity-background-scale-mode: scale-to-fit;
 }
 
 /* RIGHT: the five-row checklist. */
 .combine-checklist {
-    width: 44%;
-    flex-direction: column;
-    padding-left: 22px;
+    width: 43%;
+    align-items: center;
     justify-content: center;
+    padding: 0 20px;
+}
+.combine-checklist-inner {
+    width: 100%;
+    max-width: 480px;
+    min-width: 320px;
+    flex-direction: column;
 }
 
+/* Horizontal brush-stroke divider between rows — this one IS intended to
+   span the full checklist width (a decorative rule, not a discrete shape),
+   so stretch-to-fill along its own thin strip is correct here. */
 .combine-divider-horizontal {
-    height: 12px;
-    margin: 2px 0;
+    height: 18px;
+    margin: 4px 0;
     background-image: url("/Assets/UI/Media/Images/combine/combine_divider_horizontal.png");
     -unity-background-scale-mode: stretch-to-fill;
 }
@@ -187,48 +247,72 @@
     position: relative;
     flex-direction: row;
     align-items: center;
-    padding: 12px 10px;
+    min-height: 96px;
+    padding: 14px 16px 14px 22px;
 }
+
+/* Selected-row accent: the supplied brush is a NARROW VERTICAL stroke
+   (~200x2758 source) — rendered here as a narrow strip pinned to the row's
+   left edge at its own aspect ratio (scale-to-fit inside a deliberately
+   narrow box), never stretched into a panel-filling smear. */
 .combine-row__accent {
     position: absolute;
-    top: 0;
+    top: 2px;
+    bottom: 2px;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 20px;
     display: none;
+    -unity-background-scale-mode: scale-to-fit;
     background-image: url("/Assets/UI/Media/Images/combine/combine_selected_red.png");
-    -unity-background-scale-mode: scale-and-crop;
 }
 .combine-row--selected .combine-row__accent {
     display: flex;
 }
 
 .combine-row__index {
-    width: 26px;
-    font-size: 18px;
+    width: 30px;
+    font-size: 20px;
     -unity-font-style: bold;
     color: var(--muted);
     -unity-text-align: middle-left;
 }
+
+/* Per-row test illustration thumbnail — the same supplied artwork used
+   large in the left panel, shown small here at its own aspect ratio. */
+.combine-row__thumb {
+    width: 60px;
+    height: 60px;
+    margin-right: 14px;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+.combine-row__thumb--camera { background-image: url("/Assets/UI/Media/Images/combine/combine_camera.png"); }
+.combine-row__thumb--pushups { background-image: url("/Assets/UI/Media/Images/combine/combine_pushups.png"); }
+.combine-row__thumb--squats { background-image: url("/Assets/UI/Media/Images/combine/combine_squats.png"); }
+.combine-row__thumb--wallsit { background-image: url("/Assets/UI/Media/Images/combine/combine_wallsit.png"); }
+.combine-row__thumb--yokogeri { background-image: url("/Assets/UI/Media/Images/combine/combine_yokogeri.png"); }
+
 .combine-row__body {
     flex-grow: 1;
     flex-direction: column;
 }
 .combine-row__title {
-    font-size: 15px;
+    font-size: 20px;
     -unity-font-style: bold;
     color: var(--bone);
 }
 .combine-row__secondary {
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 1px;
     color: var(--muted);
-    margin-top: 2px;
+    margin-top: 3px;
 }
+
+/* Check/lock state icon — sized to read clearly, not a tiny status glyph. */
 .combine-row__icon {
-    width: 22px;
-    height: 22px;
-    margin-left: 10px;
+    width: 44px;
+    height: 44px;
+    margin-left: 12px;
     flex-shrink: 0;
     -unity-background-scale-mode: scale-to-fit;
 }
@@ -237,6 +321,7 @@
 }
 .combine-row__icon--lock {
     background-image: url("/Assets/UI/Media/Images/combine/combine_lock.png");
+    opacity: 0.75;
 }
 
 /* Row state modifiers — locked rows read subdued, complete rows read
@@ -244,10 +329,13 @@
 .combine-row--locked .combine-row__index,
 .combine-row--locked .combine-row__title {
     color: var(--muted);
-    opacity: 0.55;
+    opacity: 0.5;
+}
+.combine-row--locked .combine-row__thumb {
+    opacity: 0.35;
 }
 .combine-row--complete .combine-row__title {
-    opacity: 0.8;
+    opacity: 0.85;
 }
 .combine-row--available .combine-row__title {
     color: var(--bone);

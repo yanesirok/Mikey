@@ -138,11 +138,12 @@ namespace Mikey.UI.SafeArea.Tests
 
             Assert.IsNotNull(root.Q<VisualElement>("menu"), "Expected a 'menu' (Main Menu) screen.");
 
-            // combineIntro → camTest
+            // combineIntro → combine (the Level 0 checklist, the required first
+            // Level 0 screen — must NOT route straight to camTest).
             var combineIntro = root.Q<VisualElement>("combineIntro");
             Assert.IsNotNull(combineIntro, "Expected a 'combineIntro' screen.");
-            Assert.IsNotNull(combineIntro.Q<Button>("go-camTest"),
-                "combineIntro must keep its 'go-camTest' CTA.");
+            Assert.IsNotNull(combineIntro.Q<Button>("go-combine"),
+                "combineIntro must route to 'combine', not directly to camTest.");
 
             // camTest → combine
             var camTest = root.Q<VisualElement>("camTest");

@@ -178,5 +178,77 @@ namespace Mikey.UI.Combine.Tests
                 StringAssert.Contains(selector, uss, $"Combine.uss must define '{selector}'.");
             }
         }
+
+        [Test]
+        public void EveryRow_HasATestIllustrationThumbnail()
+        {
+            var screen = CombineScreen(BuildTree());
+            var expected = new[]
+            {
+                "combine-row__thumb--camera", "combine-row__thumb--pushups", "combine-row__thumb--squats",
+                "combine-row__thumb--wallsit", "combine-row__thumb--yokogeri",
+            };
+            foreach (var className in expected)
+                Assert.IsNotNull(screen.Q<VisualElement>(className: className), $"Expected a row thumbnail carrying '{className}'.");
+        }
+
+        [Test]
+        public void ProgressRule_ExistsBetweenTitleAndProgressLabel()
+        {
+            var screen = CombineScreen(BuildTree());
+            Assert.IsNotNull(screen.Q<VisualElement>(className: "combine-progress-rule"),
+                "Expected a '.combine-progress-rule' divider between COMBINE and the X/5 COMPLETE line.");
+        }
+
+        /// <summary>
+        /// Regression guard for the "huge stretched rectangular smear" bug: the
+        /// three heavily-elongated brush assets (selected-row accent ~200x2758,
+        /// START brush ~2400x98, vertical panel divider) must render at their
+        /// own aspect ratio (scale-to-fit), never scale-and-crop/stretch-to-fill,
+        /// which would crop or distort their true painted shape.
+        /// </summary>
+        [Test]
+        public void ElongatedBrushAssets_UseScaleToFit_NeverCropOrStretch()
+        {
+            string uss = System.IO.File.ReadAllText(UssPath);
+
+            string accentBlock = ExtractRuleBlock(uss, ".combine-row__accent {");
+            Assert.IsNotNull(accentBlock, "Expected a '.combine-row__accent' rule.");
+            StringAssert.Contains("scale-to-fit", accentBlock);
+            StringAssert.DoesNotContain("scale-and-crop", accentBlock);
+            StringAssert.DoesNotContain("stretch-to-fill", accentBlock);
+
+            string startBlock = ExtractRuleBlock(uss, ".combine-start-btn {");
+            Assert.IsNotNull(startBlock, "Expected a '.combine-start-btn' rule.");
+            StringAssert.Contains("scale-to-fit", startBlock);
+            StringAssert.DoesNotContain("scale-and-crop", startBlock);
+            StringAssert.DoesNotContain("stretch-to-fill", startBlock);
+
+            string dividerBlock = ExtractRuleBlock(uss, ".combine-divider-vertical {");
+            Assert.IsNotNull(dividerBlock, "Expected a '.combine-divider-vertical' rule.");
+            StringAssert.Contains("scale-to-fit", dividerBlock);
+            StringAssert.DoesNotContain("scale-and-crop", dividerBlock);
+            StringAssert.DoesNotContain("stretch-to-fill", dividerBlock);
+        }
+
+        [Test]
+        public void SelectedRowAccent_IsNarrow_NotAPanelFillingSmear()
+        {
+            string uss = System.IO.File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, ".combine-row__accent {");
+            Assert.IsNotNull(block);
+            StringAssert.DoesNotContain("right: 0", block,
+                "The selected-row accent must not stretch across the full row width — it must stay a narrow strip pinned to the left edge.");
+        }
+
+        private static string ExtractRuleBlock(string uss, string header)
+        {
+            int start = uss.IndexOf(header, System.StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+            int open = start + header.Length;
+            int close = uss.IndexOf('}', open);
+            return close < 0 ? null : uss.Substring(open, close - open);
+        }
     }
 }

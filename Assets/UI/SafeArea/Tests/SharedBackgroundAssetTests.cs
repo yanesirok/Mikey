@@ -4,15 +4,20 @@ using NUnit.Framework;
 namespace Mikey.UI.SafeArea.Tests
 {
     /// <summary>
-    /// Cross-screen contract for the approved shared dark background: Lore
-    /// ("intro") and Profile must bind the exact same asset
-    /// (shared_dark_background.png) — background-only change, never a
-    /// duplicated per-screen copy of the image.
+    /// Background-asset contract for Lore and Profile. The shared dark
+    /// background (shared_dark_background.png) was approved and applied to
+    /// BOTH screens, then Profile was reverted back to its own supplied art
+    /// (profile_background.jpg) — it read poorly against Profile's content —
+    /// while Lore kept the shared asset. Lore and Profile intentionally use
+    /// DIFFERENT background art now; this guards against either direction of
+    /// regression (Lore losing the shared asset, or Profile silently
+    /// re-acquiring it).
     /// </summary>
     public class SharedBackgroundAssetTests
     {
         private const string SharedAssetPath = "Assets/UI/Media/Images/Shared/shared_dark_background.png";
         private const string SharedAssetUrlFragment = "Media/Images/Shared/shared_dark_background.png";
+        private const string ProfileAssetUrlFragment = "Media/Images/Profile/profile_background.jpg";
         private const string IntroUssPath = "Assets/UI/Intro/Intro.uss";
         private const string ProfileUssPath = "Assets/UI/Profile/Profile.uss";
 
@@ -23,13 +28,20 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
-        public void LoreAndProfile_BothReference_TheExactSameSharedAssetPath()
+        public void Lore_UsesTheSharedDarkBackground()
         {
             string introUss = File.ReadAllText(IntroUssPath);
-            string profileUss = File.ReadAllText(ProfileUssPath);
-
             StringAssert.Contains(SharedAssetUrlFragment, introUss, "Lore (Intro.uss) must reference the shared dark background.");
-            StringAssert.Contains(SharedAssetUrlFragment, profileUss, "Profile.uss must reference the shared dark background.");
+        }
+
+        [Test]
+        public void Profile_UsesItsOwnArt_NotTheSharedDarkBackground()
+        {
+            // Reverted: the shared asset looked good on Lore but not on Profile.
+            string profileUss = File.ReadAllText(ProfileUssPath);
+            StringAssert.Contains(ProfileAssetUrlFragment, profileUss, "Profile.uss must reference its own supplied background art.");
+            StringAssert.DoesNotContain(SharedAssetUrlFragment, profileUss,
+                "Profile.uss must NOT reference the shared dark background — that change was reverted.");
         }
 
         [Test]

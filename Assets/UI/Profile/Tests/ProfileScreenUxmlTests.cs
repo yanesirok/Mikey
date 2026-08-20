@@ -207,13 +207,17 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void Background_UsesSharedDarkBackground_AndOldDecorativeShapesAreGone()
+        public void Background_UsesSuppliedFinalArt_AndOldDecorativeShapesAreGone()
         {
+            // The shared dark background was tried on Profile and reverted — it
+            // read poorly against Profile's own content, so Profile keeps its own
+            // supplied art while Lore keeps the shared asset (see
+            // SharedBackgroundAssetTests for the cross-screen contract).
             const string ussPath = "Assets/UI/Profile/Profile.uss";
             Assert.IsTrue(File.Exists(ussPath), $"Expected stylesheet at {ussPath}.");
             string uss = File.ReadAllText(ussPath);
-            StringAssert.Contains("Media/Images/Shared/shared_dark_background.png", uss,
-                "Profile.uss must reference the approved shared dark background — the SAME asset Lore uses.");
+            StringAssert.Contains("Media/Images/Profile/profile_background.jpg", uss,
+                "Profile.uss must reference the supplied final background art.");
             StringAssert.Contains("scale-and-crop", uss, "Background must cover-fit, never stretch.");
 
             var screen = Profile(BuildTree());
@@ -459,7 +463,8 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-skip"));
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-continue"));
             Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-map"), "Main Menu's PLAY must route to Map.");
-            Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
+            Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-combine"),
+                "combineIntro must route to the Combine checklist, not directly to camTest.");
             Assert.IsNotNull(Screen(root, "camTest").Q<Button>("camera-test-complete"));
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));

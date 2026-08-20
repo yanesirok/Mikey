@@ -8,14 +8,15 @@
    ============================================================ */
 
 /* ---------- full-bleed background ----------
-   The approved shared dark background (shared_dark_background.png) IS the
-   background now — intentionally the SAME asset used on Lore (see
-   Intro/Intro.uss), not a separate per-screen copy; no generated decorative
-   glow/enso shapes. background-color is only a fallback in case the image
-   fails to load; -unity-background-scale-mode "scale-and-crop" is a
-   cover-fit (fills the box, preserves aspect ratio, never stretches),
-   matching every other full-bleed media surface in this app (see theme.uss
-   ".bg-media"). */
+   The supplied final art (profile_background.jpg) IS the background —
+   no generated decorative glow/enso shapes. background-color is only a
+   fallback in case the image fails to load; -unity-background-scale-mode
+   "scale-and-crop" is a cover-fit (fills the box, preserves aspect ratio,
+   never stretches), matching every other full-bleed media surface in this
+   app (see theme.uss ".bg-media"). The shared dark background
+   (shared_dark_background.png) was tried here but read poorly against
+   Profile's own content, so it stays Lore-only (Intro/Intro.uss) — the two
+   screens intentionally use DIFFERENT background art now. */
 .profile-bg {
     position: absolute;
     top: 0;
@@ -23,7 +24,7 @@
     right: 0;
     bottom: 0;
     background-color: var(--base);
-    background-image: url("/Assets/UI/Media/Images/Shared/shared_dark_background.png");
+    background-image: url("/Assets/UI/Media/Images/Profile/profile_background.jpg");
     -unity-background-scale-mode: scale-and-crop;
 }
 /* Subtle legibility scrim — the source art is already mostly near-black in

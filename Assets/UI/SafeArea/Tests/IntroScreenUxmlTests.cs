@@ -295,7 +295,11 @@ namespace Mikey.UI.SafeArea.Tests
             // it directly (see MikeyAppUxmlTests). "go-combine" now lives on the four
             // Level 0 placeholder screens' back actions, not camTest's Done button
             // (see CameraTestUxmlTests — that's "camera-test-complete" now).
-            foreach (var nav in new[] { "go-menu", "go-camTest", "go-combine" })
+            // "go-camTest" no longer exists anywhere in the app — combineIntro now
+            // routes to "go-combine" (the Level 0 checklist), and camTest is only
+            // reached from there via the checklist's dynamic, controller-bound
+            // START action, never a static "go-" navigator.
+            foreach (var nav in new[] { "go-menu", "go-combine" })
                 Assert.IsNotEmpty(root.Query<VisualElement>(name: nav).ToList(),
                     $"Existing navigator '{nav}' must remain.");
         }
