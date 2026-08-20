@@ -236,7 +236,16 @@ namespace Mikey.UI.SafeArea.Tests
             int close = uss.IndexOf('}', start);
             string block = uss.Substring(start, close - start);
             StringAssert.Contains("background-color: #000000", block,
-                "The Lore placeholder background must be pure (or extremely close to pure) black.");
+                "The Lore placeholder background must be pure (or extremely close to pure) black — kept as the fallback even once the shared art loads.");
+        }
+
+        [Test]
+        public void Background_UsesTheSharedDarkBackground_SameAssetAsProfile()
+        {
+            string uss = File.ReadAllText(IntroUssPath);
+            StringAssert.Contains("Media/Images/Shared/shared_dark_background.png", uss,
+                "Intro.uss must reference the approved shared dark background — the SAME asset Profile uses.");
+            StringAssert.Contains("scale-and-crop", uss, "Background must cover-fit, never stretch.");
         }
 
         [Test]
@@ -258,12 +267,13 @@ namespace Mikey.UI.SafeArea.Tests
                 Assert.IsEmpty(ByClass(intro, className), $"Lore must not wrap its copy in a '.{className}'-style container.");
         }
 
-        // 10 (suite-level) — production screen count is eleven (Profile, Okinawa chapter map added).
+        // 10 (suite-level) — production screen count is sixteen (the four Level 0
+        // placeholder test screens — combinePushups/Squats/Wallsit/Yokogeri — added).
         [Test]
-        public void ProductionScreenCount_IsTwelve()
+        public void ProductionScreenCount_IsSixteen()
         {
-            Assert.AreEqual(12, ByClass(BuildTree(), "screen").Count,
-                "The application must keep exactly twelve production screens.");
+            Assert.AreEqual(16, ByClass(BuildTree(), "screen").Count,
+                "The application must keep exactly sixteen production screens.");
         }
 
         // 11 (suite-level) — unrelated screen ids and forward routes are intact.
@@ -271,14 +281,25 @@ namespace Mikey.UI.SafeArea.Tests
         public void NoUnrelatedScreenIdsOrRoutes_Changed()
         {
             var root = BuildTree();
-            var expected = new[] { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
+            var expected = new[]
+            {
+                "title", "intro", "menu", "combineIntro", "camTest", "combine",
+                "combinePushups", "combineSquats", "combineWallsit", "combineYokogeri",
+                "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails",
+            };
             var ids = ByClass(root, "screen").Select(s => s.name).ToList();
-            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the twelve production screens.");
+            CollectionAssert.AreEquivalent(expected, ids, "Screen ids must be the sixteen production screens.");
 
             // Key forward navigators must still be present (routes intact). Title's
             // own route into Intro is no longer "go-intro" — TitleController drives
-            // it directly (see MikeyAppUxmlTests).
-            foreach (var nav in new[] { "go-menu", "go-camTest", "go-combine" })
+            // it directly (see MikeyAppUxmlTests). "go-combine" now lives on the four
+            // Level 0 placeholder screens' back actions, not camTest's Done button
+            // (see CameraTestUxmlTests — that's "camera-test-complete" now).
+            // "go-camTest" no longer exists anywhere in the app — combineIntro now
+            // routes to "go-combine" (the Level 0 checklist), and camTest is only
+            // reached from there via the checklist's dynamic, controller-bound
+            // START action, never a static "go-" navigator.
+            foreach (var nav in new[] { "go-menu", "go-combine" })
                 Assert.IsNotEmpty(root.Query<VisualElement>(name: nav).ToList(),
                     $"Existing navigator '{nav}' must remain.");
         }

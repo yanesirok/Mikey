@@ -17,9 +17,11 @@
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Pure
-   black, no glow/atmosphere layer — the screen is meant to feel almost
-   empty, not lit. */
+   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Uses
+   the approved shared dark background (also used by Profile — intentionally
+   the SAME asset on both screens, see Profile/Profile.uss), cover-fit so it
+   never stretches; background-color stays the fallback black in case the
+   image fails to load, keeping this screen's near-empty, unlit feel either way. */
 .intro-bg {
     position: absolute;
     top: 0;
@@ -27,6 +29,8 @@
     right: 0;
     bottom: 0;
     background-color: #000000;
+    background-image: url("/Assets/UI/Media/Images/Shared/shared_dark_background.png");
+    -unity-background-scale-mode: scale-and-crop;
 }
 
 /* ---------- foreground layout ----------

@@ -9,10 +9,11 @@ namespace Mikey.UI.SafeArea.Tests
     /// <summary>
     /// Structural contract for the rebuilt landscape "combineIntro" LVL0 briefing
     /// screen in MikeyApp.uxml: a single safe-area wrapper with the decorative
-    /// background outside it and all briefing/test content inside, the preserved
-    /// production route (go-menu → menu, go-camTest → camTest), explicit
+    /// background outside it and all briefing/test content inside, the
+    /// production routes (go-menu → menu, go-combine → the Combine checklist —
+    /// the required first Level 0 screen, never straight to camTest), explicit
     /// touch-target + visible-icon sizing classes, a responsive (non
-    /// width:100%) action bar, and no regression of the surrounding ten-screen
+    /// width:100%) action bar, and no regression of the surrounding screen
     /// flow or the retired Combine result route.
     /// </summary>
     public class CombineIntroScreenUxmlTests
@@ -121,25 +122,35 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
         }
 
-        // 7 — go-camTest exists on combineIntro.
+        // 7 — go-combine exists on combineIntro (the required Level 0 entry
+        // route — must land on the checklist, never camTest directly).
         [Test]
-        public void GoCamTest_ExistsOnCombineIntro()
+        public void GoCombine_ExistsOnCombineIntro()
         {
             var screen = CombineIntro(BuildTree());
-            Assert.AreEqual(1, screen.Query<Button>(name: "go-camTest").ToList().Count,
-                "combineIntro must expose exactly one 'go-camTest' (Begin Camera Test) Button.");
+            Assert.AreEqual(1, screen.Query<Button>(name: "go-combine").ToList().Count,
+                "combineIntro must expose exactly one 'go-combine' (Begin Level 0) Button.");
         }
 
-        // 8 — go-camTest targets the existing 'camTest' screen.
+        // 8 — go-combine targets the existing 'combine' screen.
         [Test]
-        public void GoCamTest_TargetsExistingCamTestScreen()
+        public void GoCombine_TargetsExistingCombineScreen()
         {
             var root = BuildTree();
-            var nav = CombineIntro(root).Q<Button>("go-camTest");
-            Assert.IsNotNull(nav, "Expected a 'go-camTest' navigator on combineIntro.");
-            var camTest = root.Q<VisualElement>("camTest");
-            Assert.IsNotNull(camTest, "'go-camTest' must target an existing 'camTest' screen.");
-            Assert.IsTrue(camTest.ClassListContains("screen"), "'camTest' target must be a screen.");
+            var nav = CombineIntro(root).Q<Button>("go-combine");
+            Assert.IsNotNull(nav, "Expected a 'go-combine' navigator on combineIntro.");
+            var combine = root.Q<VisualElement>("combine");
+            Assert.IsNotNull(combine, "'go-combine' must target an existing 'combine' screen.");
+            Assert.IsTrue(combine.ClassListContains("screen"), "'combine' target must be a screen.");
+        }
+
+        // 8b — combineIntro must never route directly to camTest.
+        [Test]
+        public void CombineIntro_NeverRoutesDirectlyToCamTest()
+        {
+            var screen = CombineIntro(BuildTree());
+            Assert.IsNull(screen.Q<Button>("go-camTest"),
+                "Level 0 entry must land on the Combine checklist first — combineIntro must not route straight to camTest.");
         }
 
         // 9 — both production actions use the minimum touch-target class.
@@ -147,7 +158,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ProductionActions_UseMinimumTouchTargetClass()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-combine", "go-menu" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -161,7 +172,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ActionIcons_UseExplicitVisibleNonShrinkingClasses()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-combine", "go-menu" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -209,7 +220,7 @@ namespace Mikey.UI.SafeArea.Tests
             var screen = CombineIntro(BuildTree());
             var bar = screen.Q<VisualElement>(className: "ci-actionbar");
             Assert.IsNotNull(bar, "Expected a responsive .ci-actionbar container.");
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-combine", "go-menu" })
                 Assert.IsNotNull(bar.Q<Button>(name),
                     $"'{name}' must live inside the .ci-actionbar container.");
         }
@@ -222,7 +233,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ActionButtons_DoNotUseWidth100ButtonRule()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-combine", "go-menu" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -243,12 +254,13 @@ namespace Mikey.UI.SafeArea.Tests
                 "The .ci-btn rule must size via flex, not width:100% that overflows the sibling action.");
         }
 
-        // 15 — production screen count is twelve (Profile, Okinawa chapter map, Profile Details added).
+        // 15 — production screen count is sixteen (Profile, Okinawa chapter map,
+        // Profile Details, and the four Level 0 placeholder test screens added).
         [Test]
-        public void ProductionScreenCount_IsTwelve()
+        public void ProductionScreenCount_IsSixteen()
         {
-            Assert.AreEqual(12, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
-                "There must be exactly twelve production screens.");
+            Assert.AreEqual(16, BuildTree().Query<VisualElement>(className: "screen").ToList().Count,
+                "There must be exactly sixteen production screens.");
         }
 
         // 16 — Title → Intro → Home remains unchanged (Title's own route into
@@ -277,8 +289,8 @@ namespace Mikey.UI.SafeArea.Tests
             var root = BuildTree();
             var camTest = root.Q<VisualElement>("camTest");
             Assert.IsNotNull(camTest, "Expected a 'camTest' screen.");
-            Assert.IsNotNull(camTest.Q<Button>("go-combine"),
-                "camTest must keep its 'go-combine' route to the Combine screen.");
+            Assert.IsNotNull(camTest.Q<Button>("camera-test-complete"),
+                "camTest must keep its 'camera-test-complete' route to the Combine screen.");
 
             var combine = root.Q<VisualElement>("combine");
             Assert.IsNotNull(combine, "Expected a 'combine' screen.");

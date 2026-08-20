@@ -87,10 +87,21 @@ namespace Mikey.UI.Media.Tests
                 Object clip = element.FindPropertyRelative("clip").objectReferenceValue;
                 Object staticImage = element.FindPropertyRelative("staticImage").objectReferenceValue;
 
-                if (screenId == "map")
+                if (screenId == "map" || screenId == "combine")
                 {
-                    Assert.IsNull(clip, "The Map binding must not carry a video clip (it is a static background).");
-                    Assert.IsNotNull(staticImage, "The Map binding must carry a static image.");
+                    // Combine's real LEVEL 0 checklist uses the supplied static
+                    // combine_background.png (matching the locked design
+                    // reference), replacing the old placeholder's looping video —
+                    // same static-image mechanism the Map screen already uses.
+                    Assert.IsNull(clip, $"The '{screenId}' binding must not carry a video clip (it is a static background).");
+                    Assert.IsNotNull(staticImage, $"The '{screenId}' binding must carry a static image.");
+
+                    if (screenId == "combine")
+                    {
+                        string imagePath = AssetDatabase.GetAssetPath(staticImage);
+                        Assert.AreEqual("Assets/UI/Media/Images/combine/combine_background.png", imagePath,
+                            "The Combine binding must reference the supplied combine_background.png.");
+                    }
                 }
                 else
                 {

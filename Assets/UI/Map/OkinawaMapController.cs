@@ -14,14 +14,24 @@ namespace Mikey.UI.Map
     /// The top bar's Settings button opens the one shared Settings modal —
     /// this controller doesn't wire it at all (see
     /// Mikey.UI.Settings.SettingsModalController, which finds
-    /// "okinawa-topbar-settings" itself). LVL 0 is always unlocked and routes
-    /// to the existing assessment intro ("combineIntro"); LVL 1 unlocks once
-    /// <see cref="TutorialProgressState.Level1Unlocked"/> is reached and
-    /// routes to the existing lesson/techniques flow ("techniques",
-    /// mirroring the old MapLevelPreviewController's StartLessonTarget);
-    /// LVL 2-6 are always locked placeholders — no gameplay built for them
-    /// yet. Okinawa's final MVP mission set is exactly 7 missions (1 Special
-    /// + 3 Training + 2 Fight + 1 Boss Fight, see MapMarkerLayout.Missions).
+    /// "okinawa-topbar-settings" itself).
+    ///
+    /// Unlock state for all seven markers is now read from
+    /// <see cref="IOkinawaProgress"/> (the paired-unlock model: LVL0 always
+    /// available; LVL1 Training + LVL2 Fight unlock together once LVL0
+    /// completes; LVL3 Training + LVL4 Fight unlock together once both LVL1
+    /// and LVL2 complete; LVL5 Training unlocks once both LVL3 and LVL4
+    /// complete; LVL6 Boss Fight unlocks only once the full LVL0-5 set is
+    /// complete) — not the legacy linear TutorialProgressState, which this
+    /// controller still reads ONLY for the top-bar Techniques-access gate
+    /// (<see cref="TutorialProgressPresenter.IsTechniquesUnlocked"/>), an
+    /// unrelated concern. LVL 0 routes to the existing assessment intro
+    /// ("combineIntro") and LVL 1 to the existing lesson/techniques flow
+    /// ("techniques") exactly as before; LVL 2-6 have no built mission
+    /// screen yet, so once unlocked they show an honest "COMING SOON" CTA
+    /// rather than fabricating a destination. Okinawa's final mission set is
+    /// exactly 7 missions (1 Special + 3 Training + 2 Fight + 1 Boss Fight,
+    /// see MapMarkerLayout.Missions) — unchanged by this.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class OkinawaMapController : MonoBehaviour
@@ -38,6 +48,7 @@ namespace Mikey.UI.Map
         private const string LockedNodeClass = "level-node--locked";
         private const string PanelOpenClass = "detail-panel--open";
         private const string LockedCtaClass = "detail-panel__cta--locked";
+        private const string ComingSoonCtaClass = "detail-panel__cta--soon";
         private const string TransitionVisibleClass = "map-transition-overlay--visible";
         private const string NavLockedClass = "map-topbar__nav-btn--locked";
 
@@ -62,6 +73,7 @@ namespace Mikey.UI.Map
 
         private IScreenNavigator _navigator;
         private ITutorialProgress _progress;
+        private IOkinawaProgress _okinawaProgress;
 
         private int _selectedLevel = -1;
         private Coroutine _bindRoutine;
@@ -116,6 +128,12 @@ namespace Mikey.UI.Map
             {
                 _progress.Changed -= OnProgressChanged;
                 _progress = null;
+            }
+
+            if (_okinawaProgress != null)
+            {
+                _okinawaProgress.Changed -= OnProgressChanged;
+                _okinawaProgress = null;
             }
 
             _canvas = null;
@@ -211,6 +229,10 @@ namespace Mikey.UI.Map
             _progress = GetComponent<ITutorialProgress>();
             if (_progress != null)
                 _progress.Changed += OnProgressChanged;
+
+            _okinawaProgress = GetComponent<IOkinawaProgress>();
+            if (_okinawaProgress != null)
+                _okinawaProgress.Changed += OnProgressChanged;
 
             RefreshLevelLockStates();
             RefreshTechniquesGate();
@@ -342,6 +364,7 @@ namespace Mikey.UI.Map
         private void ShowLevelPanel(int index)
         {
             bool locked = IsLevelLocked(index);
+            bool comingSoon = !locked && !HasRealDestination(index);
 
             _panelEyebrow.text = "LEVEL";
             _panelTitle.text = $"LVL {index}";
@@ -357,16 +380,26 @@ namespace Mikey.UI.Map
                     _panelDesc.text = "Foundations";
                     break;
                 default:
-                    _panelSubtitle.text = string.Empty;
-                    _panelDesc.text = "A future level. Complete earlier levels to unlock it.";
+                    _panelSubtitle.text = MissionTypeLabel(index);
+                    _panelDesc.text = locked
+                        ? "Complete earlier levels to unlock it."
+                        : "This mission isn't built yet — check back soon.";
                     break;
             }
 
-            if (!locked)
+            _panelCta.RemoveFromClassList(LockedCtaClass);
+            _panelCta.RemoveFromClassList(ComingSoonCtaClass);
+
+            if (!locked && !comingSoon)
             {
                 _panelCtaText.text = index == 0 ? "BEGIN" : "START";
                 _panelCta.SetEnabled(true);
-                _panelCta.RemoveFromClassList(LockedCtaClass);
+            }
+            else if (comingSoon)
+            {
+                _panelCtaText.text = "COMING SOON";
+                _panelCta.SetEnabled(false);
+                _panelCta.AddToClassList(ComingSoonCtaClass);
             }
             else
             {
@@ -374,6 +407,29 @@ namespace Mikey.UI.Map
                 _panelCta.SetEnabled(false);
                 _panelCta.AddToClassList(LockedCtaClass);
             }
+        }
+
+        /// <summary>LVL0 (assessment) and LVL1 (techniques) are the only markers with a real built destination screen so far.</summary>
+        private static bool HasRealDestination(int index) => index == 0 || index == 1;
+
+        /// <summary>Mission-type copy for the detail panel, read from the one centralized source (MapMarkerLayout), never hardcoded per index.</summary>
+        private static string MissionTypeLabel(int index)
+        {
+            foreach (MissionMarkerLayout mission in MapMarkerLayout.Missions)
+            {
+                if (mission.LevelIndex != index)
+                    continue;
+
+                switch (mission.Type)
+                {
+                    case MissionMarkerType.Training: return "TRAINING";
+                    case MissionMarkerType.Fight: return "FIGHT";
+                    case MissionMarkerType.BossFight: return "BOSS FIGHT";
+                    case MissionMarkerType.Special: return "ASSESSMENT";
+                    default: return string.Empty;
+                }
+            }
+            return string.Empty;
         }
 
         private void ClosePanel()
@@ -415,18 +471,17 @@ namespace Mikey.UI.Map
             }
         }
 
-        /// <summary>LVL 0 is always unlocked; LVL 1 unlocks at Level1Unlocked; LVL 2-6 are always locked (no gameplay built yet).</summary>
+        /// <summary>
+        /// Delegates entirely to <see cref="IOkinawaProgress"/> — the paired-unlock
+        /// model is the sole authority for LVL 0-6 lock state. If the component is
+        /// somehow missing, fails safe: only LVL0 (never gated on anything) stays
+        /// reachable.
+        /// </summary>
         private bool IsLevelLocked(int index)
         {
-            switch (index)
-            {
-                case 0:
-                    return false;
-                case 1:
-                    return _progress != null && !TutorialProgressPresenter.IsMapUnlocked(_progress.State);
-                default:
-                    return true;
-            }
+            if (_okinawaProgress == null)
+                return index != 0;
+            return !_okinawaProgress.IsUnlocked(index);
         }
 
         private void RefreshLevelLockStates()

@@ -23,7 +23,11 @@ namespace Mikey.UI.Profile.Tests
         private static readonly string LegacyResultNavigator = "go-" + LegacyResultScreen;
 
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
+        {
+            "title", "intro", "menu", "combineIntro", "camTest", "combine",
+            "combinePushups", "combineSquats", "combineWallsit", "combineYokogeri",
+            "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails",
+        };
 
         private static VisualElement BuildTree()
         {
@@ -55,12 +59,12 @@ namespace Mikey.UI.Profile.Tests
         private static List<Label> Labels(VisualElement el) => el.Query<Label>().ToList();
 
         [Test]
-        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsTwelve()
+        public void Profile_ExistsExactlyOnce_AndProductionScreenCountIsSixteen()
         {
             var root = BuildTree();
             var screens = root.Query<VisualElement>(className: "screen").ToList();
             Assert.AreEqual(1, screens.Count(s => s.name == "profile"), "There must be exactly one profile screen.");
-            Assert.AreEqual(12, screens.Count, "There must be exactly twelve production screens (Profile Details is new).");
+            Assert.AreEqual(16, screens.Count, "There must be exactly sixteen production screens (the four Level 0 placeholder test screens added).");
             CollectionAssert.AreEquivalent(ExpectedScreenIds, screens.Select(s => s.name).ToList());
         }
 
@@ -205,6 +209,10 @@ namespace Mikey.UI.Profile.Tests
         [Test]
         public void Background_UsesSuppliedFinalArt_AndOldDecorativeShapesAreGone()
         {
+            // The shared dark background was tried on Profile and reverted — it
+            // read poorly against Profile's own content, so Profile keeps its own
+            // supplied art while Lore keeps the shared asset (see
+            // SharedBackgroundAssetTests for the cross-screen contract).
             const string ussPath = "Assets/UI/Profile/Profile.uss";
             Assert.IsTrue(File.Exists(ussPath), $"Expected stylesheet at {ussPath}.");
             string uss = File.ReadAllText(ussPath);
@@ -455,8 +463,9 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-skip"));
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-continue"));
             Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-map"), "Main Menu's PLAY must route to Map.");
-            Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
-            Assert.IsNotNull(Screen(root, "camTest").Q<Button>("go-combine"));
+            Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-combine"),
+                "combineIntro must route to the Combine checklist, not directly to camTest.");
+            Assert.IsNotNull(Screen(root, "camTest").Q<Button>("camera-test-complete"));
             Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));

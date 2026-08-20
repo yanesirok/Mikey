@@ -43,23 +43,29 @@ namespace Mikey.UI.SafeArea.Tests
             return null;
         }
 
-        // The twelve production screens: the six post-consolidation entry/Combine
-        // screens plus the Techniques lesson hub, the Practice training slice, the
-        // two-tier Map flow (the Japan world map plus the Okinawa chapter map),
-        // and Profile Details (Display Name/Gender/Age/Weight/Height).
+        // The sixteen production screens: the six post-consolidation entry/Combine
+        // screens, the four Level 0 placeholder test screens (combinePushups/
+        // Squats/Wallsit/Yokogeri — no real assessment built yet), the Techniques
+        // lesson hub, the Practice training slice, the two-tier Map flow (the
+        // Japan world map plus the Okinawa chapter map), and Profile Details
+        // (Display Name/Gender/Age/Weight/Height).
         private static readonly string[] ExpectedScreenIds =
-            { "title", "intro", "menu", "combineIntro", "camTest", "combine", "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails" };
+        {
+            "title", "intro", "menu", "combineIntro", "camTest", "combine",
+            "combinePushups", "combineSquats", "combineWallsit", "combineYokogeri",
+            "techniques", "practice", "map", "mapOkinawa", "profile", "profileDetails",
+        };
 
         // 1
         [Test]
-        public void HasExactlyTwelveScreens()
+        public void HasExactlySixteenScreens()
         {
-            Assert.AreEqual(12, ByClass(BuildTree(), "screen").Count);
+            Assert.AreEqual(16, ByClass(BuildTree(), "screen").Count);
         }
 
         // 2
         [Test]
-        public void ScreenIds_AreExactlyTheTwelveProductionScreens()
+        public void ScreenIds_AreExactlyTheSixteenProductionScreens()
         {
             var ids = ByClass(BuildTree(), "screen").Select(s => s.name).ToList();
             CollectionAssert.AreEquivalent(ExpectedScreenIds, ids);
@@ -132,17 +138,18 @@ namespace Mikey.UI.SafeArea.Tests
 
             Assert.IsNotNull(root.Q<VisualElement>("menu"), "Expected a 'menu' (Main Menu) screen.");
 
-            // combineIntro → camTest
+            // combineIntro → combine (the Level 0 checklist, the required first
+            // Level 0 screen — must NOT route straight to camTest).
             var combineIntro = root.Q<VisualElement>("combineIntro");
             Assert.IsNotNull(combineIntro, "Expected a 'combineIntro' screen.");
-            Assert.IsNotNull(combineIntro.Q<Button>("go-camTest"),
-                "combineIntro must keep its 'go-camTest' CTA.");
+            Assert.IsNotNull(combineIntro.Q<Button>("go-combine"),
+                "combineIntro must route to 'combine', not directly to camTest.");
 
             // camTest → combine
             var camTest = root.Q<VisualElement>("camTest");
             Assert.IsNotNull(camTest, "Expected a 'camTest' screen.");
-            Assert.IsNotNull(camTest.Q<Button>("go-combine"),
-                "camTest must route to the modern Combine screen via a 'go-combine' button.");
+            Assert.IsNotNull(camTest.Q<Button>("camera-test-complete"),
+                "camTest must route to the Combine checklist via a 'camera-test-complete' button (controller-bound, not a bare 'go-' navigator, since it also marks Level 0's Camera Test complete).");
 
             // combine → menu (return Home)
             var combine = root.Q<VisualElement>("combine");
@@ -223,7 +230,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void MappedForegroundElementsAreInsideSafeAreaContent()
         {
             var root = BuildTree();
-            foreach (var className in new[] { "content", "cam-actionbar", "cam-live", "skip", "combine-content",
+            foreach (var className in new[] { "content", "cam-actionbar", "cam-live", "skip", "combine-layout",
                 "tq-layout", "tq-lessons", "tq-actionbar", "pr-hud", "pr-actionbar", "pr-stage",
                 "map-root", "pan-stage", "detail-panel",
                 "profile-layout", "profile-column--identity", "profile-column--radar", "profile-column--journey" })

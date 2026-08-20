@@ -85,6 +85,27 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
+        public void UiGameObject_HasLevel0ProgressionController()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            // Level0ProgressionController lives in Mikey.UI.Progression, which this
+            // test asm does not reference: look it up by name (same approach as
+            // ScreenManager).
+            Assert.IsNotNull(ui.GetComponent("Level0ProgressionController"),
+                "UI GameObject must have a Level0ProgressionController (Level 0 Combine checklist wiring).");
+        }
+
+        [Test]
+        public void UiGameObject_HasOkinawaProgressionController()
+        {
+            GameObject ui = OpenSceneAndFindUi();
+
+            Assert.IsNotNull(ui.GetComponent("OkinawaProgressionController"),
+                "UI GameObject must have an OkinawaProgressionController (Okinawa paired mission-unlock wiring).");
+        }
+
+        [Test]
         public void ScreenManager_StartScreen_IsTitle()
         {
             GameObject ui = OpenSceneAndFindUi();

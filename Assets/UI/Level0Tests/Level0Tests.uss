@@ -1,0 +1,56 @@
+/* ============================================================
+   Level 0 placeholder test screens (Max Push-Ups / Max Squats / Wall Sit /
+   Slow Yoko-Geri) — the smallest honest frontend entry boundary for the four
+   tests with no real assessment implementation yet. Deliberately static: no
+   controller, no dynamic state, no completion action. Shared by all four
+   screens; identity (title/copy/illustration) lives entirely in MikeyApp.uxml.
+   ============================================================ */
+
+.l0t-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #0B0E11;
+}
+
+.l0t-content {
+    align-items: center;
+}
+
+.l0t-illustration {
+    width: 200px;
+    height: 200px;
+    margin-bottom: 10px;
+    opacity: 0.55;
+    -unity-background-scale-mode: scale-to-fit;
+}
+.l0t-illustration--pushups { background-image: url("/Assets/UI/Media/Images/combine/combine_pushups.png"); }
+.l0t-illustration--squats { background-image: url("/Assets/UI/Media/Images/combine/combine_squats.png"); }
+.l0t-illustration--wallsit { background-image: url("/Assets/UI/Media/Images/combine/combine_wallsit.png"); }
+.l0t-illustration--yokogeri { background-image: url("/Assets/UI/Media/Images/combine/combine_yokogeri.png"); }
+
+.l0t-kicker {
+    -unity-text-align: middle-center;
+}
+.l0t-secondary {
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: var(--seal);
+    margin-top: 4px;
+    -unity-text-align: middle-center;
+}
+.l0t-title {
+    -unity-text-align: middle-center;
+}
+.l0t-lead {
+    -unity-text-align: middle-center;
+    max-width: 480px;
+    margin-top: 8px;
+}
+.l0t-back {
+    max-width: 260px;
+    margin-top: 22px;
+}
