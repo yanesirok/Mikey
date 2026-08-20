@@ -2,6 +2,8 @@
     "name": "Mikey.UI.Profile.Tests",
     "rootNamespace": "Mikey.UI.Profile.Tests",
     "references": [
+        "Mikey.UI.Profile",
+        "Mikey.UI.Progression",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

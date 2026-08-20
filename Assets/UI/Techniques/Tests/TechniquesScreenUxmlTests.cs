@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -184,6 +185,62 @@ namespace Mikey.UI.Techniques.Tests
                     $"Action button '{btn.name}' must not use the width:100% global '.btn' class " +
                     "(use the content-sized '.tq-btn' / lesson-card classes instead).");
             }
+        }
+
+        // Shared top-nav visual system (see Mikey.UI.Map.Tests.SharedTopBarRedesignTests
+        // for the cross-screen glow/underline/spacing/Settings checks) — this file only
+        // covers Techniques' own two new nav links and that its existing content still
+        // has room to breathe underneath the overlaid HUD.
+        [Test]
+        public void Techniques_HasSharedTopHud_WithMapAndProfileLinks()
+        {
+            var root = BuildTree();
+            var screen = Techniques(root);
+            var topBar = screen.Q<VisualElement>(className: "map-topbar");
+            Assert.IsNotNull(topBar, "Techniques must carry the shared top HUD.");
+
+            var goMap = topBar.Q<VisualElement>("go-map");
+            Assert.IsNotNull(goMap, "Techniques HUD must expose 'go-map'.");
+            Assert.IsTrue(root.Q<VisualElement>("map").ClassListContains("screen"), "'go-map' target must exist.");
+
+            var goProfile = topBar.Q<VisualElement>("go-profile");
+            Assert.IsNotNull(goProfile, "Techniques HUD must expose 'go-profile'.");
+            Assert.IsTrue(root.Q<VisualElement>("profile").ClassListContains("screen"), "'go-profile' target must exist.");
+        }
+
+        [Test]
+        public void TqLayout_ClearsTheOverlaidHud_WithATopOffset()
+        {
+            // The shared HUD (Map.uss ".map-topbar") is an absolute overlay, not a row
+            // that reflows layout — Techniques.uss must keep its own top offset so
+            // ".tq-layout"'s heading is never covered by it.
+            string uss = File.ReadAllText("Assets/UI/Techniques/Techniques.uss");
+            string block = ExtractRuleBlock(uss, ".tq-layout {");
+            Assert.IsNotNull(block, "Expected a '.tq-layout' rule.");
+            StringAssert.Contains("padding-top", block);
+        }
+
+        private static string ExtractRuleBlock(string uss, string header)
+        {
+            int start = uss.IndexOf(header, System.StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+            int open = uss.IndexOf('{', start);
+            if (open < 0)
+                return null;
+            int depth = 0;
+            for (int i = open; i < uss.Length; i++)
+            {
+                if (uss[i] == '{')
+                    depth++;
+                else if (uss[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                        return uss.Substring(open + 1, i - open - 1);
+                }
+            }
+            return null;
         }
     }
 }

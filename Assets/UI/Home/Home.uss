@@ -1,19 +1,20 @@
 /* ============================================================
-   Home hub — landscape "menu" screen styles.
-   Palette custom properties (--ember, --jade, --bone, --base, …) cascade
-   in from .mikey-app in theme.uss; this file only adds Home-specific
-   structure so the hub stays modular (same pattern as Combine/Combine.uss).
+   Main Menu — landscape "menu" screen styles.
+   Palette custom properties (--ember, --bone, --base, …) cascade in from
+   .mikey-app in theme.uss; this file only adds Main-Menu-specific structure
+   so the screen stays modular (same pattern as Combine/Combine.uss).
 
-   Landscape-first: wide, width-capped composition that fills 16:9 and
-   wider phone-landscape ratios — deliberately NOT the old 720px portrait
-   column. Translated from design-pull/assets/screens-home.jsx + theme.css.
+   Rebuilt as a cinematic game main menu (video + logo + typography), not the
+   old dashboard hub: no cards, no stats, no dock, no progression CTA. The
+   full-bleed background layer keeps its original element/class names
+   (.home-bg / #home-bg-media / .home-scrim) — BackgroundMediaController and
+   its tests key off them by screen id ("menu") already; only the bound clip
+   changed (main_menu_loop.mp4).
    ============================================================ */
 
-/* ---------- full-bleed background ----------
+/* ---------- full-bleed background video ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .title-bg / .combine-bg on the other screens. Solid base + a
-   soft ember glow stands in for painted art (which lands later), matching
-   the reference's radial-gradient hero wash. */
+   .cam-feed / .title-bg / .combine-bg on the other screens. */
 .home-bg {
     position: absolute;
     top: 0;
@@ -21,60 +22,21 @@
     right: 0;
     bottom: 0;
     background-color: var(--base);
-    align-items: center;
+    overflow: hidden;
 }
-.home-glow {
+
+/* Subtle legibility scrim over the cinematic so the logo/menu stay readable
+   without obscuring the supplied video more than needed. */
+.home-scrim {
     position: absolute;
-    top: -160px;
-    width: 760px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.06);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(8, 10, 12, 0.32);
 }
 
-/* ---------- foreground layout ----------
-   One full-height column inside the safe area: ribbon pinned top, hero
-   filling the middle, dock pinned bottom. align-self centers the capped
-   width bands on ultra-wide displays without a narrow portrait column. */
-.home-layout {
-    flex-grow: 1;
-    width: 100%;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* ---------- reusable visible-icon kit (Home-scoped) ----------
-   Sizes the ICON ARTWORK itself (the rendered glyph), independently of the
-   button hit area. Every icon is non-shrinking and centered so flex never
-   collapses the artwork, and the glyph stays large/recognizable even at
-   phone-landscape sizes. Used alongside the per-context colour classes
-   (.home-tab__glyph / .home-chip__glyph) which now only carry colour. */
-.home-icon {
-    flex-shrink: 0;
-    align-self: center;
-    -unity-text-align: middle-center;
-    -unity-font-style: normal;
-}
-.home-icon--nav {
-    /* bottom-nav visible icons: 40–44px target */
-    font-size: 42px;
-}
-.home-icon--ribbon {
-    /* top ribbon icons/glyphs: 30–36px target */
-    font-size: 34px;
-}
-.home-icon--cta {
-    /* primary CTA arrow: 30–36px target */
-    font-size: 34px;
-}
-
-/* ---------- touch-target kit (Home-scoped) ----------
-   .tap-target  — generic interactive control: >= 48x48 logical.
-   .tap-target-lg — bottom-nav dock tabs: >= 56x56 logical.
-   Both set flex-shrink:0 so flex never collapses a control below a tappable
-   size (keeps the dock clickable at phone-landscape sizes), centre content,
-   and add a real pressed-state scale so controls never feel dead. */
+/* ---------- touch-target kit (Home-scoped) ---------- */
 .tap-target {
     min-width: 48px;
     min-height: 48px;
@@ -84,244 +46,350 @@
     -unity-text-align: middle-center;
 }
 .tap-target:active {
-    scale: 0.97;
+    scale: 0.97 0.97;
 }
 .tap-target-lg {
     min-width: 56px;
     min-height: 56px;
     flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    -unity-text-align: middle-center;
 }
 .tap-target-lg:active {
-    scale: 0.97;
+    scale: 0.97 0.97;
 }
 
-/* ---------- top profile / stat ribbon ---------- */
-.home-ribbon {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 1400px;
-    align-self: center;
-}
-.home-belt {
-    flex-direction: row;
-    align-items: center;
-}
-/* belt/rank visual — at least 36px in its main dimension, non-shrinking */
-.home-belt__swatch {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 9px;
-    background-color: var(--bone);
-    border-width: 1px;
-    border-color: var(--line);
-    margin-right: 12px;
-}
-.home-belt__rank {
-    font-size: 15px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-.home-belt__level {
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--muted);
-}
-.home-stats {
-    flex-direction: row;
-    align-items: center;
-}
-.home-chip {
-    flex-direction: row;
-    align-items: center;
-    background-color: rgba(11, 14, 17, 0.45);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 22px;
-    padding: 8px 16px;
-    margin-left: 10px;
-}
-/* colour only — size comes from .home-icon--ribbon */
-.home-chip__glyph {
-    color: var(--ember);
-    margin-right: 10px;
-}
-.home-chip__text {
-    font-size: 13px;
-    color: var(--bone);
-}
-.home-chip__text--coin {
-    color: var(--jade);
-}
-
-/* ---------- hero / progression ---------- */
-.home-hero {
+/* ---------- foreground layout ----------
+   Logo pinned upper-left (absolute, so it never disturbs the nav's own
+   layout); the vertical nav fills the right side, vertically centered. */
+.home-layout {
     flex-grow: 1;
     width: 100%;
-    align-items: center;
-    justify-content: center;
-}
-.home-hero__card {
     flex-direction: row;
     align-items: center;
-    width: 100%;
-    max-width: 980px;
-    align-self: center;
-    background-color: rgba(18, 22, 27, 0.7);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 18px;
-    padding: 34px;
+    justify-content: flex-end;
 }
-/* session progress ring (focal), stands in for the SVG ring in the reference */
-.home-ring {
-    width: 168px;
-    height: 168px;
-    border-radius: 84px;
-    border-width: 10px;
-    border-color: rgba(237, 230, 216, 0.14);
-    border-top-color: var(--ember);
+
+.home-logo {
+    position: absolute;
+    top: 20px;
+    left: 6px;
+    width: 156px;
+    height: 156px;
+    background-image: url("/Assets/UI/Media/Images/mikey_logo.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ---------- right-side vertical navigation ----------
+   Premium game-menu navigation: spacing and typography carry the hierarchy,
+   not rounded card containers. Strong hover/focus/pressed states. */
+.home-nav {
+    flex-direction: column;
+    align-items: flex-end;
+    padding-right: 8px;
+}
+.home-nav__item {
+    background-color: transparent;
+    border-width: 0;
+    border-right-width: 3px;
+    border-right-color: transparent;
+    border-radius: 0;
+    margin: 10px 0;
+    padding: 8px 26px 8px 46px;
+    color: rgba(237, 230, 216, 0.78);
+}
+.home-nav__item:hover,
+.home-nav__item:focus {
+    color: var(--bone);
+    border-right-color: var(--ember);
+}
+.home-nav__item:active {
+    scale: 0.97 0.97;
+}
+.home-nav__label {
+    font-size: 34px;
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+    -unity-text-align: middle-right;
+}
+
+/* ---------- individual per-item brushstroke backings ----------
+   Each nav item gets its OWN separate real ink-swipe backing (the supplied
+   menu_brushstroke.png) — never one shared panel/band behind the whole nav.
+   One reusable recipe (this base class) shared by all four items; only each
+   item's width/crop is tuned per word via a small modifier class below,
+   since USS can't measure rendered text width.
+
+   The source PNG is a square 2500x2500 canvas with the actual painted swipe
+   sitting in a horizontal band roughly through its vertical middle
+   (opaque bounds measured at x:[77,2371] y:[977,1412]). Rather than editing
+   the PNG bytes, each modifier crops straight to that ink band using
+   background-size (scales the whole canvas up/down, non-uniformly — wider
+   for longer words, same height for every item) plus background-position
+   (shifts the scaled canvas so the ink band's top-left lands on the
+   element's own top-left corner) — the same technique as a CSS
+   "background-size: cover" crop, computed by hand per word. Horizontal
+   scale varies per word (stretching sideways is expected/fine); vertical
+   scale is identical for all four so every stroke reads at the same
+   height and is never stretched taller/shorter than the others.
+
+   Anchored to the item's own right padding (26px) so it centers under the
+   right-aligned label regardless of the button's wider, asymmetric left
+   padding — not centered on the button itself. Declared before the label
+   in the markup, so it paints underneath it (later siblings paint on top);
+   ignores picking, so it never affects the button's own click area. */
+.home-nav__stroke {
+    position: absolute;
+    top: 50%;
+    right: 26px;
+    height: 44px;
+    translate: 0 -50%;
+    background-image: url("/Assets/UI/Media/Images/MainMenu/menu_brushstroke.png");
+    background-repeat: no-repeat;
+    background-position-y: top -99px;
+    opacity: 0.35;
+}
+
+/* Per-word crop: background-size scales the full 2500x2500 canvas so the
+   ink band's height always maps to the shared 44px above; background-size's
+   width and background-position-x vary per word to control how much of the
+   canvas's horizontal ink width is visible (and therefore the stroke's
+   overall on-screen width) while cropping the same relative left margin. */
+.home-nav__stroke--play {
+    width: 170px;
+    background-size: 185px 253px;
+    background-position-x: left -6px;
+}
+.home-nav__stroke--vow {
+    width: 155px;
+    background-size: 169px 253px;
+    background-position-x: left -5px;
+}
+.home-nav__stroke--settings {
+    width: 320px;
+    background-size: 349px 253px;
+    background-position-x: left -11px;
+}
+.home-nav__stroke--quit {
+    width: 150px;
+    background-size: 163px 253px;
+    background-position-x: left -5px;
+}
+
+/* QUIT is deliberately the lowest-priority action: same typography kit as
+   PLAY/VOW/SETTINGS, set apart only by extra separation and a dimmer
+   default color (never smaller, never hidden). */
+.home-nav__item--quit {
+    margin-top: 30px;
+    color: rgba(237, 230, 216, 0.5);
+}
+.home-nav__item--quit:hover,
+.home-nav__item--quit:focus {
+    color: var(--bone);
+}
+
+/* Settings ("menu-settings-open" in MikeyApp.uxml) opens the one shared
+   Settings modal (see Assets/UI/Settings/Settings.uss and
+   SettingsModalController) — no local modal here for it. */
+
+/* ---------- VOW membership overlay ----------
+   Replaces the old small "Coming soon" Plans overlay (".menu-modal", now
+   retired — nothing else referenced it). Same toggling architecture though:
+   a full-bleed dim backdrop + a centered card, still a child of the "menu"
+   screen (not a second .safe-area-content), hidden by default (display:none
+   is the safe markup default) and shown/hidden directly by HomeController's
+   ShowModal/HideModal — never a CSS class toggle, unlike the shared,
+   multi-entry-point Settings modal. The menu video/music underneath keeps
+   playing untouched while this is open.
+
+   Frontend presentation only: no payment provider, no checkout, no
+   persistence. Visual identity matches the Mikey logo — black surfaces,
+   off-white (--bone) type and hairlines, and var(--seal) (the same
+   vermilion red already used for the Settings slider thumb) as the sole,
+   restrained accent color. No gold/teal/cyan/blue, no glossy SaaS pricing
+   cards, minimal rounding. */
+.vow-modal {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     align-items: center;
     justify-content: center;
-    margin-right: 36px;
-    flex-shrink: 0;
+    background-color: rgba(4, 4, 5, 0.82);
 }
-.home-ring__value {
+.vow-modal__card {
+    width: 76%;
+    min-width: 900px;
+    max-width: 1500px;
+    max-height: 92%;
+    background-color: rgba(9, 9, 10, 0.97);
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.12);
+    padding: 40px 48px 32px 48px;
+}
+
+/* A small, quiet top-right dismiss — this is a ceremonial overlay, not a
+   form, so it deliberately avoids a big primary-button "CLOSE" like the
+   old Plans card had. */
+.vow-modal__close {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    width: 52px;
+    height: 52px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.22);
+    background-color: rgba(237, 230, 216, 0.05);
+    border-radius: 0;
+    color: var(--bone);
+    font-size: 15px;
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
+}
+.vow-modal__close:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.1);
+}
+
+/* ---------- header: title flanked by thin red ink rules ---------- */
+.vow-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.vow-header__rule {
+    flex-grow: 1;
+    max-width: 130px;
+    height: 2px;
+    background-color: var(--seal);
+    opacity: 0.55;
+}
+.vow-header__title {
     font-size: 48px;
     -unity-font-style: bold;
-    color: var(--bone);
-}
-.home-ring__label {
-    font-size: 11px;
     letter-spacing: 2px;
+    color: var(--bone);
+    margin: 0 22px;
+    -unity-text-align: middle-center;
+}
+.vow-header__subtitle {
+    font-size: 22px;
+    color: var(--bone);
+    margin-top: 14px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.vow-header__tagline {
+    font-size: 16px;
     color: var(--muted);
-}
-.home-hero__body {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-direction: column;
-}
-.home-hero__kicker {
-    letter-spacing: 3px;
-}
-.home-hero__title {
-    font-size: 34px;
-}
-.home-hero__lead {
-    margin-top: 4px;
-    max-width: 520px;
-}
-/* CTA = text label + a separately-sized arrow icon, laid out in a row */
-.home-hero__cta {
-    max-width: 300px;
-    margin-top: 20px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-}
-.home-cta__text {
-    font-size: 18px;
-    -unity-font-style: bold;
-    color: #1A0A03;
-}
-.home-cta__arrow {
-    color: #1A0A03;
-    margin-left: 12px;
+    margin-top: 6px;
+    margin-bottom: 28px;
+    -unity-text-align: middle-center;
+    white-space: normal;
 }
 
-/* power ribbon — STR / SPD / AGI / END mock attributes */
-.home-power {
+/* ---------- the three vows ----------
+   Same design system for all three (one shared ".vow-option" recipe) — never
+   generic gray pricing cards: near-black surfaces, a thin off-white hairline,
+   restrained spacing. Landscape-first: laid out as three columns. */
+.vow-list {
     flex-direction: row;
-    align-items: center;
     justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 22px;
 }
-.home-power__cell {
-    align-items: center;
-    min-width: 88px;
-    padding: 11px 18px;
-    margin: 5px;
-    background-color: rgba(11, 14, 17, 0.45);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 12px;
-}
-.home-power__key {
-    font-size: 12px;
-    letter-spacing: 2px;
-    color: var(--muted);
-}
-.home-power__val {
-    font-size: 26px;
-    -unity-font-style: bold;
-    color: var(--bone);
-}
-
-/* ---------- persistent bottom navigation dock ---------- */
-.home-dock {
-    flex-direction: row;
-    width: 100%;
-    max-width: 1100px;
-    align-self: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-.home-tab {
+.vow-option {
     flex-grow: 1;
     flex-basis: 0;
-    max-width: 240px;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 8px;
-    margin: 0 6px;
-    border-radius: 14px;
+    margin: 0 10px;
+    padding: 26px 20px 22px 20px;
+    background-color: rgba(255, 255, 255, 0.03);
     border-width: 1px;
-    border-color: var(--line);
-    background-color: rgba(11, 14, 17, 0.5);
+    border-color: rgba(237, 230, 216, 0.14);
+    border-radius: 0;
+    align-items: center;
+    -unity-text-align: middle-center;
 }
-/* colour only — size comes from .home-icon--nav */
-.home-tab__glyph {
-    color: rgba(237, 230, 216, 0.6);
+.vow-option:hover {
+    border-color: rgba(237, 230, 216, 0.32);
 }
-.home-tab__label {
+
+/* Disciple's permanent identity mark — present whether or not it's the
+   active selection, but modest (a badge + a short underline, not a glow). */
+.vow-option--recommended {
+    border-color: rgba(200, 71, 46, 0.5);
+}
+.vow-option__badge {
     font-size: 13px;
     -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: rgba(237, 230, 216, 0.6);
-    margin-top: 4px;
+    letter-spacing: 2px;
+    color: var(--seal);
+    margin-bottom: 8px;
 }
-.home-tab__badge {
-    font-size: 9px;
-    letter-spacing: 1px;
-    color: var(--base);
-    background-color: var(--muted);
-    border-radius: 6px;
-    padding: 1px 6px;
-    margin-top: 4px;
+.vow-option__accent {
+    width: 46px;
+    height: 3px;
+    background-color: var(--seal);
+    margin-bottom: 12px;
 }
 
-/* active tab — unmistakable current state (ember accent, top rule) */
-.home-tab--active {
-    border-color: var(--ember);
-    background-color: rgba(255, 90, 31, 0.12);
-    border-top-width: 3px;
-    border-top-color: var(--ember);
+/* The active selection — exactly one at a time, toggled by HomeController.
+   Red accent border + a slightly brighter surface; deliberately NOT a huge
+   glowing box. */
+.vow-option--selected {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--seal);
 }
-.home-tab--active .home-tab__glyph {
-    color: var(--ember);
+.vow-option--selected .vow-option__cta {
+    color: var(--seal);
 }
-.home-tab--active .home-tab__label {
+
+.vow-option__name {
+    font-size: 32px;
+    -unity-font-style: bold;
     color: var(--bone);
+    margin-top: 2px;
+}
+.vow-option__status {
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-top: 4px;
+    margin-bottom: 16px;
+}
+.vow-option__desc {
+    flex-grow: 1;
+    font-size: 19px;
+    color: rgba(237, 230, 216, 0.72);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-bottom: 18px;
+}
+.vow-option__divider {
+    width: 56%;
+    height: 1px;
+    background-color: rgba(237, 230, 216, 0.16);
+    margin-bottom: 16px;
+}
+.vow-option__cta {
+    width: 100%;
+    padding: 8px 0;
+    font-size: 24px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    color: var(--muted);
+    -unity-text-align: middle-center;
 }
 
-/* locked / "coming soon" tabs — clearly disabled but the icon stays readable
-   (kept distinctly dimmer than the ember active tab, not near-invisible). */
-.home-tab--locked {
-    opacity: 0.6;
+/* Shown only after a Disciple/Master press — this is presentation-only, so
+   no purchase is ever claimed to succeed (see HomeController). Hidden by
+   default (display:none is the safe markup default). */
+.vow-inline-message {
+    display: none;
+    margin-top: 20px;
+    font-size: 18px;
+    color: var(--seal);
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.vow-inline-message--visible {
+    display: flex;
 }

@@ -1,0 +1,14 @@
+{
+    "name": "Mikey.UI.Progression",
+    "rootNamespace": "Mikey.UI.Progression",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

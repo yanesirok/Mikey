@@ -1,0 +1,228 @@
+/* ============================================================
+   Profile Details — Display Name / Gender / Age / Weight / Height. Reuses the
+   same final Profile background art under a strong scrim (atmospheric, never
+   competing with the form), Mikey's black/off-white/crimson language, and the
+   global mikey_ui.otf font (see theme.uss ".mikey-app" — this file never
+   redeclares it). Local frontend data only; no backend/account system exists
+   yet (see ProfileUserDataStorage).
+   ============================================================ */
+
+.profile-details-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base);
+    background-image: url("/Assets/UI/Media/Images/Profile/profile_background.jpg");
+    -unity-background-scale-mode: scale-and-crop;
+}
+/* Strong scrim — the background is atmospheric texture only here, the form
+   itself must read clearly on top of it. */
+.profile-details-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(6, 6, 7, 0.82);
+}
+
+/* ---------- touch-target kit (scoped, matches every other screen) ---------- */
+.tap-target {
+    min-width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    -unity-text-align: middle-center;
+}
+.tap-target:active {
+    scale: 0.97;
+}
+
+/* ---------- centered, intentionally NOT full-width layout ---------- */
+.profile-details-layout {
+    flex-grow: 1;
+    width: 100%;
+    max-width: 900px;
+    align-self: center;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.profile-details-form {
+    flex-direction: row;
+    align-items: flex-start;
+}
+.profile-details-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-direction: column;
+    min-width: 0;
+}
+.profile-details-column--right {
+    margin-left: 56px;
+}
+
+.profile-details-title {
+    font-size: 42px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    color: var(--bone);
+}
+.profile-details-subtitle {
+    font-size: 18px;
+    color: var(--muted);
+    margin-top: 8px;
+    margin-bottom: 26px;
+    white-space: normal;
+}
+
+.profile-details-note {
+    font-size: 16px;
+    color: var(--muted);
+    margin-top: 6px;
+    white-space: normal;
+}
+
+/* ---------- fields ---------- */
+.profile-details-field {
+    margin-bottom: 22px;
+}
+.profile-details-field__label {
+    font-size: 21px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+/* Targets UI Toolkit's own inner input box (".unity-base-field__input", shared
+   by every BaseField-derived control), not the TextField element itself —
+   dark/transparent, never a bright gray desktop-style fill. Border brightens
+   to crimson on focus (an active choice, not just an error state) and on a
+   failed validation (".profile-details-field__input--invalid"). */
+.profile-details-field__input {
+    margin: 0;
+    font-size: 25px;
+}
+.profile-details-field__input .unity-base-field__input {
+    height: 60px;
+    padding: 0 18px;
+    background-color: rgba(18, 15, 15, 0.55);
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.18);
+    border-radius: 8px;
+    color: var(--bone);
+}
+.profile-details-field__input .unity-base-field__input:hover {
+    border-color: rgba(237, 230, 216, 0.32);
+}
+.profile-details-field__input .unity-base-field__input:focus {
+    border-color: var(--crimson);
+}
+.profile-details-field__input--invalid .unity-base-field__input {
+    border-color: var(--crimson);
+}
+.profile-details-field__input--narrow {
+    max-width: 200px;
+}
+
+.profile-details-field__input-row {
+    flex-direction: row;
+    align-items: center;
+}
+.profile-details-field__unit {
+    font-size: 19px;
+    color: var(--muted);
+    margin-left: 12px;
+}
+
+.profile-details-field__error {
+    display: none;
+    font-size: 15px;
+    color: var(--crimson);
+    margin-top: 6px;
+    white-space: normal;
+}
+.profile-details-field__error--visible {
+    display: flex;
+}
+
+/* ---------- gender selection ----------
+   Four tappable chips, not a desktop-style dropdown (poor on mobile) and not
+   a generic PopupField/DropdownField control. Wraps to a 2x2 grid on
+   landscape-column widths. Selected state uses a visibly thicker crimson
+   border + tinted fill + brighter text — no glow. */
+.profile-details-gender-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+/* Offsets by its own padding so the invalid outline never shifts layout. */
+.profile-details-gender-group--invalid {
+    border-width: 1px;
+    border-color: var(--crimson);
+    border-radius: 10px;
+    padding: 6px 0 0 6px;
+    margin: -6px 0 4px -6px;
+}
+.profile-details-gender-option {
+    flex-basis: 46%;
+    flex-grow: 1;
+    height: 52px;
+    margin: 0 8px 10px 0;
+    padding: 0 12px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.16);
+    background-color: rgba(18, 15, 15, 0.45);
+    color: var(--muted);
+    font-size: 18px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+.profile-details-gender-option:hover {
+    border-color: rgba(237, 230, 216, 0.35);
+}
+.profile-details-gender-option--selected {
+    border-width: 2px;
+    border-color: var(--crimson);
+    background-color: rgba(198, 40, 40, 0.22);
+    color: var(--bone);
+}
+
+/* ---------- actions ---------- */
+.profile-details-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+.profile-details-btn {
+    min-width: 160px;
+    height: 58px;
+    padding: 0 32px;
+    border-radius: 8px;
+    font-size: 23px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-left: 16px;
+}
+.profile-details-btn--secondary {
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--bone);
+}
+.profile-details-btn--secondary:hover {
+    border-color: var(--bone);
+    background-color: rgba(237, 230, 216, 0.1);
+}
+.profile-details-btn--primary {
+    border-width: 1px;
+    border-color: var(--crimson);
+    background-color: var(--crimson);
+    color: var(--bone);
+}
+.profile-details-btn--primary:hover {
+    background-color: var(--crimson-deep);
+}

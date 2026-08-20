@@ -1,0 +1,18 @@
+{
+    "name": "Mikey.UI.Map",
+    "rootNamespace": "Mikey.UI.Map",
+    "references": [
+        "Mikey.UI.SafeArea",
+        "Mikey.UI.Progression",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

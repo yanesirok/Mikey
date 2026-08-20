@@ -2,6 +2,8 @@
     "name": "Mikey.UI.Home.Tests",
     "rootNamespace": "Mikey.UI.Home.Tests",
     "references": [
+        "Mikey.UI.Home",
+        "Mikey.UI.Progression",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

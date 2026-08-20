@@ -1,46 +1,39 @@
 /* ============================================================
-   Intro — landscape cold-open ("intro" screen) styles.
-   Palette custom properties (--ember, --jade, --bone, --base, --muted, --line …)
+   Lore — landscape cold-open ("intro" screen) styles.
+   Palette custom properties (--ember, --bone, --base, --muted, --seal, --line …)
    cascade in from .mikey-app in theme.uss; this file only adds Intro-specific
    structure so the screen stays modular (same pattern as Home/Home.uss and
    Combine/Combine.uss). Linked from the intro screen in MikeyApp.uxml.
 
-   Landscape-first: a wide, width-capped cinematic stage that fills 16:9 and
-   wider phone-landscape ratios — deliberately NOT the old narrow portrait
-   column. Translated from design-pull/assets/screens-flow.jsx (IntroVideo) +
-   theme.css. No real video asset exists, so the "film" is an honest decorative
-   placeholder (silhouettes + glow + static timeline), not faked playback.
+   Minimal premium placeholder until the real Lore cinematic exists: the
+   earlier multi-beat text sequence is retired in favor of a near-empty pure
+   black screen with a single honest "not ready yet" statement, matching
+   Mikey's black/off-white/restrained-red identity rather than reading as an
+   app screen. When the full lore cinematic video exists, this whole
+   .intro-copy/.intro-note block is replaced by a full-screen video target;
+   the .intro-bg / .intro-layout / .intro-skip / .intro-primary structure
+   below does not need to change.
    ============================================================ */
 
 /* ---------- full-bleed background ----------
    Lives OUTSIDE .safe-area-content so it bleeds under device insets, like
-   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Solid
-   warm-dark base + a soft centered glow approximates the reference's
-   radial-gradient cold-open wash (USS has no radial-gradient). */
+   .cam-feed / .title-bg / .combine-bg / .home-bg on the other screens. Pure
+   black, no glow/atmosphere layer — the screen is meant to feel almost
+   empty, not lit. */
 .intro-bg {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #08090B;
-    align-items: center;
-    justify-content: center;
-}
-.intro-glow {
-    position: absolute;
-    top: -120px;
-    width: 900px;
-    height: 760px;
-    border-radius: 380px;
-    background-color: rgba(255, 90, 31, 0.05);
+    background-color: #000000;
 }
 
 /* ---------- foreground layout ----------
    One full-height column inside the safe area: skip pinned top-right, the
-   cinematic stage filling the middle, the CTA + caption anchored toward the
-   bottom. align-items:center keeps the capped-width bands centered on
-   ultra-wide displays without a narrow portrait column. */
+   copy sequence centered with generous negative space, CONTINUE anchored
+   toward the bottom. align-items:center keeps the capped-width copy centered
+   on ultra-wide displays without a narrow portrait column. */
 .intro-layout {
     flex-grow: 1;
     width: 100%;
@@ -49,117 +42,47 @@
     justify-content: center;
 }
 
-/* ---------- cinematic stage ----------
-   Width-capped so the focal composition reads on 16:9 and wide-phone
-   landscape without stretching edge-to-edge. */
-.intro-stage {
+/* ---------- placeholder copy ----------
+   One honest statement, not a scripted narrative sequence — no cards, no
+   artwork, lots of negative space. A single thin red ink line (the only
+   accent color on this screen besides the tiny Continue arrow) separates
+   the primary line from the dimmer supporting line beneath it. */
+.intro-copy {
     width: 100%;
-    max-width: 920px;
+    max-width: 720px;
     align-items: center;
-    justify-content: center;
 }
-
-/* row of silhouettes "stepping into frame" (honest decorative placeholder) */
-.intro-cast {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: center;
-    margin-bottom: 26px;
-}
-.intro-figure {
-    width: 84px;
-    align-items: center;
-    margin: 0 20px;
-    flex-shrink: 0;
-}
-.intro-figure--lead {
-    /* centre figure is the focal silhouette: slightly taller / brighter edge */
-    scale: 1.15 1.15;
-}
-.intro-figure__head {
-    width: 34px;
-    height: 34px;
-    border-radius: 17px;
-    background-color: #0B0E11;
-    border-width: 1px;
-    border-color: rgba(237, 230, 216, 0.4);
-}
-.intro-figure__body {
-    width: 56px;
-    height: 96px;
-    margin-top: 6px;
-    border-top-left-radius: 28px;
-    border-top-right-radius: 28px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    background-color: #0B0E11;
-    border-width: 1px;
-    border-color: rgba(237, 230, 216, 0.4);
-}
-
-/* ---------- copy + hierarchy ---------- */
-.intro-kicker {
-    font-size: 12px;
-    letter-spacing: 3px;
-    color: var(--ember);
+.intro-line {
     -unity-text-align: middle-center;
+    white-space: normal;
 }
-.intro-kanji {
-    font-size: 24px;
-    letter-spacing: 10px;
-    color: rgba(237, 230, 216, 0.7);
-    -unity-text-align: middle-center;
-    margin-top: 12px;
-}
-.intro-headline {
-    font-size: 32px;
+.intro-line--open {
+    font-size: 48px;
     -unity-font-style: bold;
+    letter-spacing: 0.5px;
     color: var(--bone);
-    -unity-text-align: middle-center;
-    white-space: normal;
-    margin-top: 8px;
-    max-width: 760px;
 }
-.intro-sub {
-    font-size: 13px;
-    letter-spacing: 1px;
-    color: var(--muted);
-    -unity-text-align: middle-center;
-    white-space: normal;
-    margin-top: 10px;
-    max-width: 620px;
+.intro-rule {
+    width: 64px;
+    height: 2px;
+    margin-top: 22px;
+    margin-bottom: 22px;
+    background-color: var(--seal);
+    opacity: 0.6;
+}
+.intro-line--support {
+    font-size: 24px;
+    color: rgba(237, 230, 216, 0.62);
 }
 
-/* ---------- subtle progress / timeline ----------
-   Static, honest placeholder (no faked playback): a thin track with a partial
-   ember sweep + a "placeholder" caption matching the reference's
-   "~6s ANIMATED INTRO · PLACEHOLDER" footer. Class names avoid the legacy
-   "bar"/"fill" selectors guarded by the structural tests. */
-.intro-timeline {
-    width: 100%;
-    max-width: 360px;
-    margin-top: 26px;
-    align-items: center;
-}
-.intro-timeline__track {
-    width: 100%;
-    height: 4px;
-    border-radius: 2px;
-    background-color: var(--base-3);
-    overflow: hidden;
-}
-.intro-timeline__progress {
-    width: 38%;
-    height: 4px;
-    border-radius: 2px;
-    background-color: var(--ember);
-}
-.intro-caption {
-    font-size: 10px;
-    letter-spacing: 2px;
+/* Small supporting note near the bottom of the composition — deliberately
+   its own (smaller, dimmer) class, not part of the .intro-line sequence. */
+.intro-note {
+    font-size: 19px;
     color: var(--muted);
+    margin-top: 40px;
     -unity-text-align: middle-center;
-    margin-top: 10px;
+    white-space: normal;
 }
 
 /* ---------- actions ---------- */
@@ -181,29 +104,41 @@
     -unity-text-align: middle-center;
     -unity-font-style: normal;
 }
+/* The tiny arrow beside CONTINUE is this screen's one deliberate red accent
+   (see spec: "tiny accent beside Continue") — restrained, not a filled
+   button. */
 .intro-icon--cta {
-    font-size: 30px;
+    font-size: 26px;
     margin-left: 10px;
+    color: var(--seal);
 }
 .intro-icon--skip {
     font-size: 22px;
     margin-left: 8px;
 }
 
-/* primary CTA: width-capped, ember, icon + label in a centered row */
+/* primary CTA: a quiet bordered control, not a solid filled ember pill —
+   this screen deliberately opts out of the shared .btn.primary treatment
+   (theme.uss) so black/off-white/red stays the only palette in view. */
 .intro-cta {
     flex-direction: row;
     align-items: center;
     justify-content: center;
     width: auto;
-    min-width: 260px;
+    min-width: 220px;
     max-width: 360px;
-    margin-top: 30px;
-    padding: 16px 28px;
+    margin-top: 40px;
+    padding: 14px 30px;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: rgba(237, 230, 216, 0.28);
+    background-color: rgba(237, 230, 216, 0.05);
 }
 .intro-cta__text {
     -unity-font-style: bold;
-    font-size: 18px;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--bone);
 }
 
 /* skip pill, top-right. Builds on the base .skip (theme.uss) but enlarges it to
@@ -246,5 +181,5 @@
 }
 .intro-cta:focus,
 .intro-skip:focus {
-    border-color: var(--ember);
+    border-color: var(--seal);
 }

@@ -2,82 +2,63 @@
     <ui:VisualElement name="app" class="mikey-app">
         <Style src="theme.uss" />
 
-        <!-- 1 - TITLE / ENTRANCE (single production entry screen) -->
+        <!-- 1 - LOGO INTRO (startup/logo screen; single production entry screen).
+             Full-bleed final logo animation (logo_intro.mp4) on a near-black
+             backdrop, nothing else. TitleController plays it once, then — once
+             the shell is ready — advances to Lore with a cinematic fade (never
+             a hard cut), triggered by natural completion, a tap/click anywhere
+             (no CTA button — this is not a ScreenManager "go-" navigator), or
+             the video error fallback. -->
         <ui:VisualElement name="title" class="screen title-screen">
             <Style src="Title/Title.uss" />
-            <!-- full-bleed ink/dojo art, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="title-bg">
-                <ui:VisualElement class="title-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="title-sun" picking-mode="Ignore" />
-                <ui:VisualElement class="title-scrim" picking-mode="Ignore" />
+            <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper.
+                 TitleController freezes on this SAME video's own final frame while
+                 waiting for the shell (Main Menu's video) to be ready — never a
+                 separate static logo image. -->
+            <ui:VisualElement class="title-bg" picking-mode="Ignore">
+                <ui:VisualElement name="title-video" picking-mode="Ignore" class="title-video" />
             </ui:VisualElement>
 
-            <ui:VisualElement class="safe-area-content sa-bottom-center">
-            <ui:VisualElement class="title-block">
-                <ui:Label text="忍" class="title-kanji" />
-                <ui:Label text="SHINOBU" class="title-name" />
-                <ui:VisualElement class="title-rule" />
-                <ui:Label text="TRAIN FOR REAL  ·  FIGHT WITHIN" class="title-tag" />
-                <!-- one obvious primary CTA → intro (semantic name go-intro) -->
-                <ui:Button name="go-intro" class="btn primary title-cta tap-target">
-                    <ui:Label text="Begin your path" class="title-cta__text" picking-mode="Ignore" />
-                    <ui:Label text="›" class="title-icon title-icon--cta" picking-mode="Ignore" />
-                </ui:Button>
-            </ui:VisualElement>
-            </ui:VisualElement>
+            <ui:VisualElement class="safe-area-content" />
         </ui:VisualElement>
 
-        <!-- 2 - INTRO (landscape cold-open) -->
+        <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later).
+             Exiting Lore (Skip or Continue) is driven by LoreExitController, NOT
+             ScreenManager's "go-" auto-wiring: both actions are named "lore-skip"/
+             "lore-continue" (deliberately not "go-menu") so LoreExitController can
+             darken Lore to black through the shared transition overlay BEFORE
+             swapping to Main Menu, then fade Main Menu in — never a hard cut. This
+             is also where a future real Lore image/video/animation slots in later:
+             only the placeholder content below (.intro-copy / .intro-note) changes,
+             the launch transition sequence around it does not. -->
         <ui:VisualElement name="intro" class="screen intro-screen">
             <Style src="Intro/Intro.uss" />
-            <!-- full-bleed cold-open wash, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="intro-bg">
-                <ui:VisualElement class="intro-glow" />
-            </ui:VisualElement>
+            <!-- full-bleed pure-black wash, OUTSIDE the safe-area wrapper -->
+            <ui:VisualElement class="intro-bg" picking-mode="Ignore" />
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="intro-layout">
 
-                <!-- Skip → Home (semantic class intro-skip; arrow is a sized, non-shrinking icon) -->
-                <ui:Button name="go-menu" class="skip intro-skip tap-target">
+                <!-- Skip → Home (semantic class intro-skip; kept visually subtle, arrow is a sized, non-shrinking icon) -->
+                <ui:Button name="lore-skip" class="skip intro-skip tap-target sfx-click">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
                 </ui:Button>
 
-                <!-- cinematic stage: silhouettes stepping into frame (honest placeholder) -->
-                <ui:VisualElement class="intro-stage">
-                    <ui:VisualElement class="intro-cast" picking-mode="Ignore">
-                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="intro-figure intro-figure--lead" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="intro-figure" picking-mode="Ignore">
-                            <ui:VisualElement class="intro-figure__head" picking-mode="Ignore" />
-                            <ui:VisualElement class="intro-figure__body" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-
-                    <ui:Label text="COLD OPEN" class="intro-kicker" />
-                    <ui:Label text="稽古" class="intro-kanji" />
-                    <ui:Label text="The form was lost. You will restore it." class="intro-headline" />
-                    <ui:Label text="Step into the dojo and begin your path." class="intro-sub" />
-
-                    <!-- subtle progress / timeline (static, honest placeholder) -->
-                    <ui:VisualElement class="intro-timeline">
-                        <ui:VisualElement class="intro-timeline__track">
-                            <ui:VisualElement class="intro-timeline__progress" />
-                        </ui:VisualElement>
-                        <ui:Label text="ANIMATED INTRO · PLACEHOLDER" class="intro-caption" />
-                    </ui:VisualElement>
+                <!-- minimal premium placeholder (honest "not ready yet" statement for
+                     the future full lore cinematic): near-empty pure-black screen, one
+                     thin red ink rule as the only accent between the two lines. -->
+                <ui:VisualElement class="intro-copy">
+                    <ui:Label text="The story is still being written." class="intro-line intro-line--open" />
+                    <ui:VisualElement class="intro-rule" picking-mode="Ignore" />
+                    <ui:Label text="Every path begins before the first step." class="intro-line intro-line--support" />
                 </ui:VisualElement>
 
+                <ui:Label text="Lore cinematic coming soon." class="intro-note" />
+
                 <!-- primary CTA → Home (semantic class intro-primary) -->
-                <ui:Button name="go-menu" class="btn primary intro-primary intro-cta tap-target">
-                    <ui:Label text="Enter the Dojo" class="intro-cta__text" picking-mode="Ignore" />
+                <ui:Button name="lore-continue" class="intro-primary intro-cta tap-target sfx-click">
+                    <ui:Label text="Continue" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
                 </ui:Button>
 
@@ -85,105 +66,108 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 3 - HOME HUB (landscape) -->
+        <!-- 3 - MAIN MENU (landscape cinematic game shell) -->
         <ui:VisualElement name="menu" class="screen home">
             <Style src="Home/Home.uss" />
-            <!-- full-bleed Home background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed Main Menu background video, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="home-bg">
-                <ui:VisualElement class="home-glow" />
+                <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
+                <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="home-layout">
 
-                <!-- top profile / stat ribbon (mock values) -->
-                <ui:VisualElement class="home-ribbon">
-                    <ui:VisualElement class="home-belt">
-                        <ui:VisualElement class="home-belt__swatch" />
-                        <ui:VisualElement>
-                            <ui:Label text="White Belt" class="home-belt__rank" />
-                            <ui:Label text="LEVEL 1" class="home-belt__level" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="home-stats">
-                        <ui:VisualElement class="home-chip">
-                            <ui:Label text="火" class="home-chip__glyph home-icon home-icon--ribbon" />
-                            <ui:Label text="1-day streak" class="home-chip__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-chip">
-                            <ui:Label text="金" class="home-chip__glyph home-icon home-icon--ribbon" />
-                            <ui:Label text="$10.00" class="home-chip__text home-chip__text--coin" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
+                <!-- upper-left brand mark -->
+                <ui:VisualElement class="home-logo" picking-mode="Ignore" />
 
-                <!-- hero / current journey -->
-                <ui:VisualElement class="home-hero">
-                    <ui:VisualElement class="home-hero__card">
-                        <ui:VisualElement class="home-ring">
-                            <ui:Label text="0" class="home-ring__value" />
-                            <ui:Label text="/1 SESSION" class="home-ring__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-hero__body">
-                            <ui:Label text="稽古 · TODAY'S TRAINING" class="kicker home-hero__kicker" />
-                            <ui:Label text="Earn your day" class="title home-hero__title" />
-                            <ui:Label text="One real session keeps your fighter sharp. Begin the Combine to measure your baseline." class="lead home-hero__lead" />
-                            <ui:Button name="go-combineIntro" class="btn primary tap-target home-hero__cta">
-                                <ui:Label text="Begin the Combine" class="home-cta__text" picking-mode="Ignore" />
-                                <ui:Label text="›" class="home-icon home-icon--cta home-cta__arrow" picking-mode="Ignore" />
-                            </ui:Button>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-
-                    <!-- power ribbon (mock attributes) -->
-                    <ui:VisualElement class="home-power">
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="STR" class="home-power__key" />
-                            <ui:Label text="12" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="SPD" class="home-power__key" />
-                            <ui:Label text="9" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="AGI" class="home-power__key" />
-                            <ui:Label text="11" class="home-power__val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="home-power__cell">
-                            <ui:Label text="END" class="home-power__key" />
-                            <ui:Label text="8" class="home-power__val" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- persistent landscape bottom navigation dock -->
-                <ui:VisualElement class="home-dock">
-                    <ui:VisualElement name="nav-home" class="home-tab home-tab--active tap-target-lg">
-                        <ui:Label text="家" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Home" class="home-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Map is now a working production navigator (go-map -> map).
-                         Looks available (no SOON badge, no locked dimming), keeps the
-                         large visible nav icon and the >=56px dock touch target. -->
-                    <ui:VisualElement name="go-map" class="home-tab tap-target-lg">
-                        <ui:Label text="地" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Map" class="home-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Techniques is now a working production navigator (go-techniques -> techniques).
-                         Looks available (no SOON badge, no locked dimming), keeps the large visible
-                         nav icon and the >=56px dock touch target. -->
-                    <ui:VisualElement name="go-techniques" class="home-tab tap-target-lg">
-                        <ui:Label text="技" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Techniques" class="home-tab__label" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="go-profile" class="home-tab tap-target-lg">
-                        <ui:Label text="人" class="home-tab__glyph home-icon home-icon--nav" />
-                        <ui:Label text="Profile" class="home-tab__label" />
-                    </ui:VisualElement>
+                <!-- right-side vertical navigation: spacing + typography, no cards.
+                     Each item carries its OWN individual brushstroke backing — the
+                     real menu_brushstroke.png cropped/sized per word (see
+                     Home.uss ".home-nav__stroke") — never one shared panel/band
+                     behind the whole nav. -->
+                <ui:VisualElement class="home-nav">
+                    <!-- PLAY: plain ScreenManager navigator straight to the Map hub -->
+                    <ui:Button name="go-map" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--play" picking-mode="Ignore" />
+                        <ui:Label text="PLAY" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- VOW: local overlay (NOT a "go-" navigator); HomeController opens it -->
+                    <ui:Button name="menu-vow-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--vow" picking-mode="Ignore" />
+                        <ui:Label text="VOW" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- SETTINGS: local overlay (NOT a "go-" navigator); HomeController opens it -->
+                    <ui:Button name="menu-settings-open" class="home-nav__item tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--settings" picking-mode="Ignore" />
+                        <ui:Label text="SETTINGS" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
+                    <!-- QUIT: lowest-priority action visually, never platform-hidden -->
+                    <ui:Button name="menu-quit" class="home-nav__item home-nav__item--quit tap-target-lg sfx-click">
+                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--quit" picking-mode="Ignore" />
+                        <ui:Label text="QUIT" class="home-nav__label" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
 
             </ui:VisualElement>
             </ui:VisualElement>
+
+            <!-- VOW overlay: the premium "choose your path" membership overlay
+                 over the Main Menu — frontend presentation only, no payment/
+                 backend hookup. Hidden by default (display:none is the safe
+                 markup default; see Home.uss ".vow-modal"); HomeController
+                 toggles it exactly like the old Plans overlay did (never a
+                 CSS-class toggle — that pattern is reserved for the shared,
+                 multi-entry-point Settings modal). The menu video/music
+                 underneath keep playing while this is open. -->
+            <ui:VisualElement name="menu-vow-modal" class="vow-modal">
+                <ui:VisualElement class="vow-modal__card">
+                    <ui:Button name="menu-vow-close" text="Close" class="vow-modal__close tap-target sfx-click" />
+
+                    <ui:VisualElement class="vow-header" picking-mode="Ignore">
+                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
+                        <ui:Label text="The Vow" class="vow-header__title" picking-mode="Ignore" />
+                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label text="Choose how far you are willing to walk the path." class="vow-header__subtitle" picking-mode="Ignore" />
+                    <ui:Label text="Your training begins with commitment." class="vow-header__tagline" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="vow-list" picking-mode="Ignore">
+                        <ui:Button name="vow-option-initiate" class="vow-option tap-target-lg sfx-click">
+                            <ui:Label text="Initiate" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Free" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Begin the path. Learn the foundations and discover Mikey." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Current Path" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <ui:Button name="vow-option-disciple" class="vow-option vow-option--recommended tap-target-lg sfx-click">
+                            <ui:Label text="Recommended" class="vow-option__badge" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__accent" picking-mode="Ignore" />
+                            <ui:Label text="Disciple" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Monthly" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Unlock the full training journey, progression, and technique library." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <ui:Button name="vow-option-master" class="vow-option tap-target-lg sfx-click">
+                            <ui:Label text="Master" class="vow-option__name" picking-mode="Ignore" />
+                            <ui:Label text="Yearly" class="vow-option__status" picking-mode="Ignore" />
+                            <ui:Label text="Commit to the path with complete access and the best long-term value." class="vow-option__desc" picking-mode="Ignore" />
+                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
+                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+
+                    <ui:Label name="vow-inline-message" text="" class="vow-inline-message" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- SETTINGS ("menu-settings-open" above) now opens the one shared
+                 Settings modal (see the "shared-settings-modal" element at the
+                 end of this file, and SettingsModalController) — no local
+                 modal here anymore. -->
         </ui:VisualElement>
 
         <!-- 4 - COMBINE INTRO (landscape LVL0 briefing) -->
@@ -342,7 +326,10 @@
         <ui:VisualElement name="combine" class="screen">
             <Style src="Combine/Combine.uss" />
             <!-- full-bleed background, outside the safe-area wrapper -->
-            <ui:VisualElement class="combine-bg" />
+            <ui:VisualElement class="combine-bg">
+                <ui:VisualElement name="combine-bg-media" picking-mode="Ignore" class="bg-media" />
+                <ui:VisualElement class="combine-scrim" picking-mode="Ignore" />
+            </ui:VisualElement>
             <ui:VisualElement class="safe-area-content sa-center">
                 <ui:VisualElement class="content combine-content">
                     <ui:Label text="測定 · THE COMBINE" class="kicker combine-kicker" />
@@ -364,8 +351,16 @@
                     <ui:VisualElement name="combine-ready" class="combine-state">
                         <ui:VisualElement name="combine-items" class="combine-items" />
                         <ui:Label text="Four honest numbers. Your fighter starts here." class="lead combine-msg" />
+                        <!-- Progression forward action (NOT a "go-" navigator):
+                             CombineScreenController marks CombineCompleted, unlocks
+                             Level1Unlocked, then routes to Map. -->
+                        <ui:Button name="combine-start-lvl1" text="START LVL 1" class="btn primary combine-home icon-btn" />
+                        <!-- Progression reset action (NOT a "go-" navigator): resets only
+                             the Combine (LVL0) portion of progress, then returns to the
+                             Combine briefing to redo it. -->
+                        <ui:Button name="combine-retry-assessment" text="Retry Assessment" class="btn combine-retry icon-btn" />
                         <!-- production exit: returns to the Home hub (ScreenManager wires go-menu -> menu) -->
-                        <ui:Button name="go-menu" text="Return Home" class="btn primary combine-home icon-btn" />
+                        <ui:Button name="go-menu" text="Return Home" class="btn combine-home icon-btn" />
                     </ui:VisualElement>
 
                     <!-- ERROR -->
@@ -391,6 +386,11 @@
         <!-- 7 - TECHNIQUES / LESSONS (landscape lesson hub) -->
         <ui:VisualElement name="techniques" class="screen techniques-screen">
             <Style src="Techniques/Techniques.uss" />
+            <!-- shared top-nav visual system (".map-topbar", see Map/Map.uss) is
+                 reused here exactly as-is, the same way the Japan and Okinawa map
+                 screens already both link Map.uss for it — no duplicated
+                 stylesheet, no renamed classes. -->
+            <Style src="Map/Map.uss" />
             <!-- full-bleed lesson-hub background, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="tq-bg" picking-mode="Ignore">
                 <ui:VisualElement class="tq-glow" picking-mode="Ignore" />
@@ -482,6 +482,55 @@
                 </ui:VisualElement>
 
             </ui:VisualElement>
+
+            <!-- shared top quick-access HUD (see Map/Map.uss ".map-topbar" and the
+                 "map"/"mapOkinawa" screens' own copies for the full explanation) —
+                 declared last so it paints above ".tq-layout"; ".tq-layout" gains a
+                 top offset (Techniques.uss) so its own heading is never covered.
+                 "Techniques" carries the active-section accent. Map/Profile are
+                 plain "go-" navigators (see ScreenManager): reaching Techniques
+                 already implies Map is unlocked at the same TutorialProgressState
+                 threshold, and Profile is never gated anywhere else in the app
+                 either, so no controller/gating code is needed for either link. -->
+            <ui:VisualElement class="map-topbar">
+                <ui:VisualElement class="map-topbar__nav">
+                    <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="go-map" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:VisualElement class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--techniques" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--techniques" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Button name="go-profile" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement class="map-topbar__right">
+                    <ui:VisualElement class="map-topbar__status">
+                        <ui:Label name="techniques-topbar-level" text="LVL 1" class="map-topbar__level" />
+                        <ui:Label name="techniques-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Button name="techniques-topbar-settings" class="map-topbar__settings-btn tap-target">
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -571,160 +620,347 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 9 - MAP / PROGRESSION (landscape campaign roadmap; first node opens Techniques) -->
+        <!-- 9 - MAP (full-viewport cinematic Map presentation rebuilt from the
+             approved reference: checkpoints drawn directly over the map; Okinawa
+             is the only playable destination for this MVP, so its docked,
+             full-height right-side cinematic preview panel is already open and
+             its preview already selected the moment the screen is entered —
+             title/description/stats/CTA laid directly over the video itself) -->
         <ui:VisualElement name="map" class="screen map-screen">
             <Style src="Map/Map.uss" />
-            <!-- full-bleed ink map background, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed background layer, OUTSIDE the safe-area wrapper —
+                 same shared shape as every other screen with bound media
+                 (see BackgroundMediaUxmlTests). map-bg-media is disabled here
+                 (Map.uss "#map-bg-media") since the pan/zoom canvas art below
+                 is the only visible map image; the element + its
+                 BackgroundMediaController binding are kept so the shared
+                 background-media wiring stays untouched for Title/Home/Combine. -->
             <ui:VisualElement class="map-bg" picking-mode="Ignore">
-                <ui:VisualElement class="map-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="map-ink-wash" picking-mode="Ignore" />
+                <ui:VisualElement name="map-bg-media" picking-mode="Ignore" class="bg-media" />
+                <ui:VisualElement class="map-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="map-layout">
+            <ui:VisualElement class="map-root">
 
-                <!-- LEFT BAND: campaign hub — world/Japan hierarchy, mock rank/progress,
-                     locked future chapters, Home action -->
-                <ui:VisualElement class="map-hub">
-                    <ui:VisualElement class="map-headline">
-                        <ui:Label text="地" class="map-icon map-icon--hub map-headline__mark" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-headline__text">
-                            <ui:Label text="日本 · CHAPTER I" class="kicker map-kicker" />
-                            <ui:Label text="Japan · Karate" class="title map-title" />
-                            <!-- location hierarchy: World (Asia) › Japan › current city -->
-                            <ui:VisualElement class="map-breadcrumb">
-                                <ui:Label text="Asia" class="map-breadcrumb__crumb map-breadcrumb__crumb--muted" picking-mode="Ignore" />
-                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
-                                <ui:Label text="Japan" class="map-breadcrumb__crumb" picking-mode="Ignore" />
-                                <ui:Label text="›" class="map-breadcrumb__sep" picking-mode="Ignore" />
-                                <ui:Label text="Okinawa" class="map-breadcrumb__crumb" picking-mode="Ignore" />
-                            </ui:VisualElement>
+                <!-- Japan world map: full-bleed pannable/zoomable canvas
+                     (japan_map_final.jpg) with real UI Toolkit chapter/city
+                     marker buttons — never baked into the art, never a
+                     permanently reserved side column. See
+                     MapPanZoomController(screenId="map", viewport="map-stage",
+                     canvas="map-canvas") and JapanMapController. -->
+                <ui:VisualElement name="map-stage" class="pan-stage">
+                    <ui:VisualElement name="map-canvas" class="pan-canvas">
+                        <ui:VisualElement class="map-canvas-art" picking-mode="Ignore" />
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
+
+                        <!-- Chapter 0: unlocked, current starting chapter. Position
+                             (style.left/top, percent) is applied at bind time by
+                             JapanMapController from MapMarkerLayout.Chapters — not
+                             hardcoded here or in Map.uss. Icon is the final supplied
+                             chapter_okinawa.png marker (its own emblem baked in, no
+                             extra circle/backing plate). Label comes BEFORE the icon
+                             in markup (rendered above it) so the node's own bottom
+                             edge is the icon's bottom edge — MapMarkerLayout's
+                             coordinates are the pin's bottom TIP, and ".chapter-node"
+                             anchors via "translate: -50% -100%" in Map.uss. -->
+                        <ui:Button name="chapter-node-okinawa" class="chapter-node chapter-node--okinawa tap-target-lg">
+                            <ui:Label text="OKINAWA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Chapter 1: visible, tappable, locked for now. -->
+                        <ui:Button name="chapter-node-fukuoka" class="chapter-node chapter-node--fukuoka chapter-node--locked tap-target-lg">
+                            <ui:Label text="FUKUOKA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Chapter 2: visible, tappable, locked for now. -->
+                        <ui:Button name="chapter-node-hiroshima" class="chapter-node chapter-node--hiroshima chapter-node--locked tap-target-lg">
+                            <ui:Label text="HIROSHIMA" class="chapter-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Map Pass 3B decorative cloud overlay (corrected
+                             architecture): a child of THIS "pan-canvas", the same
+                             transformed map-artboard the art and markers above
+                             live in — so clouds pan/zoom together with the map,
+                             never fixed to the viewport. Declared LAST so it
+                             paints above the map art/markers (picking-mode:Ignore
+                             at rest still lets taps reach markers underneath).
+                             Rests at MapCloudLayout.JapanRest, positioned as a
+                             source-image-normalized rectangle converted through
+                             the same cover-fit crop as marker coordinates (see
+                             MapCloudLayout.Apply/MapCoordinateMapping.SourceRectToViewport).
+                             MapCloudTransitionController animates it during a
+                             Japan<->Okinawa chapter transition. The layer's own
+                             picking-mode is the input-lock switch during a
+                             transition (Position while locked, Ignore at rest) —
+                             the four cloud sprites themselves always stay
+                             non-picking; pan/wheel/pinch are separately guarded
+                             in MapPanZoomController. -->
+                        <ui:VisualElement name="map-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="map-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
-                    <ui:Label text="The Japan map is your road. Clear a city to turn it red and open the next. Start at Okinawa — train its karate before you fight." class="lead map-lead" />
+                    <!-- toggled to picking-mode:Position only while the chapter
+                         panel is open, so a tap "elsewhere" on the map closes it
+                         (JapanMapController). -->
+                    <ui:VisualElement name="map-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
+                </ui:VisualElement>
 
-                    <!-- mock rank / progress summary (local frontend data) -->
-                    <ui:VisualElement class="map-progress">
-                        <ui:VisualElement class="map-belt">
-                            <ui:VisualElement class="map-belt__swatch" picking-mode="Ignore" />
-                            <ui:VisualElement class="map-belt__text">
-                                <ui:Label text="White Belt · Level 1" class="map-belt__rank" />
-                                <ui:Label text="JAPAN · KARATE" class="map-belt__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-progress__bar">
-                            <ui:VisualElement class="map-progress__fill" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="0 / 10 CITIES CLEARED" class="map-progress__count" />
-                    </ui:VisualElement>
+                <!-- chapter detail OVERLAY panel: slides in over the map on
+                     marker selection (see Map.uss ".detail-panel"). Never a
+                     permanently reserved column, never auto-selected on entry.
+                     Content (title/desc/CTA/video) is updated per selection by
+                     JapanMapController. -->
+                <ui:VisualElement name="chapter-panel" class="detail-panel" picking-mode="Ignore">
+                    <ui:VisualElement name="chapter-panel-video" picking-mode="Ignore" class="detail-panel__video" />
+                    <ui:VisualElement class="detail-panel__overlay detail-panel__overlay--1" picking-mode="Ignore" />
+                    <ui:VisualElement class="detail-panel__overlay detail-panel__overlay--2" picking-mode="Ignore" />
+                    <ui:Label name="chapter-panel-video-fallback" text="Preview unavailable" class="detail-panel__video-fallback" picking-mode="Ignore" />
 
-                    <!-- locked future chapters (World-map regions), honestly not yet playable -->
-                    <ui:VisualElement class="map-chapters">
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="中" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="CHINA · KUNG FU · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="韓" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="KOREA · TAEKWONDO · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="map-chapter" picking-mode="Ignore">
-                            <ui:Label text="泰" class="map-icon map-icon--status map-chapter__glyph" />
-                            <ui:Label text="THAILAND · MUAY THAI · SOON" class="map-chapter__text" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
+                    <ui:VisualElement class="detail-panel__content">
+                        <ui:Label name="chapter-panel-eyebrow" text="CHAPTER 0" class="detail-panel__eyebrow" />
+                        <ui:Label name="chapter-panel-title" text="OKINAWA" class="detail-panel__title" />
+                        <ui:Label name="chapter-panel-desc" text="Your journey begins here. Establish your baseline, learn the foundations, and unlock the path ahead." class="detail-panel__desc" />
+                        <ui:Label name="chapter-panel-meta" text="6 LEVELS" class="detail-panel__meta" />
 
-                    <!-- Home / Back action (semantic name go-menu) -->
-                    <ui:VisualElement class="map-actionbar map-actionbar--hub">
-                        <ui:Button name="go-menu" class="map-btn map-btn--ghost tap-target-lg">
-                            <ui:Label text="‹" class="map-icon map-icon--action map-btn__icon map-btn__icon--lead" picking-mode="Ignore" />
-                            <ui:Label text="Home" class="map-btn__text" picking-mode="Ignore" />
+                        <!-- local controller-bound action (NOT a "go-" navigator):
+                             JapanMapController plays the ink-fade transition then
+                             routes to the "mapOkinawa" screen. Only enabled for
+                             an unlocked, selected chapter. -->
+                        <ui:Button name="chapter-panel-cta" class="detail-panel__cta tap-target-lg">
+                            <ui:Label name="chapter-panel-cta-text" text="ENTER CHAPTER" class="detail-panel__cta-text" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- RIGHT BAND: responsive progression route / node path -->
-                <ui:VisualElement class="map-route">
-                    <ui:Label text="ROADMAP · JAPAN" class="map-route__label" picking-mode="Ignore" />
+                <!-- brief ink-fade used only for the Japan -> Okinawa chapter
+                     transition (JapanMapController). -->
+                <ui:VisualElement name="map-transition-overlay" class="map-transition-overlay" picking-mode="Ignore" />
 
-                    <!-- 1 · AVAILABLE — Okinawa (Level 1 · Karate, the reference's "current"
-                         city). A real navigator whose Train action opens the Lessons hub
-                         (go-techniques), exactly as the reference current-city Train -> lessons.
-                         Visually distinct as the actionable node; primary node >= 64x64. -->
-                    <ui:Button name="go-techniques" class="map-node map-node--available tap-target-lg">
-                        <ui:Label text="空" class="map-icon map-icon--node map-node__glyph" picking-mode="Ignore" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="1 · Okinawa" class="map-node__name" picking-mode="Ignore" />
-                            <ui:Label text="Karate · 沖縄 · Level 1" class="map-node__romaji" picking-mode="Ignore" />
-                            <ui:Label text="FIGHT NOW · TRAIN TO BEGIN" class="map-node__meta" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="map-icon map-icon--action map-node__go" picking-mode="Ignore" />
-                    </ui:Button>
-
-                    <!-- 2-6 · LOCKED — honest coming-soon roadmap, NOT navigators (no go- name),
-                         non-interactive (picking ignored), readable with a clear lock state. -->
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="2 · Kagoshima" class="map-node__name" />
-                            <ui:Label text="Harbor Ronin · 薩 · Level 2" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · CLEAR OKINAWA FIRST" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
+                <!-- top quick-access HUD: translucent dark-glass overlay ON
+                     TOP of the map stage (see Map.uss ".map-topbar"), not a
+                     row that pushes it down — declared after the stage/
+                     panels/transition overlay so it always paints above
+                     them, but before the Settings modal so an open modal
+                     still covers it. Clean text navigation (Menu / Map /
+                     Techniques / Stats), no pill/bubble styling; "Map"
+                     carries the active-section accent since the player is
+                     always somewhere in the Map flow here. Settings is the
+                     one genuine icon button. Visible on both the Japan and
+                     Okinawa map screens (see JapanMapController). -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__nav">
+                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                        <ui:Button name="map-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="3 · Miyazaki" class="map-node__name" />
-                            <ui:Label text="Coast Brawler · 宮 · Level 3" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="map-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="map-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                            <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="4 · Hiroshima" class="map-node__name" />
-                            <ui:Label text="Mountain Hermit · 広 · Level 4" class="map-node__romaji" />
-                            <ui:Label text="LOCKED · COMING SOON" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="map-node map-node--locked" picking-mode="Ignore">
-                        <ui:Label text="鍵" class="map-icon map-icon--node-locked map-node__glyph map-node__glyph--locked" />
-                        <ui:VisualElement class="map-node__body">
-                            <ui:Label text="6 · Kyoto" class="map-node__name" />
-                            <ui:Label text="New Art · Aikido · 京 · Level 6" class="map-node__romaji" />
-                            <ui:Label text="NEW ART · COMING SOON" class="map-node__meta map-node__meta--locked" />
-                        </ui:VisualElement>
-                        <ui:Label text="SOON" class="map-node__badge" />
+                        <ui:Button name="map-topbar-settings" class="map-topbar__settings-btn tap-target">
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- persistent landscape bottom navigation dock (canonical 4-tab model) -->
-                <ui:VisualElement class="map-dock">
-                    <!-- Home routes to the menu hub -->
-                    <ui:VisualElement name="go-menu" class="map-tab tap-target-lg">
-                        <ui:Label text="家" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Home" class="map-tab__label" />
+                <!-- SETTINGS ("map-topbar-settings" above) now opens the one
+                     shared Settings modal (see the "shared-settings-modal"
+                     element at the end of this file, and
+                     SettingsModalController) — no local modal here anymore. -->
+
+            </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 9b - MAP / OKINAWA CHAPTER MAP (landscape mobile). Reached via
+             "ENTER CHAPTER" from the Japan world map. LVL 0-5 level nodes over
+             the full-bleed pannable okinawa_map_final.jpg; the top bar's Map
+             button returns to the Japan world map. See
+             MapPanZoomController(screenId="mapOkinawa", viewport="okinawa-stage",
+             canvas="okinawa-canvas") and OkinawaMapController. -->
+        <ui:VisualElement name="mapOkinawa" class="screen map-screen">
+            <Style src="Map/Map.uss" />
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="map-root">
+
+                <ui:VisualElement name="okinawa-stage" class="pan-stage">
+                    <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
+                        <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
+
+                        <!-- LVL 0-6: Okinawa's final MVP mission set (1 Special + 3
+                             Training + 2 Fight + 1 Boss Fight, see
+                             MapMarkerLayout.Missions). Position (style.left/top,
+                             percent) and mission-type icon class are both applied at
+                             bind time by OkinawaMapController from
+                             MapMarkerLayout.Missions — the "level-node__icon" element
+                             below is intentionally generic in markup; its type modifier
+                             class is never hardcoded here so mission type stays
+                             centralized in one place, not inferred from static CSS.
+                             Icon is one of the four final supplied mission markers
+                             (mission_lvl0.png / mission_training.png /
+                             mission_fight.png / mission_boss.png), shown as-is with no
+                             extra circle/backing plate. Label comes BEFORE the icon in
+                             markup (rendered above it) so the node's own bottom edge is
+                             the icon's bottom edge — MapMarkerLayout's coordinates are
+                             the pin's bottom TIP, and ".level-node" anchors via
+                             "translate: -50% -100%" in Map.uss. -->
+                        <!-- LVL 0: unlocked (existing starting assessment flow). -->
+                        <ui:Button name="level-node-0" class="level-node level-node--0 tap-target-lg">
+                            <ui:Label text="LVL 0" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- LVL 1: visible but locked until Level1Unlocked. -->
+                        <ui:Button name="level-node-1" class="level-node level-node--1 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 1" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- LVL 2-6: visible but always locked for now; no
+                             gameplay built for these yet. -->
+                        <ui:Button name="level-node-2" class="level-node level-node--2 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 2" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-3" class="level-node level-node--3 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 3" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-4" class="level-node level-node--4 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 4" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-5" class="level-node level-node--5 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 5" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-6" class="level-node level-node--6 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 6" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+
+                        <!-- Map Pass 3B decorative cloud overlay (corrected
+                             architecture) — see the "map" screen's
+                             "map-cloud-layer" for the full explanation. A child
+                             of THIS "okinawa-canvas", so it pans/zooms with the
+                             Okinawa map art. Rests at MapCloudLayout.OkinawaRest. -->
+                        <ui:VisualElement name="okinawa-cloud-layer" class="map-cloud-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="okinawa-cloud-right-01" class="map-cloud map-cloud--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-left-01" class="map-cloud map-cloud--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-left-02" class="map-cloud map-cloud--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-cloud-bottom-01" class="map-cloud map-cloud--bottom-01" picking-mode="Ignore" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
-                    <!-- Map is the active screen here -->
-                    <ui:VisualElement name="nav-map" class="map-tab map-tab--active tap-target-lg">
-                        <ui:Label text="地" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Map" class="map-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Techniques routes to the lessons hub -->
-                    <ui:VisualElement name="go-techniques" class="map-tab tap-target-lg">
-                        <ui:Label text="技" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Techniques" class="map-tab__label" />
-                    </ui:VisualElement>
-                    <!-- Profile routes to the read-only player dashboard -->
-                    <ui:VisualElement name="go-profile" class="map-tab tap-target-lg">
-                        <ui:Label text="人" class="map-tab__glyph map-icon map-icon--nav" />
-                        <ui:Label text="Profile" class="map-tab__label" />
+
+                    <ui:VisualElement name="okinawa-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
+                </ui:VisualElement>
+
+                <!-- level detail OVERLAY popup: same shared ".detail-panel"
+                     component as the Japan chapter panel, content swapped per
+                     selection by OkinawaMapController. -->
+                <ui:VisualElement name="level-panel" class="detail-panel" picking-mode="Ignore">
+                    <ui:VisualElement class="detail-panel__content">
+                        <ui:Label name="level-panel-eyebrow" text="LEVEL" class="detail-panel__eyebrow" />
+                        <ui:Label name="level-panel-title" text="LVL 0" class="detail-panel__title" />
+                        <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="detail-panel__subtitle" />
+                        <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="detail-panel__desc" />
+
+                        <!-- local controller-bound action (NOT a "go-" navigator):
+                             OkinawaMapController routes LVL 0 to "combineIntro"
+                             and LVL 1 to the existing lesson/techniques flow;
+                             disabled while locked. -->
+                        <ui:Button name="level-panel-cta" class="detail-panel__cta tap-target-lg">
+                            <ui:Label name="level-panel-cta-text" text="BEGIN" class="detail-panel__cta-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
+
+                <!-- starts opaque; OkinawaMapController fades it out on entry,
+                     completing the ink-fade begun by the Japan screen. -->
+                <ui:VisualElement name="okinawa-transition-overlay" class="map-transition-overlay map-transition-overlay--visible" picking-mode="Ignore" />
+
+                <!-- top quick-access HUD: same translucent dark-glass overlay
+                     system as the Japan world map (see Map.uss ".map-topbar"
+                     and the "map" screen's own copy of this block for the
+                     full explanation). -->
+                <ui:VisualElement class="map-topbar">
+                    <ui:VisualElement class="map-topbar__nav">
+                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- Custom-wired (not a plain "go-" navigator): OkinawaMapController
+                             must reset the session map context to Japan BEFORE navigating,
+                             so this can't rely on ScreenManager's generic click wiring, whose
+                             ordering relative to a second handler isn't guaranteed. -->
+                        <ui:Button name="okinawa-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--map" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                                <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-techniques" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="map-topbar__right">
+                        <ui:VisualElement class="map-topbar__status">
+                            <ui:Label name="okinawa-topbar-level" text="LVL 1" class="map-topbar__level" />
+                            <ui:Label name="okinawa-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                            <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                                <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__settings-btn tap-target">
+                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- SETTINGS ("okinawa-topbar-settings" above) now opens the
+                     one shared Settings modal (see the "shared-settings-modal"
+                     element at the end of this file, and
+                     SettingsModalController) — no local modal here anymore. -->
 
             </ui:VisualElement>
             </ui:VisualElement>
@@ -733,160 +969,313 @@
         <!-- 10 - PROFILE / PLAYER DASHBOARD (landscape, read-only frontend data) -->
         <ui:VisualElement name="profile" class="screen profile-screen">
             <Style src="Profile/Profile.uss" />
-            <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper -->
+            <!-- shared top-nav visual system (".map-topbar"), reused exactly as-is
+                 — see the same note on the "techniques" screen above. -->
+            <Style src="Map/Map.uss" />
+            <!-- full-bleed Profile background, OUTSIDE the safe-area wrapper. The
+                 supplied final art (profile_background.jpg) IS the background —
+                 no generated decorative glow/enso shapes. -->
             <ui:VisualElement class="profile-bg" picking-mode="Ignore">
-                <ui:VisualElement class="profile-glow" picking-mode="Ignore" />
-                <ui:VisualElement class="profile-enso" picking-mode="Ignore" />
+                <ui:VisualElement class="profile-scrim" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <ui:VisualElement class="safe-area-content">
-            <ui:VisualElement class="profile-dashboard">
 
-                <!-- identity / current standing from the reference Profile hub -->
-                <ui:VisualElement class="profile-identity profile-card">
-                    <ui:Label text="人" class="profile-identity__mark profile-icon profile-icon--avatar" picking-mode="Ignore" />
-                    <ui:VisualElement class="profile-identity__body">
-                        <ui:Label text="Your dojo" class="profile-title" />
-                        <ui:Label text="1-DAY STREAK · LEVEL 1 · $10.00 BANKED" class="profile-meta" />
-                        <ui:Label text="White belt. Restoring the Heian base form and the foundation lifts." class="profile-copy" />
+            <!-- shared top quick-access HUD, exactly the same system as Map/
+                 Okinawa/Techniques (see Map/Map.uss ".map-topbar"). Reuses the
+                 SAME element names the old bottom dock used
+                 (go-menu/profile-nav-map/profile-nav-techniques/nav-profile) —
+                 only relocated + restyled — so ProfileController's existing
+                 Map/Techniques progression-gating (see ProfileProgressionTests)
+                 needs no code changes at all. "Profile" carries the active
+                 accent. Settings opens the one shared modal
+                 (SettingsModalController — "profile-topbar-settings"). -->
+            <ui:VisualElement class="map-topbar">
+                <ui:VisualElement class="map-topbar__nav">
+                    <ui:VisualElement name="go-menu" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- rank / belt / discipline summary -->
-                <ui:VisualElement class="profile-rank profile-card">
-                    <ui:VisualElement class="profile-section-head">
-                        <ui:Label text="白" class="profile-icon profile-icon--rank profile-section-head__glyph" picking-mode="Ignore" />
-                        <ui:VisualElement class="profile-section-head__body">
-                            <ui:Label text="White Belt" class="profile-card__title" />
-                            <ui:Label text="LADDER RUNG 1 · DOJO" class="profile-card__sub" />
-                        </ui:VisualElement>
+                    <ui:VisualElement name="profile-nav-map" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="profile-meter">
-                        <ui:VisualElement class="profile-meter__fill" picking-mode="Ignore" />
+                    <ui:VisualElement name="profile-nav-techniques" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Techniques" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="profile-rank__grid">
-                        <ui:VisualElement class="profile-rank__item">
-                            <ui:Label text="DISCIPLINE" class="profile-mini-label" />
-                            <ui:Label text="Japan · Karate" class="profile-mini-value" />
+                    <ui:VisualElement name="nav-profile" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target" picking-mode="Ignore">
+                        <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--profile" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--middle" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--inner" picking-mode="Ignore" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-rank__item">
-                            <ui:Label text="FORM" class="profile-mini-label" />
-                            <ui:Label text="Heian — form restored 10%" class="profile-mini-value" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <!-- training statistics from the local stat model reference -->
-                <ui:VisualElement class="profile-stats profile-card">
-                    <ui:Label text="Stats" class="profile-card__title" />
-                    <ui:Label text="Your fighter's attributes" class="profile-card__sub" />
-                    <ui:VisualElement class="profile-stat-grid">
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="力" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Strength" class="profile-stat__label" />
-                                <ui:Label text="12" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="速" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Speed" class="profile-stat__label" />
-                                <ui:Label text="9" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="疾" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Agility" class="profile-stat__label" />
-                                <ui:Label text="11" class="profile-stat__value" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-stat">
-                            <ui:Label text="耐" class="profile-icon profile-icon--stat profile-stat__glyph" />
-                            <ui:VisualElement class="profile-stat__body">
-                                <ui:Label text="Endurance" class="profile-stat__label" />
-                                <ui:Label text="8" class="profile-stat__value" />
-                            </ui:VisualElement>
+                        <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        <ui:VisualElement class="map-topbar__nav-btn-underline map-topbar__nav-btn-underline--profile" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--a" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--b" picking-mode="Ignore" />
+                            <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
+                <ui:VisualElement class="map-topbar__right">
+                    <ui:VisualElement class="map-topbar__status">
+                        <ui:Label name="profile-topbar-level" text="LVL 1" class="map-topbar__level" />
+                        <ui:Label name="profile-topbar-xp" text="320 / 500 XP" class="map-topbar__xp" />
+                        <ui:VisualElement class="map-topbar__xp-bar" picking-mode="Ignore">
+                            <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Button name="profile-topbar-settings" class="map-topbar__settings-btn tap-target">
+                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
 
-                <!-- achievements / badges use the reference Profile launcher labels as read-only status -->
-                <ui:VisualElement class="profile-achievements profile-card">
-                    <ui:Label text="Badges" class="profile-card__title" />
-                    <ui:VisualElement class="profile-badge-row">
-                        <ui:VisualElement class="profile-badge">
-                            <ui:Label text="録" class="profile-icon profile-icon--badge profile-badge__glyph" />
-                            <ui:Label text="Stats" class="profile-badge__title" />
-                            <ui:Label text="Your fighter's attributes" class="profile-badge__sub" />
+            <!-- three-region composition: identity (left) / capability radar
+                 (center, hero element) / current journey (right). Frontend
+                 mock data throughout — see ProfileController for the single
+                 centralized source of every placeholder value. -->
+            <ui:VisualElement class="profile-layout">
+
+                <!-- LEFT: identity / progression -->
+                <ui:VisualElement class="profile-column profile-column--identity">
+                    <ui:Label text="PROFILE" class="profile-kicker" />
+                    <ui:VisualElement class="profile-name-row">
+                        <ui:Label name="profile-display-name" text="Mikey" class="profile-name" />
+                        <!-- Plain, unconditional navigation to Profile Details — no
+                             gating, so a generic ScreenManager "go-" navigator needs
+                             zero controller code (see ProfileDetailsController for
+                             the screen it opens). -->
+                        <ui:Button name="go-profileDetails" class="profile-name-edit-btn tap-target">
+                            <ui:VisualElement class="profile-name-edit-icon" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="profile-role-row">
+                        <ui:Label text="Disciple" class="profile-role" />
+                        <ui:Label name="profile-identity-level" text="LVL 1" class="profile-role-level" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="profile-xp-bar">
+                        <ui:VisualElement name="profile-xp-bar-fill" class="profile-xp-bar__fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="profile-xp-label" text="320 / 500 XP" class="profile-xp-label" />
+
+                    <ui:VisualElement class="profile-identity-facts">
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="3 Day Streak" class="profile-identity-fact__text" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-badge">
-                            <ui:Label text="誓" class="profile-icon profile-icon--badge profile-badge__glyph profile-badge__glyph--seal" />
-                            <ui:Label text="The Vow" class="profile-badge__title" />
-                            <ui:Label text="Your daily commitment" class="profile-badge__sub" />
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="Chapter 0 · Okinawa" class="profile-identity-fact__text" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="profile-badge profile-badge--disabled">
-                            <ui:Label text="金" class="profile-icon profile-icon--badge profile-badge__glyph" />
-                            <ui:Label text="Plans" class="profile-badge__title" />
-                            <ui:Label text="Membership &amp; pricing" class="profile-badge__sub" />
-                            <ui:Label text="COMING SOON" class="profile-disabled-label" />
+                        <ui:VisualElement class="profile-identity-fact">
+                            <ui:Label text="1 Technique Learned" class="profile-identity-fact__text" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- recent progress/activity from the reference progression/session summary -->
-                <ui:VisualElement class="profile-activity profile-card">
-                    <ui:Label text="Recent progress" class="profile-card__title" />
-                    <ui:VisualElement class="profile-activity-list">
-                        <ui:VisualElement class="profile-activity-item">
-                            <ui:Label text="道" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="Dojo" class="profile-activity-item__title" />
-                                <ui:Label text="White belt" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-activity-item">
-                            <ui:Label text="前" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="Front Stance" class="profile-activity-item__title" />
-                                <ui:Label text="restored" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="profile-activity-item profile-activity-item--current">
-                            <ui:Label text="今" class="profile-icon profile-icon--activity profile-activity-item__glyph" />
-                            <ui:VisualElement class="profile-activity-item__body">
-                                <ui:Label text="You are here" class="profile-activity-item__title" />
-                                <ui:Label text="Heian — day 1" class="profile-activity-item__sub" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:Label text="A fragment restored · 3 squats: 1 no-rep, 2 clean" class="profile-activity-note" />
+                <!-- CENTER: five-sided capability radar — the hero element.
+                     ProfileController mounts a ProfileRadarChart (custom
+                     VisualElement, generateVisualContent/Painter2D — see
+                     Assets/UI/Profile/ProfileRadarChart.cs) into this mount
+                     point and drives its collapse->target entrance animation. -->
+                <ui:VisualElement class="profile-column profile-column--radar">
+                    <ui:VisualElement name="profile-radar-mount" class="profile-radar-mount" />
                 </ui:VisualElement>
 
-                <!-- canonical four-tab bottom navigation dock -->
-                <ui:VisualElement class="profile-dock">
-                    <ui:VisualElement name="go-menu" class="profile-tab tap-target-lg">
-                        <ui:Label text="家" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Home" class="profile-tab__label" />
+                <!-- RIGHT: current journey / training -->
+                <ui:VisualElement class="profile-column profile-column--journey">
+                    <ui:Label text="Current Journey" class="profile-section-title" />
+                    <ui:Label text="Chapter 0" class="profile-journey-kicker" />
+                    <ui:VisualElement class="profile-journey-row">
+                        <ui:Label text="Okinawa" class="profile-journey-value" />
+                        <ui:Label text="Level 1 of 6" class="profile-journey-meta" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="go-map" class="profile-tab tap-target-lg">
-                        <ui:Label text="地" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Map" class="profile-tab__label" />
+                    <ui:VisualElement class="profile-journey-bar">
+                        <ui:VisualElement class="profile-journey-bar__fill" picking-mode="Ignore" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="go-techniques" class="profile-tab tap-target-lg">
-                        <ui:Label text="技" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Techniques" class="profile-tab__label" />
+
+                    <ui:Label text="Training" class="profile-section-title profile-section-title--spaced" />
+                    <ui:VisualElement class="profile-training-list">
+                        <ui:Label text="1 Technique Learned" class="profile-training-item" />
+                        <ui:Label text="1 Assessment Completed" class="profile-training-item" />
+                        <ui:Label text="3 Day Streak" class="profile-training-item" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="nav-profile" class="profile-tab profile-tab--active tap-target-lg">
-                        <ui:Label text="人" class="profile-tab__glyph profile-icon profile-icon--nav" />
-                        <ui:Label text="Profile" class="profile-tab__label" />
+
+                    <ui:Label text="Recent Milestone" class="profile-section-title profile-section-title--spaced profile-section-title--muted" />
+                    <ui:Label text="First Assessment Complete" class="profile-milestone-value" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+
+            <!-- Attribute Details popup — a Profile-LOCAL overlay (no new screen
+                 id), opened by tapping the radar itself (ProfileController wires
+                 "profile-radar-mount"'s click) instead of a permanently-visible
+                 guide that fought the background art for readability. Tapping the
+                 scrim or Close dismisses it; opening/closing never touches
+                 IScreenNavigator, so it can never replay the radar entrance
+                 animation (that only reacts to ScreenChanged — see
+                 ProfileController). Declared after ".profile-layout" so it paints
+                 above the three-region composition. -->
+            <ui:VisualElement name="profile-attribute-popup" class="profile-popup">
+                <ui:VisualElement name="profile-attribute-popup-scrim" class="profile-popup__scrim" />
+                <ui:VisualElement class="profile-popup__card profile-popup__card--wide">
+                    <ui:Label text="Attributes" class="profile-popup__title" />
+                    <ui:VisualElement class="profile-attribute-popup__grid">
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Strength" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures power production and striking force. Higher Strength reflects your ability to generate force efficiently through movement." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Speed" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures how quickly you move and react. Higher Speed reflects faster execution, transitions, and response time." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Form" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures technical precision and correctness. Higher Form reflects cleaner positioning, mechanics, and execution of techniques." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Stamina" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures endurance during repeated effort. Higher Stamina reflects your ability to maintain performance as a session becomes longer or more demanding." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="profile-attribute-popup__entry">
+                            <ui:Label text="Control" class="profile-attribute-popup__name" />
+                            <ui:Label text="Measures balance, stability, and body control. Higher Control reflects your ability to stay composed, coordinated, and accurate throughout movement." class="profile-attribute-popup__desc" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
+                    <ui:Button name="profile-attribute-popup-close" text="Close" class="profile-popup__close tap-target" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 10b - PROFILE DETAILS (Display Name / Gender / Age / Weight / Height).
+             A proper full screen (not a popup), reached only from Profile's edit
+             icon ("go-profileDetails") or the one-time incomplete-profile
+             redirect (see ProfileController). Save validates everything and
+             returns to "profile" (ProfileDetailsController); Cancel is a plain
+             "go-profile" — nothing is written until Save, so there is nothing to
+             "revert". Classified as a hub screen (see AudioController.HubScreenIds)
+             so hub music never stops/restarts crossing into or out of it. Replaces
+             the old Profile-local username-only popup entirely — this is now the
+             ONE place Profile identity is edited. -->
+        <ui:VisualElement name="profileDetails" class="screen profile-details-screen">
+            <Style src="Profile/ProfileDetails.uss" />
+            <!-- Reuses the same final Profile background art as the "profile"
+                 screen (source bytes untouched) under a strong scrim, so this
+                 stays atmospheric without ever competing with the form. -->
+            <ui:VisualElement class="profile-details-bg" picking-mode="Ignore">
+                <ui:VisualElement class="profile-details-scrim" picking-mode="Ignore" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="safe-area-content">
+            <ui:VisualElement class="profile-details-layout">
+
+                <ui:VisualElement class="profile-details-form">
+                    <!-- LEFT: heading + Display Name + Gender + Age -->
+                    <ui:VisualElement class="profile-details-column">
+                        <ui:Label text="Profile Details" class="profile-details-title" />
+                        <ui:Label text="Tell Mikey about you. These details will help personalize your training." class="profile-details-subtitle" />
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Display Name" class="profile-details-field__label" />
+                            <ui:TextField name="profile-details-display-name" max-length="24" class="profile-details-field__input" />
+                            <ui:Label name="profile-details-display-name-error" text="" class="profile-details-field__error" />
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Gender" class="profile-details-field__label" />
+                            <ui:VisualElement name="profile-details-gender-group" class="profile-details-gender-group">
+                                <ui:Button name="profile-details-gender-male" text="Male" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-female" text="Female" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-other" text="Other" class="profile-details-gender-option tap-target" />
+                                <ui:Button name="profile-details-gender-undisclosed" text="Prefer not to say" class="profile-details-gender-option tap-target" />
+                            </ui:VisualElement>
+                            <ui:Label name="profile-details-gender-error" text="" class="profile-details-field__error" />
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Age" class="profile-details-field__label" />
+                            <ui:TextField name="profile-details-age" class="profile-details-field__input profile-details-field__input--narrow" />
+                            <ui:Label name="profile-details-age-error" text="" class="profile-details-field__error" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <!-- RIGHT: Weight + Height + a short explanatory note -->
+                    <ui:VisualElement class="profile-details-column profile-details-column--right">
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Weight" class="profile-details-field__label" />
+                            <ui:VisualElement class="profile-details-field__input-row">
+                                <ui:TextField name="profile-details-weight" class="profile-details-field__input profile-details-field__input--narrow" />
+                                <ui:Label text="kg" class="profile-details-field__unit" />
+                            </ui:VisualElement>
+                            <ui:Label name="profile-details-weight-error" text="" class="profile-details-field__error" />
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="profile-details-field">
+                            <ui:Label text="Height" class="profile-details-field__label" />
+                            <ui:VisualElement class="profile-details-field__input-row">
+                                <ui:TextField name="profile-details-height" class="profile-details-field__input profile-details-field__input--narrow" />
+                                <ui:Label text="cm" class="profile-details-field__unit" />
+                            </ui:VisualElement>
+                            <ui:Label name="profile-details-height-error" text="" class="profile-details-field__error" />
+                        </ui:VisualElement>
+
+                        <ui:Label text="Used to personalize future training statistics." class="profile-details-note" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="profile-details-actions">
+                    <ui:Button name="go-profile" text="Cancel" class="profile-details-btn profile-details-btn--secondary tap-target" />
+                    <ui:Button name="profile-details-save" text="Save" class="profile-details-btn profile-details-btn--primary tap-target" />
                 </ui:VisualElement>
 
             </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <!-- 11 - SHARED SETTINGS MODAL (Music / Sound Effects / Trainer Voice).
+             The ONE Settings window for the whole app — reachable from Main
+             Menu ("menu-settings-open") and both map screens
+             ("map-topbar-settings" / "okinawa-topbar-settings"), all wired to
+             THIS SAME element by SettingsModalController. Declared last, after
+             every screen, so it always paints/hit-tests above whichever screen
+             is currently active (ScreenManager only toggles screens'
+             display:none/flex; this element isn't itself a screen and is never
+             touched by ScreenManager). Closing only removes the modal's own
+             "open" CSS class — it never navigates, so the screen underneath
+             (and, on a map screen, its camera/chapter context) is always
+             left exactly as it was. Hidden by default. -->
+        <ui:VisualElement name="shared-settings-modal" class="settings-modal">
+            <Style src="Settings/Settings.uss" />
+            <ui:VisualElement class="settings-modal__card">
+                <ui:Label text="Settings" class="settings-modal__title" />
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Music" class="setting__label" />
+                    <ui:Slider name="shared-settings-music" low-value="0" high-value="1" value="0.70" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Sound Effects" class="setting__label" />
+                    <ui:Slider name="shared-settings-sfx" low-value="0" high-value="1" value="1.00" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Trainer Voice" class="setting__label" />
+                    <ui:Slider name="shared-settings-trainer" low-value="0" high-value="1" value="1.00" class="setting__slider" />
+                </ui:VisualElement>
+                <ui:Button name="shared-settings-close" text="Close" class="settings-modal__close tap-target" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 12 - LAUNCH TRANSITION OVERLAY: the one shared full-screen black fade
+             used only by the Logo Intro -> Lore -> Main Menu launch sequence (see
+             TransitionOverlayController / ITransitionOverlay, driven by
+             TitleController and LoreExitController). Declared last, after every
+             screen AND the shared Settings modal, so it always paints above
+             whichever screen is currently active — same "declared last,
+             self-managed, never touched by ScreenManager" pattern as
+             shared-settings-modal above. Not a "screen" — ScreenManager never
+             touches it. Starts fully transparent and click-through
+             (picking-mode="Ignore"); TransitionOverlayController flips
+             picking-mode to Position only while actively covering the screen. -->
+        <ui:VisualElement name="transition-overlay" class="transition-overlay" picking-mode="Ignore" />
 
     </ui:VisualElement>
 </ui:UXML>

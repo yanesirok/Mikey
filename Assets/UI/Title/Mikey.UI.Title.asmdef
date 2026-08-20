@@ -1,0 +1,17 @@
+{
+    "name": "Mikey.UI.Title",
+    "rootNamespace": "Mikey.UI.Title",
+    "references": [
+        "Mikey.UI.SafeArea",
+        "Mikey.UI.Audio"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

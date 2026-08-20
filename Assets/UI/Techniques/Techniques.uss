@@ -100,6 +100,11 @@
     flex-wrap: wrap;
     align-items: stretch;
     justify-content: center;
+    /* Shared top HUD (".map-topbar", Map.uss) is a same-screen overlay, not a
+       row that reflows layout — this top offset just keeps the hub headline
+       clear of its ~84px band, mirroring how every other HUD-bearing screen
+       leaves room instead of letting content paint underneath it. */
+    padding-top: 100px;
 }
 
 /* LEFT BAND — lesson hub: hierarchy, mock rank/progress, Home/Back */
