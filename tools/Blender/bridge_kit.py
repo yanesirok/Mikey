@@ -253,9 +253,11 @@ def post():
     сверху не выйдет из box_part, поэтому макушку осаживает displace high-poly,
     а low несёт только общую фаску."""
     low = box_part('Post', 0.09, 0.74, 0.09, bevel=0.010, segs=2)
+    # Силы подняты в ~3.5 раза против первой версии: при 106 px/м тёс глубиной 4 мм — это
+    # полпикселя, деталировка пеклась честно и не читалась с игровой дистанции вовсе.
     hi = clone_high(low, [
-        ('CLOUDS', 0.35, 0.0030),    # волокно
-        ('VORONOI', 0.16, 0.0045),   # следы топора — гранёные плоскости
+        ('CLOUDS', 0.35, 0.010),    # волокно
+        ('VORONOI', 0.16, 0.016),   # следы топора — гранёные плоскости
     ])
     return low, hi
 
@@ -270,8 +272,8 @@ def post_end():
         if v.co.y > top - 0.02:
             v.co.y -= 0.02 + 0.025 * abs(v.co.x) / 0.07  # конёк в центре, скаты к краям
     hi = clone_high(low, [
-        ('CLOUDS', 0.4, 0.0035),
-        ('VORONOI', 0.2, 0.0050),
+        ('CLOUDS', 0.4, 0.012),
+        ('VORONOI', 0.2, 0.018),
     ])
     return low, hi
 
@@ -281,12 +283,12 @@ def rail():
     """Поручень: верх затёрт ладонями до скругления — фаска сверху крупнее."""
     low = box_part('Rail1m', 1.0, 0.06, 0.08, bevel=0.012, segs=2)
     hi = clone_high(low, [
-        ('CLOUDS', 0.5, 0.0020),
+        ('CLOUDS', 0.5, 0.007),
     ])
     # затёртость: у high верхние рёбра осаживаются к центру сечения
     for v in hi.data.vertices:
         if v.co.y > 0.02:
-            v.co.y -= 0.006 * (abs(v.co.z) / 0.04) ** 2
+            v.co.y -= 0.020 * (abs(v.co.z) / 0.04) ** 2
     return low, hi
 
 
@@ -298,8 +300,8 @@ def lower_rail():
     low.rotation_euler = (0.0, 0.0, 1.5707963)   # ось Y -> X: жердь лежит вдоль моста
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
     hi = clone_high(low, [
-        ('CLOUDS', 0.3, 0.0022),
-        ('STUCCI', 0.12, 0.0030),   # сучки
+        ('CLOUDS', 0.3, 0.008),
+        ('STUCCI', 0.12, 0.010),   # сучки
     ])
     return low, hi
 
@@ -309,8 +311,8 @@ def sill():
     """Порожек: грубая фаска, торцы со следом пилы (рельефом high-poly)."""
     low = box_part('Sill1m', 1.0, 0.08, 0.14, bevel=0.010, segs=1)
     hi = clone_high(low, [
-        ('CLOUDS', 0.45, 0.0030),
-        ('WOOD', 0.08, 0.0025),     # кольца пилы на торцах
+        ('CLOUDS', 0.45, 0.010),
+        ('WOOD', 0.08, 0.008),      # кольца пилы на торцах
     ])
     return low, hi
 
@@ -321,7 +323,7 @@ def pile_beam():
     в мировых Z, здесь это ±0.62 по X при длине 1.45)."""
     low = box_part('PileBeam', 1.45, 0.10, 0.20, bevel=0.010, segs=2)
     hi = clone_high(low, [
-        ('CLOUDS', 0.4, 0.0030),
+        ('CLOUDS', 0.4, 0.010),
     ])
     # врубки: нижняя грань high осаживается над посадочными местами свай
     for v in hi.data.vertices:
@@ -335,15 +337,15 @@ def pile():
     """Свая: комель (низ) шире вершины, кольцевые трещины у головы."""
     low = cyl_part('Pile', r_top=0.075, r_bot=0.095, h=1.6, sides=12)
     hi = clone_high(low, [
-        ('CLOUDS', 0.35, 0.0040),     # кора снята, но бревно живое
-        ('MUSGRAVE', 0.10, 0.0055),   # продольные трещины
+        ('CLOUDS', 0.35, 0.014),      # кора снята, но бревно живое
+        ('MUSGRAVE', 0.10, 0.019),    # продольные трещины
     ])
     # кольцевые трещины у головы: верхняя четверть high пережимается волной
     import math
     for v in hi.data.vertices:
         if v.co.y > 0.4:
-            v.co.x *= 1.0 - 0.02 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
-            v.co.z *= 1.0 - 0.02 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
+            v.co.x *= 1.0 - 0.035 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
+            v.co.z *= 1.0 - 0.035 * (0.5 + 0.5 * math.sin(v.co.y * 55.0))
     return low, hi
 
 
@@ -384,7 +386,8 @@ def lashing():
     tex.noise_scale = 0.02
     d = hi.modifiers.new('fibre', 'DISPLACE')
     d.texture = tex
-    d.strength = 0.0025
+    # x2, не x3.5 как у дерева: волокно глубже 5 мм разорвало бы 11-мм жилу витка
+    d.strength = 0.005
     d.mid_level = 0.5
     apply_mods(hi)
     return low, hi

@@ -15,8 +15,11 @@ namespace Mikey.FightEditor
     public static class FighterImportSetup
     {
         const string CharacterDir = "Assets/Fight/character";
-        const string PlayerModelPath = CharacterDir + "/KimonoFighter_Player.fbx";
-        const string EnemyModelPath = CharacterDir + "/KimonoFighter_Enemy.fbx";
+        // Оба бойца носят костюм, сшитый по поверхности тела (tools/Blender/export_sewn.py):
+        // у подогнанного халата между тканью и телом 94 мм, и предплечье в этот зазор
+        // проваливается. У сшитого по телу зазора нет по построению.
+        const string PlayerModelPath = CharacterDir + "/KimonoFighterSewn.fbx";
+        const string EnemyModelPath = CharacterDir + "/KimonoFighterSewn.fbx";
         const string ShaderPath = CharacterDir + "/Character.shader";
         const string NormalPath = CharacterDir + "/kimono/T_Kimono_Normal.png";
         const string AoPath = CharacterDir + "/kimono/T_Kimono_AO.png";
@@ -73,6 +76,10 @@ namespace Mikey.FightEditor
             importer.animationType = ModelImporterAnimationType.Human;
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importAnimation = false;   // clips come from the mocap files, not from here
+            // KimonoCloth reads the garment's vertices to find the belt and to decide which of
+            // them the solver may move. Without a CPU copy that array comes back empty and the
+            // cloth silently pins itself shut. Cheap here — the kimono is 4797 vertices.
+            importer.isReadable = true;
             importer.SaveAndReimport();
             // Nothing here for the body's own maps: the export writes them as files next to the
             // model (body/<name>.png) and Unity resolves them on a plain import. They were briefly

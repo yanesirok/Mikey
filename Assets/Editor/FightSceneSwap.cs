@@ -38,8 +38,15 @@ namespace Mikey.FightEditor
     {
         const string ScenePath = "Assets/Scenes/FightSandbox.unity";
         const string CharacterDir = "Assets/Fight/character";
-        const string PlayerModelPath = CharacterDir + "/KimonoFighter_Player.fbx";
-        const string EnemyModelPath = CharacterDir + "/KimonoFighter_Enemy.fbx";
+        /// <summary>Both fighters wear the same body on purpose: Remy against Remy. The player's
+        /// own export carries Ch28, a different Mixamo character with a different face and skin,
+        /// and one fight between two different people is not what this arena is for. They still
+        /// read apart — the kimono and belt materials below are assigned per side.
+        ///
+        /// KimonoFighter_Player.fbx is left in the project rather than deleted; the day a second
+        /// body is wanted, pointing this constant back at it is the whole change.</summary>
+        const string PlayerModelPath = CharacterDir + "/KimonoFighterSewn.fbx";
+        const string EnemyModelPath = CharacterDir + "/KimonoFighterSewn.fbx";
         const string ControllerPath = "Assets/Fight/Fighter.controller";
 
         [MenuItem("Mikey/Swap Fighters To Kimono")]
@@ -195,6 +202,35 @@ namespace Mikey.FightEditor
                         + ", expected Kimono_Cloth or Kimono_Belt");
             }
             renderer.sharedMaterials = slots;
+        }
+
+        /// <summary>Puts <see cref="KimonoCloth"/> on every fighter in the sandbox.
+        ///
+        /// Separate from the swap above because it has to survive one: the swap deletes and
+        /// rebuilds the visual hierarchy, and a component added by hand in the inspector before
+        /// it would be gone afterwards. Re-runnable — a fighter that already has one is left
+        /// alone, so this is safe to call after every re-export of the model.</summary>
+        [MenuItem("Mikey/Add Kimono Cloth")]
+        public static void AddCloth()
+        {
+            var scene = OpenScene();
+            var fighters = scene.GetRootGameObjects()
+                .SelectMany(go => go.GetComponentsInChildren<Fighter>(true))
+                .ToArray();
+            if (fighters.Length == 0)
+                throw new System.InvalidOperationException("no Fighter components found in " + ScenePath);
+
+            int added = 0;
+            foreach (var fighter in fighters)
+                if (fighter.GetComponent<KimonoCloth>() == null)
+                {
+                    fighter.gameObject.AddComponent<KimonoCloth>();
+                    added++;
+                }
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"FightSceneSwap.AddCloth: {added} added, {fighters.Length - added} already had one");
         }
 
         static Material LoadMaterial(string path)
