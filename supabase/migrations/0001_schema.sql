@@ -14,12 +14,12 @@ create table if not exists public.profiles (
 
 create table if not exists public.level0_results (
   user_id               uuid primary key references auth.users(id) on delete cascade,
-  pushup_reps           int  not null default 0 check (pushup_reps >= 0),
-  squat_reps            int  not null default 0 check (squat_reps >= 0),
-  yokogeri_slow_reps    int  not null default 0 check (yokogeri_slow_reps >= 0),
-  yokogeri_best_zone    int  not null default 0 check (yokogeri_best_zone >= 0),
-  wallsit_seconds       real not null default 0 check (wallsit_seconds >= 0),
-  yokogeri_hold_seconds real not null default 0 check (yokogeri_hold_seconds >= 0),
+  pushup_reps           int  not null default 0 check (pushup_reps           between 0 and 100000),
+  squat_reps            int  not null default 0 check (squat_reps            between 0 and 100000),
+  yokogeri_slow_reps    int  not null default 0 check (yokogeri_slow_reps    between 0 and 100000),
+  yokogeri_best_zone    int  not null default 0 check (yokogeri_best_zone    between 0 and 10),
+  wallsit_seconds       real not null default 0 check (wallsit_seconds       between 0 and 86400),
+  yokogeri_hold_seconds real not null default 0 check (yokogeri_hold_seconds between 0 and 86400),
   updated_at            timestamptz not null default now()
 );
 
@@ -29,7 +29,7 @@ create table if not exists public.level0_results (
 create table if not exists public.level1_progress (
   user_id      uuid not null references auth.users(id) on delete cascade,
   technique_id text not null check (length(technique_id) between 1 and 64),
-  clean_reps   int  not null default 0 check (clean_reps >= 0),
+  clean_reps   int  not null default 0 check (clean_reps between 0 and 100000),
   updated_at   timestamptz not null default now(),
   primary key (user_id, technique_id)
 );

@@ -23,6 +23,11 @@ begin
   incoming_ts := coalesce(nullif(p->>'profile_updated_at', '')::timestamptz,
                           'epoch'::timestamptz);
 
+  -- Штамп приходит из недоверенного источника. Устройство со сбитыми вперёд
+  -- часами иначе заморозило бы профиль навсегда: его «будущее» время никогда
+  -- не будет перекрыто настоящей правкой.
+  incoming_ts := least(incoming_ts, now());
+
   -- Профиль: правки — последняя запись побеждает; прогресс туториала — максимум.
   insert into public.profiles as pr
     (id, display_name, gender, age, weight_kg, height_cm, tutorial_progress, profile_updated_at)
@@ -30,10 +35,18 @@ begin
     (uid,
      coalesce(p->>'display_name', 'Mikey'),
      coalesce(p->>'gender', ''),
-     coalesce((p->>'age')::int, 0),
-     coalesce((p->>'weight_kg')::real, 0),
-     coalesce((p->>'height_cm')::int, 0),
-     coalesce((p->>'tutorial_progress')::int, 0),
+     case when (p->>'age') ~ '^[0-9]+$'
+               and (p->>'age')::int between 10 and 100
+          then (p->>'age')::int else 0 end,
+     case when (p->>'weight_kg') ~ '^[0-9]+(\.[0-9]+)?$'
+               and (p->>'weight_kg')::real between 30 and 300
+          then (p->>'weight_kg')::real else 0 end,
+     case when (p->>'height_cm') ~ '^[0-9]+$'
+               and (p->>'height_cm')::int between 100 and 250
+          then (p->>'height_cm')::int else 0 end,
+     case when (p->>'tutorial_progress') ~ '^[0-9]+$'
+               and (p->>'tutorial_progress')::int between 0 and 10
+          then (p->>'tutorial_progress')::int else 0 end,
      incoming_ts)
   on conflict (id) do update set
     display_name = case when excluded.profile_updated_at > pr.profile_updated_at
