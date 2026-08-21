@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -130,6 +132,59 @@ namespace Mikey.UI.Profile.Tests
         {
             var data = new ProfileUserData { DisplayName = name, Gender = gender, Age = age, WeightKg = weightKg, HeightCm = heightCm };
             Assert.IsFalse(ProfileUserDataStorage.IsComplete(data));
+        }
+
+        // Штамп времени правки — основа правила «профиль побеждает по свежести».
+        // Если Save перестанет его ставить, синхронизация начнёт молча терять правки.
+
+        [Test]
+        public void Save_StampsUpdatedAt_InRoundTrippableUtcIso()
+        {
+            var data = new ProfileUserData { DisplayName = "Дима", Age = 21 };
+
+            ProfileUserDataStorage.Save(data);
+            ProfileUserData loaded = ProfileUserDataStorage.Load();
+
+            Assert.IsNotEmpty(loaded.UpdatedAtIso, "Save обязан проставить UpdatedAtIso.");
+            Assert.IsTrue(
+                DateTime.TryParse(loaded.UpdatedAtIso, CultureInfo.InvariantCulture,
+                                  DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                                  out _),
+                $"UpdatedAtIso должен разбираться как дата, получено: '{loaded.UpdatedAtIso}'.");
+        }
+
+        [Test]
+        public void Save_AdvancesUpdatedAt_OnEveryWrite()
+        {
+            var data = new ProfileUserData { DisplayName = "Дима" };
+            ProfileUserDataStorage.Save(data);
+            string first = ProfileUserDataStorage.Load().UpdatedAtIso;
+
+            data.DisplayName = "Дима 2";
+            data.UpdatedAtIso = string.Empty;
+            ProfileUserDataStorage.Save(data);
+            string second = ProfileUserDataStorage.Load().UpdatedAtIso;
+
+            Assert.AreNotEqual(string.Empty, second);
+            Assert.GreaterOrEqual(
+                string.CompareOrdinal(second, first), 0,
+                "Повторное сохранение не должно откатывать штамп назад.");
+        }
+
+        [Test]
+        public void SaveSynced_KeepsTheStampItWasGiven()
+        {
+            var fromServer = new ProfileUserData
+            {
+                DisplayName = "С сервера",
+                UpdatedAtIso = "2026-08-19T10:00:00Z",
+            };
+
+            ProfileUserDataStorage.SaveSynced(fromServer);
+
+            Assert.AreEqual("2026-08-19T10:00:00Z", ProfileUserDataStorage.Load().UpdatedAtIso,
+                "Принятая с сервера копия не должна выглядеть как своя свежая правка — " +
+                "иначе это устройство навсегда станет «самым новым».");
         }
     }
 }

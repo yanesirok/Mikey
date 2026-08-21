@@ -23,5 +23,14 @@ namespace Mikey.UI.Profile
         public int Age;
         public float WeightKg;
         public int HeightCm;
+
+        /// <summary>
+        /// Время последней правки, ISO-8601 UTC. Проставляется в
+        /// <see cref="ProfileUserDataStorage.Save"/> и служит арбитром при
+        /// синхронизации: профиль — это правки, а не рекорды, поэтому побеждает
+        /// более свежая версия, а не большее число. Пусто у сохранений,
+        /// сделанных до появления синхронизации.
+        /// </summary>
+        public string UpdatedAtIso = string.Empty;
     }
 }

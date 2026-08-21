@@ -30,7 +30,39 @@ namespace Mikey.UI.Profile
             return MigrateFromDisplayNameOnly();
         }
 
-        public static void Save(ProfileUserData data) => PlayerPrefs.SetString(PlayerPrefsKey, JsonUtility.ToJson(data));
+        /// <summary>
+        /// Сохранение правки пользователя: штамп времени ставится здесь, а не у
+        /// вызывающих — забыть его из нового кода невозможно.
+        /// </summary>
+        public static void Save(ProfileUserData data)
+        {
+            if (data == null)
+                return;
+
+            data.UpdatedAtIso = System.DateTime.UtcNow.ToString(
+                "yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+
+            Write(data);
+        }
+
+        /// <summary>
+        /// Сохранение копии, принятой с сервера: штамп НЕ обновляется, иначе
+        /// принятая чужая правка тут же выглядела бы как своя свежая, и это
+        /// устройство навсегда стало бы «самым новым» — слияние по времени
+        /// перестало бы работать.
+        /// </summary>
+        public static void SaveSynced(ProfileUserData data)
+        {
+            if (data == null)
+                return;
+            Write(data);
+        }
+
+        private static void Write(ProfileUserData data)
+        {
+            PlayerPrefs.SetString(PlayerPrefsKey, JsonUtility.ToJson(data));
+            PlayerPrefs.Save();
+        }
 
         /// <summary>
         /// Complete = every field future capability calculations will need is
