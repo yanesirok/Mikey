@@ -51,7 +51,7 @@ begin
 
   if (select clean_reps from public.level1_progress
       where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'
-        and technique_id = 'stance-zenkutsu') <> 4 then
+        and technique_id = 'stance-zenkutsu') is distinct from 4 then
     raise exception 'уровень 1 понизился';
   end if;
 
@@ -121,16 +121,16 @@ end $$;
 -- ---- Пользователь B не видит и не трогает данные A ----
 set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated"}';
 
-select public.sync_progress('{"profile":{"display_name":"Б"},"level0":{"pushup_reps":1},"level1":[]}'::jsonb);
+select public.sync_progress('{"profile":{"display_name":"Б"},"level0":{"pushup_reps":999},"level1":[]}'::jsonb);
 
 do $$
 begin
   if (select pushup_reps from public.level0_results
-      where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') <> 20 then
+      where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') is distinct from 20 then
     raise exception 'ИЗОЛЯЦИЯ НАРУШЕНА: синк B изменил данные A';
   end if;
   if (select pushup_reps from public.level0_results
-      where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') <> 1 then
+      where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') is distinct from 999 then
     raise exception 'данные B не записались';
   end if;
   insert into check_log values ('OK: пользователи изолированы');
