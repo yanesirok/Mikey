@@ -1,3 +1,42 @@
+-- Безопасное чтение числа из jsonb. Возвращает 0 на всём, что не является
+-- числом в допустимом диапазоне: на мусоре, на пропущенном ключе, на NaN и на
+-- значении, которое переполнило бы целевой тип.
+--
+-- Приведение идёт через numeric: он не переполняется, поэтому проверка
+-- диапазона успевает отработать раньше, чем возникнет ошибка. Именно порядок
+-- «сначала диапазон, потом узкий тип» и закрывает дефект — обратный порядок
+-- роняет транзакцию целиком вместе с чужим прогрессом.
+create or replace function public.safe_int(v jsonb, lo int, hi int)
+returns int language sql immutable as $$
+  select case
+    when v is null or jsonb_typeof(v) = 'null' then 0
+    when jsonb_typeof(v) = 'number'
+         and (v #>> '{}') ~ '^-?[0-9]{1,15}(\.[0-9]+)?$'
+         and (v #>> '{}')::numeric between lo and hi
+      then trunc((v #>> '{}')::numeric)::int
+    when jsonb_typeof(v) = 'string'
+         and (v #>> '{}') ~ '^-?[0-9]{1,15}(\.[0-9]+)?$'
+         and (v #>> '{}')::numeric between lo and hi
+      then trunc((v #>> '{}')::numeric)::int
+    else 0
+  end;
+$$;
+
+create or replace function public.safe_real(v jsonb, lo real, hi real)
+returns real language sql immutable as $$
+  select case
+    when v is null or jsonb_typeof(v) = 'null' then 0
+    when jsonb_typeof(v) in ('number', 'string')
+         and (v #>> '{}') ~ '^-?[0-9]{1,15}(\.[0-9]+)?$'
+         and (v #>> '{}')::numeric between lo::numeric and hi::numeric
+      then (v #>> '{}')::numeric::real
+    else 0
+  end;
+$$;
+
+revoke all on function public.safe_int(jsonb, int, int) from public;
+revoke all on function public.safe_real(jsonb, real, real) from public;
+
 create or replace function public.sync_progress(payload jsonb)
 returns jsonb
 language plpgsql
@@ -35,18 +74,10 @@ begin
     (uid,
      coalesce(p->>'display_name', 'Mikey'),
      coalesce(p->>'gender', ''),
-     case when (p->>'age') ~ '^[0-9]+$'
-               and (p->>'age')::int between 10 and 100
-          then (p->>'age')::int else 0 end,
-     case when (p->>'weight_kg') ~ '^[0-9]+(\.[0-9]+)?$'
-               and (p->>'weight_kg')::real between 30 and 300
-          then (p->>'weight_kg')::real else 0 end,
-     case when (p->>'height_cm') ~ '^[0-9]+$'
-               and (p->>'height_cm')::int between 100 and 250
-          then (p->>'height_cm')::int else 0 end,
-     case when (p->>'tutorial_progress') ~ '^[0-9]+$'
-               and (p->>'tutorial_progress')::int between 0 and 10
-          then (p->>'tutorial_progress')::int else 0 end,
+     public.safe_int (p->'age',               10,  100),
+     public.safe_real(p->'weight_kg',         30,  300),
+     public.safe_int (p->'height_cm',        100,  250),
+     public.safe_int (p->'tutorial_progress',  0,   10),
      incoming_ts)
   on conflict (id) do update set
     display_name = case when excluded.profile_updated_at > pr.profile_updated_at
@@ -68,12 +99,12 @@ begin
      yokogeri_best_zone, wallsit_seconds, yokogeri_hold_seconds, updated_at)
   values
     (uid,
-     coalesce((l0->>'pushup_reps')::int, 0),
-     coalesce((l0->>'squat_reps')::int, 0),
-     coalesce((l0->>'yokogeri_slow_reps')::int, 0),
-     coalesce((l0->>'yokogeri_best_zone')::int, 0),
-     coalesce((l0->>'wallsit_seconds')::real, 0),
-     coalesce((l0->>'yokogeri_hold_seconds')::real, 0),
+     public.safe_int (l0->'pushup_reps',           0, 100000),
+     public.safe_int (l0->'squat_reps',            0, 100000),
+     public.safe_int (l0->'yokogeri_slow_reps',    0, 100000),
+     public.safe_int (l0->'yokogeri_best_zone',    0,     10),
+     public.safe_real(l0->'wallsit_seconds',       0,  86400),
+     public.safe_real(l0->'yokogeri_hold_seconds', 0,  86400),
      now())
   on conflict (user_id) do update set
     pushup_reps           = greatest(r.pushup_reps,           excluded.pushup_reps),
@@ -92,7 +123,7 @@ begin
     continue when tid is null or length(tid) = 0 or length(tid) > 64;
 
     insert into public.level1_progress as lp (user_id, technique_id, clean_reps, updated_at)
-    values (uid, tid, greatest(coalesce((t->>'clean_reps')::int, 0), 0), now())
+    values (uid, tid, public.safe_int(t->'clean_reps', 0, 100000), now())
     on conflict (user_id, technique_id) do update set
       clean_reps = greatest(lp.clean_reps, excluded.clean_reps),
       updated_at = now();
