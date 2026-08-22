@@ -23,6 +23,7 @@
 - Новый код карты — в сборке `Mikey.UI.Map`, настройка движения — в `Mikey.UI.Settings`. Циклов сборок это не создаёт: `Mikey.UI.Settings` ссылается только на `Mikey.UI.Audio`.
 - Тесты — EditMode, NUnit, рядом с кодом: `Assets/UI/Map/Tests/`, `Assets/UI/Settings/Tests/`. Стиль копируется с существующих файлов в этих папках.
 - Все контроллеры карты живут на корневом GameObject `UI` в `Assets/Scenes/SampleScene.unity` — новые вешаются туда же.
+- **Никогда не оставлять проект в несобирающемся состоянии между шагами.** Тип создаётся ДО того, как его кто-то использует; ссылка сборки добавляется ДО кода, которому она нужна. После каждого файла с новыми типами — `AssetDatabase.Refresh()` и проверка компиляции. Это не педантизм: пока проект не компилируется, HTTP-сервер конвейера не поднимается, и редактор перестаёт отвечать CLI совсем.
 - Коммит после каждой задачи.
 
 ### Среда: редактор Unity уже открыт
@@ -31,6 +32,7 @@
 - Длинные прогоны асинхронны: вызов CLI отваливается по таймауту в 30 секунд, это не ошибка. Опрашивать `unity command test_status --format json` до `completed`. Прервать — `unity command cancel_tests`. Повторный `run_tests` во время идущего прогона отменяет предыдущий.
 - После создания или удаления файлов дёргать `unity --json cmd eval 'UnityEditor.AssetDatabase.Refresh(); return "ok";'`, иначе `.meta` не создадутся и сборка не увидит новый код.
 - Методы, вызываемые через `unity … cmd eval`, должны быть `public` — eval не видит `internal`.
+- **Если `unity pipeline list` показывает `Server Reachable: false`** — не жди и не заводи фоновых наблюдателей. Почти всегда причина в собственном незавершённом изменении: посмотри Editor.log (`%LOCALAPPDATA%\Unity\Editor\Editor.log`) на `error CS`. Сломанная компиляция роняет сервер, и редактор не восстановится сам, пока код в дереве не станет собираемым. Если код собираемый, а сервер молчит — редактору нужен фокус окна, чтобы запустить перекомпиляцию; это уже требует человека, отчитайся статусом BLOCKED.
 
 ### Отклонение от спеки
 
@@ -366,7 +368,22 @@ unity command run_tests --mode EditMode --filter "MapAmbientControllerSourceTest
 
 Ожидается: провал — файла `MapAmbientController.cs` нет.
 
-- [ ] **Step 11: Написать каркас драйвера**
+- [ ] **Step 11: Добавить ссылку сборки**
+
+В `Assets/UI/Map/Mikey.UI.Map.asmdef` в массив `references` добавить `"Mikey.UI.Settings"`, чтобы получилось:
+
+```json
+    "references": [
+        "Mikey.UI.SafeArea",
+        "Mikey.UI.Progression",
+        "Mikey.UI.Settings",
+        "Unity.InputSystem"
+    ],
+```
+
+Цикла это не создаёт: `Mikey.UI.Settings` ссылается только на `Mikey.UI.Audio`.
+
+- [ ] **Step 12: Написать каркас драйвера**
 
 Создать `Assets/UI/Map/MapAmbientController.cs`:
 
@@ -532,21 +549,6 @@ namespace Mikey.UI.Map
     }
 }
 ```
-
-- [ ] **Step 12: Добавить ссылку сборки**
-
-В `Assets/UI/Map/Mikey.UI.Map.asmdef` в массив `references` добавить `"Mikey.UI.Settings"`, чтобы получилось:
-
-```json
-    "references": [
-        "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression",
-        "Mikey.UI.Settings",
-        "Unity.InputSystem"
-    ],
-```
-
-Цикла это не создаёт: `Mikey.UI.Settings` ссылается только на `Mikey.UI.Audio`.
 
 - [ ] **Step 13: Добавить компоненты в сцену**
 
