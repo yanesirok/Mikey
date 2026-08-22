@@ -65,12 +65,21 @@ namespace Mikey.Backend.Tests
         }
 
         [Test]
-        public void Adopt_WithEmptyTokens_LeavesSessionSignedOut()
+        public void Adopt_WithAnEmptyAccessToken_AdoptsNothingAtAll()
         {
-            var session = new SupabaseSession(new MemoryTokenStore());
-            session.Adopt(string.Empty, string.Empty, 3600, Now);
+            var store = new MemoryTokenStore();
+            var session = new SupabaseSession(store);
+
+            // Ответ без токена доступа — испорченный. Брать из него нельзя ничего,
+            // в том числе токен обновления: иначе испорченный ответ подменит рабочий
+            // ключ от аккаунта, и человек окажется разлогинен без объяснения.
+            session.Adopt(string.Empty, "refresh-from-broken-response", 3600, Now);
 
             Assert.IsFalse(session.IsSignedIn);
+            Assert.IsNull(session.RefreshToken,
+                "Токен обновления взят из ответа, в котором не было токена доступа.");
+            Assert.IsFalse(store.TryLoadRefreshToken(out _),
+                "Испорченный ответ записан в хранилище токенов.");
         }
     }
 }
