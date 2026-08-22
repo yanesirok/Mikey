@@ -71,6 +71,15 @@ namespace Mikey.Backend
                 RequestSync();
         }
 
+        /// <summary>
+        /// Корутину убивает выключение компонента, и флаг остался бы взведён навсегда —
+        /// синхронизация умерла бы молча до перезагрузки сцены.
+        /// </summary>
+        private void OnDisable()
+        {
+            _syncing = false;
+        }
+
         /// <summary>Начинает вход. Диалог системный, результат забираем опросом.</summary>
         public void SignIn()
         {
@@ -163,11 +172,12 @@ namespace Mikey.Backend
                     _session.Adopt(token.access_token, token.refresh_token,
                                    token.expires_in, SupabaseSession.NowUnix());
                 }
-                else if (outcome == SupabaseClient.Outcome.Unauthorized ||
-                         outcome == SupabaseClient.Outcome.Rejected)
+                else if (outcome == SupabaseClient.Outcome.Unauthorized)
                 {
-                    // Refresh-токен мёртв. Разлогиниваемся, но локальные данные —
-                    // это данные игрока, и они остаются нетронутыми.
+                    // Разлогин — только по настоящему отказу в аутентификации. Любой
+                    // другой отказ может быть временным, а цена ошибки несимметрична:
+                    // лишний повтор стоит одного запроса, лишний разлогин — потерянного
+                    // входа без возможности восстановиться.
                     _session.SignOut();
                     Changed?.Invoke();
                 }
@@ -195,21 +205,31 @@ namespace Mikey.Backend
                     if (outcome != SupabaseClient.Outcome.Ok || merged == null)
                         return;
 
-                    string stampBefore = profile.UpdatedAtIso;
-                    TutorialProgressState applied = progress;
-                    SyncPayload.Apply(merged, profile, level0, level1, ref applied);
+                    // Перечитываем локальное состояние ЗАНОВО. Пока запрос летел, человек
+                    // мог записать подход — а запись подхода сама является триггером
+                    // синхронизации, то есть запрос уходит ровно в разгар тренировки.
+                    // Save() у обоих классов слепо перезаписывает ключ, а не сливает,
+                    // поэтому сохранение предполётного снимка стёрло бы всё, что
+                    // появилось за время полёта.
+                    Level0Results freshLevel0 = Level0Results.Load();
+                    Level1Progress freshLevel1 = Level1Progress.Load();
+                    ProfileUserData freshProfile = ProfileUserDataStorage.Load();
+                    TutorialProgressState current = _progress?.State ?? TutorialProgressState.NewPlayer;
 
-                    level0.Save();
-                    level1.Save();
+                    string stampBefore = freshProfile.UpdatedAtIso;
+                    TutorialProgressState applied = current;
+                    SyncPayload.Apply(merged, freshProfile, freshLevel0, freshLevel1, ref applied);
 
-                    // Профиль трогаем, только если Apply действительно принял
-                    // серверную копию — и записываем БЕЗ нового штампа, иначе
-                    // принятая чужая правка выглядела бы как своя свежая и это
-                    // устройство навсегда стало бы «самым новым».
-                    if (!string.Equals(profile.UpdatedAtIso, stampBefore, StringComparison.Ordinal))
-                        ProfileUserDataStorage.SaveSynced(profile);
+                    freshLevel0.Save();
+                    freshLevel1.Save();
 
-                    if (applied > progress)
+                    // Профиль трогаем, только если Apply действительно принял серверную
+                    // копию — и записываем БЕЗ нового штампа, иначе устройство навсегда
+                    // стало бы «самым новым».
+                    if (!string.Equals(freshProfile.UpdatedAtIso, stampBefore, StringComparison.Ordinal))
+                        ProfileUserDataStorage.SaveSynced(freshProfile);
+
+                    if (applied > current)
                         _progress?.Advance(applied);
                 });
             }
@@ -239,6 +259,9 @@ namespace Mikey.Backend
 
             _syncing = false;
             Changed?.Invoke();
+
+            if (_dirty)
+                RequestSync();
         }
     }
 }

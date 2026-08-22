@@ -137,6 +137,12 @@ namespace Mikey.Backend
                 {
                     outcome = Outcome.Retryable;
                 }
+                else if (request.responseCode == 429)
+                {
+                    // Ограничение частоты — состояние временное. Повторим при следующем
+                    // естественном триггере, а не разлогиним человека.
+                    outcome = Outcome.Retryable;
+                }
                 else if (request.responseCode >= 400)
                 {
                     Debug.LogWarning($"[SupabaseClient] {request.responseCode} на {url}: " +
