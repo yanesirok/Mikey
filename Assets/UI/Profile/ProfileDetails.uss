@@ -226,3 +226,68 @@
 .profile-details-btn--primary:hover {
     background-color: var(--crimson-deep);
 }
+
+/* ---------- Блок аккаунта ----------
+   Единственное место, где человек соглашается отправить на сервер данные о
+   своём теле. Стоит отдельным блоком под кнопками формы, а не внутри их ряда:
+   .profile-details-actions — узкая строка Cancel/Save, и текст согласия в ней
+   был бы сжат до нечитаемости. Нечитаемое согласие требования не выполняет. */
+.pd-account {
+    flex-direction: column;
+    margin-top: 28px;
+    padding: 20px 24px;
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.pd-account__status {
+    font-size: 21px;
+    -unity-font-style: bold;
+    color: var(--bone);
+    margin-bottom: 8px;
+    white-space: normal;
+}
+/* white-space: normal обязателен — без переноса длинный текст согласия
+   обрежется по ширине, и человек не прочитает, что именно отправляет. */
+.pd-account__consent {
+    font-size: 18px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    white-space: normal;
+}
+.pd-btn {
+    height: 58px;
+    padding: 0 24px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.pd-btn__text {
+    font-size: 21px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+.pd-btn--primary {
+    border-width: 1px;
+    border-color: var(--crimson);
+    background-color: var(--crimson);
+}
+.pd-btn--primary .pd-btn__text { color: var(--bone); }
+.pd-btn--primary:hover { background-color: var(--crimson-deep); }
+.pd-btn--ghost {
+    border-width: 1px;
+    border-color: rgba(237, 230, 216, 0.25);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+.pd-btn--ghost .pd-btn__text { color: var(--bone); }
+.pd-btn--ghost:hover { border-color: var(--bone); }
+.pd-btn--danger {
+    border-width: 1px;
+    border-color: rgba(198, 40, 40, 0.55);
+    background-color: rgba(0, 0, 0, 0);
+}
+.pd-btn--danger .pd-btn__text { color: #C62828; }
+.pd-btn--danger:hover { background-color: rgba(198, 40, 40, 0.12); }

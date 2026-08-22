@@ -1226,27 +1226,30 @@
                 <ui:VisualElement class="profile-details-actions">
                     <ui:Button name="go-profile" text="Cancel" class="profile-details-btn profile-details-btn--secondary tap-target" />
                     <ui:Button name="profile-details-save" text="Save" class="profile-details-btn profile-details-btn--primary tap-target" />
+                </ui:VisualElement>
 
-                    <!-- Блок аккаунта. Вход необязателен: без него приложение
-                         работает полностью, просто без резервной копии. Текст
-                         согласия перечисляет данные о теле поимённо — человек
-                         должен знать, что отправляет их о себе. -->
-                    <ui:VisualElement name="account-panel" class="pd-account">
-                        <ui:Label name="account-status" text="Прогресс хранится только на этом телефоне"
-                                  class="pd-account__status" />
-                        <ui:Label name="account-consent"
-                                  text="Вход через Google сохранит на сервере имя, пол, возраст, вес, рост и результаты тренировок, чтобы прогресс вернулся после переустановки."
-                                  class="pd-account__consent" />
-                        <ui:Button name="account-sign-in" class="pd-btn pd-btn--primary tap-target-lg">
-                            <ui:Label text="Войти через Google" class="pd-btn__text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="account-sign-out" class="pd-btn pd-btn--ghost tap-target-lg">
-                            <ui:Label text="Выйти" class="pd-btn__text" picking-mode="Ignore" />
-                        </ui:Button>
-                        <ui:Button name="account-delete" class="pd-btn pd-btn--danger tap-target-lg">
-                            <ui:Label text="Удалить аккаунт" class="pd-btn__text" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
+                <!-- Блок аккаунта. Вход необязателен: без него приложение
+                     работает полностью, просто без резервной копии. Текст
+                     согласия перечисляет данные о теле поимённо — человек
+                     должен знать, что отправляет их о себе. Отдельный блок
+                     под рядом Cancel/Save, а не внутри него: та строка узкая
+                     (flex-direction: row), длинный текст согласия в ней был
+                     бы сжат до нечитаемости. -->
+                <ui:VisualElement name="account-panel" class="pd-account">
+                    <ui:Label name="account-status" text="Прогресс хранится только на этом телефоне"
+                              class="pd-account__status" />
+                    <ui:Label name="account-consent"
+                              text="Вход через Google сохранит на сервере имя, пол, возраст, вес, рост и результаты тренировок, чтобы прогресс вернулся после переустановки."
+                              class="pd-account__consent" />
+                    <ui:Button name="account-sign-in" class="pd-btn pd-btn--primary tap-target-lg">
+                        <ui:Label text="Войти через Google" class="pd-btn__text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="account-sign-out" class="pd-btn pd-btn--ghost tap-target-lg">
+                        <ui:Label text="Выйти" class="pd-btn__text" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="account-delete" class="pd-btn pd-btn--danger tap-target-lg">
+                        <ui:Label text="Удалить аккаунт" class="pd-btn__text" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
 
             </ui:VisualElement>
