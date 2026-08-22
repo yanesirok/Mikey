@@ -4,7 +4,8 @@
     "references": [
         "Mikey.UI.SafeArea",
         "Mikey.Pose",
-        "Mikey.UI.Progression"
+        "Mikey.UI.Progression",
+        "Mikey.Backend"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
