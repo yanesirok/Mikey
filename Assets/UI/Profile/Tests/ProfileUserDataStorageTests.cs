@@ -154,21 +154,25 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void Save_AdvancesUpdatedAt_OnEveryWrite()
+        public void Save_ReplacesAnyExistingStamp_WithTheCurrentTime()
         {
-            var data = new ProfileUserData { DisplayName = "Дима" };
-            ProfileUserDataStorage.Save(data);
-            string first = ProfileUserDataStorage.Load().UpdatedAtIso;
+            // Штамп из прошлого: Save обязан затереть его своим, а не оставить чужой.
+            var data = new ProfileUserData { DisplayName = "Дима", UpdatedAtIso = "2000-01-01T00:00:00Z" };
+            DateTime before = DateTime.UtcNow.AddSeconds(-1);
 
-            data.DisplayName = "Дима 2";
-            data.UpdatedAtIso = string.Empty;
             ProfileUserDataStorage.Save(data);
-            string second = ProfileUserDataStorage.Load().UpdatedAtIso;
 
-            Assert.AreNotEqual(string.Empty, second);
-            Assert.GreaterOrEqual(
-                string.CompareOrdinal(second, first), 0,
-                "Повторное сохранение не должно откатывать штамп назад.");
+            string stamp = ProfileUserDataStorage.Load().UpdatedAtIso;
+
+            Assert.AreNotEqual("2000-01-01T00:00:00Z", stamp,
+                "Save обязан заменить старый штамп своим — иначе правка человека выглядит устаревшей.");
+            Assert.IsTrue(
+                DateTime.TryParse(stamp, CultureInfo.InvariantCulture,
+                                  DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                                  out DateTime parsed),
+                $"Штамп должен разбираться как дата, получено: '{stamp}'.");
+            Assert.GreaterOrEqual(parsed, before,
+                "Штамп должен быть текущим временем, а не произвольным значением.");
         }
 
         [Test]
