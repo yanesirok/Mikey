@@ -56,7 +56,7 @@ namespace Mikey.Backend
         {
             string url = $"{_config.Url}/auth/v1/token?grant_type=refresh_token";
             string body = "{\"refresh_token\":\"" + Escape(refreshToken) + "\"}";
-            return PostJson(url, body, accessToken: null, done);
+            return PostJson(url, body, accessToken: null, done, badRequestMeansDeadSession: true);
         }
 
         /// <summary>Вызывает sync_progress и отдаёт слитое состояние.</summary>
@@ -93,7 +93,8 @@ namespace Mikey.Backend
         }
 
         private IEnumerator PostJson(string url, string body, string accessToken,
-                                     Action<Outcome, TokenResponse> done)
+                                     Action<Outcome, TokenResponse> done,
+                                     bool badRequestMeansDeadSession = false)
         {
             yield return Send(url, body, accessToken, (outcome, text) =>
             {
@@ -111,11 +112,12 @@ namespace Mikey.Backend
                     }
                 }
                 done?.Invoke(outcome, parsed);
-            });
+            }, badRequestMeansDeadSession);
         }
 
         private IEnumerator Send(string url, string body, string accessToken,
-                                 Action<Outcome, string> done)
+                                 Action<Outcome, string> done,
+                                 bool badRequestMeansDeadSession = false)
         {
             using (var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST))
             {
@@ -147,6 +149,13 @@ namespace Mikey.Backend
                     // Ограничение частоты — состояние временное. Повторим при следующем
                     // естественном триггере, а не разлогиним человека.
                     outcome = Outcome.Retryable;
+                }
+                else if (badRequestMeansDeadSession && request.responseCode == 400)
+                {
+                    // На конечной точке обновления 400 означает ровно одно:
+                    // refresh-токен недействителен. Это не «сервер отверг запрос»,
+                    // это «сессии больше нет».
+                    outcome = Outcome.Unauthorized;
                 }
                 else if (request.responseCode >= 400)
                 {
