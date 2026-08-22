@@ -148,6 +148,14 @@ namespace Mikey.Backend
         {
             if (!TryParse(candidateIso, out DateTime candidate))
                 return false;
+
+            // Зеркало серверной защиты: сервер срезает будущий штамп до своего
+            // времени, и клиент обязан делать то же. Иначе телефон со сбитыми
+            // вперёд часами навсегда перестанет принимать профиль с других устройств.
+            DateTime nowUtc = DateTime.UtcNow;
+            if (candidate > nowUtc)
+                candidate = nowUtc;
+
             if (!TryParse(currentIso, out DateTime current))
                 return true;
             return candidate > current;
