@@ -12,8 +12,11 @@ namespace Mikey.Backend
         /// <summary>Показывает системный диалог выбора аккаунта.</summary>
         void BeginSignIn(string webClientId);
 
-        /// <summary>Забирает полученный ID-токен ровно один раз.</summary>
-        bool TryTakeIdToken(out string idToken);
+        /// <summary>
+        /// Забирает полученный ID-токен и сырой nonce той же попытки входа.
+        /// Nonce обязателен: без него Supabase отвергнет токен, в котором nonce есть.
+        /// </summary>
+        bool TryTakeIdToken(out string idToken, out string rawNonce);
 
         /// <summary>Забирает текст ошибки ровно один раз.</summary>
         bool TryTakeError(out string message);

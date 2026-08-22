@@ -13,7 +13,9 @@ import androidx.credentials.exceptions.GetCredentialException;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
+import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,6 +38,7 @@ public final class GoogleAuth {
 
     private volatile String idToken;
     private volatile String error;
+    private volatile String rawNonce;
 
     public GoogleAuth(Activity activity) {
         this.activity = activity;
@@ -47,17 +50,32 @@ public final class GoogleAuth {
         idToken = null;
         error = null;
 
-        // nonce привязывает выданный токен к этой попытке входа: перехваченный
-        // чужой токен с другим nonce Supabase не примет.
+        // Сырое значение уходит в Unity и дальше в Supabase; в сам токен Google
+        // кладёт его SHA-256. Supabase хеширует присланное сырое и сверяет с тем,
+        // что в токене — так перехваченный чужой токен не подойдёт.
         byte[] raw = new byte[32];
         new SecureRandom().nextBytes(raw);
-        StringBuilder nonce = new StringBuilder(raw.length * 2);
-        for (byte b : raw) nonce.append(String.format("%02x", b));
+        StringBuilder rawHex = new StringBuilder(raw.length * 2);
+        for (byte b : raw) rawHex.append(String.format("%02x", b));
+        rawNonce = rawHex.toString();
+
+        String hashedNonce;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(rawNonce.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hashHex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) hashHex.append(String.format("%02x", b));
+            hashedNonce = hashHex.toString();
+        } catch (Exception e) {
+            Log.e(TAG, "не удалось посчитать nonce", e);
+            error = String.valueOf(e.getMessage());
+            return;
+        }
 
         GetGoogleIdOption option = new GetGoogleIdOption.Builder()
                 .setServerClientId(webClientId)
                 .setFilterByAuthorizedAccounts(false)
-                .setNonce(nonce.toString())
+                .setNonce(hashedNonce)
                 .build();
 
         GetCredentialRequest request = new GetCredentialRequest.Builder()
@@ -102,6 +120,13 @@ public final class GoogleAuth {
     public String consumeError() {
         String value = error;
         error = null;
+        return value;
+    }
+
+    /** Сырой nonce той же попытки входа. Отдаётся один раз, вместе с токеном. */
+    public String consumeNonce() {
+        String value = rawNonce;
+        rawNonce = null;
         return value;
     }
 }

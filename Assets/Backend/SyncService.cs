@@ -133,9 +133,9 @@ namespace Mikey.Backend
                     yield break;
                 }
 
-                if (_auth.TryTakeIdToken(out string idToken))
+                if (_auth.TryTakeIdToken(out string idToken, out string rawNonce))
                 {
-                    yield return _client.ExchangeGoogleIdToken(idToken, (outcome, token) =>
+                    yield return _client.ExchangeGoogleIdToken(idToken, rawNonce, (outcome, token) =>
                     {
                         if (outcome == SupabaseClient.Outcome.Ok && token != null)
                         {

@@ -39,11 +39,16 @@ namespace Mikey.Backend
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
         /// <summary>Меняет Google ID-токен на сессию Supabase.</summary>
-        public IEnumerator ExchangeGoogleIdToken(string idToken, Action<Outcome, TokenResponse> done)
+        public IEnumerator ExchangeGoogleIdToken(string idToken, string rawNonce,
+                                                 Action<Outcome, TokenResponse> done)
         {
             string url = $"{_config.Url}/auth/v1/token?grant_type=id_token";
-            string body = "{\"provider\":\"google\",\"id_token\":\"" + Escape(idToken) + "\"}";
-            return PostJson(url, body, accessToken: null, done);
+            var body = new StringBuilder("{\"provider\":\"google\",\"id_token\":\"")
+                .Append(Escape(idToken)).Append('"');
+            if (!string.IsNullOrEmpty(rawNonce))
+                body.Append(",\"nonce\":\"").Append(Escape(rawNonce)).Append('"');
+            body.Append('}');
+            return PostJson(url, body.ToString(), accessToken: null, done);
         }
 
         /// <summary>Обновляет сессию по refresh-токену.</summary>

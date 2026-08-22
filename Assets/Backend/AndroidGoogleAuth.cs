@@ -33,9 +33,10 @@ namespace Mikey.Backend
             }
         }
 
-        public bool TryTakeIdToken(out string idToken)
+        public bool TryTakeIdToken(out string idToken, out string rawNonce)
         {
             idToken = _auth?.Call<string>("consumeIdToken");
+            rawNonce = string.IsNullOrEmpty(idToken) ? null : _auth?.Call<string>("consumeNonce");
             return !string.IsNullOrEmpty(idToken);
         }
 
@@ -49,9 +50,10 @@ namespace Mikey.Backend
 
         public void BeginSignIn(string webClientId) { }
 
-        public bool TryTakeIdToken(out string idToken)
+        public bool TryTakeIdToken(out string idToken, out string rawNonce)
         {
             idToken = null;
+            rawNonce = null;
             return false;
         }
 
