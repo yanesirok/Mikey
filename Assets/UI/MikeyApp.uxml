@@ -1257,6 +1257,13 @@
                     <ui:Label text="Trainer Voice" class="setting__label" />
                     <ui:Slider name="shared-settings-trainer" low-value="0" high-value="1" value="1.00" class="setting__slider" />
                 </ui:VisualElement>
+                <!-- Одна настройка движения: выключает декоративный ambient-слой
+                     карты целиком (см. MapAmbientController). Отклик на палец —
+                     инерция пана и резинка — ею сознательно не управляется. -->
+                <ui:VisualElement class="setting">
+                    <ui:Label text="Reduced motion" class="setting__label" />
+                    <ui:Toggle name="shared-settings-reduced-motion" class="setting__toggle" />
+                </ui:VisualElement>
                 <ui:Button name="shared-settings-close" text="Close" class="settings-modal__close tap-target" />
             </ui:VisualElement>
         </ui:VisualElement>

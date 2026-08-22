@@ -118,3 +118,15 @@
     border-color: var(--bone);
     background-color: rgba(237, 230, 216, 0.12);
 }
+
+/* Тумблер в строке настройки. Галка сама по себе крупнее минимального
+   тач-таргета за счёт padding самой строки (".setting"), поэтому отдельный
+   .tap-target здесь не нужен — в отличие от кнопок в HUD. */
+.setting__toggle {
+    flex-shrink: 0;
+    margin-left: 24px;
+}
+.setting__toggle .unity-toggle__checkmark {
+    width: 34px;
+    height: 34px;
+}

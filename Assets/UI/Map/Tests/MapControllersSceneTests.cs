@@ -68,6 +68,14 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void UiGameObject_HasMapAmbientController()
+        {
+            GameObject ui = OpenUiGameObject();
+            Assert.IsNotNull(ui.GetComponent<MapAmbientController>(),
+                "UI GameObject must have a MapAmbientController for the map's ambient motion to run in a real build.");
+        }
+
+        [Test]
         public void JapanMapController_HasOkinawaPreviewClipWired()
         {
             GameObject ui = OpenUiGameObject();

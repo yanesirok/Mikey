@@ -31,6 +31,9 @@ namespace Mikey.UI.Settings
         private Slider _musicSlider;
         private Slider _sfxSlider;
         private Slider _trainerVoiceSlider;
+        private Toggle _reducedMotionToggle;
+        private IMotionSettings _motionSettings;
+        private EventCallback<ChangeEvent<bool>> _reducedMotionChangedCallback;
 
         private static readonly string[] OpenButtonNames =
         {
@@ -80,6 +83,8 @@ namespace Mikey.UI.Settings
                     _sfxSlider.UnregisterValueChangedCallback(_sfxChangedCallback);
                 if (_trainerVoiceSlider != null && _trainerVoiceChangedCallback != null)
                     _trainerVoiceSlider.UnregisterValueChangedCallback(_trainerVoiceChangedCallback);
+                if (_reducedMotionToggle != null && _reducedMotionChangedCallback != null)
+                    _reducedMotionToggle.UnregisterValueChangedCallback(_reducedMotionChangedCallback);
             }
 
             _modal = null;
@@ -87,6 +92,9 @@ namespace Mikey.UI.Settings
             _musicSlider = null;
             _sfxSlider = null;
             _trainerVoiceSlider = null;
+            _reducedMotionToggle = null;
+            _reducedMotionChangedCallback = null;
+            _motionSettings = null;
             _audioSettings = null;
             _musicChangedCallback = null;
             _sfxChangedCallback = null;
@@ -119,6 +127,7 @@ namespace Mikey.UI.Settings
             _musicSlider = root.Q<Slider>("shared-settings-music");
             _sfxSlider = root.Q<Slider>("shared-settings-sfx");
             _trainerVoiceSlider = root.Q<Slider>("shared-settings-trainer");
+            _reducedMotionToggle = root.Q<Toggle>("shared-settings-reduced-motion");
 
             for (int i = 0; i < OpenButtonNames.Length; i++)
                 _openButtons[i] = root.Q<Button>(OpenButtonNames[i]);
@@ -141,6 +150,14 @@ namespace Mikey.UI.Settings
             _musicChangedCallback = WireSlider(_musicSlider, _audioSettings, (s, v) => s.MusicVolume = v, s => s.MusicVolume);
             _sfxChangedCallback = WireSlider(_sfxSlider, _audioSettings, (s, v) => s.SfxVolume = v, s => s.SfxVolume);
             _trainerVoiceChangedCallback = WireSlider(_trainerVoiceSlider, _audioSettings, (s, v) => s.TrainerVoiceVolume = v, s => s.TrainerVoiceVolume);
+
+            _motionSettings = GetComponent<IMotionSettings>();
+            if (_reducedMotionToggle != null && _motionSettings != null)
+            {
+                _reducedMotionToggle.value = _motionSettings.ReducedMotion;
+                _reducedMotionChangedCallback = evt => _motionSettings.ReducedMotion = evt.newValue;
+                _reducedMotionToggle.RegisterValueChangedCallback(_reducedMotionChangedCallback);
+            }
 
             Close();
 

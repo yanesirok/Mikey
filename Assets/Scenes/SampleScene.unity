@@ -466,6 +466,8 @@ GameObject:
   - component: {fileID: 1720403641}
   - component: {fileID: 1720403643}
   - component: {fileID: 1720403642}
+  - component: {fileID: 1720403645}
+  - component: {fileID: 1720403644}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -827,6 +829,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fbfc87b4ed626e4797a5854de3da871, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.Backend::Mikey.Backend.SyncService
+--- !u!114 &1720403644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b5a08af77cf94247af3e86b1e32a89a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapAmbientController
+--- !u!114 &1720403645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e588034c8ce96b4c84be5373c273d3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Settings::Mikey.UI.Settings.MotionSettingsStore
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
