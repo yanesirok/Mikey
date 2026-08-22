@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mikey — тренировки по карате</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    max-width: 42rem; margin: 0 auto; padding: 4rem 1.25rem 5rem;
+    font: 16px/1.7 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #ffffff; color: #16191d;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0B0E11; color: #EDE6D8; }
+    .card { background: #12161B !important; border-color: #2A323C !important; }
+    footer { border-color: #2A323C !important; }
+  }
+  .mark { font-size: 2.5rem; line-height: 1; margin-bottom: .75rem; }
+  h1 { font-size: 2rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  .lead { font-size: 1.1rem; opacity: .8; margin: 0 0 2.5rem; }
+  h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; }
+  .card { background: #f5f7f9; border: 1px solid #d8dde3; border-radius: .6rem; padding: 1rem 1.15rem; margin: 1.5rem 0; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .35rem 0; }
+  footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid #d8dde3; font-size: .92rem; opacity: .8; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+
+<div class="mark">空</div>
+<h1>Mikey</h1>
+<p class="lead">Приложение для самостоятельных тренировок по карате.
+Считает повторения по изображению с камеры телефона.</p>
+
+<h2>Как это работает</h2>
+<ul>
+  <li>Приложение показывает технику и объясняет, что делать.</li>
+  <li>Камера телефона следит за движением и считает повторения.</li>
+  <li>Прогресс сохраняется, чтобы вернуться туда, где вы остановились.</li>
+</ul>
+
+<div class="card">
+  <strong>Изображение с камеры не покидает телефон.</strong> Распознавание позы
+  целиком выполняется на устройстве: ни кадров, ни видео никуда не отправляется
+  и нигде не сохраняется.
+</div>
+
+<h2>Аккаунт — по желанию</h2>
+<p>Без входа приложение работает полностью и не передаёт никаких данных.
+Вход через Google нужен ровно для одного: чтобы прогресс вернулся после
+переустановки приложения или при смене телефона. Удалить аккаунт вместе со всеми
+данными можно в самом приложении, одной кнопкой.</p>
+
+<h2>Состояние</h2>
+<p>Приложение находится в разработке. Функции меняются, работа сервера без
+перерывов не гарантируется.</p>
+
+<footer>
+  <p>
+    <a href="./privacy.html">Политика конфиденциальности</a> ·
+    <a href="./terms.html">Условия использования</a> ·
+    <a href="mailto:ddavronoff04@gmail.com">ddavronoff04@gmail.com</a>
+  </p>
+</footer>
+
+</body>
+</html>
