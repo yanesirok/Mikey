@@ -316,6 +316,12 @@ namespace Mikey.UI.Map.Tests
     {
         private const string SourcePath = "Assets/UI/Map/MapAmbientController.cs";
 
+        /// <remarks>
+        /// Сканирование ТЕКСТА, а не синтаксического дерева: намеренно грубо,
+        /// зато не требует парсера и ловит нарушение в любой форме записи.
+        /// Обратная сторона — запрещённые имена нельзя упоминать даже в
+        /// комментариях проверяемого файла, иначе он уронит сам себя.
+        /// </remarks>
         [Test]
         public void NeverWritesLayoutProperties()
         {
@@ -411,10 +417,14 @@ namespace Mikey.UI.Map
     /// </para>
     ///
     /// <para>
-    /// Пишет ИСКЛЮЧИТЕЛЬНО transform-свойства и прозрачность. Любая запись
-    /// style.left/top/width/height здесь означала бы полный проход лэйаута
+    /// Пишет ИСКЛЮЧИТЕЛЬНО transform-свойства и прозрачность. Запись любого
+    /// геометрического свойства здесь означала бы полный проход лэйаута
     /// каждый тик — см. MapAmbientControllerSourceTests, который это
     /// стережёт.
+    ///
+    /// ВНИМАНИЕ при правке этого файла: страж сканирует ТЕКСТ исходника, а не
+    /// синтаксическое дерево, поэтому запрещённые имена свойств нельзя
+    /// упоминать даже в комментарии — файл уронит сам себя.
     /// </para>
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
@@ -2366,6 +2376,12 @@ namespace Mikey.UI.Map.Tests
     {
         private const string SourcePath = "Assets/UI/Map/MapNodeFeedback.cs";
 
+        /// <remarks>
+        /// Сканирование ТЕКСТА, а не синтаксического дерева: намеренно грубо,
+        /// зато не требует парсера и ловит нарушение в любой форме записи.
+        /// Обратная сторона — запрещённые имена нельзя упоминать даже в
+        /// комментариях проверяемого файла, иначе он уронит сам себя.
+        /// </remarks>
         [Test]
         public void NeverWritesLayoutProperties()
         {
@@ -3258,6 +3274,12 @@ namespace Mikey.UI.Map.Tests
         private const string SourcePath = "Assets/UI/Map/MapCeremonyController.cs";
         private const string AmbientPath = "Assets/UI/Map/MapAmbientController.cs";
 
+        /// <remarks>
+        /// Сканирование ТЕКСТА, а не синтаксического дерева: намеренно грубо,
+        /// зато не требует парсера и ловит нарушение в любой форме записи.
+        /// Обратная сторона — запрещённые имена нельзя упоминать даже в
+        /// комментариях проверяемого файла, иначе он уронит сам себя.
+        /// </remarks>
         [Test]
         public void NeverWritesLayoutProperties()
         {
