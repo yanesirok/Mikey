@@ -14,6 +14,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
 import java.security.SecureRandom;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
@@ -31,6 +32,7 @@ public final class GoogleAuth {
 
     private final Activity activity;
     private final CredentialManager credentialManager;
+    private final ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
 
     private volatile String idToken;
     private volatile String error;
@@ -66,7 +68,7 @@ public final class GoogleAuth {
                 activity,
                 request,
                 new CancellationSignal(),
-                Executors.newSingleThreadExecutor(),
+                callbackExecutor,
                 new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                     @Override
                     public void onResult(GetCredentialResponse response) {

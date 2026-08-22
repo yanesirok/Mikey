@@ -2,14 +2,24 @@ apply plugin: 'com.android.library'
 
 android {
     namespace "com.mikey.auth"
-    compileSdkVersion 35
+    compileSdkVersion 34
+
     defaultConfig {
         minSdkVersion 25
-        targetSdkVersion 35
+        targetSdkVersion 34
     }
+
+    // Unity's .androidlib keeps AndroidManifest.xml at the module root; point AGP at it
+    // (its default is src/main/AndroidManifest.xml) so the INTERNET permission actually merges.
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+        }
+    }
+
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
