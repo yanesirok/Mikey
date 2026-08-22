@@ -63,14 +63,17 @@ namespace Mikey.UI.SafeArea.Tests
         }
 
         [Test]
-        public void UiGameObject_HasCameraTestController()
+        public void UiGameObject_HasLevel0Station_AndItsPoseSource()
         {
             GameObject ui = OpenSceneAndFindUi();
 
-            // CameraTestController lives in Mikey.UI.CameraTest, which this test asm
-            // does not reference: look it up by name (same approach as ScreenManager).
-            Assert.IsNotNull(ui.GetComponent("CameraTestController"),
-                "UI GameObject must have a CameraTestController (Camera Test landscape wiring).");
+            // Both live in assemblies this test asm does not reference: look them up by
+            // name (same approach as ScreenManager). The station is useless without a
+            // PoseController on the same object — it is what feeds the analyzers.
+            Assert.IsNotNull(ui.GetComponent("Level0SessionController"),
+                "UI GameObject must have a Level0SessionController (level-0 station wiring).");
+            Assert.IsNotNull(ui.GetComponent("PoseController"),
+                "UI GameObject must have a PoseController — the level-0 station's pose input.");
         }
 
         [Test]

@@ -1,6 +1,6 @@
 /* ============================================================
    Settings — the one shared Settings modal for the whole app. Reachable
-   from Main Menu ("menu-settings-open") and both map screens
+   from the Map hub top bar and its siblings
    ("map-topbar-settings" / "okinawa-topbar-settings"), all wired to this
    SAME instance by SettingsModalController — there is exactly one
    ".settings-modal" element in MikeyApp.uxml, declared as the last child of

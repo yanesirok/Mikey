@@ -13,7 +13,7 @@ namespace Mikey.UI.SafeArea.Tests
     /// real UXML, assert on the resulting tree) so the production markup is the
     /// single source of truth. Both Intro actions (Skip + primary CTA) route
     /// forward to the Home hub as 'lore-skip'/'lore-continue' — deliberately not
-    /// 'go-menu' navigators, so LoreExitController (not ScreenManager's auto-
+    /// 'go-map' navigators, so LoreExitController (not ScreenManager's auto-
     /// wiring) drives their cinematic fade-to-black-then-navigate exit; see
     /// LoreExitControllerTests. The old loop back to Title is gone. Since the
     /// minimal-placeholder pass, also covers the pure-black background and the
@@ -75,30 +75,30 @@ namespace Mikey.UI.SafeArea.Tests
                     ".intro-bg must live OUTSIDE .safe-area-content (full-bleed).");
         }
 
-        // 4 — both production actions exist, named for LoreExitController (not 'go-menu').
+        // 4 — both production actions exist, named for LoreExitController (not 'go-map').
         [Test]
         public void BothProductionActions_Exist_AsLoreSkipAndLoreContinue()
         {
             Assert.IsNotNull(Intro().Q<Button>("lore-skip"), "Intro must expose a 'lore-skip' action.");
             Assert.IsNotNull(Intro().Q<Button>("lore-continue"), "Intro must expose a 'lore-continue' action.");
-            Assert.IsEmpty(Intro().Query<Button>(name: "go-menu").ToList(),
-                "Intro's exit actions must not be 'go-menu' navigators — LoreExitController drives their cinematic exit instead.");
+            Assert.IsEmpty(Intro().Query<Button>(name: "go-map").ToList(),
+                "Intro's exit actions must not be 'go-map' navigators — LoreExitController drives their cinematic exit instead.");
         }
 
-        // 5 + 13 — both Intro actions ultimately reach the existing Home ('menu')
-        // screen — via LoreExitController's transition, not ScreenManager's
+        // 5 + 13 — both Intro actions ultimately reach the existing Map hub
+        // ('map') — via LoreExitController's transition, not ScreenManager's
         // 'go-<id>' auto-wiring convention (see LoreExitControllerTests for the
-        // NextScreenId = "menu" contract).
+        // NextScreenId = "map" contract).
         [Test]
-        public void BothIntroActions_TargetMenuScreen()
+        public void BothIntroActions_TargetMapScreen()
         {
             var root = BuildTree();
             var intro = root.Q<VisualElement>("intro");
             Assert.IsNotNull(intro.Q<Button>("lore-skip"), "Expected a 'lore-skip' action.");
             Assert.IsNotNull(intro.Q<Button>("lore-continue"), "Expected a 'lore-continue' action.");
-            var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "Lore's exit must target an existing 'menu' (Home) screen.");
-            Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
+            var map = root.Q<VisualElement>("map");
+            Assert.IsNotNull(map, "Lore's exit must target an existing 'map' screen.");
+            Assert.IsTrue(map.ClassListContains("screen"), "'map' target must be a screen.");
         }
 
         // 10 — Skip is 'lore-skip' (and is the .intro-skip action).
@@ -278,7 +278,7 @@ namespace Mikey.UI.SafeArea.Tests
             // Key forward navigators must still be present (routes intact). Title's
             // own route into Intro is no longer "go-intro" — TitleController drives
             // it directly (see MikeyAppUxmlTests).
-            foreach (var nav in new[] { "go-menu", "go-camTest", "go-combine" })
+            foreach (var nav in new[] { "go-map", "go-camTest", "go-combine" })
                 Assert.IsNotEmpty(root.Query<VisualElement>(name: nav).ToList(),
                     $"Existing navigator '{nav}' must remain.");
         }

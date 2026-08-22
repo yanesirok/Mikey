@@ -320,29 +320,6 @@
     background-color: var(--crimson);
 }
 
-/* Settings: the one genuine icon button in the HUD. Uses the supplied
-   settings_icon.png (a white gear silhouette with an alpha-only shape) as-is
-   — it's already the exact off-white the old ring+dot glyph approximated, so
-   no tint is needed. Replaces that placeholder glyph entirely. Transparent
-   button background, matching the "clean text navigation" language rather
-   than another button bubble; the icon dims slightly on hover/press. The
-   button itself keeps the >=48px ".tap-target" touch target even though the
-   visible icon is smaller. */
-.map-topbar__settings-btn {
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 0;
-    padding: 0;
-}
-.map-topbar__settings-icon {
-    width: 32px;
-    height: 32px;
-    background-image: url("/Assets/UI/Media/Images/settings_icon.png");
-    -unity-background-scale-mode: scale-to-fit;
-}
-.map-topbar__settings-btn:hover .map-topbar__settings-icon {
-    opacity: 0.75;
-}
-
 /* ---------- pan/zoom stage (shared by Japan + Okinawa) ----------
    Fills the whole map-root, edge to edge — the HUD now overlays on top of
    it (see ".map-topbar") rather than sitting in its own row above it, so
@@ -478,10 +455,10 @@
     scale: 1.08;
 }
 
-/* ---------- Okinawa mission markers (LVL 0-6) ----------
+/* ---------- Okinawa mission markers (LVL 0-8) ----------
    Same treatment as the chapter markers: the final supplied mission marker
    art (Special/Training/Fight/Boss Fight) is shown directly, smaller/denser
-   since there are seven of them. Which icon shows is applied at bind time by
+   since there are nine of them. Which icon shows is applied at bind time by
    OkinawaMapController from MapMarkerLayout.Missions (mission type is
    centralized there, never inferred from a static CSS class baked into the
    UXML). Position is likewise applied at bind time from the same

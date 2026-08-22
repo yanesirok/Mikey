@@ -463,6 +463,7 @@ GameObject:
   - component: {fileID: 1720403638}
   - component: {fileID: 1720403639}
   - component: {fileID: 1720403640}
+  - component: {fileID: 1720403641}
   - component: {fileID: 1720403643}
   - component: {fileID: 1720403642}
   m_Layer: 0
@@ -558,9 +559,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1720403616}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05379dd4d1c6a95498dbb103ab010564, type: 3}
+  m_Script: {fileID: 11500000, guid: 02d69bbca2fc452eb03ca9c8574faa07, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Mikey.UI.CameraTest::Mikey.UI.CameraTest.CameraTestController
+  m_EditorClassIdentifier: Mikey.UI.CameraTest::Mikey.UI.CameraTest.Level0SessionController
+  _poseController: {fileID: 0}
 --- !u!114 &1720403623
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -788,6 +790,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18faf2b2527e2324787f4a6cb8155e21, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapCloudTransitionController
+--- !u!114 &1720403641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3da9715516bae53458255b4ae69ff767, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.Pose::Mikey.Pose.PoseController
+  _forceSimulation: 0
 --- !u!114 &1720403642
 MonoBehaviour:
   m_ObjectHideFlags: 0

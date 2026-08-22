@@ -35,6 +35,28 @@ namespace Mikey.UI.Media.Tests
             StringAssert.Contains("public void BeginPreload()", source);
         }
 
+        // Launch regression: a device that cannot decode the Main Menu clip used to
+        // leave IsReady false forever, stranding Logo Intro on a frozen frame with
+        // no menu and no way forward. An errored video must count as "nothing left
+        // to wait for".
+        [Test]
+        public void IsReady_IsTrue_WhenTheShellVideoFailed()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_failedPlayers.Add(kvp.Key);", source,
+                "A video error must be recorded, not only logged.");
+            StringAssert.Contains("_failedPlayers.Contains(ShellPreloadScreenId)", source,
+                "IsReady must treat a failed shell video as ready so nothing waits on it forever.");
+        }
+
+        [Test]
+        public void SuccessfulPrepare_ClearsAPreviousFailure()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("_failedPlayers.Remove(kvp.Key);", source,
+                "A later successful prepare must clear the recorded failure.");
+        }
+
         [Test]
         public void BeginPreload_PreparesWithoutPlaying()
         {

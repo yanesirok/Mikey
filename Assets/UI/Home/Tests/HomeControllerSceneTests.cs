@@ -43,7 +43,7 @@ namespace Mikey.UI.Home.Tests
         {
             GameObject ui = OpenSceneAndFindUi();
             Assert.IsNotNull(ui.GetComponent<HomeController>(),
-                "UI GameObject must have a HomeController (Home progression-CTA/lock wiring).");
+                "UI GameObject must have a HomeController (the Sign In gate).");
         }
 
         [Test]

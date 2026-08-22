@@ -112,7 +112,6 @@ namespace Mikey.UI.Profile.Tests
             var root = BuildTree();
 
             var map = Screen(root, "map");
-            Assert.IsNotNull(map.Q<Button>("go-menu"));
             Assert.IsNotNull(map.Q<Button>("chapter-node-okinawa"), "Okinawa must exist as a chapter action.");
             Assert.IsNotNull(map.Q<Button>("chapter-panel-cta"), "Okinawa's chapter panel must expose an Enter Chapter action.");
             Assert.IsNotNull(map.Q<Button>("map-topbar-stats"), "Map's top bar Profile action must route to Profile.");
@@ -120,7 +119,6 @@ namespace Mikey.UI.Profile.Tests
                 "Map must not reintroduce a dock go-profile tab.");
 
             var mapOkinawa = Screen(root, "mapOkinawa");
-            Assert.IsNotNull(mapOkinawa.Q<Button>("go-menu"));
             Assert.IsNotNull(mapOkinawa.Q<Button>("level-node-0"), "LVL 0 must exist as a level action.");
             Assert.IsNotNull(mapOkinawa.Q<Button>("level-panel-cta"), "LVL 0's popup must expose a Begin action.");
             Assert.IsNull(mapOkinawa.Q<VisualElement>("go-profile"),
@@ -135,8 +133,8 @@ namespace Mikey.UI.Profile.Tests
             Assert.IsNotNull(topBar, "Profile must carry the shared top HUD.");
             Assert.IsNull(Profile(root).Q<VisualElement>(className: "profile-dock"), "The old bottom dock must be gone.");
 
-            var goMenu = topBar.Q<VisualElement>("go-menu");
-            Assert.IsNotNull(goMenu, "Profile's HUD must contain 'go-menu'.");
+            Assert.IsNull(topBar.Q<VisualElement>("go-menu"),
+                "The Main Menu is retired - Profile's HUD must not navigate back to the Sign In gate.");
 
             // Map/Techniques are progression-gated (ProfileController), not static
             // "go-" navigators — see ProfileProgressionTests, unchanged by this redesign.
@@ -423,7 +421,7 @@ namespace Mikey.UI.Profile.Tests
         public void TouchTargetsUseTheSharedHudClass()
         {
             var topBar = Profile(BuildTree()).Q<VisualElement>(className: "map-topbar");
-            foreach (var name in new[] { "go-menu", "profile-nav-map", "profile-nav-techniques", "nav-profile", "profile-topbar-settings" })
+            foreach (var name in new[] { "profile-nav-map", "profile-nav-techniques", "nav-profile", "profile-topbar-settings" })
             {
                 var item = topBar.Q<VisualElement>(name);
                 Assert.IsNotNull(item, $"Expected HUD item '{name}'.");
@@ -451,13 +449,13 @@ namespace Mikey.UI.Profile.Tests
             var root = BuildTree();
             Assert.IsNotNull(Screen(root, "title"));
             // Intro's exit is 'lore-skip'/'lore-continue' (LoreExitController's
-            // cinematic transition), not a 'go-menu' navigator.
+            // cinematic transition), not a 'go-map' navigator.
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-skip"));
             Assert.IsNotNull(Screen(root, "intro").Q<VisualElement>("lore-continue"));
-            Assert.IsNotNull(Screen(root, "menu").Q<Button>("go-map"), "Main Menu's PLAY must route to Map.");
+            Assert.IsNotNull(Screen(root, "menu").Q<Button>("menu-google-signin"), "Sign In must expose its Google action.");
             Assert.IsNotNull(Screen(root, "combineIntro").Q<Button>("go-camTest"));
             Assert.IsNotNull(Screen(root, "camTest").Q<Button>("go-combine"));
-            Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-menu").ToList());
+            Assert.IsNotEmpty(Screen(root, "combine").Query<VisualElement>(name: "go-map").ToList());
             Assert.IsNotNull(Screen(root, "techniques").Q<Button>("go-practice"));
             Assert.IsNotNull(Screen(root, "practice").Q<Button>("go-techniques"));
             // Map's Okinawa chapter routes into the Okinawa chapter map via its
@@ -465,7 +463,7 @@ namespace Mikey.UI.Profile.Tests
             // Map_ExistingNavigationStatesRemainIntact_AndHasNoProfileTab for the
             // direct check, including the chapter map's own level popup CTA).
             Assert.IsNotNull(Screen(root, "map").Q<Button>("chapter-panel-cta"));
-            Assert.IsNotNull(Screen(root, "mapOkinawa").Q<Button>("go-menu"));
+            Assert.IsNull(Screen(root, "mapOkinawa").Q<Button>("go-menu"));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultScreen));
             Assert.IsNull(root.Q<VisualElement>(LegacyResultNavigator));
         }

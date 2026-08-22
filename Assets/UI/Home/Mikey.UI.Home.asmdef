@@ -3,7 +3,8 @@
     "rootNamespace": "Mikey.UI.Home",
     "references": [
         "Mikey.UI.SafeArea",
-        "Mikey.UI.Progression"
+        "Mikey.UI.Progression",
+        "Mikey.Backend"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -69,8 +69,8 @@ namespace Mikey.UI.Map.Tests
             var root = BuildTree();
             var japanNavButtons = Screen(root, "map").Query<Button>(className: "map-topbar__nav-btn").ToList();
             var okinawaNavButtons = Screen(root, "mapOkinawa").Query<Button>(className: "map-topbar__nav-btn").ToList();
-            Assert.AreEqual(4, japanNavButtons.Count, "Japan: Menu, Map, Techniques, Stats.");
-            Assert.AreEqual(4, okinawaNavButtons.Count, "Okinawa: Menu, Map, Techniques, Stats.");
+            Assert.AreEqual(4, japanNavButtons.Count, "Japan: Map, Techniques, Profile, Settings.");
+            Assert.AreEqual(4, okinawaNavButtons.Count, "Okinawa: Map, Techniques, Profile, Settings.");
 
             // One shared rule in Map.uss drives both screens' bars — not a
             // duplicated per-screen stylesheet.
@@ -80,17 +80,15 @@ namespace Mikey.UI.Map.Tests
 
         // ---------- 2: Menu / Map / Techniques / Stats remain present ----------
 
-        [TestCase("map", "go-menu")]
         [TestCase("map", "map-topbar-map")]
         [TestCase("map", "map-topbar-techniques")]
         [TestCase("map", "map-topbar-stats")]
         [TestCase("map", "map-topbar-settings")]
-        [TestCase("mapOkinawa", "go-menu")]
         [TestCase("mapOkinawa", "okinawa-topbar-map")]
         [TestCase("mapOkinawa", "okinawa-topbar-techniques")]
         [TestCase("mapOkinawa", "okinawa-topbar-stats")]
         [TestCase("mapOkinawa", "okinawa-topbar-settings")]
-        public void AllFiveNavActions_StillExist(string screenId, string buttonName)
+        public void AllFourNavActions_StillExist(string screenId, string buttonName)
         {
             var screen = Screen(BuildTree(), screenId);
             Assert.IsNotNull(screen.Q<Button>(buttonName), $"Expected '{buttonName}' on screen '{screenId}'.");
@@ -178,17 +176,25 @@ namespace Mikey.UI.Map.Tests
             Assert.LessOrEqual(xpSize, 25f);
         }
 
-        // ---------- 6: Settings touch target ----------
+        // ---------- 6: Settings is a worded nav item, not a corner icon ----------
 
         [Test]
-        public void SettingsIcon_IsWithinUpgradedVisualSizeTarget_26To32Px()
+        public void Settings_IsAWordedNavItem_TheCornerGearIsRetired()
         {
+            var root = BuildTree();
+            var settingsButton = Screen(root, "map").Q<Button>("map-topbar-settings");
+            Assert.IsNotNull(settingsButton, "Settings must still exist on the Map HUD.");
+            Assert.IsTrue(settingsButton.ClassListContains("map-topbar__nav-btn"),
+                "Settings must read exactly like Map / Techniques / Profile — one shared nav kit.");
+            Assert.AreEqual("Settings", settingsButton.Q<Label>(className: "map-topbar__nav-btn-text")?.text);
+
+            // One entry point into the modal, not two: the top-right gear is gone.
             string uss = File.ReadAllText(UssPath);
-            string block = ExtractRuleBlock(uss, "\n.map-topbar__settings-icon {");
-            Assert.IsNotNull(block);
-            float size = ExtractPx(block, "width");
-            Assert.GreaterOrEqual(size, 26f);
-            Assert.LessOrEqual(size, 32f);
+            StringAssert.DoesNotContain(".map-topbar__settings-btn", uss, "The retired gear button rule must be gone.");
+            StringAssert.DoesNotContain(".map-topbar__settings-icon", uss, "The retired gear icon rule must be gone.");
+            foreach (var screenId in new[] { "map", "mapOkinawa", "techniques", "profile" })
+                Assert.IsEmpty(Screen(BuildTree(), screenId).Query<VisualElement>(className: "map-topbar__settings-icon").ToList(),
+                    $"'{screenId}' must not still render the corner gear.");
         }
 
         [Test]

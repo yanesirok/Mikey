@@ -9,11 +9,14 @@ namespace Mikey.UI.Intro
     /// Drives Lore's cinematic exit: both "Skip" (<c>lore-skip</c>) and the
     /// primary "Continue" CTA (<c>lore-continue</c>) darken Lore to black
     /// through the shared <see cref="ITransitionOverlay"/>, only then swap to
-    /// "menu" while fully covered, then fade Main Menu in — so leaving Lore no
-    /// longer reads as an instant hard cut.
+    /// "map" while fully covered, then fade the Map in — so leaving Lore no
+    /// longer reads as an instant hard cut. Lore is a first-launch-only screen
+    /// (Mikey.UI.Home.HomeController opens it straight from Sign In while
+    /// progression is still below IntroCompleted), so its exit lands on the Map
+    /// hub — the retired Main Menu is not a destination anymore.
     ///
-    /// Deliberately named "go-menu" no longer: naming them that would let
-    /// ScreenManager auto-wire its own instant <c>Show("menu")</c> handler on
+    /// Deliberately named "go-map" no longer: naming them that would let
+    /// ScreenManager auto-wire its own instant <c>Show("map")</c> handler on
     /// the same buttons, which would always fire (registered at scene load,
     /// before this controller's own binding) and swap the screen before this
     /// controller ever got a chance to darken Lore first. Kept separate from
@@ -25,18 +28,18 @@ namespace Mikey.UI.Intro
     [RequireComponent(typeof(UIDocument))]
     public sealed class LoreExitController : MonoBehaviour
     {
-        private const string NextScreenId = "menu";
+        private const string NextScreenId = "map";
         private const string SkipButtonName = "lore-skip";
         private const string ContinueButtonName = "lore-continue";
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>How long Lore darkens to black (Phase A) before the screen swaps to Main Menu.</summary>
+        /// <summary>How long Lore darkens to black (Phase A) before the screen swaps to the Map.</summary>
         private const float FadeOutSeconds = 0.5f;
 
-        /// <summary>How long the screen holds on full black — Main Menu is activated and its video allowed to start during this hold, all while fully covered.</summary>
+        /// <summary>How long the screen holds on full black — the Map is activated during this hold, while fully covered.</summary>
         private const float BlackHoldSeconds = 0.12f;
 
-        /// <summary>How long Main Menu fades in from black (Phase B) once it is the active screen.</summary>
+        /// <summary>How long the Map fades in from black (Phase B) once it is the active screen.</summary>
         private const float FadeInSeconds = 0.72f;
 
         private IScreenNavigator _navigator;
@@ -121,11 +124,9 @@ namespace Mikey.UI.Intro
         /// <summary>
         /// True two-phase transition. Phase A: Lore darkens to black — by the
         /// end of this phase the screen must be fully black. While still fully
-        /// black, Main Menu is activated (its background video is already
-        /// prepared — see IShellPreloader/BackgroundMediaController — so it
-        /// begins playing immediately, underneath the opaque overlay, with no
-        /// blank-frame/initialization flash by the time it becomes visible).
-        /// Phase B: the overlay fades out, gradually revealing Main Menu out
+        /// black, the Map is activated underneath the opaque overlay, so it has
+        /// a frame to lay out before it is ever visible.
+        /// Phase B: the overlay fades out, gradually revealing the Map out
         /// of black rather than an instant bright reveal.
         /// </summary>
         private IEnumerator ExitRoutine()
@@ -134,12 +135,11 @@ namespace Mikey.UI.Intro
             if (_overlay != null)
                 yield return StartCoroutine(_overlay.FadeToBlack(FadeOutSeconds));
 
-            // Still fully black: activate Main Menu (and let its already-prepared
-            // video start) before any reveal begins.
+            // Still fully black: activate the Map before any reveal begins.
             yield return new WaitForSecondsRealtime(BlackHoldSeconds);
             _navigator.Show(NextScreenId);
 
-            // Phase B: full black -> Main Menu revealed.
+            // Phase B: full black -> the Map revealed.
             if (_overlay != null)
                 yield return StartCoroutine(_overlay.FadeFromBlack(FadeInSeconds));
 

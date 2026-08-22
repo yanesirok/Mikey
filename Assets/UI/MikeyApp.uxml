@@ -5,7 +5,7 @@
         <!-- 1 - LOGO INTRO (startup/logo screen; single production entry screen).
              Full-bleed final logo animation (logo_intro.mp4) on a near-black
              backdrop, nothing else. TitleController plays it once, then — once
-             the shell is ready — advances to Lore with a cinematic fade (never
+             the shell is ready — advances to Sign In with a cinematic fade (never
              a hard cut), triggered by natural completion, a tap/click anywhere
              (no CTA button — this is not a ScreenManager "go-" navigator), or
              the video error fallback. -->
@@ -13,7 +13,7 @@
             <Style src="Title/Title.uss" />
             <!-- full-bleed near-black backdrop + logo video target, OUTSIDE the safe-area wrapper.
                  TitleController freezes on this SAME video's own final frame while
-                 waiting for the shell (Main Menu's video) to be ready — never a
+                 waiting for the shell (Sign In's video) to be ready — never a
                  separate static logo image. -->
             <ui:VisualElement class="title-bg" picking-mode="Ignore">
                 <ui:VisualElement name="title-video" picking-mode="Ignore" class="title-video" />
@@ -23,11 +23,14 @@
         </ui:VisualElement>
 
         <!-- 2 - LORE (landscape temporary placeholder; full lore cinematic lands later).
+             First launch only: HomeController opens this straight after Sign In
+             while tutorial progression is still below IntroCompleted, and goes
+             straight to the Map on every launch after that.
              Exiting Lore (Skip or Continue) is driven by LoreExitController, NOT
              ScreenManager's "go-" auto-wiring: both actions are named "lore-skip"/
-             "lore-continue" (deliberately not "go-menu") so LoreExitController can
+             "lore-continue" (deliberately not "go-map") so LoreExitController can
              darken Lore to black through the shared transition overlay BEFORE
-             swapping to Main Menu, then fade Main Menu in — never a hard cut. This
+             swapping to the Map, then fade the Map in — never a hard cut. This
              is also where a future real Lore image/video/animation slots in later:
              only the placeholder content below (.intro-copy / .intro-note) changes,
              the launch transition sequence around it does not. -->
@@ -39,7 +42,7 @@
             <ui:VisualElement class="safe-area-content">
             <ui:VisualElement class="intro-layout">
 
-                <!-- Skip → Home (semantic class intro-skip; kept visually subtle, arrow is a sized, non-shrinking icon) -->
+                <!-- Skip → Map (semantic class intro-skip; kept visually subtle, arrow is a sized, non-shrinking icon) -->
                 <ui:Button name="lore-skip" class="skip intro-skip tap-target sfx-click">
                     <ui:Label text="Skip" class="intro-skip__text" picking-mode="Ignore" />
                     <ui:Label text="▸" class="intro-icon intro-icon--skip" picking-mode="Ignore" />
@@ -56,7 +59,7 @@
 
                 <ui:Label text="Lore cinematic coming soon." class="intro-note" />
 
-                <!-- primary CTA → Home (semantic class intro-primary) -->
+                <!-- primary CTA → Map (semantic class intro-primary) -->
                 <ui:Button name="lore-continue" class="intro-primary intro-cta tap-target sfx-click">
                     <ui:Label text="Continue" class="intro-cta__text" picking-mode="Ignore" />
                     <ui:Label text="›" class="intro-icon intro-icon--cta" picking-mode="Ignore" />
@@ -66,10 +69,21 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 3 - MAIN MENU (landscape cinematic game shell) -->
+        <!-- 3 - SIGN IN (landscape cinematic launch screen).
+             The app's one authentication gate, shown over the same full-bleed
+             Main Menu video the old PLAY/VOW/SETTINGS/QUIT menu used. Exactly two
+             icon-only actions: the Google mark (Mikey.Backend.SyncService) and a
+             quiet guest glyph for anyone who does not want an account.
+             Neither is a ScreenManager "go-" navigator: HomeController drives both,
+             darkening this screen to black through the shared transition overlay
+             before opening Lore on a first launch, or the Map hub on every launch
+             after that (see HomeController.NextScreenAfterAuth). Nothing in the app
+             navigates back here — the Map top bar is the hub from here on. Only an
+             existing session skips this screen; everyone else sees it, and the
+             guest action is always the way through. -->
         <ui:VisualElement name="menu" class="screen home">
             <Style src="Home/Home.uss" />
-            <!-- full-bleed Main Menu background video, OUTSIDE the safe-area wrapper -->
+            <!-- full-bleed Sign In background video, OUTSIDE the safe-area wrapper -->
             <ui:VisualElement class="home-bg">
                 <ui:VisualElement name="home-bg-media" picking-mode="Ignore" class="bg-media" />
                 <ui:VisualElement class="home-scrim" picking-mode="Ignore" />
@@ -81,93 +95,34 @@
                 <!-- upper-left brand mark -->
                 <ui:VisualElement class="home-logo" picking-mode="Ignore" />
 
-                <!-- right-side vertical navigation: spacing + typography, no cards.
-                     Each item carries its OWN individual brushstroke backing — the
-                     real menu_brushstroke.png cropped/sized per word (see
-                     Home.uss ".home-nav__stroke") — never one shared panel/band
-                     behind the whole nav. -->
-                <ui:VisualElement class="home-nav">
-                    <!-- PLAY: plain ScreenManager navigator straight to the Map hub -->
-                    <ui:Button name="go-map" class="home-nav__item tap-target-lg sfx-click">
-                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--play" picking-mode="Ignore" />
-                        <ui:Label text="PLAY" class="home-nav__label" picking-mode="Ignore" />
-                    </ui:Button>
-                    <!-- VOW: local overlay (NOT a "go-" navigator); HomeController opens it -->
-                    <ui:Button name="menu-vow-open" class="home-nav__item tap-target-lg sfx-click">
-                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--vow" picking-mode="Ignore" />
-                        <ui:Label text="VOW" class="home-nav__label" picking-mode="Ignore" />
-                    </ui:Button>
-                    <!-- SETTINGS: local overlay (NOT a "go-" navigator); HomeController opens it -->
-                    <ui:Button name="menu-settings-open" class="home-nav__item tap-target-lg sfx-click">
-                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--settings" picking-mode="Ignore" />
-                        <ui:Label text="SETTINGS" class="home-nav__label" picking-mode="Ignore" />
-                    </ui:Button>
-                    <!-- QUIT: lowest-priority action visually, never platform-hidden -->
-                    <ui:Button name="menu-quit" class="home-nav__item home-nav__item--quit tap-target-lg sfx-click">
-                        <ui:VisualElement class="home-nav__stroke home-nav__stroke--quit" picking-mode="Ignore" />
-                        <ui:Label text="QUIT" class="home-nav__label" picking-mode="Ignore" />
-                    </ui:Button>
+                <!-- bottom-centered account row, the PUBG/CoD-Mobile shape:
+                     round icon-only buttons, no worded menu. The Google mark and
+                     the guest glyph ARE the labels (see the Home.uss icon
+                     modifiers for google and guest); the only text on this
+                     screen is the status line below, and it stays empty until
+                     there is something honest to say. -->
+                <ui:VisualElement class="home-auth">
+                    <ui:VisualElement class="home-auth__row">
+                        <!-- Primary: Google sign-in. HomeController disables it while
+                             the system account dialog is up and re-enables it if the
+                             attempt does not end in a session. -->
+                        <ui:Button name="menu-google-signin" class="home-auth__btn tap-target-lg sfx-click">
+                            <ui:VisualElement class="home-auth__icon home-auth__icon--google" picking-mode="Ignore" />
+                        </ui:Button>
+                        <!-- Secondary: continue without an account. Never hidden —
+                             progress simply stays on the device. -->
+                        <ui:Button name="menu-guest-continue" class="home-auth__btn home-auth__btn--guest tap-target-lg sfx-click">
+                            <ui:VisualElement class="home-auth__icon home-auth__icon--guest" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <!-- One inline status line: "Signing in..." while the dialog is
+                         up, an honest retry notice if it comes back empty. Never a
+                         modal, never a fake success. -->
+                    <ui:Label name="menu-auth-status" text="" class="home-auth__status" picking-mode="Ignore" />
                 </ui:VisualElement>
 
             </ui:VisualElement>
             </ui:VisualElement>
-
-            <!-- VOW overlay: the premium "choose your path" membership overlay
-                 over the Main Menu — frontend presentation only, no payment/
-                 backend hookup. Hidden by default (display:none is the safe
-                 markup default; see Home.uss ".vow-modal"); HomeController
-                 toggles it exactly like the old Plans overlay did (never a
-                 CSS-class toggle — that pattern is reserved for the shared,
-                 multi-entry-point Settings modal). The menu video/music
-                 underneath keep playing while this is open. -->
-            <ui:VisualElement name="menu-vow-modal" class="vow-modal">
-                <ui:VisualElement class="vow-modal__card">
-                    <ui:Button name="menu-vow-close" text="Close" class="vow-modal__close tap-target sfx-click" />
-
-                    <ui:VisualElement class="vow-header" picking-mode="Ignore">
-                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
-                        <ui:Label text="The Vow" class="vow-header__title" picking-mode="Ignore" />
-                        <ui:VisualElement class="vow-header__rule" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:Label text="Choose how far you are willing to walk the path." class="vow-header__subtitle" picking-mode="Ignore" />
-                    <ui:Label text="Your training begins with commitment." class="vow-header__tagline" picking-mode="Ignore" />
-
-                    <ui:VisualElement class="vow-list" picking-mode="Ignore">
-                        <ui:Button name="vow-option-initiate" class="vow-option tap-target-lg sfx-click">
-                            <ui:Label text="Initiate" class="vow-option__name" picking-mode="Ignore" />
-                            <ui:Label text="Free" class="vow-option__status" picking-mode="Ignore" />
-                            <ui:Label text="Begin the path. Learn the foundations and discover Mikey." class="vow-option__desc" picking-mode="Ignore" />
-                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
-                            <ui:Label text="Current Path" class="vow-option__cta" picking-mode="Ignore" />
-                        </ui:Button>
-
-                        <ui:Button name="vow-option-disciple" class="vow-option vow-option--recommended tap-target-lg sfx-click">
-                            <ui:Label text="Recommended" class="vow-option__badge" picking-mode="Ignore" />
-                            <ui:VisualElement class="vow-option__accent" picking-mode="Ignore" />
-                            <ui:Label text="Disciple" class="vow-option__name" picking-mode="Ignore" />
-                            <ui:Label text="Monthly" class="vow-option__status" picking-mode="Ignore" />
-                            <ui:Label text="Unlock the full training journey, progression, and technique library." class="vow-option__desc" picking-mode="Ignore" />
-                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
-                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
-                        </ui:Button>
-
-                        <ui:Button name="vow-option-master" class="vow-option tap-target-lg sfx-click">
-                            <ui:Label text="Master" class="vow-option__name" picking-mode="Ignore" />
-                            <ui:Label text="Yearly" class="vow-option__status" picking-mode="Ignore" />
-                            <ui:Label text="Commit to the path with complete access and the best long-term value." class="vow-option__desc" picking-mode="Ignore" />
-                            <ui:VisualElement class="vow-option__divider" picking-mode="Ignore" />
-                            <ui:Label text="Choose Vow" class="vow-option__cta" picking-mode="Ignore" />
-                        </ui:Button>
-                    </ui:VisualElement>
-
-                    <ui:Label name="vow-inline-message" text="" class="vow-inline-message" picking-mode="Ignore" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-            <!-- SETTINGS ("menu-settings-open" above) now opens the one shared
-                 Settings modal (see the "shared-settings-modal" element at the
-                 end of this file, and SettingsModalController) — no local
-                 modal here anymore. -->
         </ui:VisualElement>
 
         <!-- 4 - COMBINE INTRO (landscape LVL0 briefing) -->
@@ -198,8 +153,8 @@
                     <ui:VisualElement class="ci-status">
                         <ui:VisualElement class="ci-status__dot" picking-mode="Ignore" />
                         <ui:VisualElement class="ci-status__text">
-                            <ui:Label text="READY · 4 TESTS · CAMERA ON" class="ci-status__head" picking-mode="Ignore" />
-                            <ui:Label text="Frontend mock — the camera and pose tracking are simulated for now." class="ci-status__sub" picking-mode="Ignore" />
+                            <ui:Label text="READY · 6 TESTS · CAMERA ON" class="ci-status__head" picking-mode="Ignore" />
+                            <ui:Label text="Phone side-on, whole body in frame — head to feet." class="ci-status__sub" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
@@ -210,15 +165,17 @@
                             <ui:Label text="Begin Camera Test" class="ci-btn__text" picking-mode="Ignore" />
                             <ui:Label text="›" class="ci-icon ci-icon--action ci-btn__icon" picking-mode="Ignore" />
                         </ui:Button>
-                        <!-- secondary → existing Home hub -->
-                        <ui:Button name="go-menu" class="ci-btn ci-btn--ghost ci-tap-target-lg">
+                        <!-- secondary → the Map hub -->
+                        <ui:Button name="go-map" class="ci-btn ci-btn--ghost ci-tap-target-lg">
                             <ui:Label text="‹" class="ci-icon ci-icon--action ci-btn__icon ci-btn__icon--lead" picking-mode="Ignore" />
-                            <ui:Label text="Return Home" class="ci-btn__text" picking-mode="Ignore" />
+                            <ui:Label text="Return to Map" class="ci-btn__text" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
-                <!-- RIGHT BAND: the four-test list with large readable glyphs -->
+                <!-- RIGHT BAND: the six-test list with large readable glyphs. Order and
+                     names mirror Level0SessionController.ExerciseIds exactly — the briefing
+                     must promise what the station actually runs. -->
                 <ui:VisualElement class="ci-tests">
                     <ui:VisualElement class="ci-test">
                         <ui:Label text="腕" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
@@ -228,24 +185,38 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="ci-test">
-                        <ui:Label text="腹" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:Label text="脚" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
                         <ui:VisualElement class="ci-test__body">
-                            <ui:Label text="2 · Sit-ups" class="ci-test__name" />
-                            <ui:Label text="Core" class="ci-test__meta" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="ci-test">
-                        <ui:Label text="柔" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
-                        <ui:VisualElement class="ci-test__body">
-                            <ui:Label text="3 · Flexibility &amp; Control" class="ci-test__name" />
-                            <ui:Label text="Control" class="ci-test__meta" />
+                            <ui:Label text="2 · Squats" class="ci-test__name" />
+                            <ui:Label text="Power · legs" class="ci-test__meta" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="ci-test">
                         <ui:Label text="耐" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
                         <ui:VisualElement class="ci-test__body">
-                            <ui:Label text="4 · Durability" class="ci-test__name" />
+                            <ui:Label text="3 · Wall-sit" class="ci-test__name" />
                             <ui:Label text="Endurance" class="ci-test__meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="下" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="4 · Yoko geri gedan" class="ci-test__name" />
+                            <ui:Label text="Control · low" class="ci-test__meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="中" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="5 · Yoko geri chudan" class="ci-test__name" />
+                            <ui:Label text="Control · mid" class="ci-test__meta" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="ci-test">
+                        <ui:Label text="柔" class="ci-icon ci-icon--test ci-test__glyph" picking-mode="Ignore" />
+                        <ui:VisualElement class="ci-test__body">
+                            <ui:Label text="6 · Yoko geri jodan" class="ci-test__name" />
+                            <ui:Label text="Flexibility · high" class="ci-test__meta" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -254,11 +225,12 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 5 - CAMERA TEST (landscape mock camera HUD; no real camera/pose/ML) -->
+        <!-- 5 - CAMERA TEST (landscape camera HUD; live pose via Level0SessionController) -->
         <ui:VisualElement name="camTest" class="screen camera">
             <Style src="CameraTest/CameraTest.uss" />
-            <!-- full-bleed mock camera feed, OUTSIDE the safe-area wrapper -->
-            <ui:VisualElement class="cam-feed" picking-mode="Ignore">
+            <!-- full-bleed camera feed, OUTSIDE the safe-area wrapper; the live camera
+                 image is assigned to this element's background by the controller -->
+            <ui:VisualElement name="camera-bg" class="cam-feed" picking-mode="Ignore">
                 <ui:VisualElement class="cam-feed__glow" picking-mode="Ignore" />
                 <ui:VisualElement class="cam-feed__vignette" picking-mode="Ignore" />
             </ui:VisualElement>
@@ -270,11 +242,11 @@
                 <ui:VisualElement class="cam-topbar">
                     <ui:VisualElement class="cam-live">
                         <ui:VisualElement class="cam-live__dot cam-icon" picking-mode="Ignore" />
-                        <ui:Label text="LIVE · MOCK POSE" class="cam-live__text" picking-mode="Ignore" />
+                        <ui:Label text="LIVE · POSE" class="cam-live__text" picking-mode="Ignore" />
                     </ui:VisualElement>
                     <ui:VisualElement class="cam-titlewrap">
-                        <ui:Label text="THE COMBINE · 1 / 4" class="kicker cam-kicker" />
-                        <ui:Label text="Push-ups" class="testname cam-title" />
+                        <ui:Label name="camera-exercise-step" text="LEVEL 0 · 1 / 6" class="kicker cam-kicker" />
+                        <ui:Label name="camera-exercise-name" text="Push-ups" class="testname cam-title" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -289,7 +261,9 @@
                             <ui:VisualElement class="cam-figure__head" picking-mode="Ignore" />
                             <ui:VisualElement class="cam-figure__body" picking-mode="Ignore" />
                         </ui:VisualElement>
-                        <ui:Label text="MOCK CAMERA · POSE PLACEHOLDER" class="cam-pose__note" picking-mode="Ignore" />
+                        <!-- live coaching cue: the one prioritized correction, or the
+                             exercise's framing hint when form is clean -->
+                        <ui:Label name="camera-cue" text="Боком к камере, всё тело в кадр" class="cam-pose__note" picking-mode="Ignore" />
                     </ui:VisualElement>
 
                     <ui:VisualElement class="cam-readout">
@@ -306,12 +280,14 @@
 
                 <!-- responsive bottom action bar: width-capped, centered, wraps on narrow widths -->
                 <ui:VisualElement class="cam-actionbar">
-                    <!-- local mock action (NOT a go- navigator); controller-bound name -->
-                    <ui:Button name="camera-simulate-rep" class="cam-btn cam-btn--ghost tap-target-lg">
-                        <ui:Label text="＋" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
-                        <ui:Label text="Simulate reps" class="cam-btn__text" picking-mode="Ignore" />
+                    <!-- banks this set and moves to the next level-0 exercise (NOT a go-
+                         navigator: the controller owns the sequence, ScreenManager must not
+                         treat it as a screen jump) -->
+                    <ui:Button name="camera-next-exercise" class="cam-btn cam-btn--ghost tap-target-lg">
+                        <ui:Label text="▸" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
+                        <ui:Label name="camera-next-text" text="Next" class="cam-btn__text" picking-mode="Ignore" />
                     </ui:Button>
-                    <!-- production completion route → modern Combine screen -->
+                    <!-- leave the assessment early → modern Combine screen -->
                     <ui:Button name="go-combine" class="cam-btn cam-btn--primary tap-target-lg">
                         <ui:Label text="Done" class="cam-btn__text" picking-mode="Ignore" />
                         <ui:Label text="▸" class="cam-icon cam-icon-32 cam-btn__icon" picking-mode="Ignore" />
@@ -359,8 +335,8 @@
                              the Combine (LVL0) portion of progress, then returns to the
                              Combine briefing to redo it. -->
                         <ui:Button name="combine-retry-assessment" text="Retry Assessment" class="btn combine-retry icon-btn" />
-                        <!-- production exit: returns to the Home hub (ScreenManager wires go-menu -> menu) -->
-                        <ui:Button name="go-menu" text="Return Home" class="btn combine-home icon-btn" />
+                        <!-- production exit: returns to the Map hub (ScreenManager wires go-map -> map) -->
+                        <ui:Button name="go-map" text="Return to Map" class="btn combine-home icon-btn" />
                     </ui:VisualElement>
 
                     <!-- ERROR -->
@@ -427,11 +403,11 @@
                         <ui:Label text="1 / 4 ELEMENTS" class="tq-progress__count" />
                     </ui:VisualElement>
 
-                    <!-- Home / Back action (semantic name go-menu) -->
+                    <!-- Back action to the Map hub (semantic name go-map) -->
                     <ui:VisualElement class="tq-actionbar tq-actionbar--hub">
-                        <ui:Button name="go-menu" class="tq-btn tq-btn--ghost tap-target-lg">
+                        <ui:Button name="go-map" class="tq-btn tq-btn--ghost tap-target-lg">
                             <ui:Label text="‹" class="tq-icon tq-icon--action tq-btn__icon tq-btn__icon--lead" picking-mode="Ignore" />
-                            <ui:Label text="Home" class="tq-btn__text" picking-mode="Ignore" />
+                            <ui:Label text="Map" class="tq-btn__text" picking-mode="Ignore" />
                         </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -494,9 +470,6 @@
                  either, so no controller/gating code is needed for either link. -->
             <ui:VisualElement class="map-topbar">
                 <ui:VisualElement class="map-topbar__nav">
-                    <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
-                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                    </ui:Button>
                     <ui:Button name="go-map" class="map-topbar__nav-btn tap-target">
                         <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:Button>
@@ -516,6 +489,9 @@
                     <ui:Button name="go-profile" class="map-topbar__nav-btn tap-target">
                         <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:Button>
+                    <ui:Button name="techniques-topbar-settings" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Settings" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
                 <ui:VisualElement class="map-topbar__right">
                     <ui:VisualElement class="map-topbar__status">
@@ -525,9 +501,6 @@
                             <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:Button name="techniques-topbar-settings" class="map-topbar__settings-btn tap-target">
-                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
-                    </ui:Button>
                 </ui:VisualElement>
             </ui:VisualElement>
 
@@ -750,16 +723,13 @@
                      panels/transition overlay so it always paints above
                      them, but before the Settings modal so an open modal
                      still covers it. Clean text navigation (Menu / Map /
-                     Techniques / Stats), no pill/bubble styling; "Map"
+                     Techniques / Profile / Settings), no pill/bubble styling; "Map"
                      carries the active-section accent since the player is
-                     always somewhere in the Map flow here. Settings is the
-                     one genuine icon button. Visible on both the Japan and
+                     always somewhere in the Map flow here. Settings is a
+                     worded item like the rest, not a corner icon. Visible on both the Japan and
                      Okinawa map screens (see JapanMapController). -->
                 <ui:VisualElement class="map-topbar">
                     <ui:VisualElement class="map-topbar__nav">
-                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
                         <ui:Button name="map-topbar-map" class="map-topbar__nav-btn map-topbar__nav-btn--active tap-target">
                             <ui:VisualElement class="map-topbar__nav-btn-halo map-topbar__nav-btn-halo--map" picking-mode="Ignore">
                                 <ui:VisualElement class="map-topbar__nav-btn-halo__layer map-topbar__nav-btn-halo__layer--outer" picking-mode="Ignore" />
@@ -779,6 +749,9 @@
                         <ui:Button name="map-topbar-stats" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
+                        <ui:Button name="map-topbar-settings" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Settings" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="map-topbar__right">
                         <ui:VisualElement class="map-topbar__status">
@@ -788,9 +761,6 @@
                                 <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Button name="map-topbar-settings" class="map-topbar__settings-btn tap-target">
-                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
-                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -820,8 +790,8 @@
                         <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
-                        <!-- LVL 0-6: Okinawa's final MVP mission set (1 Special + 3
-                             Training + 2 Fight + 1 Boss Fight, see
+                        <!-- LVL 0-8: Okinawa's mission set (1 Special + 4
+                             Training + 3 Fight + 1 Boss Fight, see
                              MapMarkerLayout.Missions). Position (style.left/top,
                              percent) and mission-type icon class are both applied at
                              bind time by OkinawaMapController from
@@ -847,7 +817,7 @@
                             <ui:Label text="LVL 1" class="level-node__label" picking-mode="Ignore" />
                             <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
-                        <!-- LVL 2-6: visible but always locked for now; no
+                        <!-- LVL 2-8: visible but always locked for now; no
                              gameplay built for these yet. -->
                         <ui:Button name="level-node-2" class="level-node level-node--2 level-node--locked tap-target-lg">
                             <ui:Label text="LVL 2" class="level-node__label" picking-mode="Ignore" />
@@ -867,6 +837,14 @@
                         </ui:Button>
                         <ui:Button name="level-node-6" class="level-node level-node--6 level-node--locked tap-target-lg">
                             <ui:Label text="LVL 6" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-7" class="level-node level-node--7 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 7" class="level-node__label" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="level-node-8" class="level-node level-node--8 level-node--locked tap-target-lg">
+                            <ui:Label text="LVL 8" class="level-node__label" picking-mode="Ignore" />
                             <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                         </ui:Button>
 
@@ -916,9 +894,6 @@
                      full explanation). -->
                 <ui:VisualElement class="map-topbar">
                     <ui:VisualElement class="map-topbar__nav">
-                        <ui:Button name="go-menu" class="map-topbar__nav-btn tap-target">
-                            <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                        </ui:Button>
                         <!-- Custom-wired (not a plain "go-" navigator): OkinawaMapController
                              must reset the session map context to Japan BEFORE navigating,
                              so this can't rely on ScreenManager's generic click wiring, whose
@@ -942,6 +917,9 @@
                         <ui:Button name="okinawa-topbar-stats" class="map-topbar__nav-btn tap-target">
                             <ui:Label text="Profile" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                         </ui:Button>
+                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__nav-btn tap-target">
+                            <ui:Label text="Settings" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                        </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="map-topbar__right">
                         <ui:VisualElement class="map-topbar__status">
@@ -951,9 +929,6 @@
                                 <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Button name="okinawa-topbar-settings" class="map-topbar__settings-btn tap-target">
-                            <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
-                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -984,7 +959,7 @@
             <!-- shared top quick-access HUD, exactly the same system as Map/
                  Okinawa/Techniques (see Map/Map.uss ".map-topbar"). Reuses the
                  SAME element names the old bottom dock used
-                 (go-menu/profile-nav-map/profile-nav-techniques/nav-profile) —
+                 (profile-nav-map/profile-nav-techniques/nav-profile) —
                  only relocated + restyled — so ProfileController's existing
                  Map/Techniques progression-gating (see ProfileProgressionTests)
                  needs no code changes at all. "Profile" carries the active
@@ -992,9 +967,6 @@
                  (SettingsModalController — "profile-topbar-settings"). -->
             <ui:VisualElement class="map-topbar">
                 <ui:VisualElement class="map-topbar__nav">
-                    <ui:VisualElement name="go-menu" class="map-topbar__nav-btn tap-target">
-                        <ui:Label text="Menu" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
-                    </ui:VisualElement>
                     <ui:VisualElement name="profile-nav-map" class="map-topbar__nav-btn tap-target">
                         <ui:Label text="Map" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
                     </ui:VisualElement>
@@ -1014,6 +986,9 @@
                             <ui:VisualElement class="map-topbar__nav-btn-underline__stroke map-topbar__nav-btn-underline__stroke--c" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
+                    <ui:Button name="profile-topbar-settings" class="map-topbar__nav-btn tap-target">
+                        <ui:Label text="Settings" class="map-topbar__nav-btn-text" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
                 <ui:VisualElement class="map-topbar__right">
                     <ui:VisualElement class="map-topbar__status">
@@ -1023,9 +998,6 @@
                             <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:Button name="profile-topbar-settings" class="map-topbar__settings-btn tap-target">
-                        <ui:VisualElement class="map-topbar__settings-icon" picking-mode="Ignore" />
-                    </ui:Button>
                 </ui:VisualElement>
             </ui:VisualElement>
 
@@ -1257,9 +1229,10 @@
         </ui:VisualElement>
 
         <!-- 11 - SHARED SETTINGS MODAL (Music / Sound Effects / Trainer Voice).
-             The ONE Settings window for the whole app — reachable from Main
-             Menu ("menu-settings-open") and both map screens
-             ("map-topbar-settings" / "okinawa-topbar-settings"), all wired to
+             The ONE Settings window for the whole app — reachable from the
+             Map hub's top bar and its siblings ("map-topbar-settings" /
+             "okinawa-topbar-settings" / "techniques-topbar-settings" /
+             "profile-topbar-settings"), all wired to
              THIS SAME element by SettingsModalController. Declared last, after
              every screen, so it always paints/hit-tests above whichever screen
              is currently active (ScreenManager only toggles screens'

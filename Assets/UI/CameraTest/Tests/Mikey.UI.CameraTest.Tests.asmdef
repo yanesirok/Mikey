@@ -3,6 +3,7 @@
     "rootNamespace": "Mikey.UI.CameraTest.Tests",
     "references": [
         "Mikey.UI.CameraTest",
+        "Mikey.Pose",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

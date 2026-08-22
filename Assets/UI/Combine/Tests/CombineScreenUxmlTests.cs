@@ -136,17 +136,17 @@ namespace Mikey.UI.Combine.Tests
         }
 
         [Test]
-        public void ReadyState_HasProductionReturnHomeButton()
+        public void ReadyState_HasProductionReturnToMapButton()
         {
             var screen = CombineScreen(BuildTree());
             var ready = screen.Q<VisualElement>("combine-ready");
             Assert.IsNotNull(ready, "Expected the 'combine-ready' success state.");
 
             // The production exit lives inside the ready state (only reachable on success).
-            var home = ready.Q<Button>("go-menu");
-            Assert.IsNotNull(home, "Ready state must contain a production 'go-menu' button.");
+            var home = ready.Q<Button>("go-map");
+            Assert.IsNotNull(home, "Ready state must contain a production 'go-map' button.");
             Assert.IsNotNull(NearestSafeAreaAncestor(home),
-                "'go-menu' must be inside .safe-area-content.");
+                "'go-map' must be inside .safe-area-content.");
 
             // Honest label: Level 1 is not implemented, so it must not claim to unlock it.
             StringAssert.DoesNotContain("Unlock Level 1", home.text,
@@ -154,7 +154,7 @@ namespace Mikey.UI.Combine.Tests
 
             // Reusable >=48px touch target, consistent with the Combine icon-button kit.
             Assert.IsTrue(home.ClassListContains("icon-btn"),
-                "'go-menu' must use the reusable .icon-btn touch-target class.");
+                "'go-map' must use the reusable .icon-btn touch-target class.");
         }
 
         [Test]

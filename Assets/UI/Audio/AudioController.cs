@@ -36,11 +36,12 @@ namespace Mikey.UI.Audio
         private const float FadeSeconds = 0.2f;
 
         /// <summary>
-        /// Hub/shell screens the soundtrack plays continuously across. Every
-        /// other screen is not part of the hub: Logo Intro and Lore (before the
-        /// hub — the soundtrack has not started yet) and training/gameplay
-        /// content (combineIntro, camTest, combine, practice — the soundtrack
-        /// fades out for these). "profileDetails" is part of the Profile hub
+        /// Hub/shell screens the soundtrack plays continuously across, starting
+        /// at Sign In ("menu"). Every other screen is not part of the hub: Logo
+        /// Intro (before the hub — it carries its own embedded audio), Lore
+        /// (a first-launch story beat between Sign In and the Map, deliberately
+        /// left to its own silence) and training/gameplay content (combineIntro,
+        /// camTest, combine, practice — the soundtrack fades out for these). "profileDetails" is part of the Profile hub
         /// flow (edit icon / one-time incomplete-profile redirect), so it's a
         /// hub screen too — Profile -&gt; Profile Details -&gt; Profile must never
         /// restart or re-fade the music.

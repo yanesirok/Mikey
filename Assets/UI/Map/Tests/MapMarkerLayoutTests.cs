@@ -91,17 +91,17 @@ namespace Mikey.UI.Map.Tests
         // ---------- missions ----------
 
         [Test]
-        public void Missions_HasExactlySevenMvpDefinitions_ForLvl0Through6()
+        public void Missions_HasExactlyNineDefinitions_ForLvl0Through8()
         {
-            // Okinawa's final MVP mission set is exactly 7 missions (1
-            // Special + 3 Training + 2 Fight + 1 Boss Fight).
-            Assert.AreEqual(7, MapMarkerLayout.Missions.Length);
-            for (int i = 0; i < 7; i++)
+            // Okinawa's mission set is exactly 9 missions (1 Special + 4
+            // Training + 3 Fight + 1 Boss Fight).
+            Assert.AreEqual(9, MapMarkerLayout.Missions.Length);
+            for (int i = 0; i < 9; i++)
                 Assert.AreEqual(i, MapMarkerLayout.Missions[i].LevelIndex, $"Missions[{i}] must describe LVL {i}.");
         }
 
         [Test]
-        public void Missions_HasExactlyOneSpecial_ThreeTraining_TwoFight_OneBossFight()
+        public void Missions_HasExactlyOneSpecial_FourTraining_ThreeFight_OneBossFight()
         {
             int special = 0, training = 0, fight = 0, boss = 0;
             foreach (var mission in MapMarkerLayout.Missions)
@@ -114,10 +114,12 @@ namespace Mikey.UI.Map.Tests
                     case MissionMarkerType.BossFight: boss++; break;
                 }
             }
-            Assert.AreEqual(1, special, "Okinawa MVP must have exactly 1 Special mission.");
-            Assert.AreEqual(3, training, "Okinawa MVP must have exactly 3 Training missions.");
-            Assert.AreEqual(2, fight, "Okinawa MVP must have exactly 2 Fight missions.");
-            Assert.AreEqual(1, boss, "Okinawa MVP must have exactly 1 Boss Fight mission.");
+            Assert.AreEqual(1, special, "Okinawa must have exactly 1 Special mission.");
+            Assert.AreEqual(4, training, "Okinawa must have exactly 4 Training missions.");
+            Assert.AreEqual(3, fight, "Okinawa must have exactly 3 plain Fight missions.");
+            Assert.AreEqual(1, boss, "Okinawa must have exactly 1 Boss Fight mission.");
+            Assert.AreEqual(4, fight + boss,
+                "Training and combat must balance: 4 training levels against 4 combat levels, the last of them the boss.");
         }
 
         [TestCase(0)]
@@ -127,6 +129,8 @@ namespace Mikey.UI.Map.Tests
         [TestCase(4)]
         [TestCase(5)]
         [TestCase(6)]
+        [TestCase(7)]
+        [TestCase(8)]
         public void AllMissionCoordinates_AreNormalized0to1(int levelIndex)
         {
             var mission = MapMarkerLayout.Missions[levelIndex];
@@ -139,11 +143,13 @@ namespace Mikey.UI.Map.Tests
         // Exact pixel-measured positions on the 6336x2688 okinawa_map_final.jpg.
         [TestCase(0, 0.33428f, 0.75856f)]
         [TestCase(1, 0.43277f, 0.60007f)]
-        [TestCase(2, 0.55208f, 0.49070f)]
-        [TestCase(3, 0.60511f, 0.31659f)]
-        [TestCase(4, 0.66098f, 0.45275f)]
-        [TestCase(5, 0.74716f, 0.44159f)]
-        [TestCase(6, 0.81345f, 0.36570f)]
+        [TestCase(2, 0.49195f, 0.50484f)]
+        [TestCase(3, 0.55208f, 0.49070f)]
+        [TestCase(4, 0.60511f, 0.31659f)]
+        [TestCase(5, 0.66098f, 0.45275f)]
+        [TestCase(6, 0.70391f, 0.44494f)]
+        [TestCase(7, 0.74716f, 0.44159f)]
+        [TestCase(8, 0.81345f, 0.36570f)]
         public void MissionCoordinate_MatchesExactPixelMeasurement(int levelIndex, float expectedX, float expectedY)
         {
             var mission = MapMarkerLayout.Missions[levelIndex];
@@ -188,9 +194,33 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Lvl6_IsBossFight()
+        public void Lvl6_IsFight()
         {
-            Assert.AreEqual(MissionMarkerType.BossFight, MapMarkerLayout.Missions[6].Type);
+            Assert.AreEqual(MissionMarkerType.Fight, MapMarkerLayout.Missions[6].Type);
+        }
+
+        [Test]
+        public void Lvl7_IsTraining()
+        {
+            Assert.AreEqual(MissionMarkerType.Training, MapMarkerLayout.Missions[7].Type);
+        }
+
+        [Test]
+        public void Lvl8_IsBossFight()
+        {
+            Assert.AreEqual(MissionMarkerType.BossFight, MapMarkerLayout.Missions[8].Type);
+        }
+
+        [Test]
+        public void TrainingAndCombat_AlternateAfterTheSpecialOpener()
+        {
+            for (int i = 1; i < MapMarkerLayout.Missions.Length; i++)
+            {
+                var type = MapMarkerLayout.Missions[i].Type;
+                bool isTraining = type == MissionMarkerType.Training;
+                Assert.AreEqual(i % 2 == 1, isTraining,
+                    $"LVL {i} breaks the alternation: odd levels train, even levels fight.");
+            }
         }
 
         [Test]

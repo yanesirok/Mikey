@@ -136,10 +136,11 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void TopBar_HasAWayBackToTheMainMenu()
+        public void TopBar_HasNoMainMenuEntry_TheMapIsTheHub()
         {
             var screen = MapScreen(BuildTree());
-            Assert.IsNotNull(screen.Q<Button>("go-menu"), "Map must expose a 'go-menu' navigator back to the Main Menu.");
+            Assert.IsNull(screen.Q<Button>("go-menu"),
+                "The Main Menu is retired - 'menu' is the Sign In gate now, and nothing navigates back to it.");
         }
 
         [Test]

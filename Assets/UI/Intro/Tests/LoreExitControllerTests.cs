@@ -8,9 +8,9 @@ namespace Mikey.UI.Intro.Tests
 {
     /// <summary>
     /// Contract for Lore's cinematic exit: both "lore-skip" and "lore-continue"
-    /// (deliberately not "go-menu" — see IntroScreenUxmlTests) darken Lore to
+    /// (deliberately not "go-map" — see IntroScreenUxmlTests) darken Lore to
     /// black through the shared transition overlay, only then navigate to
-    /// "menu", then fade Main Menu in — never an instant hard cut. Verified by
+    /// "map", then fade the Map in — never an instant hard cut. Verified by
     /// reading the source, mirroring TitleControllerSourceTests /
     /// TitleControllerSceneTests for MonoBehaviour internals not practical to
     /// drive through a live panel in EditMode.
@@ -21,20 +21,20 @@ namespace Mikey.UI.Intro.Tests
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
 
         [Test]
-        public void NextScreen_IsMenu()
+        public void NextScreen_IsMap()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const string NextScreenId = \"menu\";", source);
+            StringAssert.Contains("private const string NextScreenId = \"map\";", source);
         }
 
         [Test]
-        public void BindsToLoreSkipAndLoreContinue_NotGoMenu()
+        public void BindsToLoreSkipAndLoreContinue_NotGoMap()
         {
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("private const string SkipButtonName = \"lore-skip\";", source);
             StringAssert.Contains("private const string ContinueButtonName = \"lore-continue\";", source);
-            StringAssert.DoesNotContain("root.Q<Button>(\"go-menu\")", source,
-                "Lore's exit buttons must not be looked up by the name 'go-menu' — that would collide with ScreenManager's own auto-wiring, which fires its instant Show() first, before this controller ever gets a chance to darken Lore.");
+            StringAssert.DoesNotContain("root.Q<Button>(\"go-map\")", source,
+                "Lore's exit buttons must not be looked up by the name 'go-map' — that would collide with ScreenManager's own auto-wiring, which fires its instant Show() first, before this controller ever gets a chance to darken Lore.");
         }
 
         [Test]
@@ -65,13 +65,13 @@ namespace Mikey.UI.Intro.Tests
             Assert.GreaterOrEqual(fadeToBlackIndex, 0, "Phase A: Lore must fade to black through the shared transition overlay before navigating.");
 
             int blackHoldIndex = source.IndexOf("WaitForSecondsRealtime(BlackHoldSeconds)", fadeToBlackIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(blackHoldIndex, 0, "The screen must hold on full black before Main Menu is activated.");
+            Assert.GreaterOrEqual(blackHoldIndex, 0, "The screen must hold on full black before the Map is activated.");
 
             int showIndex = source.IndexOf("_navigator.Show(NextScreenId);", blackHoldIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(showIndex, 0, "Main Menu must be activated only after the fade-to-black and hold, while fully covered.");
+            Assert.GreaterOrEqual(showIndex, 0, "The Map must be activated only after the fade-to-black and hold, while fully covered.");
 
             int fadeFromBlackIndex = source.IndexOf("_overlay.FadeFromBlack(FadeInSeconds)", showIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Phase B: Main Menu must fade in from black only after the screen swap — a real alpha 1 -> 0 reveal, never an instant bright cut.");
+            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Phase B: the Map must fade in from black only after the screen swap — a real alpha 1 -> 0 reveal, never an instant bright cut.");
         }
 
         [Test]

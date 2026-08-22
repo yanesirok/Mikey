@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Drives the Okinawa chapter map screen ("mapOkinawa"): LVL 0-6 marker
+    /// Drives the Okinawa chapter map screen ("mapOkinawa"): LVL 0-8 marker
     /// selection, the shared level detail overlay popup, the top quick-access
     /// bar, and completing the ink-fade begun by JapanMapController on entry.
     /// The top bar's Settings button opens the one shared Settings modal —
@@ -19,14 +19,14 @@ namespace Mikey.UI.Map
     /// <see cref="TutorialProgressState.Level1Unlocked"/> is reached and
     /// routes to the existing lesson/techniques flow ("techniques",
     /// mirroring the old MapLevelPreviewController's StartLessonTarget);
-    /// LVL 2-6 are always locked placeholders — no gameplay built for them
+    /// LVL 2-8 are always locked placeholders — no gameplay built for them
     /// yet. Okinawa's final MVP mission set is exactly 7 missions (1 Special
-    /// + 3 Training + 2 Fight + 1 Boss Fight, see MapMarkerLayout.Missions).
+    /// + 4 Training + 3 Fight + 1 Boss Fight, see MapMarkerLayout.Missions).
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class OkinawaMapController : MonoBehaviour
     {
-        private const int LevelCount = 7;
+        private const int LevelCount = 9;
         private const int MaxRootResolveFrames = 30;
         private const string ScreenId = "mapOkinawa";
 
@@ -415,7 +415,7 @@ namespace Mikey.UI.Map
             }
         }
 
-        /// <summary>LVL 0 is always unlocked; LVL 1 unlocks at Level1Unlocked; LVL 2-6 are always locked (no gameplay built yet).</summary>
+        /// <summary>LVL 0 is always unlocked; LVL 1 unlocks at Level1Unlocked; LVL 2-8 are always locked (no gameplay built yet).</summary>
         private bool IsLevelLocked(int index)
         {
             switch (index)

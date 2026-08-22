@@ -29,7 +29,7 @@ namespace Mikey.UI.Intro.Tests
         [Test]
         public void IsIntroExit_TrueOnlyWhenLeavingIntroForAnotherScreen()
         {
-            Assert.IsTrue(IntroController.IsIntroExit("intro", "menu"),
+            Assert.IsTrue(IntroController.IsIntroExit("intro", "map"),
                 "Leaving Intro for Home (Skip or primary CTA) must count as completing/skipping Intro.");
             Assert.IsTrue(IntroController.IsIntroExit("intro", "title"),
                 "Leaving Intro for any other screen still counts as an exit.");
@@ -38,13 +38,13 @@ namespace Mikey.UI.Intro.Tests
         [Test]
         public void IsIntroExit_FalseWhenNotLeavingIntro()
         {
-            Assert.IsFalse(IntroController.IsIntroExit("menu", "intro"),
+            Assert.IsFalse(IntroController.IsIntroExit("map", "intro"),
                 "Entering Intro is not exiting it.");
-            Assert.IsFalse(IntroController.IsIntroExit("title", "menu"),
+            Assert.IsFalse(IntroController.IsIntroExit("title", "map"),
                 "A transition that never involved Intro must not count as an Intro exit.");
             Assert.IsFalse(IntroController.IsIntroExit("intro", "intro"),
                 "Re-requesting the same screen is not a genuine exit.");
-            Assert.IsFalse(IntroController.IsIntroExit(null, "menu"),
+            Assert.IsFalse(IntroController.IsIntroExit(null, "map"),
                 "No previous screen (first-ever navigation) must not count as an Intro exit.");
         }
 

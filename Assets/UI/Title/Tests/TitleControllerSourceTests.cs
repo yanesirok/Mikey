@@ -5,7 +5,7 @@ namespace Mikey.UI.Title.Tests
 {
     /// <summary>
     /// Contract for TitleController's wiring: it plays the final logo animation
-    /// exactly once (no looping) and advances from Logo Intro to Lore when that
+    /// exactly once (no looping) and advances from Logo Intro to Sign In when that
     /// video completes, on a tap/click anywhere, or if the VideoPlayer reports an
     /// error; a single guard makes sure only one of those triggers ever navigates
     /// (no double navigation if two occur together), and it drives navigation
@@ -20,10 +20,10 @@ namespace Mikey.UI.Title.Tests
         private const string SourcePath = "Assets/UI/Title/TitleController.cs";
 
         [Test]
-        public void NextScreen_IsIntro()
+        public void NextScreen_IsSignIn()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("NextScreenId = \"intro\"", source);
+            StringAssert.Contains("NextScreenId = \"menu\"", source);
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace Mikey.UI.Title.Tests
             Assert.GreaterOrEqual(routineIndex, 0, "Expected an AdvanceRoutine() method.");
             int freezeIndex = source.IndexOf("FreezeVideo();", routineIndex, System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(freezeIndex, 0,
-                "AdvanceRoutine must call FreezeVideo() — natural completion, tap-skip and the error fallback all funnel through Advance()/AdvanceRoutine(), so all three enter the same hold on the video's own frame, never a hard cut to Lore.");
+                "AdvanceRoutine must call FreezeVideo() — natural completion, tap-skip and the error fallback all funnel through Advance()/AdvanceRoutine(), so all three enter the same hold on the video's own frame, never a hard cut to Sign In.");
         }
 
         [Test]
@@ -167,7 +167,7 @@ namespace Mikey.UI.Title.Tests
             Assert.GreaterOrEqual(seekIndex, 0, "Expected SeekToFinalFrame() inside the tap callback.");
             int advanceIndex = source.IndexOf("Advance();", seekIndex, System.StringComparison.Ordinal);
             Assert.GreaterOrEqual(advanceIndex, 0,
-                "The tap callback must seek to the final-logo portion BEFORE calling Advance(), so an early skip never jumps straight from a random mid-video frame to Lore.");
+                "The tap callback must seek to the final-logo portion BEFORE calling Advance(), so an early skip never jumps straight from a random mid-video frame to Sign In.");
         }
 
         [Test]
@@ -194,8 +194,12 @@ namespace Mikey.UI.Title.Tests
         public void AdvanceRoutine_WaitsOnShellPreloader_ButNeverBlocksForeverIfAbsent()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("while (_shellPreloader != null && !_shellPreloader.IsReady)", source,
-                "The hold must wait for the shell (Main Menu video) to be ready, but a null preloader (e.g. missing component) must never hang Logo Intro forever.");
+            // The condition now spans several lines (it also carries the hard cap, see
+            // ShellPreloadHold_IsHardCapped), so assert its parts rather than one exact line.
+            StringAssert.Contains("while (_shellPreloader != null", source,
+                "A null preloader (e.g. missing component) must never hang Logo Intro forever.");
+            StringAssert.Contains("&& !_shellPreloader.IsReady", source,
+                "The hold must wait for the shell (Main Menu video) to be ready.");
         }
 
         [Test]
@@ -207,7 +211,7 @@ namespace Mikey.UI.Title.Tests
         }
 
         [Test]
-        public void AdvanceRoutine_FadesToBlack_HoldsOnFullBlack_ThenSwapsToLore_ThenFadesIn()
+        public void AdvanceRoutine_FadesToBlack_HoldsOnFullBlack_ThenSwapsToSignIn_ThenFadesIn()
         {
             string source = File.ReadAllText(SourcePath);
             int routineIndex = source.IndexOf("private IEnumerator AdvanceRoutine()", System.StringComparison.Ordinal);
@@ -223,7 +227,7 @@ namespace Mikey.UI.Title.Tests
             Assert.GreaterOrEqual(showIndex, 0, "The screen swap must happen only after the fade-to-black and hold, while fully covered.");
 
             int fadeFromBlackIndex = source.IndexOf("_transitionOverlay.FadeFromBlack(FadeInSeconds)", showIndex, System.StringComparison.Ordinal);
-            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Lore must fade in from black only after the screen swap.");
+            Assert.GreaterOrEqual(fadeFromBlackIndex, 0, "Sign In must fade in from black only after the screen swap.");
         }
 
         [Test]
@@ -240,7 +244,20 @@ namespace Mikey.UI.Title.Tests
         {
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("_shellPreloader?.BeginPreload();", source,
-                "Logo Intro must kick off preparing the immediate shell flow (Main Menu's video) the moment it starts, not wait until advancing.");
+                "Logo Intro must kick off preparing the immediate shell flow (Sign In's video) the moment it starts, not wait until advancing.");
+        }
+
+        // Launch regression: this is the app's very first screen and it has no
+        // button, so a preloader that never settles must not be able to strand the
+        // player on a frozen logo frame.
+        [Test]
+        public void ShellPreloadHold_IsHardCapped()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("MaxShellWaitSeconds", source,
+                "The shell-preload hold must have a hard cap.");
+            StringAssert.Contains("Time.unscaledTime - holdStart < MaxShellWaitSeconds", source,
+                "The wait loop must exit on the cap, not only on IsReady.");
         }
     }
 }

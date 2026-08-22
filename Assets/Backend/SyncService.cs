@@ -39,6 +39,14 @@ namespace Mikey.Backend
         /// <summary>Доступен ли вход на этой платформе (в редакторе — нет).</summary>
         public bool CanSignIn => _auth != null && _auth.IsAvailable && _config != null;
 
+        /// <summary>
+        /// Идёт ли сейчас попытка входа: системный диалог открыт или обмен токена
+        /// в полёте. Экран входа держит на этом кнопки выключенными, а по спаду
+        /// флага без сессии показывает честное «не получилось, попробуйте ещё» —
+        /// иначе нажатие, которое ничем не кончилось, выглядит как мёртвая кнопка.
+        /// </summary>
+        public bool IsSigningIn { get; private set; }
+
         private void Awake()
         {
             _config = SupabaseConfig.Load();
@@ -78,13 +86,16 @@ namespace Mikey.Backend
         private void OnDisable()
         {
             _syncing = false;
+            IsSigningIn = false;
         }
 
         /// <summary>Начинает вход. Диалог системный, результат забираем опросом.</summary>
         public void SignIn()
         {
-            if (!CanSignIn || _syncing)
+            if (!CanSignIn || IsSigningIn)
                 return;
+            IsSigningIn = true;
+            Changed?.Invoke();
             _auth.BeginSignIn(_config.GoogleWebClientId);
             StartCoroutine(AwaitSignIn());
         }
@@ -119,7 +130,19 @@ namespace Mikey.Backend
             StartCoroutine(DeleteRoutine());
         }
 
+        /// <summary>
+        /// Обёртка ровно ради одного: чем бы попытка ни кончилась — успехом,
+        /// ошибкой или тем, что человек ушёл из приложения, — флаг снимается и
+        /// UI получает сигнал в одном месте, а не в трёх точках выхода.
+        /// </summary>
         private IEnumerator AwaitSignIn()
+        {
+            yield return SignInAttempt();
+            IsSigningIn = false;
+            Changed?.Invoke();
+        }
+
+        private IEnumerator SignInAttempt()
         {
             // Диалог живёт столько, сколько нужно человеку; ограничиваем ожидание,
             // чтобы корутина не висела вечно, если он ушёл из приложения.

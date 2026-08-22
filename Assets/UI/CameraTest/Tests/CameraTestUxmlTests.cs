@@ -19,7 +19,7 @@ namespace Mikey.UI.CameraTest.Tests
     {
         private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
         private const string UssPath = "Assets/UI/CameraTest/CameraTest.uss";
-        private const string ControllerPath = "Assets/UI/CameraTest/CameraTestController.cs";
+        private const string ControllerPath = "Assets/UI/CameraTest/Level0SessionController.cs";
 
         private static VisualElement BuildTree()
         {
@@ -88,7 +88,7 @@ namespace Mikey.UI.CameraTest.Tests
                     $".{className} must be inside .safe-area-content.");
             }
 
-            foreach (var name in new[] { "camera-simulate-rep", "go-combine" })
+            foreach (var name in new[] { "camera-next-exercise", "go-combine" })
             {
                 var btn = screen.Q<Button>(name);
                 Assert.IsNotNull(btn, $"Expected a Button named '{name}'.");
@@ -115,13 +115,13 @@ namespace Mikey.UI.CameraTest.Tests
 
         // 7
         [Test]
-        public void SimulateControl_HasStableNonNavigatorName()
+        public void NextControl_HasStableNonNavigatorName()
         {
             var screen = CamScreen(BuildTree());
-            var simulate = screen.Q<Button>("camera-simulate-rep");
-            Assert.IsNotNull(simulate, "Expected the local simulate control named 'camera-simulate-rep'.");
+            var simulate = screen.Q<Button>("camera-next-exercise");
+            Assert.IsNotNull(simulate, "Expected the local next-exercise control named 'camera-next-exercise'.");
             Assert.IsFalse(simulate.name.StartsWith("go-"),
-                "The simulate control must NOT use a production 'go-' navigator name.");
+                "The next-exercise control must NOT use a production 'go-' navigator name.");
         }
 
         // 10
@@ -129,7 +129,7 @@ namespace Mikey.UI.CameraTest.Tests
         public void BothBottomControls_UseMinimumTouchTargetClass()
         {
             var screen = CamScreen(BuildTree());
-            foreach (var name in new[] { "camera-simulate-rep", "go-combine" })
+            foreach (var name in new[] { "camera-next-exercise", "go-combine" })
             {
                 var btn = screen.Q<Button>(name);
                 Assert.IsNotNull(btn, $"Expected a Button named '{name}'.");
@@ -199,28 +199,35 @@ namespace Mikey.UI.CameraTest.Tests
                 ".cam-btn must set min-width:0 so a flex child can shrink rather than overflow.");
         }
 
-        // No real camera / ML / networking leaked into the mock controller.
+        // camTest is the real level-0 station: pose input must come through PoseController
+        // and the native plugin, never a second capture path opened here.
         [Test]
-        public void Controller_HasNoRealCameraOrNetworkingApis()
+        public void Controller_DrivesRealPose_ThroughPoseControllerOnly()
         {
             string src = File.ReadAllText(ControllerPath);
-            foreach (var banned in new[] { "WebCamTexture", "UnityWebRequest", "Permission", "NativeCamera" })
+
+            StringAssert.Contains("PoseController", src,
+                "The level-0 station must bind a PoseController (this screen is no longer a mock).");
+            StringAssert.Contains("ExerciseCatalog", src,
+                "The level-0 station must select its exercises from ExerciseCatalog.");
+
+            foreach (var banned in new[] { "WebCamTexture", "UnityWebRequest", "NativeCamera" })
             {
                 StringAssert.DoesNotContain(banned, src,
-                    $"CameraTestController must stay mock-only (found '{banned}').");
+                    $"Camera frames must come from PoseController's source, not '{banned}' opened here.");
             }
         }
 
         [Test]
-        public void Controller_UnbindsSimulateButtonOnDisable()
+        public void Controller_UnbindsNextButtonOnDisable()
         {
             string src = File.ReadAllText(ControllerPath);
-            StringAssert.Contains("private Button _simulate", src,
-                "CameraTestController must retain the simulate button reference for teardown.");
-            StringAssert.Contains("_simulate.clicked -= _model.SimulateRep", src,
-                "CameraTestController must remove the simulate callback on disable.");
-            StringAssert.Contains("_simulate.clicked += _model.SimulateRep", src,
-                "CameraTestController must bind the simulate callback explicitly once during setup.");
+            StringAssert.Contains("private Button _next", src,
+                "The level-0 station must retain the next-exercise button reference for teardown.");
+            StringAssert.Contains("_next.clicked -= OnNextClicked", src,
+                "The level-0 station must remove the next-exercise callback on disable.");
+            StringAssert.Contains("_next.clicked += OnNextClicked", src,
+                "The level-0 station must bind the next-exercise callback explicitly once during setup.");
         }
     }
 }

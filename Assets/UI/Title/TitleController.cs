@@ -10,7 +10,7 @@ namespace Mikey.UI.Title
     /// <summary>
     /// Drives the Logo Intro ("title") screen — the app's very first screen: plays
     /// the final <see cref="logoIntroClip"/> animation exactly once against a
-    /// full-bleed near-black backdrop, then opens Lore ("intro"), either
+    /// full-bleed near-black backdrop, then opens Sign In ("menu"), either
     /// automatically when the video finishes or immediately on a tap/click
     /// anywhere on the screen. A single <see cref="_navigated"/> guard ensures
     /// only one of those two triggers (plus the VideoPlayer-failure fallback)
@@ -22,18 +22,21 @@ namespace Mikey.UI.Title
     /// than MonoBehaviour OnEnable/OnDisable, which only fire once for the
     /// shared, always-enabled "UI" GameObject: entering "title" (re)plays the
     /// clip from frame 0 and leaving it stops playback completely, so nothing
-    /// keeps rendering once Lore opens, and returning to Title (Editor/testing)
+    /// keeps rendering once Sign In opens, and returning to Title (Editor/testing)
     /// restarts predictably.
     ///
     /// Advancing is no longer an instant cut: whatever triggered it (natural
     /// completion, tap-skip, or the error fallback) freezes on the actual
     /// final frame of <see cref="logoIntroClip"/> itself — never a separate
     /// static image — and, via <see cref="_shellPreloader"/>, holds there
-    /// until the Main Menu's background video is ready (plus a short minimum
+    /// until Sign In's background video is ready (plus a short minimum
     /// hold on fast devices so it never flashes by). Only then does it fade
-    /// to black, hold briefly on full black, swap to Lore while fully
-    /// covered, and fade Lore in — through the shared
+    /// to black, hold briefly on full black, swap to Sign In while fully
+    /// covered, and fade Sign In in — through the shared
     /// <see cref="_transitionOverlay"/>, see <see cref="AdvanceRoutine"/>.
+    /// Sign In itself may hand straight through to Lore or the Map without ever
+    /// being seen (see Mikey.UI.Home.HomeController.ShouldSkipGate); that swap is
+    /// deliberately transition-free so it happens inside this same fade.
     /// Natural completion already leaves the (non-looping) VideoPlayer
     /// stopped exactly on its last rendered frame, so nothing needs to
     /// change there; an early tap-skip instead seeks into the final
@@ -48,13 +51,23 @@ namespace Mikey.UI.Title
         public const string ScreenId = "title";
 
         /// <summary>Where Logo Intro always advances to, whether by video completion or tap.</summary>
-        public const string NextScreenId = "intro";
+        public const string NextScreenId = "menu";
 
         private const string VideoTargetElementName = "title-video";
         private const int MaxRootResolveFrames = 30;
 
         /// <summary>Minimum time the final-frame hold stays up even when the shell is already ready, so it never flashes by on fast devices.</summary>
         private const float MinHoldSeconds = 0.25f;
+
+        /// <summary>
+        /// Hard cap on the shell-preload hold. The preloader is supposed to report
+        /// ready (or failed) on its own, but this is the app's very first screen and
+        /// it has no button: a preloader that never settles would strand the player
+        /// on a frozen logo frame with no way forward. Launch continues regardless
+        /// once this elapses — a missing background video is a cosmetic loss, a
+        /// dead launch is not.
+        /// </summary>
+        private const float MaxShellWaitSeconds = 8f;
 
         /// <summary>
         /// How far before the video's own end an early tap-skip seeks, since
@@ -67,14 +80,14 @@ namespace Mikey.UI.Title
         /// <summary>How long the frozen final frame darkens to pure black.</summary>
         private const float FadeToBlackSeconds = 0.5f;
 
-        /// <summary>How long the screen holds on full black (Lore is swapped in during this hold, while fully covered).</summary>
+        /// <summary>How long the screen holds on full black (Sign In is swapped in during this hold, while fully covered).</summary>
         private const float BlackHoldSeconds = 0.12f;
 
-        /// <summary>How long Lore fades in from black once it is the active screen.</summary>
+        /// <summary>How long Sign In fades in from black once it is the active screen.</summary>
         private const float FadeInSeconds = 0.7f;
 
         [SerializeField]
-        [Tooltip("Final logo animation (logo_intro.mp4), played once. Natural completion advances to Lore.")]
+        [Tooltip("Final logo animation (logo_intro.mp4), played once. Natural completion advances to Sign In.")]
         private VideoClip logoIntroClip;
 
         private IScreenNavigator _navigator;
@@ -216,7 +229,7 @@ namespace Mikey.UI.Title
                 _player.Prepare();
         }
 
-        /// <summary>Stops the logo video completely so it never keeps rendering after Lore opens.</summary>
+        /// <summary>Stops the logo video completely so it never keeps rendering after Sign In opens.</summary>
         private void LeaveTitle()
         {
             if (_player != null && (_player.isPlaying || _player.isPaused))
@@ -289,11 +302,11 @@ namespace Mikey.UI.Title
         /// <summary>Safety fallback: a VideoPlayer failure must not strand the user on a black screen forever.</summary>
         private void OnErrorReceived(VideoPlayer source, string message)
         {
-            Debug.LogWarning($"[TitleController] Logo intro video error: {message}. Advancing to Lore.", this);
+            Debug.LogWarning($"[TitleController] Logo intro video error: {message}. Advancing to Sign In.", this);
             Advance();
         }
 
-        /// <summary>Begins advancing to Lore exactly once, however it was triggered (video completion, tap, or error fallback).</summary>
+        /// <summary>Begins advancing to Sign In exactly once, however it was triggered (video completion, tap, or error fallback).</summary>
         private void Advance()
         {
             if (_navigated || _navigator == null)
@@ -306,16 +319,23 @@ namespace Mikey.UI.Title
         /// <summary>
         /// Freezes on the video's own final frame, waits for the shell to be
         /// ready (with a short minimum hold so it never flashes by on a fast
-        /// device), then fades to black, holds briefly on full black, swaps to
-        /// Lore while fully covered, and fades Lore in.
+        /// device, and a hard <see cref="MaxShellWaitSeconds"/> cap so launch can
+        /// never stall here), then fades to black, holds briefly on full black,
+        /// swaps to Sign In while fully covered, and fades Sign In in.
         /// </summary>
         private IEnumerator AdvanceRoutine()
         {
             FreezeVideo();
 
             float holdStart = Time.unscaledTime;
-            while (_shellPreloader != null && !_shellPreloader.IsReady)
+            while (_shellPreloader != null
+                   && !_shellPreloader.IsReady
+                   && Time.unscaledTime - holdStart < MaxShellWaitSeconds)
                 yield return null;
+
+            if (_shellPreloader != null && !_shellPreloader.IsReady)
+                Debug.LogWarning($"[TitleController] Shell preload did not report ready within " +
+                                 $"{MaxShellWaitSeconds:F0}s; advancing to Sign In anyway.", this);
 
             float remainingHold = MinHoldSeconds - (Time.unscaledTime - holdStart);
             if (remainingHold > 0f)

@@ -52,6 +52,12 @@ public class BackgroundMediaController : MonoBehaviour, IShellPreloader
     private readonly Dictionary<string, ScreenVideoBinding> _videoBindingsById = new Dictionary<string, ScreenVideoBinding>();
     private readonly Dictionary<string, VideoPlayer> _players = new Dictionary<string, VideoPlayer>();
     private readonly Dictionary<string, RenderTexture> _renderTextures = new Dictionary<string, RenderTexture>();
+
+    // Screens whose video reported an error: they have fallen back to the static
+    // background and will never report isPrepared, so anything waiting on
+    // IsReady must stop waiting for them (see IsReady).
+    private readonly HashSet<string> _failedPlayers = new HashSet<string>();
+
     private string _activeScreenId;
 
     private void OnEnable()
@@ -164,8 +170,15 @@ public class BackgroundMediaController : MonoBehaviour, IShellPreloader
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// A video that errored counts as ready: it has already fallen back to the
+    /// static background, so there is nothing left to wait for. Without this a
+    /// device that cannot decode the clip would leave Logo Intro's hold spinning
+    /// forever and the app would never reach the Main Menu.
+    /// </remarks>
     public bool IsReady =>
         !_videoBindingsById.ContainsKey(ShellPreloadScreenId) ||
+        _failedPlayers.Contains(ShellPreloadScreenId) ||
         (_players.TryGetValue(ShellPreloadScreenId, out VideoPlayer player) && player != null && player.isPrepared);
 
     private VideoPlayer GetOrCreatePlayer(string screenId, ScreenVideoBinding binding)
@@ -204,6 +217,8 @@ public class BackgroundMediaController : MonoBehaviour, IShellPreloader
             if (kvp.Value != source)
                 continue;
 
+            _failedPlayers.Remove(kvp.Key);
+
             // The user may have navigated away again while this clip was still
             // preparing; only auto-play if its screen is still the active one.
             if (kvp.Key == _activeScreenId)
@@ -223,6 +238,7 @@ public class BackgroundMediaController : MonoBehaviour, IShellPreloader
                 continue;
 
             Debug.LogWarning($"[BackgroundMediaController] '{kvp.Key}' background video error: {message}. Falling back to the static background.");
+            _failedPlayers.Add(kvp.Key);
             if (_targets.TryGetValue(kvp.Key, out VisualElement element))
                 element.style.backgroundImage = StyleKeyword.Null;
             return;

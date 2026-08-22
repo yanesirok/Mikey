@@ -120,7 +120,7 @@ namespace Mikey.UI.SafeArea.Tests
                 "Retired Combine result navigator must be removed.");
         }
 
-        // 17 — combineIntro → camTest → combine → menu remains structurally
+        // 17 — combineIntro → camTest → combine → map remains structurally
         // unchanged, even though Main Menu's PLAY no longer routes through it (PLAY
         // goes straight to Map now — see HomeScreenUxmlTests). These screens and
         // their internal routes are untouched, just no longer reachable from the
@@ -130,7 +130,7 @@ namespace Mikey.UI.SafeArea.Tests
         {
             var root = BuildTree();
 
-            Assert.IsNotNull(root.Q<VisualElement>("menu"), "Expected a 'menu' (Main Menu) screen.");
+            Assert.IsNotNull(root.Q<VisualElement>("menu"), "Expected a 'menu' (Sign In) screen.");
 
             // combineIntro → camTest
             var combineIntro = root.Q<VisualElement>("combineIntro");
@@ -144,24 +144,29 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.IsNotNull(camTest.Q<Button>("go-combine"),
                 "camTest must route to the modern Combine screen via a 'go-combine' button.");
 
-            // combine → menu (return Home)
+            // combine → map (return to the Map hub)
             var combine = root.Q<VisualElement>("combine");
             Assert.IsNotNull(combine, "Expected the modern 'combine' screen.");
             Assert.IsTrue(combine.ClassListContains("screen"), "'combine' must carry the .screen class.");
-            Assert.IsNotEmpty(combine.Query<VisualElement>(name: "go-menu").ToList(),
-                "Combine must keep a 'go-menu' return-Home route.");
+            Assert.IsNotEmpty(combine.Query<VisualElement>(name: "go-map").ToList(),
+                "Combine must keep a 'go-map' return-to-Map route.");
         }
 
         [Test]
-        public void GoMenuNavigator_TargetsAnExistingMenuScreen()
+        public void GoMapNavigator_TargetsAnExistingMapScreen()
         {
             var root = BuildTree();
             // ScreenManager maps a 'go-<id>' navigator to the screen named <id>.
-            Assert.IsNotEmpty(root.Query<VisualElement>(name: "go-menu").ToList(),
-                "Expected at least one 'go-menu' navigator.");
-            var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "'go-menu' must target an existing 'menu' screen.");
-            Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
+            Assert.IsNotEmpty(root.Query<VisualElement>(name: "go-map").ToList(),
+                "Expected at least one 'go-map' navigator.");
+            var map = root.Q<VisualElement>("map");
+            Assert.IsNotNull(map, "'go-map' must target an existing 'map' screen.");
+            Assert.IsTrue(map.ClassListContains("screen"), "'map' target must be a screen.");
+
+            // The Main Menu hub is retired: 'menu' is the Sign In gate now, so no
+            // screen anywhere may navigate back into it.
+            Assert.IsEmpty(root.Query<VisualElement>(name: "go-menu").ToList(),
+                "No 'go-menu' navigator may survive — nothing returns to the Sign In gate.");
         }
 
         // 16 — no production route still references 'splash'.
@@ -245,20 +250,20 @@ namespace Mikey.UI.SafeArea.Tests
         // are driven by LoreExitController's cinematic transition instead (see
         // LoreExitControllerTests), not ScreenManager's auto-wiring.
         [Test]
-        public void IntroToHomeRoute_RemainsUnchanged()
+        public void IntroToMapRoute_RemainsUnchanged()
         {
             var root = BuildTree();
 
             Assert.IsNotNull(root.Q<VisualElement>("title"), "Expected a 'title' screen.");
             Assert.IsNotNull(root.Q<VisualElement>("intro"), "Expected an 'intro' screen.");
 
-            // intro → menu (Continue / Skip both exit to Home via LoreExitController)
+            // intro → map (Continue / Skip both exit to the Map via LoreExitController)
             var intro = root.Q<VisualElement>("intro");
-            Assert.IsNotNull(intro.Q<VisualElement>("lore-skip"), "Intro must keep a 'lore-skip' route to Home.");
-            Assert.IsNotNull(intro.Q<VisualElement>("lore-continue"), "Intro must keep a 'lore-continue' route to Home.");
-            var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "Lore's exit must target an existing 'menu' (Home) screen.");
-            Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-skip"), "Intro must keep a 'lore-skip' route to the Map.");
+            Assert.IsNotNull(intro.Q<VisualElement>("lore-continue"), "Intro must keep a 'lore-continue' route to the Map.");
+            var map = root.Q<VisualElement>("map");
+            Assert.IsNotNull(map, "Lore's exit must target an existing 'map' screen.");
+            Assert.IsTrue(map.ClassListContains("screen"), "'map' target must be a screen.");
         }
 
         // 31 — the shared launch transition overlay: exists once, outside every
@@ -298,22 +303,21 @@ namespace Mikey.UI.SafeArea.Tests
             StringAssert.Contains("background-color: #000000", block, "The overlay must be pure black.");
         }
 
-        // 32 — Settings and Vow are local overlays, not ScreenManager screens:
-        // opening/closing them can never raise ScreenChanged, so AudioController's
+        // 32 — Settings is a local overlay, not a ScreenManager screen:
+        // opening/closing it can never raise ScreenChanged, so AudioController's
         // hub soundtrack (which only reacts to ScreenChanged) is structurally
-        // unaffected by them — see AudioControllerHubMusicTests.
+        // unaffected by it — see AudioControllerHubMusicTests. (The Vow overlay
+        // that used to share this contract is retired with the Main Menu.)
         [Test]
-        public void SharedSettingsModalAndVowModal_AreNotScreens_SoTheyCannotInterruptHubMusic()
+        public void SharedSettingsModal_IsNotAScreen_SoItCannotInterruptHubMusic()
         {
             var root = BuildTree();
             var settings = root.Q<VisualElement>("shared-settings-modal");
-            var vow = root.Q<VisualElement>("menu-vow-modal");
             Assert.IsNotNull(settings, "Expected the shared Settings modal.");
-            Assert.IsNotNull(vow, "Expected the Vow modal.");
             Assert.IsFalse(settings.ClassListContains("screen"),
                 "The shared Settings modal must not carry the .screen class — ScreenManager (and anything keyed to ScreenChanged, like hub music) must never react to it opening/closing.");
-            Assert.IsFalse(vow.ClassListContains("screen"),
-                "The Vow modal must not carry the .screen class — ScreenManager (and anything keyed to ScreenChanged, like hub music) must never react to it opening/closing.");
+            Assert.IsNull(root.Q<VisualElement>("menu-vow-modal"),
+                "The Vow overlay is retired with the Main Menu.");
         }
 
         // 33 — theme.uss ".mikey-app" remains the ONE place the global Mikey font

@@ -10,7 +10,7 @@ namespace Mikey.UI.SafeArea.Tests
     /// Structural contract for the rebuilt landscape "combineIntro" LVL0 briefing
     /// screen in MikeyApp.uxml: a single safe-area wrapper with the decorative
     /// background outside it and all briefing/test content inside, the preserved
-    /// production route (go-menu → menu, go-camTest → camTest), explicit
+    /// production route (go-map → map, go-camTest → camTest), explicit
     /// touch-target + visible-icon sizing classes, a responsive (non
     /// width:100%) action bar, and no regression of the surrounding ten-screen
     /// flow or the retired Combine result route.
@@ -95,30 +95,30 @@ namespace Mikey.UI.SafeArea.Tests
 
             // every test card lives inside the safe area too
             var tests = screen.Query<VisualElement>(className: "ci-test").ToList();
-            Assert.AreEqual(4, tests.Count, "Expected exactly four .ci-test cards.");
+            Assert.AreEqual(6, tests.Count, "Expected exactly six .ci-test cards (one per Level0SessionController.ExerciseIds entry).");
             foreach (var t in tests)
                 Assert.IsNotNull(NearestSafeAreaAncestor(t), ".ci-test must be inside .safe-area-content.");
         }
 
-        // 5 — go-menu exists on combineIntro.
+        // 5 — go-map exists on combineIntro.
         [Test]
         public void GoMenu_ExistsOnCombineIntro()
         {
             var screen = CombineIntro(BuildTree());
-            Assert.AreEqual(1, screen.Query<Button>(name: "go-menu").ToList().Count,
-                "combineIntro must expose exactly one 'go-menu' (Return Home) Button.");
+            Assert.AreEqual(1, screen.Query<Button>(name: "go-map").ToList().Count,
+                "combineIntro must expose exactly one 'go-map' (Return to Map) Button.");
         }
 
-        // 6 — go-menu targets the existing 'menu' screen (ScreenManager maps go-<id> -> <id>).
+        // 6 — go-map targets the existing 'map' screen (ScreenManager maps go-<id> -> <id>).
         [Test]
         public void GoMenu_TargetsExistingMenuScreen()
         {
             var root = BuildTree();
-            var nav = CombineIntro(root).Q<Button>("go-menu");
-            Assert.IsNotNull(nav, "Expected a 'go-menu' navigator on combineIntro.");
-            var menu = root.Q<VisualElement>("menu");
-            Assert.IsNotNull(menu, "'go-menu' must target an existing 'menu' screen.");
-            Assert.IsTrue(menu.ClassListContains("screen"), "'menu' target must be a screen.");
+            var nav = CombineIntro(root).Q<Button>("go-map");
+            Assert.IsNotNull(nav, "Expected a 'go-map' navigator on combineIntro.");
+            var map = root.Q<VisualElement>("map");
+            Assert.IsNotNull(map, "'go-map' must target an existing 'map' screen.");
+            Assert.IsTrue(map.ClassListContains("screen"), "'map' target must be a screen.");
         }
 
         // 7 — go-camTest exists on combineIntro.
@@ -147,7 +147,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ProductionActions_UseMinimumTouchTargetClass()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-camTest", "go-map" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -161,7 +161,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ActionIcons_UseExplicitVisibleNonShrinkingClasses()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-camTest", "go-map" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -173,13 +173,13 @@ namespace Mikey.UI.SafeArea.Tests
             }
         }
 
-        // 11 — test-list icons use explicit readable-size classes (all four).
+        // 11 — test-list icons use explicit readable-size classes (all six).
         [Test]
         public void TestListIcons_UseExplicitReadableSizeClasses()
         {
             var screen = CombineIntro(BuildTree());
             var glyphs = screen.Query<VisualElement>(className: "ci-icon--test").ToList();
-            Assert.AreEqual(4, glyphs.Count, "Expected four .ci-icon--test test-list glyphs.");
+            Assert.AreEqual(6, glyphs.Count, "Expected six .ci-icon--test test-list glyphs.");
             foreach (var glyph in glyphs)
                 Assert.IsTrue(glyph.ClassListContains("ci-icon"),
                     "Each test-list glyph must also carry the non-shrinking .ci-icon base class.");
@@ -209,7 +209,7 @@ namespace Mikey.UI.SafeArea.Tests
             var screen = CombineIntro(BuildTree());
             var bar = screen.Q<VisualElement>(className: "ci-actionbar");
             Assert.IsNotNull(bar, "Expected a responsive .ci-actionbar container.");
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-camTest", "go-map" })
                 Assert.IsNotNull(bar.Q<Button>(name),
                     $"'{name}' must live inside the .ci-actionbar container.");
         }
@@ -222,7 +222,7 @@ namespace Mikey.UI.SafeArea.Tests
         public void ActionButtons_DoNotUseWidth100ButtonRule()
         {
             var screen = CombineIntro(BuildTree());
-            foreach (var name in new[] { "go-camTest", "go-menu" })
+            foreach (var name in new[] { "go-camTest", "go-map" })
             {
                 var button = screen.Q<Button>(name);
                 Assert.IsNotNull(button, $"Expected a Button named '{name}'.");
@@ -264,7 +264,7 @@ namespace Mikey.UI.SafeArea.Tests
             var intro = root.Q<VisualElement>("intro");
             Assert.IsNotNull(intro, "Expected an 'intro' screen.");
             // Intro's exit is 'lore-skip'/'lore-continue', driven by
-            // LoreExitController's cinematic transition — not a 'go-menu'
+            // LoreExitController's cinematic transition — not a 'go-map'
             // navigator (see IntroScreenUxmlTests / LoreExitControllerTests).
             Assert.IsNotNull(intro.Q<VisualElement>("lore-skip"), "Intro must keep a 'lore-skip' route back to Home.");
             Assert.IsNotNull(intro.Q<VisualElement>("lore-continue"), "Intro must keep a 'lore-continue' route back to Home.");
@@ -282,8 +282,8 @@ namespace Mikey.UI.SafeArea.Tests
 
             var combine = root.Q<VisualElement>("combine");
             Assert.IsNotNull(combine, "Expected a 'combine' screen.");
-            Assert.IsNotEmpty(combine.Query<VisualElement>(name: "go-menu").ToList(),
-                "Combine must keep a 'go-menu' return-Home route.");
+            Assert.IsNotEmpty(combine.Query<VisualElement>(name: "go-map").ToList(),
+                "Combine must keep a 'go-map' return-to-Map route.");
         }
 
         // 18 — no retired Combine result route returns.

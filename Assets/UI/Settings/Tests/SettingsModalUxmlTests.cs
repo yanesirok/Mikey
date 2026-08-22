@@ -166,10 +166,11 @@ namespace Mikey.UI.Settings.Tests
         }
 
         [Test]
-        public void AllThreeEntryPoints_ExistAndAreDistinctFromTheModalItself()
+        public void AllEntryPoints_ExistAndAreDistinctFromTheModalItself()
         {
             var root = BuildTree();
-            Assert.IsNotNull(root.Q<Button>("menu-settings-open"), "Main Menu's Settings entry point must exist.");
+            Assert.IsNull(root.Q<Button>("menu-settings-open"),
+                "The Main Menu is retired — the Sign In gate carries no Settings entry.");
             Assert.IsNotNull(root.Q<Button>("map-topbar-settings"), "Japan map's Settings entry point must exist.");
             Assert.IsNotNull(root.Q<Button>("okinawa-topbar-settings"), "Okinawa map's Settings entry point must exist.");
         }

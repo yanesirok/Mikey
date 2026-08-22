@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -8,14 +7,12 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Home.Tests
 {
     /// <summary>
-    /// Structural contract for the rebuilt Main Menu (the "menu" screen) in
-    /// MikeyApp.uxml: the supplied cinematic video background, the upper-left
-    /// Mikey logo, a right-side PLAY/VOW/SETTINGS/QUIT navigation built from
-    /// spacing and typography rather than dashboard cards, the local Vow
-    /// membership overlay (hidden by default, driven by HomeController —
-    /// SETTINGS now opens the one shared Settings modal instead, see
-    /// Mikey.UI.Settings.Tests), and none of the old Home dashboard controls
-    /// (CTA, ribbon, power stats, 4-tab dock, dev bar).
+    /// Structural contract for the Sign In screen (still the "menu" screen id, so
+    /// BackgroundMediaController / AudioController / IShellPreloader keep working
+    /// untouched) in MikeyApp.uxml: the supplied cinematic video background, the
+    /// upper-left Mikey logo, a bottom-centered row of exactly two round,
+    /// icon-only account actions (Google + guest), one inline status line, and
+    /// none of the retired PLAY / VOW / SETTINGS / QUIT menu.
     /// </summary>
     public class HomeScreenUxmlTests
     {
@@ -23,6 +20,8 @@ namespace Mikey.UI.Home.Tests
         private const string HomeUssPath = "Assets/UI/Home/Home.uss";
         private const string TitleUssPath = "Assets/UI/Title/Title.uss";
         private const string LogoAssetPath = "/Assets/UI/Media/Images/mikey_logo.png";
+        private const string GoogleIconPath = "/Assets/UI/Media/Images/MainMenu/google_icon.png";
+        private const string GuestIconPath = "/Assets/UI/Media/Images/MainMenu/guest_icon.png";
         private const string NavPrefix = "go-";
 
         private static VisualElement BuildTree()
@@ -50,7 +49,7 @@ namespace Mikey.UI.Home.Tests
             return null;
         }
 
-        /// <summary>Body of the first USS rule whose header matches <paramref name="header"/> (e.g. ".menu-modal {"), or null.</summary>
+        /// <summary>Body of the first USS rule whose header matches <paramref name="header"/> (e.g. "\n.home-auth__btn {"), or null.</summary>
         private static string ExtractRuleBlock(string uss, string header)
         {
             int start = uss.IndexOf(header, System.StringComparison.Ordinal);
@@ -60,6 +59,22 @@ namespace Mikey.UI.Home.Tests
             int close = uss.IndexOf('}', open);
             return close < 0 ? null : uss.Substring(open, close - open);
         }
+
+        private static float ExtractPx(string block, string property)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(block, property + @"\s*:\s*(-?\d+(\.\d+)?)px");
+            Assert.IsTrue(match.Success, $"Expected a '{property}: <n>px' declaration in: {block}");
+            return float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static float ExtractAlpha(string block)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(block, @"rgba\(\s*\d+,\s*\d+,\s*\d+,\s*(\d+(\.\d+)?)\s*\)");
+            Assert.IsTrue(match.Success, $"Expected an rgba(...) background-color declaration in: {block}");
+            return float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        // ---------- screen shell (unchanged by the Sign In rebuild) ----------
 
         [Test]
         public void Menu_ExistsAsExactlyOneScreen()
@@ -88,213 +103,191 @@ namespace Mikey.UI.Home.Tests
         }
 
         [Test]
-        public void MikeyLogo_IsReferencedOnMainMenu_ButNoLongerOnTitle()
+        public void BackgroundVideoElement_StillPresent_Unchanged()
+        {
+            var screen = MenuScreen(BuildTree());
+            var media = screen.Q<VisualElement>("home-bg-media");
+            Assert.IsNotNull(media, "The existing 'home-bg-media' target (bound by BackgroundMediaController to main_menu_loop.mp4) must remain.");
+            Assert.IsTrue(media.ClassListContains("bg-media"));
+        }
+
+        [Test]
+        public void FullScreenScrim_RemainsUnchanged()
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-scrim {");
+            Assert.IsNotNull(block, "The existing full-bleed legibility scrim must remain (unchanged).");
+            Assert.AreEqual(0.32f, ExtractAlpha(block), 0.001f);
+        }
+
+        [Test]
+        public void MikeyLogo_IsReferencedOnSignIn_ButNoLongerOnTitle()
         {
             Assert.IsTrue(File.Exists(TitleUssPath), $"Expected stylesheet at {TitleUssPath}.");
             Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
             StringAssert.Contains(LogoAssetPath, File.ReadAllText(HomeUssPath),
-                "Home.uss must reference the supplied Mikey logo asset on the Main Menu.");
+                "Home.uss must reference the supplied Mikey logo asset on the Sign In screen.");
             // Title.uss must not reference the static image at all: the video
             // itself is the logo during playback, and TitleController freezes on
-            // that SAME video's own final frame while waiting on the shell —
-            // never a separate static image (see TitleControllerSourceTests).
+            // that SAME video's own final frame while waiting on the shell (see
+            // TitleControllerSourceTests).
             StringAssert.DoesNotContain(LogoAssetPath, File.ReadAllText(TitleUssPath),
                 "Title.uss must no longer reference the static Mikey logo image — the final logo_intro.mp4 animation (including its own final frame) replaces it.");
         }
 
         [Test]
-        public void MainMenuLogo_ExistsInUpperLeft_InsideSafeArea()
+        public void SignInLogo_ExistsInUpperLeft_InsideSafeArea_UsingTheExistingAsset()
         {
             var screen = MenuScreen(BuildTree());
             var logo = screen.Q<VisualElement>(className: "home-logo");
-            Assert.IsNotNull(logo, "Main Menu must show the Mikey logo mark.");
+            Assert.IsNotNull(logo, "Sign In must show the Mikey logo mark.");
             Assert.IsNotNull(NearestSafeAreaAncestor(logo), ".home-logo must respect the safe area.");
+
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-logo {");
+            StringAssert.Contains("position: absolute", block);
+            StringAssert.Contains("mikey_logo.png", block, "Must keep using the existing supplied logo asset, not a new/replacement image.");
+            StringAssert.Contains("-unity-background-scale-mode: scale-to-fit", block, "Must preserve aspect ratio.");
+            Assert.AreEqual(ExtractPx(block, "width"), ExtractPx(block, "height"), 0.01f,
+                "Must stay square — the source image's own aspect ratio is preserved by scale-to-fit.");
         }
 
-        [Test]
-        public void Play_ExistsAsGoMapNavigator_AndMapScreenExists()
-        {
-            var root = BuildTree();
-            var screen = MenuScreen(root);
-
-            var play = screen.Q<Button>("go-map");
-            Assert.IsNotNull(play, "Main Menu must expose PLAY as a 'go-map' Button.");
-            Assert.AreEqual("PLAY", play.Q<Label>(className: "home-nav__label")?.text);
-
-            var map = root.Q<VisualElement>("map");
-            Assert.IsNotNull(map, "'go-map' must target an existing 'map' screen.");
-            Assert.IsTrue(map.ClassListContains("screen"), "'map' target must be a screen.");
-        }
+        // ---------- the account row ----------
 
         [Test]
-        public void Plans_IsGone_VowTakesItsPlace()
+        public void AccountRow_HasExactlyTwoActions_GoogleAndGuest()
         {
             var screen = MenuScreen(BuildTree());
+            var row = screen.Q<VisualElement>(className: "home-auth__row");
+            Assert.IsNotNull(row, "Sign In must expose a .home-auth__row account row.");
 
-            Assert.IsNull(screen.Q<Button>("menu-plans-open"), "The old PLANS button must be gone.");
-            Assert.IsNull(screen.Q<VisualElement>("menu-plans-modal"), "The old Plans overlay must be gone.");
-
-            var labels = screen.Query<Label>().ToList().Select(l => l.text).ToList();
-            CollectionAssert.DoesNotContain(labels, "PLANS", "'PLANS' must not appear anywhere on the visible Main Menu.");
-
-            var vowButton = screen.Q<Button>("menu-vow-open");
-            Assert.IsNotNull(vowButton, "Main Menu must expose VOW in PLANS's place.");
-            Assert.IsFalse(vowButton.name.StartsWith(NavPrefix),
-                "VOW must not be a 'go-' navigator — it opens a local overlay, the menu itself doesn't change screens.");
-            Assert.AreEqual("VOW", vowButton.Q<Label>(className: "home-nav__label")?.text);
-            Assert.IsNotNull(vowButton.Q<VisualElement>(className: "home-nav__stroke--vow"),
-                "VOW must use the same reusable per-item brushstroke system as the other menu labels.");
+            var buttons = row.Query<Button>().ToList();
+            Assert.AreEqual(2, buttons.Count, "The account row carries exactly two actions: Google and guest.");
+            Assert.IsNotNull(row.Q<Button>("menu-google-signin"), "Expected the Google sign-in action.");
+            Assert.IsNotNull(row.Q<Button>("menu-guest-continue"), "Expected the guest continue action.");
+            Assert.IsNotNull(NearestSafeAreaAncestor(row), "The account row must respect the safe area.");
         }
 
         [Test]
-        public void VowModal_OpensAsLocalOverlay_HiddenByDefault()
+        public void BothActions_AreIconOnly_NeverWorded()
         {
             var screen = MenuScreen(BuildTree());
-            var modal = screen.Q<VisualElement>("menu-vow-modal");
-            Assert.IsNotNull(modal, "Expected a 'menu-vow-modal' overlay.");
-            Assert.IsTrue(modal.ClassListContains("vow-modal"));
-            Assert.IsNotNull(modal.Q<Button>("menu-vow-close"), "Vow overlay must expose a close action.");
-        }
-
-        [Test]
-        public void VowModal_HasCeremonialHeaderCopy()
-        {
-            var screen = MenuScreen(BuildTree());
-            var modal = screen.Q<VisualElement>("menu-vow-modal");
-            Assert.AreEqual("The Vow", modal.Q<Label>(className: "vow-header__title")?.text);
-            Assert.AreEqual("Choose how far you are willing to walk the path.", modal.Q<Label>(className: "vow-header__subtitle")?.text);
-            Assert.AreEqual("Your training begins with commitment.", modal.Q<Label>(className: "vow-header__tagline")?.text);
-        }
-
-        [Test]
-        public void VowModal_HasAllThreeVows_WithCorrectStatusAndCopy()
-        {
-            var screen = MenuScreen(BuildTree());
-            var modal = screen.Q<VisualElement>("menu-vow-modal");
-
-            var initiate = modal.Q<Button>("vow-option-initiate");
-            Assert.IsNotNull(initiate, "Expected the Initiate vow.");
-            Assert.AreEqual("Initiate", initiate.Q<Label>(className: "vow-option__name")?.text);
-            Assert.AreEqual("Free", initiate.Q<Label>(className: "vow-option__status")?.text);
-            Assert.AreEqual("Current Path", initiate.Q<Label>(className: "vow-option__cta")?.text);
-
-            var disciple = modal.Q<Button>("vow-option-disciple");
-            Assert.IsNotNull(disciple, "Expected the Disciple vow.");
-            Assert.AreEqual("Disciple", disciple.Q<Label>(className: "vow-option__name")?.text);
-            Assert.AreEqual("Monthly", disciple.Q<Label>(className: "vow-option__status")?.text);
-            Assert.AreEqual("Choose Vow", disciple.Q<Label>(className: "vow-option__cta")?.text);
-            Assert.IsTrue(disciple.ClassListContains("vow-option--recommended"), "Disciple must be marked Recommended.");
-            Assert.AreEqual("Recommended", disciple.Q<Label>(className: "vow-option__badge")?.text);
-
-            var master = modal.Q<Button>("vow-option-master");
-            Assert.IsNotNull(master, "Expected the Master vow.");
-            Assert.AreEqual("Master", master.Q<Label>(className: "vow-option__name")?.text);
-            Assert.AreEqual("Yearly", master.Q<Label>(className: "vow-option__status")?.text);
-            Assert.AreEqual("Choose Vow", master.Q<Label>(className: "vow-option__cta")?.text);
-            Assert.IsFalse(master.ClassListContains("vow-option--recommended"), "Only Disciple is Recommended.");
-        }
-
-        [Test]
-        public void VowOptions_CarryNoInventedMonetaryPrices()
-        {
-            var screen = MenuScreen(BuildTree());
-            var modal = screen.Q<VisualElement>("menu-vow-modal");
-            var labels = modal.Query<Label>().ToList().Select(l => l.text ?? string.Empty).ToList();
-            foreach (var text in labels)
-            {
-                Assert.IsFalse(text.Contains("$"), $"No invented price allowed, found in: '{text}'");
-                StringAssert.DoesNotMatch(@"\d+\.\d{2}", text, $"No invented price allowed, found in: '{text}'");
-            }
-        }
-
-        [Test]
-        public void VowModal_HasInlineEnrollmentMessage_HiddenByDefault_NeverAnotherModal()
-        {
-            var screen = MenuScreen(BuildTree());
-            var modal = screen.Q<VisualElement>("menu-vow-modal");
-            var message = modal.Q<Label>("vow-inline-message");
-            Assert.IsNotNull(message, "Expected a single inline message element for the 'not yet available' notice.");
-
-            // It must live inside the same card, not be a second overlay/modal.
-            Assert.AreEqual(1, screen.Query<VisualElement>(className: "vow-modal").ToList().Count,
-                "There must be exactly one Vow overlay — pressing a paid CTA must never open a second modal.");
-        }
-
-        [Test]
-        public void Settings_ExistsAsButton_ButNoLongerOpensALocalOverlay()
-        {
-            // SETTINGS now opens the one shared Settings modal (see
-            // Assets/UI/Settings — Mikey.UI.Settings.Tests covers its content,
-            // sizing and behavior in full); Home no longer owns a Settings
-            // modal of its own.
-            var screen = MenuScreen(BuildTree());
-
-            var settingsButton = screen.Q<Button>("menu-settings-open");
-            Assert.IsNotNull(settingsButton, "Main Menu must expose SETTINGS.");
-            Assert.IsFalse(settingsButton.name.StartsWith(NavPrefix),
-                "SETTINGS must not be a 'go-' navigator — it opens the shared Settings modal.");
-
-            Assert.IsNull(screen.Q<VisualElement>("menu-settings-modal"),
-                "The old local Settings overlay must be gone — Settings is unified into one shared modal.");
-        }
-
-        [Test]
-        public void Quit_ExistsAsLocalAction_NeverPlatformHidden()
-        {
-            var screen = MenuScreen(BuildTree());
-            var quit = screen.Q<Button>("menu-quit");
-            Assert.IsNotNull(quit, "Main Menu must expose QUIT — Mikey is mobile-first (Android) and QUIT is never platform-hidden.");
-            Assert.IsFalse(quit.name.StartsWith(NavPrefix), "QUIT must not be a 'go-' navigator.");
-            Assert.AreEqual("QUIT", quit.Q<Label>(className: "home-nav__label")?.text);
-        }
-
-        [Test]
-        public void QuitAction_IsVisuallyLowestPriority()
-        {
-            var screen = MenuScreen(BuildTree());
-            var quit = screen.Q<Button>("menu-quit");
-            Assert.IsNotNull(quit, "Expected the 'menu-quit' action.");
-            Assert.IsTrue(quit.ClassListContains("home-nav__item--quit"),
-                "QUIT must carry its own lowest-priority modifier class, distinct from PLAY/VOW/SETTINGS.");
-        }
-
-        [Test]
-        public void AllFourNavActions_UseLargeTouchTargetClass_AndSameBaseTypographyKit()
-        {
-            var screen = MenuScreen(BuildTree());
-            foreach (var name in new[] { "go-map", "menu-vow-open", "menu-settings-open", "menu-quit" })
+            foreach (var name in new[] { "menu-google-signin", "menu-guest-continue" })
             {
                 var button = screen.Q<Button>(name);
-                Assert.IsNotNull(button, $"Expected a nav action named '{name}'.");
-                Assert.IsTrue(button.ClassListContains("tap-target-lg"),
-                    $"Nav action '{name}' must use the >=56px .tap-target-lg touch-target class.");
-                Assert.IsTrue(button.ClassListContains("home-nav__item"),
-                    $"Nav action '{name}' must share the same premium typography kit (.home-nav__item).");
+                Assert.IsNotNull(button, $"Expected the '{name}' action.");
+                Assert.IsEmpty(button.Query<Label>().ToList(),
+                    $"'{name}' must be icon-only — the mark carries the meaning, not a worded label.");
+                Assert.IsTrue(string.IsNullOrEmpty(button.text),
+                    $"'{name}' must not carry button text either.");
+                Assert.IsNotNull(button.Q<VisualElement>(className: "home-auth__icon"),
+                    $"'{name}' must contain a .home-auth__icon.");
             }
         }
 
         [Test]
-        public void NavActions_AreNotWrappedInCardContainers()
+        public void BothActions_AreLocalActions_NotScreenNavigators()
         {
-            // Spacing/typography, not dashboard cards — the old .home-tab /
-            // .home-hero__card rounded-card treatments must not return.
+            // Where they lead depends on progression state, so HomeController owns
+            // them — ScreenManager's 'go-<id>' auto-wiring cannot express that.
             var screen = MenuScreen(BuildTree());
-            Assert.IsEmpty(screen.Query<VisualElement>(className: "home-tab").ToList());
-            Assert.IsEmpty(screen.Query<VisualElement>(className: "home-hero__card").ToList());
+            foreach (var name in new[] { "menu-google-signin", "menu-guest-continue" })
+                Assert.IsFalse(name.StartsWith(NavPrefix), $"'{name}' must not be a 'go-' navigator.");
+
+            Assert.IsEmpty(screen.Query<VisualElement>().ToList()
+                    .Where(e => !string.IsNullOrEmpty(e.name) && e.name.StartsWith(NavPrefix)).ToList(),
+                "Sign In must contain no 'go-' navigators at all.");
         }
 
         [Test]
-        public void Modals_AreHiddenByDefault_InStylesheet()
+        public void BothActions_UseLargeTouchTargets_AndTheSameRoundButtonKit()
         {
-            Assert.IsTrue(File.Exists(HomeUssPath), $"Expected stylesheet at {HomeUssPath}.");
-            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), ".vow-modal {");
-            Assert.IsNotNull(block, "Expected a '.vow-modal' rule in Home.uss.");
-            StringAssert.Contains("display: none", block,
-                "'.vow-modal' must default to hidden (HomeController toggles it to Flex on open).");
+            var screen = MenuScreen(BuildTree());
+            foreach (var name in new[] { "menu-google-signin", "menu-guest-continue" })
+            {
+                var button = screen.Q<Button>(name);
+                Assert.IsTrue(button.ClassListContains("tap-target-lg"),
+                    $"Action '{name}' must use the >=56px .tap-target-lg touch-target class.");
+                Assert.IsTrue(button.ClassListContains("home-auth__btn"),
+                    $"Action '{name}' must share the same round button kit (.home-auth__btn).");
+            }
+
+            string block = ExtractRuleBlock(File.ReadAllText(HomeUssPath), "\n.home-auth__btn {");
+            Assert.IsNotNull(block, "Expected a '.home-auth__btn' rule in Home.uss.");
+            float width = ExtractPx(block, "width");
+            Assert.AreEqual(width, ExtractPx(block, "height"), 0.01f, "The account buttons must be round, so square-sized.");
+            Assert.GreaterOrEqual(width, 56f, "Both actions must clear the 56px touch target on their own, not only via the shared class.");
+            Assert.AreEqual(width / 2f, ExtractPx(block, "border-radius"), 0.01f, "border-radius must be half the size — a circle, not a squircle.");
         }
 
         [Test]
-        public void OldHomeDashboard_IsGone()
+        public void GuestIsQuieterButNeverSmallerOrHidden()
+        {
+            var screen = MenuScreen(BuildTree());
+            var guest = screen.Q<Button>("menu-guest-continue");
+            Assert.IsTrue(guest.ClassListContains("home-auth__btn--guest"),
+                "Guest must carry its own lowest-priority modifier class.");
+
+            string uss = File.ReadAllText(HomeUssPath);
+            string block = ExtractRuleBlock(uss, "\n.home-auth__btn--guest {");
+            Assert.IsNotNull(block, "Expected a '.home-auth__btn--guest' rule in Home.uss.");
+            StringAssert.DoesNotContain("display: none", block, "Guest must never be hidden.");
+            StringAssert.DoesNotContain("width", block, "Guest must never be smaller — it differs only in ring emphasis.");
+        }
+
+        [Test]
+        public void IconsUseTheirOwnSuppliedAssets()
+        {
+            string uss = File.ReadAllText(HomeUssPath);
+            StringAssert.Contains(GoogleIconPath, uss, "The Google action must use the Google mark asset.");
+            StringAssert.Contains(GuestIconPath, uss, "The guest action must use the guest glyph asset.");
+            Assert.IsTrue(File.Exists("Assets" + GoogleIconPath.Substring("/Assets".Length)), $"Expected the Google mark at {GoogleIconPath}.");
+            Assert.IsTrue(File.Exists("Assets" + GuestIconPath.Substring("/Assets".Length)), $"Expected the guest glyph at {GuestIconPath}.");
+        }
+
+        [Test]
+        public void StatusLine_ExistsAndIsEmptyByDefault()
+        {
+            var screen = MenuScreen(BuildTree());
+            var status = screen.Q<Label>("menu-auth-status");
+            Assert.IsNotNull(status, "Sign In must expose a single inline status line.");
+            Assert.IsTrue(string.IsNullOrEmpty(status.text),
+                "The status line must start empty — nothing is claimed until there is something honest to say.");
+        }
+
+        [Test]
+        public void SignIn_ShowsNoTextAtAllUntilTheStatusLineSpeaks()
+        {
+            var screen = MenuScreen(BuildTree());
+            foreach (var label in screen.Query<Label>().ToList())
+                Assert.IsTrue(string.IsNullOrEmpty(label.text),
+                    $"Sign In must carry no worded UI — found the label '{label.text}'.");
+        }
+
+        // ---------- the retired Main Menu ----------
+
+        [Test]
+        public void RetiredMainMenu_IsGone()
+        {
+            var screen = MenuScreen(BuildTree());
+
+            foreach (var name in new[] { "menu-vow-open", "menu-vow-close", "menu-vow-modal", "menu-settings-open", "menu-quit", "go-map" })
+                Assert.IsNull(screen.Q<VisualElement>(name), $"Retired Main Menu element '{name}' must be gone.");
+
+            foreach (var className in new[] { "home-nav", "home-nav__item", "home-nav__label", "home-nav__stroke", "vow-modal" })
+                Assert.IsEmpty(screen.Query<VisualElement>(className: className).ToList(),
+                    $"Retired Main Menu layer '.{className}' must be gone.");
+        }
+
+        [Test]
+        public void RetiredMainMenuStyles_AreGoneFromTheStylesheet()
+        {
+            string uss = File.ReadAllText(HomeUssPath);
+            foreach (var rule in new[] { ".home-nav", ".home-nav__item", ".home-nav__label", ".home-nav__stroke", ".vow-modal", ".vow-option" })
+                StringAssert.DoesNotContain(rule + " {", uss,
+                    $"'{rule}' styles the retired Main Menu and must not linger in Home.uss.");
+        }
+
+        [Test]
+        public void OldHomeDashboard_IsStillGone()
         {
             var screen = MenuScreen(BuildTree());
 
@@ -311,46 +304,11 @@ namespace Mikey.UI.Home.Tests
             foreach (var className in new[]
             {
                 "home-ribbon", "home-belt", "home-stats", "home-chip", "home-hero", "home-ring",
-                "home-power", "home-dock", "home-devbar",
+                "home-power", "home-dock", "home-devbar", "home-tab", "home-hero__card",
             })
             {
                 Assert.IsEmpty(screen.Query<VisualElement>(className: className).ToList(),
                     $"Old Home dashboard layer '.{className}' must be gone.");
-            }
-
-            var labels = screen.Query<Label>().ToList().Select(l => l.text).ToList();
-            foreach (var staleText in new[]
-            {
-                "START LVL 0", "White Belt", "LEVEL 1", "1-day streak", "$10.00",
-                "STR", "SPD", "AGI", "END", "DEV · PROGRESSION",
-            })
-            {
-                CollectionAssert.DoesNotContain(labels, staleText,
-                    $"Old Home dashboard text '{staleText}' must not appear on the rebuilt Main Menu.");
-            }
-        }
-
-        [Test]
-        public void NoActiveButton_LacksAnAction()
-        {
-            var screen = MenuScreen(BuildTree());
-            // Every Button on the rebuilt Main Menu (including inside its overlays)
-            // must be a wired "go-" navigator or a known local action — either
-            // HomeController's own (Vow/Quit) or the shared
-            // SettingsModalController's ("menu-settings-open"; its close button
-            // now lives outside this screen, in the shared modal).
-            var localActions = new HashSet<string>
-            {
-                "menu-vow-open", "menu-vow-close", "vow-option-initiate", "vow-option-disciple", "vow-option-master",
-                "menu-settings-open", "menu-quit",
-            };
-
-            foreach (var button in screen.Query<Button>().ToList())
-            {
-                bool isNavigator = !string.IsNullOrEmpty(button.name) && button.name.StartsWith(NavPrefix);
-                bool isLocalAction = !string.IsNullOrEmpty(button.name) && localActions.Contains(button.name);
-                Assert.IsTrue(isNavigator || isLocalAction,
-                    $"Button '{button.name}' (text '{button.text}') must have a defined action (go- navigator or known local HomeController action).");
             }
         }
     }

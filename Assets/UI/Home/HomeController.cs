@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Mikey.Backend;
+using Mikey.UI.Progression;
 using Mikey.UI.SafeArea;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,49 +10,93 @@ using UnityEngine.UIElements;
 namespace Mikey.UI.Home
 {
     /// <summary>
-    /// Drives the Main Menu ("menu") screen — the cinematic PLAY / VOW / SETTINGS
-    /// / QUIT navigation shown over the full-bleed menu video. PLAY is a plain
-    /// ScreenManager screen-navigator button targeting the Map screen (no gating,
-    /// so it needs no controller code of its own); SETTINGS opens the one shared
-    /// Settings modal (see Mikey.UI.Settings.SettingsModalController, which finds
-    /// and wires "menu-settings-open" itself — this controller no longer knows
-    /// anything about Settings). This controller owns only the local VOW
-    /// membership overlay (shown on top of the menu without leaving the screen —
-    /// the menu video/music underneath is untouched by BackgroundMediaController/
-    /// AudioController, which both key off the screen id alone; formerly a small
-    /// "Plans / Coming soon" placeholder, now a full presentation-only membership
-    /// choice — no payment/backend, no persistence) and QUIT's platform-specific
-    /// behavior. Formerly the old Home dashboard's controller (dynamic CTA +
-    /// Map/Techniques dock locking); that entire old design is retired with
-    /// this rebuild.
+    /// Drives the Sign In ("menu") screen — the app's one authentication gate,
+    /// shown over the full-bleed cinematic that used to back the PLAY / VOW /
+    /// SETTINGS / QUIT menu. That worded menu is retired: the screen now carries
+    /// exactly two round, icon-only actions (the Google mark and a guest glyph)
+    /// plus one inline status line, the shape mobile games like PUBG Mobile use.
+    ///
+    /// Neither action is a ScreenManager "go-" navigator — this controller owns
+    /// both, because where they lead depends on state, not on markup:
+    /// <see cref="NextScreenAfterAuth"/> opens Lore ("intro") on a genuine first
+    /// launch and the Map hub ("map") on every launch after that, keyed off the
+    /// same <see cref="TutorialProgressState.IntroCompleted"/> that
+    /// Mikey.UI.Intro.IntroController already sets when Lore is finished or
+    /// skipped. Nothing in the app navigates back here.
+    ///
+    /// Bound through <see cref="IScreenNavigator.ScreenChanged"/> rather than
+    /// MonoBehaviour OnEnable/OnDisable, which only fire once for the shared,
+    /// always-enabled "UI" GameObject.
+    ///
+    /// Exactly one thing skips this screen: an existing session. A returning
+    /// player is handed straight through with a plain synchronous
+    /// <see cref="IScreenNavigator.Show"/> and NO transition of its own, because
+    /// TitleController is still mid-transition at that moment (it swaps to this
+    /// screen while fully covered by the shared overlay, then fades in) — starting
+    /// a second fade here would fight it and flash the gate. Only a real button
+    /// press, where the player is already looking at this screen, gets its own
+    /// cinematic fade.
+    ///
+    /// Everyone else sees the gate, including on platforms where Google sign-in
+    /// is impossible (the Editor — Credential Manager does not exist there, see
+    /// Mikey.Backend.AndroidGoogleAuth). The guest action always works, so there
+    /// is always a way through; pressing Google where it cannot work says so on
+    /// the status line instead of leaving a dead button.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class HomeController : MonoBehaviour
     {
         private const int MaxRootResolveFrames = 30;
 
-        /// <summary>The screen id this controller reacts to (Main Menu's own entry resets any open modal).</summary>
+        /// <summary>The screen id this controller drives.</summary>
         public const string ScreenId = "menu";
 
-        private const string VowSelectedClass = "vow-option--selected";
-        private const string VowMessageVisibleClass = "vow-inline-message--visible";
-        private const string VowEnrollmentMessage = "Enrollment will open soon.";
+        /// <summary>Where a first-launch player goes after the gate.</summary>
+        public const string LoreScreenId = "intro";
 
-        private VisualElement _vowModal;
-        private Button _vowOpenButton;
-        private Button _vowCloseButton;
-        private Button _vowOptionInitiate;
-        private Button _vowOptionDisciple;
-        private Button _vowOptionMaster;
-        private Label _vowInlineMessage;
-        private Button _quitButton;
+        /// <summary>Where a returning player goes after the gate — the app's hub from here on.</summary>
+        public const string MapScreenId = "map";
+
+        private const string SignInButtonName = "menu-google-signin";
+        private const string GuestButtonName = "menu-guest-continue";
+        private const string StatusLabelName = "menu-auth-status";
+
+        private const string SigningInMessage = "Signing in...";
+        private const string SignInFailedMessage = "Sign-in did not complete. Tap to try again.";
+        private const string SignInUnavailableMessage = "Google sign-in is not available on this device.";
+
+        /// <summary>How long the gate darkens to black before the next screen is swapped in.</summary>
+        private const float FadeToBlackSeconds = 0.45f;
+
+        /// <summary>How long the screen holds on full black while the next screen is activated underneath.</summary>
+        private const float BlackHoldSeconds = 0.12f;
+
+        /// <summary>How long the next screen fades in from black.</summary>
+        private const float FadeInSeconds = 0.7f;
+
+        private Button _signInButton;
+        private Button _guestButton;
+        private Label _status;
 
         private IScreenNavigator _navigator;
+        private ITutorialProgress _progress;
+        private ITransitionOverlay _overlay;
+        private SyncService _sync;
 
         private readonly List<ButtonBinding> _buttonBindings = new List<ButtonBinding>();
 
         private Coroutine _bindRoutine;
+        private Coroutine _leaveRoutine;
         private bool _bound;
+        private bool _leaving;
+
+        /// <summary>
+        /// Pure decision: Lore is a first-launch-only screen, so anything at or
+        /// past <see cref="TutorialProgressState.IntroCompleted"/> goes straight
+        /// to the Map. Unit-tested.
+        /// </summary>
+        public static string NextScreenAfterAuth(TutorialProgressState state) =>
+            state >= TutorialProgressState.IntroCompleted ? MapScreenId : LoreScreenId;
 
         private void OnEnable()
         {
@@ -66,13 +112,15 @@ namespace Mikey.UI.Home
                 StopCoroutine(_bindRoutine);
                 _bindRoutine = null;
             }
-
-            if (_bound)
+            if (_leaveRoutine != null)
             {
-                for (int i = 0; i < _buttonBindings.Count; i++)
-                    _buttonBindings[i].Unbind();
-                _buttonBindings.Clear();
+                StopCoroutine(_leaveRoutine);
+                _leaveRoutine = null;
             }
+
+            for (int i = 0; i < _buttonBindings.Count; i++)
+                _buttonBindings[i].Unbind();
+            _buttonBindings.Clear();
 
             if (_navigator != null)
             {
@@ -80,15 +128,19 @@ namespace Mikey.UI.Home
                 _navigator = null;
             }
 
-            _vowModal = null;
-            _vowOpenButton = null;
-            _vowCloseButton = null;
-            _vowOptionInitiate = null;
-            _vowOptionDisciple = null;
-            _vowOptionMaster = null;
-            _vowInlineMessage = null;
-            _quitButton = null;
+            if (_sync != null)
+            {
+                _sync.Changed -= Render;
+                _sync = null;
+            }
+
+            _signInButton = null;
+            _guestButton = null;
+            _status = null;
+            _progress = null;
+            _overlay = null;
             _bound = false;
+            _leaving = false;
         }
 
         private IEnumerator BindWhenReady()
@@ -100,7 +152,7 @@ namespace Mikey.UI.Home
             {
                 if (++frames > MaxRootResolveFrames)
                 {
-                    Debug.LogError("[HomeController] UIDocument root unavailable; Main Menu not bound.", this);
+                    Debug.LogError("[HomeController] UIDocument root unavailable; Sign In not bound.", this);
                     _bindRoutine = null;
                     yield break;
                 }
@@ -108,38 +160,34 @@ namespace Mikey.UI.Home
             }
 
             VisualElement root = document.rootVisualElement;
+            _signInButton = root.Q<Button>(SignInButtonName);
+            _guestButton = root.Q<Button>(GuestButtonName);
+            _status = root.Q<Label>(StatusLabelName);
 
-            _vowModal = root.Q<VisualElement>("menu-vow-modal");
-            _vowOpenButton = root.Q<Button>("menu-vow-open");
-            _vowCloseButton = root.Q<Button>("menu-vow-close");
-            _vowOptionInitiate = root.Q<Button>("vow-option-initiate");
-            _vowOptionDisciple = root.Q<Button>("vow-option-disciple");
-            _vowOptionMaster = root.Q<Button>("vow-option-master");
-            _vowInlineMessage = root.Q<Label>("vow-inline-message");
-            _quitButton = root.Q<Button>("menu-quit");
-
-            if (_vowModal == null || _vowOpenButton == null || _vowCloseButton == null
-                || _vowOptionInitiate == null || _vowOptionDisciple == null || _vowOptionMaster == null
-                || _vowInlineMessage == null || _quitButton == null)
+            if (_signInButton == null || _guestButton == null || _status == null)
             {
-                Debug.LogError("[HomeController] Main Menu elements missing; screen not bound.", this);
+                Debug.LogError("[HomeController] Sign In elements missing; screen not bound.", this);
                 _bindRoutine = null;
                 yield break;
             }
 
-            BindButton(_vowOpenButton, OnVowOpened);
-            BindButton(_vowCloseButton, () => HideModal(_vowModal));
-            BindButton(_vowOptionInitiate, () => SelectVow(_vowOptionInitiate, showEnrollmentMessage: false));
-            BindButton(_vowOptionDisciple, () => SelectVow(_vowOptionDisciple, showEnrollmentMessage: true));
-            BindButton(_vowOptionMaster, () => SelectVow(_vowOptionMaster, showEnrollmentMessage: true));
-            BindButton(_quitButton, OnQuitClicked);
+            BindButton(_signInButton, OnSignInClicked);
+            BindButton(_guestButton, OnGuestClicked);
+
+            _progress = GetComponent<ITutorialProgress>();
+            _overlay = GetComponent<ITransitionOverlay>();
+
+            _sync = GetComponent<SyncService>();
+            if (_sync != null)
+                _sync.Changed += Render;
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
+            {
                 _navigator.ScreenChanged += OnScreenEntered;
-
-            HideModal(_vowModal);
-            ResetVowSelection();
+                if (_navigator.CurrentScreen == ScreenId)
+                    OnScreenEntered(ScreenId);
+            }
 
             _bound = true;
             _bindRoutine = null;
@@ -151,72 +199,129 @@ namespace Mikey.UI.Home
             _buttonBindings.Add(new ButtonBinding(button, onClick));
         }
 
-        private static void ShowModal(VisualElement modal)
-        {
-            if (modal != null)
-                modal.style.display = DisplayStyle.Flex;
-        }
-
-        private static void HideModal(VisualElement modal)
-        {
-            if (modal != null)
-                modal.style.display = DisplayStyle.None;
-        }
-
-        /// <summary>Main Menu is Mobile-first (Android) but QUIT is never platform-hidden — only its behavior differs.</summary>
-        private void OnQuitClicked()
-        {
-#if UNITY_EDITOR
-            Debug.Log("[HomeController] Quit requested — no-op in the Editor.");
-#else
-            Application.Quit();
-#endif
-        }
-
-        private void OnVowOpened()
-        {
-            ShowModal(_vowModal);
-            ResetVowSelection();
-        }
-
-        /// <summary>Disciple (Recommended) is the default selection every time the Vow overlay opens; no enrollment message on a plain open — only an explicit press of a paid option shows it.</summary>
-        private void ResetVowSelection() => SelectVow(_vowOptionDisciple, showEnrollmentMessage: false);
-
         /// <summary>
-        /// Visual-only selection: exactly one of the three Vow options is marked
-        /// selected at a time. Pressing Disciple or Master's "Choose Vow" also
-        /// surfaces a small inline notice that enrollment isn't live yet — this
-        /// is frontend presentation only, so it never fakes a successful
-        /// activation, never opens another modal, and never saves the
-        /// choice anywhere — no persistence of any kind.
+        /// Entering the gate either hands straight through (nothing to ask) or
+        /// resets it to its idle state. The pass-through is deliberately a plain
+        /// Show with no transition — see the class summary.
         /// </summary>
-        private void SelectVow(Button option, bool showEnrollmentMessage)
-        {
-            _vowOptionInitiate.RemoveFromClassList(VowSelectedClass);
-            _vowOptionDisciple.RemoveFromClassList(VowSelectedClass);
-            _vowOptionMaster.RemoveFromClassList(VowSelectedClass);
-            option.AddToClassList(VowSelectedClass);
-
-            if (showEnrollmentMessage)
-            {
-                _vowInlineMessage.text = VowEnrollmentMessage;
-                _vowInlineMessage.AddToClassList(VowMessageVisibleClass);
-            }
-            else
-            {
-                _vowInlineMessage.text = string.Empty;
-                _vowInlineMessage.RemoveFromClassList(VowMessageVisibleClass);
-            }
-        }
-
-        /// <summary>Re-entering Main Menu always resets the Vow overlay left open on a previous visit (the shared Settings modal manages its own state — see SettingsModalController).</summary>
         private void OnScreenEntered(string screenId)
         {
             if (screenId != ScreenId)
                 return;
 
-            HideModal(_vowModal);
-            ResetVowSelection();
+            _leaving = false;
+
+            // The one thing that skips the gate: a session already exists.
+            if (_sync != null && _sync.IsSignedIn)
+            {
+                _navigator?.Show(NextScreen());
+                return;
+            }
+
+            SetStatus(string.Empty);
+            SetInteractable(true);
+        }
+
+        private void OnSignInClicked()
+        {
+            if (_leaving)
+                return;
+
+            // Say so rather than going dead: the guest action next to it still works.
+            if (_sync == null || !_sync.CanSignIn)
+            {
+                SetStatus(SignInUnavailableMessage);
+                return;
+            }
+
+            SetStatus(SigningInMessage);
+            SetInteractable(false);
+            _sync.SignIn();
+        }
+
+        private void OnGuestClicked()
+        {
+            if (_leaving)
+                return;
+            Leave();
+        }
+
+        /// <summary>
+        /// Re-rendered on every SyncService state change while the gate is up: a
+        /// session appearing is the success signal, and an attempt ending without
+        /// one is an honest failure the player can retry — never a silent dead
+        /// button.
+        /// </summary>
+        private void Render()
+        {
+            if (!_bound || _leaving || _sync == null)
+                return;
+            if (_navigator != null && _navigator.CurrentScreen != ScreenId)
+                return;
+
+            if (_sync.IsSignedIn)
+            {
+                Leave();
+                return;
+            }
+
+            if (_sync.IsSigningIn)
+            {
+                SetStatus(SigningInMessage);
+                SetInteractable(false);
+                return;
+            }
+
+            SetStatus(SignInFailedMessage);
+            SetInteractable(true);
+        }
+
+        private string NextScreen() =>
+            NextScreenAfterAuth(_progress?.State ?? TutorialProgressState.NewPlayer);
+
+        /// <summary>Leaves the gate exactly once, through the shared cinematic fade.</summary>
+        private void Leave()
+        {
+            if (_leaving || _navigator == null)
+                return;
+            _leaving = true;
+
+            SetInteractable(false);
+            _leaveRoutine = StartCoroutine(LeaveRoutine());
+        }
+
+        /// <summary>
+        /// Two-phase transition, the same shape LoreExitController uses: darken to
+        /// full black, swap the screen while fully covered, then reveal out of
+        /// black — never a hard cut.
+        /// </summary>
+        private IEnumerator LeaveRoutine()
+        {
+            if (_overlay != null)
+                yield return StartCoroutine(_overlay.FadeToBlack(FadeToBlackSeconds));
+
+            yield return new WaitForSecondsRealtime(BlackHoldSeconds);
+
+            _navigator.Show(NextScreen());
+
+            if (_overlay != null)
+                yield return StartCoroutine(_overlay.FadeFromBlack(FadeInSeconds));
+
+            _leaveRoutine = null;
+        }
+
+        private void SetStatus(string message)
+        {
+            if (_status != null)
+                _status.text = message;
+        }
+
+        private void SetInteractable(bool interactable)
+        {
+            if (_signInButton != null)
+                _signInButton.SetEnabled(interactable);
+            if (_guestButton != null)
+                _guestButton.SetEnabled(interactable);
         }
 
         private readonly struct ButtonBinding

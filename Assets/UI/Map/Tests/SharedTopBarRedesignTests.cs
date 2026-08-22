@@ -79,7 +79,7 @@ namespace Mikey.UI.Map.Tests
             return count;
         }
 
-        // ---------- 2-5: Menu / Map / Techniques / Profile present everywhere, "Stats" gone ----------
+        // ---------- 2-5: Map / Techniques / Profile / Settings present everywhere, "Stats" and the retired "Menu" gone ----------
 
         [TestCase("map")]
         [TestCase("mapOkinawa")]
@@ -92,11 +92,12 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNotNull(topBar, $"'{screenId}' must carry the shared top HUD.");
 
             var texts = topBar.Query<Label>(className: "map-topbar__nav-btn-text").ToList().Select(l => l.text).ToList();
-            CollectionAssert.Contains(texts, "Menu", $"'{screenId}' HUD must show Menu.");
             CollectionAssert.Contains(texts, "Map", $"'{screenId}' HUD must show Map.");
             CollectionAssert.Contains(texts, "Techniques", $"'{screenId}' HUD must show Techniques.");
             CollectionAssert.Contains(texts, "Profile", $"'{screenId}' HUD must show Profile.");
+            CollectionAssert.Contains(texts, "Settings", $"'{screenId}' HUD must show Settings as a worded item, not a corner gear.");
             CollectionAssert.DoesNotContain(texts, "Stats", $"'{screenId}' HUD must not show the retired 'Stats' label.");
+            CollectionAssert.DoesNotContain(texts, "Menu", $"'{screenId}' HUD must not show the retired 'Menu' label — 'menu' is the Sign In gate now and nothing navigates back to it.");
         }
 
         // ---------- 6+9-12: one shared active-state system, correct per screen ----------
@@ -288,13 +289,11 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void SettingsIcon_UsesTheSuppliedAsset_NotThePlaceholderRingAndDotGlyph()
+        public void SettingsGlyphs_AreAllRetired_SettingsIsPlainTextNow()
         {
             string uss = File.ReadAllText(UssPath);
-            string block = ExtractRuleBlock(uss, "\n.map-topbar__settings-icon {");
-            Assert.IsNotNull(block);
-            StringAssert.Contains("Media/Images/settings_icon.png", block, "Must use the supplied settings_icon.png asset.");
-
+            StringAssert.DoesNotContain(".map-topbar__settings-icon", uss, "The gear icon rule is retired with the corner button.");
+            StringAssert.DoesNotContain(".map-topbar__settings-btn", uss, "The gear button rule is retired.");
             StringAssert.DoesNotContain(".map-topbar__settings-ring", uss, "The old placeholder ring glyph rule must be removed.");
             StringAssert.DoesNotContain(".map-topbar__settings-dot", uss, "The old placeholder dot glyph rule must be removed.");
 

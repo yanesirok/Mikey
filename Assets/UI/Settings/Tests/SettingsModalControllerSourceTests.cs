@@ -20,10 +20,11 @@ namespace Mikey.UI.Settings.Tests
         private const string SourcePath = "Assets/UI/Settings/SettingsModalController.cs";
 
         [Test]
-        public void AllThreeEntryPoints_AreWiredToOpenTheSameModal()
+        public void AllEntryPoints_AreWiredToOpenTheSameModal()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("\"menu-settings-open\",", source);
+            StringAssert.DoesNotContain("\"menu-settings-open\",", source,
+                "The Main Menu is retired — 'menu' is the Sign In gate now and carries no Settings entry.");
             StringAssert.Contains("\"map-topbar-settings\",", source);
             StringAssert.Contains("\"okinawa-topbar-settings\",", source);
             StringAssert.Contains("_openButtons[i].clicked += Open;", source,

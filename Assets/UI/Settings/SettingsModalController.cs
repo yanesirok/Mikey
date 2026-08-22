@@ -34,7 +34,6 @@ namespace Mikey.UI.Settings
 
         private static readonly string[] OpenButtonNames =
         {
-            "menu-settings-open",
             "map-topbar-settings",
             "okinawa-topbar-settings",
             "techniques-topbar-settings",

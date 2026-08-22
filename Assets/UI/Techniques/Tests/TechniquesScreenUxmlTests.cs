@@ -11,7 +11,7 @@ namespace Mikey.UI.Techniques.Tests
     /// Structural contract for the landscape Techniques/Lessons hub (the
     /// "techniques" screen) in MikeyApp.uxml: exactly one screen with one
     /// safe-area wrapper, a full-bleed background outside that wrapper, a
-    /// clear Home/Back (go-menu) and first-lesson (go-practice) action, an
+    /// clear Back-to-Map (go-map) and first-lesson (go-practice) action, an
     /// available first lesson visually distinct from honestly-locked later
     /// lessons, and reusable touch-target / visible-icon / wrapping classes
     /// so nothing collapses or overflows on phone-landscape sizes.
@@ -83,13 +83,13 @@ namespace Mikey.UI.Techniques.Tests
 
         // 11
         [Test]
-        public void Techniques_HasGoMenuBackAction()
+        public void Techniques_HasGoMapBackAction()
         {
             var root = BuildTree();
-            var back = Techniques(root).Q<Button>("go-menu");
-            Assert.IsNotNull(back, "Techniques must expose a 'go-menu' Home/Back action.");
-            Assert.IsTrue(root.Q<VisualElement>("menu").ClassListContains("screen"),
-                "'go-menu' must target the existing 'menu' screen.");
+            var back = Techniques(root).Q<VisualElement>(className: "tq-actionbar").Q<Button>("go-map");
+            Assert.IsNotNull(back, "Techniques must expose a 'go-map' back action to the Map hub.");
+            Assert.IsTrue(root.Q<VisualElement>("map").ClassListContains("screen"),
+                "'go-map' must target the existing 'map' screen.");
         }
 
         // 12 + 13 + 14 — the first-lesson action is a real go-practice navigator to an existing screen.
@@ -134,9 +134,11 @@ namespace Mikey.UI.Techniques.Tests
         public void InteractiveControls_UseTouchTargetClass()
         {
             var screen = Techniques(BuildTree());
-            foreach (var name in new[] { "go-practice", "go-menu" })
+            foreach (var name in new[] { "go-practice", "tq-actionbar-back" })
             {
-                var ctrl = screen.Q<VisualElement>(name);
+                var ctrl = name == "tq-actionbar-back"
+                    ? screen.Q<VisualElement>(className: "tq-actionbar").Q<Button>("go-map")
+                    : screen.Q<VisualElement>(name);
                 Assert.IsNotNull(ctrl, $"Expected interactive control '{name}'.");
                 Assert.IsTrue(ctrl.ClassListContains("tap-target-lg"),
                     $"Control '{name}' must use the '.tap-target-lg' (>=56x56) touch-target class.");

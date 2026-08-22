@@ -25,6 +25,53 @@
 - Стиль asmdef копируется с существующих (`Assets/Pose/Mikey.Pose.asmdef`, `Assets/UI/Progression/Tests/*.asmdef`).
 - Тесты — EditMode, NUnit, как в `Assets/UI/Progression/Tests/`.
 
+### Среда: редактор Unity уже открыт
+
+Проект держит **запущенный редактор** (порт 7801, при переподключении может стать 7800).
+Из этого три следствия, каждое стоило отдельного разбирательства:
+
+- **`unity test --project …` использовать нельзя** — этот синтаксис устарел для установленной
+  версии CLI и вдобавок пытается взять блокировку проекта, которую держит открытый редактор.
+  Тесты гонять через подключённый редактор: `unity command run_tests …`.
+- **Длинные прогоны асинхронны.** `run_tests` без фильтра возвращает управление сразу, а
+  вызов CLI отваливается по таймауту в 30 секунд — это не ошибка. Опрашивать
+  `unity command test_status --format json` до `completed`. Прервать можно
+  `unity command cancel_tests`.
+- **Не вызывать `run_tests` повторно, пока прогон идёт.** Новый вызов отменяет предыдущий
+  на стороне сервера, и оба остаются без результата — со стороны это выглядит как
+  бесконечно висящий прогон. Запустить один раз, затем читать итог из `TestResults.xml`
+  или из консоли редактора, а не перезапускать.
+- **Новые файлы редактор сам не импортирует.** После создания исходников —
+  `unity --json cmd eval 'UnityEditor.AssetDatabase.Refresh(); return "ok";'`, иначе `.meta`
+  не появятся и в коммит уйдут файлы без идентификаторов. Добавление файлов вызывает
+  перезагрузку домена, во время которой CLI на несколько секунд недоступен: подождать и
+  повторить.
+
+### Добавления по имени файла недостаточно, если файл уже изменён
+
+`git add <путь>` забирает **все** изменения файла, а не только твои. В рабочей копии
+больше сотни посторонних незакоммиченных правок, и `Assets/UI/MikeyApp.uxml` — одна из
+них: там лежит переделка экрана камеры, к этой работе отношения не имеющая.
+
+Перед коммитом файла, который уже был изменён, посмотри `git diff --stat <путь>`. Если
+размер правки заметно больше твоей — забирай только свой фрагмент: извлеки его
+(`git diff` в файл, отредактируй) и примени `git apply --cached`. После коммита проверь
+`git show --stat`, что размер совпадает с ожидаемым, а чужие изменения остались в рабочей
+копии.
+
+### Существующие файлы не перезаписывать
+
+Там, где план говорит «создать» тестовый файл, он может уже существовать с чужими тестами —
+так было с `ProfileUserDataStorageTests`, где лежало ещё одиннадцать проверок из прошлой
+работы. **Сначала проверить наличие, при наличии — дописать свои тесты в существующий
+класс.** Перезапись молча уничтожает чужую работу, и ни один тест этого не поймает.
+
+### Известный падающий тест, не связанный с этой работой
+
+`Mikey.Fight.Tests.FightSceneTests.Fighters_WearTheirOwnModelAndAvatar` падает давно: оба
+бойца в `FightSandbox.unity` используют одну модель, а тест требует разные. Не чинить, своей
+поломкой не считать. Ориентир полного прогона на начало работы — **1219 из 1220**.
+
 ---
 
 ## Файловая структура
@@ -424,8 +471,15 @@ grant execute on function public.delete_account() to authenticated;
 
 - [ ] **Step 3: Проверить каскад**
 
+**Важно про вывод:** SQL Editor Supabase **не показывает сообщения `raise notice`** — в панели
+результатов их нет. Поэтому успех фиксируется строкой во временной таблице, а скрипт
+завершается `select` из неё **до** `rollback`: возвращённые строки видно. Падения по-прежнему
+через `raise exception`, они видны и так.
+
 ```sql
 begin;
+create temp table check_log(step text) on commit drop;
+
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values ('22222222-2222-2222-2222-222222222222',
         '00000000-0000-0000-0000-000000000000',
@@ -446,12 +500,15 @@ begin
        + (select count(*) from public.level1_progress where user_id = '22222222-2222-2222-2222-222222222222')
     into n;
   if n <> 0 then raise exception 'каскад не сработал, осталось строк: %', n; end if;
-  raise notice 'OK: каскад унёс все три таблицы';
+  insert into check_log values ('OK: каскад унёс все три таблицы');
 end $$;
+
+select * from check_log;
 rollback;
 ```
 
-Ожидается: `NOTICE: OK: каскад унёс все три таблицы`.
+Ожидается: одна строка результата `OK: каскад унёс все три таблицы`. Пустой результат или
+ошибка означают, что каскад не отработал.
 
 - [ ] **Step 4: Коммит**
 
@@ -479,14 +536,21 @@ git commit -m "feat(backend): delete_account — удаление пользов
 
 ```sql
 -- Прогоняется целиком в SQL Editor. Всё внутри одной транзакции и откатывается.
+--
+-- Успех каждой проверки пишется строкой в check_log, а не через raise notice:
+-- SQL Editor Supabase сообщения NOTICE не показывает вовсе, и «ошибки не было»
+-- слишком слабое свидетельство для теста, который защищает данные людей.
 begin;
+create temp table check_log(step text) on commit drop;
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
   ('aaaaaaaa-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-000000000000', 'authenticated','authenticated','a@example.test','',now(),now()),
   ('bbbbbbbb-0000-0000-0000-000000000002',
-   '00000000-0000-0000-0000-000000000000', 'authenticated','authenticated','b@example.test','',now(),now());
+   '00000000-0000-0000-0000-000000000000', 'authenticated','authenticated','b@example.test','',now(),now()),
+  ('cccccccc-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000000', 'authenticated','authenticated','c@example.test','',now(),now());
 
 -- ---- Пользователь A ----
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
@@ -534,50 +598,141 @@ begin
    where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
   if n <> 1 then raise exception 'пустой technique_id не был пропущен, строк: %', n; end if;
 
-  raise notice 'OK: слияние берёт максимум и уважает штамп времени';
+  insert into check_log values ('OK: слияние берёт максимум и уважает штамп времени');
+end $$;
+
+-- ---- Регрессии на три дефекта, найденных ревью Task 2 ----
+--
+-- ВАЖНО: внутри одной транзакции Postgres замораживает now(). Поэтому проверить
+-- «после будущего штампа настоящая правка всё ещё проходит» здесь невозможно —
+-- любой последующий штамп будет не строго больше замороженного now(). Проверяем
+-- напрямую то, что чинит дефект: штамп срезается до now() при записи.
+
+-- (а) Штамп из будущего срезается и не может заморозить профиль.
+select public.sync_progress('{"profile":{"display_name":"Из будущего",
+                                         "profile_updated_at":"2030-01-01T00:00:00Z"}}'::jsonb);
+
+do $$
+begin
+  if (select profile_updated_at from public.profiles
+      where id = 'aaaaaaaa-0000-0000-0000-000000000001') > now() then
+    raise exception 'штамп из будущего сохранён как есть — профиль заморожен навсегда';
+  end if;
+  insert into check_log values ('OK: штамп из будущего срезан до now()');
+end $$;
+
+-- (б) NaN не должен пролезать в результат: в Postgres NaN больше всех чисел,
+--     и один раз попав в колонку, он выигрывал бы greatest вечно.
+do $$
+declare landed boolean := false;
+begin
+  begin
+    perform public.sync_progress('{"level0":{"wallsit_seconds":"NaN"}}'::jsonb);
+    landed := true;
+  exception when others then
+    null; -- отказ и есть ожидаемое поведение
+  end;
+
+  if landed and (select wallsit_seconds from public.level0_results
+                 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') <> 45 then
+    raise exception 'NaN пролез в wallsit_seconds — рекорд больше не опустить';
+  end if;
+  insert into check_log values ('OK: NaN не попадает в результат');
+end $$;
+
+-- (в) Негодное число в профиле не должно ронять прогресс из того же запроса.
+--     Возраст 8 и вес 25 для детского карате — обычные значения.
+--     Берём ОТДЕЛЬНОГО пользователя C: у A профиль уже записан выше со
+--     штампом now(), и в одной транзакции его нечем перекрыть — проверка
+--     обнуления возраста на нём была бы недостоверной.
+set local request.jwt.claims = '{"sub":"cccccccc-0000-0000-0000-000000000003","role":"authenticated"}';
+
+select public.sync_progress('{"profile":{"age":8,"weight_kg":25,
+                                         "profile_updated_at":"2026-08-22T13:00:00Z"},
+                              "level0":{"pushup_reps":99}}'::jsonb);
+
+do $$
+begin
+  if (select pushup_reps from public.level0_results
+      where user_id = 'cccccccc-0000-0000-0000-000000000003') <> 99 then
+    raise exception 'кривая цифра в профиле откатила прогресс: отжимания не сохранились';
+  end if;
+  if (select age from public.profiles
+      where id = 'cccccccc-0000-0000-0000-000000000003') <> 0 then
+    raise exception 'негодный возраст сохранён вместо обнуления';
+  end if;
+  insert into check_log values ('OK: кривой профиль не роняет прогресс');
 end $$;
 
 -- ---- Пользователь B не видит и не трогает данные A ----
 set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated"}';
 
-select public.sync_progress('{"profile":{"display_name":"Б"},"level0":{"pushup_reps":1},"level1":[]}'::jsonb);
+-- B пишет ЗАВЕДОМО БОЛЬШЕЕ значение, чем у A (999 против 20). Это принципиально:
+-- при меньшем значении утечка чужой записи в строку A была бы невидима — greatest
+-- вернул бы прежние 20, и проверка отчиталась бы успехом при полностью потерянной
+-- изоляции. Ловится только запись, которая способна перебить чужой максимум.
+select public.sync_progress('{"profile":{"display_name":"Б"},"level0":{"pushup_reps":999},"level1":[]}'::jsonb);
 
 do $$
 begin
+  -- `is distinct from`, а не `<>`: отсутствующая строка даёт NULL, а `if NULL then`
+  -- в plpgsql это ветка «нет» — сравнение через `<>` молча пропустило бы и случай,
+  -- когда строки нет вовсе.
   if (select pushup_reps from public.level0_results
-      where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') <> 20 then
+      where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') is distinct from 20 then
     raise exception 'ИЗОЛЯЦИЯ НАРУШЕНА: синк B изменил данные A';
   end if;
   if (select pushup_reps from public.level0_results
-      where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') <> 1 then
-    raise exception 'данные B не записались';
+      where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') is distinct from 999 then
+    raise exception 'данные B не записались или ушли не в ту строку';
   end if;
-  raise notice 'OK: пользователи изолированы';
+  insert into check_log values ('OK: пользователи изолированы');
 end $$;
 
 -- ---- Без токена функция обязана отказать ----
 set local request.jwt.claims = '';
 do $$
+declare refused boolean := false;
 begin
-  perform public.sync_progress('{}'::jsonb);
-  raise exception 'ПРОВАЛ: функция отработала без аутентификации';
-exception when sqlstate '28000' then
-  raise notice 'OK: без токена отказано';
+  -- Вложенный блок ловит ТОЛЬКО ошибку самого вызова. Если поймать «любую
+  -- ошибку» снаружи, то собственное «ПРОВАЛ» ниже тоже будет поймано, и
+  -- провалившийся тест отчитается успехом.
+  --
+  -- Ловим любой код, а не только 28000: auth.uid() приводит claims к json и на
+  -- пустой строке может упасть ошибкой приведения. Проверяемое свойство —
+  -- «без токена не отрабатывает», а не конкретный код ошибки.
+  begin
+    perform public.sync_progress('{}'::jsonb);
+  exception when others then
+    refused := true;
+  end;
+
+  if not refused then
+    raise exception 'ПРОВАЛ: функция отработала без аутентификации';
+  end if;
+
+  insert into check_log values ('OK: без токена отказано');
 end $$;
 
+select * from check_log;
 rollback;
 ```
 
 - [ ] **Step 2: Прогнать тест**
 
 Вставить файл целиком в SQL Editor, Run.
-Ожидается четыре строки в выводе NOTICE:
+Ожидается таблица результата ровно из шести строк:
 ```
 OK: слияние берёт максимум и уважает штамп времени
+OK: штамп из будущего не замораживает профиль
+OK: NaN не попадает в результат
+OK: кривой профиль не роняет прогресс
 OK: пользователи изолированы
 OK: без токена отказано
 ```
-Любое `ERROR` означает сломанное слияние — чинить Task 2, не тест.
+Меньше шести строк или `ERROR` означают сломанное слияние — чинить Task 2, а не тест.
+Три средние строки — регрессии на дефекты, найденные ревью Task 2; если падает одна из
+них, значит правка того раунда отменена или не доехала до живой базы.
 
 - [ ] **Step 3: Коммит**
 
@@ -755,21 +910,28 @@ namespace Mikey.UI.Profile.Tests
         }
 
         [Test]
-        public void Save_AdvancesUpdatedAt_OnEveryWrite()
+        public void Save_ReplacesAnyExistingStamp_WithTheCurrentTime()
         {
-            var data = new ProfileUserData { DisplayName = "Дима" };
-            ProfileUserDataStorage.Save(data);
-            string first = ProfileUserDataStorage.Load().UpdatedAtIso;
+            // Намеренно НЕ «сохранить дважды и сравнить»: точность штампа — секунда,
+            // два сохранения подряд попадают в одну и ту же, строки выходят равными,
+            // и такой тест проходит, ничего не проверив. Здесь старое значение
+            // заведомо отличается от нового, и отличие детерминировано.
+            var data = new ProfileUserData { DisplayName = "Дима", UpdatedAtIso = "2000-01-01T00:00:00Z" };
+            DateTime before = DateTime.UtcNow.AddSeconds(-1);
 
-            data.DisplayName = "Дима 2";
-            data.UpdatedAtIso = string.Empty;
             ProfileUserDataStorage.Save(data);
-            string second = ProfileUserDataStorage.Load().UpdatedAtIso;
 
-            Assert.AreNotEqual(string.Empty, second);
-            Assert.GreaterOrEqual(
-                string.CompareOrdinal(second, first), 0,
-                "Повторное сохранение не должно откатывать штамп назад.");
+            string stamp = ProfileUserDataStorage.Load().UpdatedAtIso;
+
+            Assert.AreNotEqual("2000-01-01T00:00:00Z", stamp,
+                "Save обязан заменить старый штамп своим — иначе правка человека выглядит устаревшей.");
+            Assert.IsTrue(
+                DateTime.TryParse(stamp, CultureInfo.InvariantCulture,
+                                  DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                                  out DateTime parsed),
+                $"Штамп должен разбираться как дата, получено: '{stamp}'.");
+            Assert.GreaterOrEqual(parsed, before,
+                "Штамп должен быть текущим временем, а не произвольным значением.");
         }
 
         [Test]
@@ -823,7 +985,7 @@ namespace Mikey.UI.Profile.Tests
 - [ ] **Step 2: Убедиться, что тест падает**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "ProfileUserDataStorageTests"
+unity command run_tests --mode EditMode --filter "ProfileUserDataStorageTests" --filter_type testName --format json
 ```
 Ожидается: FAIL — `ProfileUserData` не содержит `UpdatedAtIso` (ошибка компиляции теста).
 
@@ -891,14 +1053,14 @@ unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "Profile
 - [ ] **Step 5: Прогнать тест**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "ProfileUserDataStorageTests"
+unity command run_tests --mode EditMode --filter "ProfileUserDataStorageTests" --filter_type testName --format json
 ```
 Ожидается: PASS, 3 теста.
 
 - [ ] **Step 6: Прогнать весь EditMode, чтобы не сломать соседей**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode
+unity command run_tests --mode EditMode --async_tests true --format json
 ```
 Ожидается: количество провалов не выросло относительно состояния до задачи. Известный ранее падающий тест — `Mikey.Fight.Tests.FightSceneTests.Fighters_WearTheirOwnModelAndAvatar` (оба бойца используют одну модель); он к этой работе отношения не имеет.
 
@@ -1121,7 +1283,7 @@ namespace Mikey.Backend.Tests
 - [ ] **Step 2: Убедиться, что тесты падают**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "SyncPayloadTests"
+unity command run_tests --mode EditMode --filter "SyncPayloadTests" --filter_type testName --format json
 ```
 Ожидается: FAIL — тип `SyncPayload` не найден.
 
@@ -1285,7 +1447,7 @@ namespace Mikey.Backend
 - [ ] **Step 4: Прогнать тесты**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "SyncPayloadTests"
+unity command run_tests --mode EditMode --filter "SyncPayloadTests" --filter_type testName --format json
 ```
 Ожидается: PASS, 6 тестов.
 
@@ -1484,12 +1646,23 @@ namespace Mikey.Backend.Tests
         }
 
         [Test]
-        public void Adopt_WithEmptyTokens_LeavesSessionSignedOut()
+        public void Adopt_WithAnEmptyAccessToken_AdoptsNothingAtAll()
         {
-            var session = new SupabaseSession(new MemoryTokenStore());
-            session.Adopt(string.Empty, string.Empty, 3600, Now);
+            var store = new MemoryTokenStore();
+            var session = new SupabaseSession(store);
+
+            // Проверять только IsSignedIn бессмысленно: это следует уже из
+            // определения свойства через IsNullOrEmpty, и защитную проверку в
+            // Adopt можно было бы удалить, не уронив тест. Смысл проверки в том,
+            // что из испорченного ответа нельзя взять НИЧЕГО — иначе он подменит
+            // рабочий ключ от аккаунта, и человек окажется разлогинен без причины.
+            session.Adopt(string.Empty, "refresh-from-broken-response", 3600, Now);
 
             Assert.IsFalse(session.IsSignedIn);
+            Assert.IsNull(session.RefreshToken,
+                "Токен обновления взят из ответа, в котором не было токена доступа.");
+            Assert.IsFalse(store.TryLoadRefreshToken(out _),
+                "Испорченный ответ записан в хранилище токенов.");
         }
     }
 }
@@ -1498,7 +1671,7 @@ namespace Mikey.Backend.Tests
 - [ ] **Step 2: Убедиться, что тесты падают**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "SupabaseSessionTests"
+unity command run_tests --mode EditMode --filter "SupabaseSessionTests" --filter_type testName --format json
 ```
 Ожидается: FAIL — типы `SupabaseSession` и `MemoryTokenStore` не найдены.
 
@@ -1638,7 +1811,7 @@ namespace Mikey.Backend
 - [ ] **Step 5: Прогнать тесты**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "SupabaseSessionTests"
+unity command run_tests --mode EditMode --filter "SupabaseSessionTests" --filter_type testName --format json
 ```
 Ожидается: PASS, 5 тестов.
 
@@ -1696,14 +1869,26 @@ apply plugin: 'com.android.library'
 
 android {
     namespace "com.mikey.auth"
-    compileSdkVersion 35
+    compileSdkVersion 34
     defaultConfig {
         minSdkVersion 25
-        targetSdkVersion 35
+        targetSdkVersion 34
     }
+
+    // Unity держит AndroidManifest.xml в корне модуля .androidlib, а сборщик по
+    // умолчанию ищет его в src/main/. Без этого переопределения манифест плагина
+    // не участвует в сборке вовсе, и разрешение INTERNET не попадает в APK —
+    // проявится не «классом не найден», а молчаливым отказом сети при входе.
+    // Точно такой же блок с тем же обоснованием стоит в MikeyPose.androidlib.
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+        }
+    }
+
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
@@ -2538,7 +2723,7 @@ namespace Mikey.Backend
 - [ ] **Step 3: Проверить компиляцию и что прежние тесты целы**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "Mikey.Backend"
+unity command run_tests --mode EditMode --filter "Mikey.Backend.Tests" --filter_type assembly --format json
 ```
 Ожидается: PASS, 11 тестов (6 из Task 7 и 5 из Task 9).
 
@@ -2630,7 +2815,7 @@ namespace Mikey.UI.Profile.Tests
 - [ ] **Step 2: Убедиться, что тест падает**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "AccountPanelUxmlTests"
+unity command run_tests --mode EditMode --filter "AccountPanelUxmlTests" --filter_type testName --format json
 ```
 Ожидается: FAIL — элементов в вёрстке нет.
 
@@ -2665,7 +2850,7 @@ unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "Account
 - [ ] **Step 4: Прогнать тест вёрстки**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "AccountPanelUxmlTests"
+unity command run_tests --mode EditMode --filter "AccountPanelUxmlTests" --filter_type testName --format json
 ```
 Ожидается: PASS, 2 теста.
 
@@ -2852,7 +3037,7 @@ unity --json cmd eval 'return "compiled";'
 - [ ] **Step 7: Прогнать все тесты Backend и Profile**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "Mikey.Backend|Mikey.UI.Profile"
+unity command run_tests --mode EditMode --filter "Mikey.Backend.Tests" --filter "Mikey.UI.Profile.Tests" --filter_type assembly --format json
 ```
 Ожидается: PASS, 16 тестов (6 SyncPayload + 5 SupabaseSession + 3 ProfileUserDataStorage + 2 AccountPanelUxml).
 
@@ -2900,7 +3085,7 @@ git commit -m "feat(profile): блок аккаунта — вход, выход
 - [ ] **Step 2: Убедиться, что тест падает**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "UiGameObject_HasBackendSyncAndAccountPanel"
+unity command run_tests --mode EditMode --filter "UiGameObject_HasBackendSyncAndAccountPanel" --filter_type testName --format json
 ```
 Ожидается: FAIL.
 
@@ -2926,14 +3111,14 @@ return "added: " + go.GetComponents<MonoBehaviour>().Length + " components";'
 - [ ] **Step 4: Прогнать тест связывания**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode --filter "UiGameObject_HasBackendSyncAndAccountPanel"
+unity command run_tests --mode EditMode --filter "UiGameObject_HasBackendSyncAndAccountPanel" --filter_type testName --format json
 ```
 Ожидается: PASS.
 
 - [ ] **Step 5: Прогнать весь EditMode**
 
 ```bash
-unity test --project "C:\Users\user\Mikey" --platform EditMode
+unity command run_tests --mode EditMode --async_tests true --format json
 ```
 Ожидается: провалов не больше, чем было до начала работы. Известный ранее падающий тест —
 `Mikey.Fight.Tests.FightSceneTests.Fighters_WearTheirOwnModelAndAvatar`, к этой работе отношения не имеет.

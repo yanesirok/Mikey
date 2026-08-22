@@ -30,7 +30,7 @@ namespace Mikey.UI.Map
         }
     }
 
-    /// <summary>Normalized (0-1, relative to the Okinawa map artwork) placement + mission type for one LVL 0-6 marker.</summary>
+    /// <summary>Normalized (0-1, relative to the Okinawa map artwork) placement + mission type for one LVL 0-8 marker.</summary>
     public readonly struct MissionMarkerLayout
     {
         public readonly int LevelIndex;
@@ -74,7 +74,7 @@ namespace Mikey.UI.Map
     /// label is laid out ABOVE its icon (not below) so the box's bottom edge
     /// coincides with the icon's bottom edge, i.e. the pin tip.
     ///
-    /// Lock/progression state is NOT duplicated here for missions: LVL 0-6's
+    /// Lock/progression state is NOT duplicated here for missions: LVL 0-8's
     /// live lock state still comes from OkinawaMapController.IsLevelLocked
     /// reading TutorialProgressState, exactly as before this pass. Chapter
     /// unlocked state IS centralized here since — unlike LVL 0/1 — no chapter
@@ -107,30 +107,40 @@ namespace Mikey.UI.Map
         };
 
         /// <summary>
-        /// Okinawa MVP mission set: exactly 7 missions (LVL 0-6) — 1 Special
-        /// opening mission, 3 Training, 2 Fight, 1 Boss Fight, in that fixed
-        /// order. LVL 0 (assessment) and LVL 1 (existing techniques/
+        /// Okinawa MVP mission set: exactly 9 missions (LVL 0-8) — 1 Special
+        /// opening mission, then 4 Training and 4 combat missions (3 Fight plus
+        /// the closing Boss Fight) alternating training/combat the whole way up,
+        /// in that fixed order. LVL 0 (assessment) and LVL 1 (existing techniques/
         /// foundations route) already have real routes (see
         /// OkinawaMapController.OnLevelCtaClicked) and are unaffected by this
-        /// set. LVL 2-6 have no gameplay built yet (OkinawaMapController.
+        /// set. LVL 2-8 have no gameplay built yet (OkinawaMapController.
         /// IsLevelLocked always locks them) but their mission TYPE is assigned
         /// here regardless — type and progression state are separate
         /// concerns, so a locked Boss Fight still shows the Boss Fight
         /// marker. Coordinates are exact, measured directly on the 6336x2688
         /// okinawa_map_final.jpg source, not estimated by eye:
-        /// LVL0 (2118, 2039), LVL1 (2742, 1613), LVL2 (3498, 1319),
-        /// LVL3 (3834, 851), LVL4 (4188, 1217), LVL5 (4734, 1187),
-        /// LVL6 (5154, 983).
+        /// LVL0 (2118, 2039), LVL1 (2742, 1613), LVL2 (3117, 1357),
+        /// LVL3 (3498, 1319), LVL4 (3834, 851), LVL5 (4188, 1217),
+        /// LVL6 (4460, 1196), LVL7 (4734, 1187), LVL8 (5154, 983).
+        ///
+        /// LVL2 and LVL6 are the two added when the chapter grew from 7 to 9:
+        /// they were placed BETWEEN existing markers (on the isthmus and on the
+        /// eastern body respectively) rather than appended past the old last
+        /// one, because the island simply ends there — anything further
+        /// north-east would float in open sea. Every other marker kept its
+        /// original coordinate and only its level number shifted.
         /// </summary>
         public static readonly MissionMarkerLayout[] Missions =
         {
             new MissionMarkerLayout(0, 0.33428f, 0.75856f, MissionMarkerType.Special),
             new MissionMarkerLayout(1, 0.43277f, 0.60007f, MissionMarkerType.Training),
-            new MissionMarkerLayout(2, 0.55208f, 0.49070f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(3, 0.60511f, 0.31659f, MissionMarkerType.Training),
-            new MissionMarkerLayout(4, 0.66098f, 0.45275f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(5, 0.74716f, 0.44159f, MissionMarkerType.Training),
-            new MissionMarkerLayout(6, 0.81345f, 0.36570f, MissionMarkerType.BossFight),
+            new MissionMarkerLayout(2, 0.49195f, 0.50484f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(3, 0.55208f, 0.49070f, MissionMarkerType.Training),
+            new MissionMarkerLayout(4, 0.60511f, 0.31659f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(5, 0.66098f, 0.45275f, MissionMarkerType.Training),
+            new MissionMarkerLayout(6, 0.70391f, 0.44494f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(7, 0.74716f, 0.44159f, MissionMarkerType.Training),
+            new MissionMarkerLayout(8, 0.81345f, 0.36570f, MissionMarkerType.BossFight),
         };
 
         /// <summary>

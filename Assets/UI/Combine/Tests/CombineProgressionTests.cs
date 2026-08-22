@@ -51,12 +51,12 @@ namespace Mikey.UI.Combine.Tests
         }
 
         [Test]
-        public void ReadyState_StillHasReturnHomeAction()
+        public void ReadyState_StillHasReturnToMapAction()
         {
             var root = BuildTree();
             var ready = root.Q<VisualElement>("combine-ready");
-            Assert.IsNotNull(ready.Q<Button>("go-menu"),
-                "The ready state must keep its 'go-menu' Return Home exit alongside the new progression actions.");
+            Assert.IsNotNull(ready.Q<Button>("go-map"),
+                "The ready state must keep its 'go-map' Return to Map exit alongside the new progression actions.");
         }
 
         [Test]

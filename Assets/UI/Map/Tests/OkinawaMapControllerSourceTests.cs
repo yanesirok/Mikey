@@ -131,10 +131,10 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void LevelCount_IsSeven_MatchingOkinawasFinalMvpMissionSet()
+        public void LevelCount_IsNine_MatchingOkinawasMissionSet()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("private const int LevelCount = 7;", source);
+            StringAssert.Contains("private const int LevelCount = 9;", source);
         }
 
         [Test]
@@ -152,10 +152,10 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Levels2Through6_AreAlwaysLocked_NoGameplayYet()
+        public void Levels2Through8_AreAlwaysLocked_NoGameplayYet()
         {
-            // LevelCount == 7 (LVL 0-6) means this "default:" case now
-            // matches indices 2-6.
+            // LevelCount == 9 (LVL 0-8) means this "default:" case now
+            // matches indices 2-8.
             string source = File.ReadAllText(SourcePath);
             StringAssert.IsMatch(@"default:\s*return true;", source);
         }

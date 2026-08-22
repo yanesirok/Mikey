@@ -9,7 +9,7 @@ namespace Mikey.UI.Map.Tests
     /// <summary>
     /// Structural contract for the Okinawa chapter map screen ("mapOkinawa")
     /// in MikeyApp.uxml: full-bleed pannable okinawa_map_final.jpg with real
-    /// UI Toolkit LVL 0-6 markers (Okinawa's final MVP mission set — see
+    /// UI Toolkit LVL 0-8 markers (Okinawa's mission set — see
     /// MapMarkerLayout.Missions), no auto-selected level/open popup on
     /// entry, and the same top quick-access bar as the Japan world map.
     /// </summary>
@@ -56,10 +56,10 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void AllSevenLevelMarkers_Exist()
+        public void AllNineLevelMarkers_Exist()
         {
             var screen = OkinawaScreen(BuildTree());
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 9; i++)
                 Assert.IsNotNull(screen.Q<Button>($"level-node-{i}"), $"Expected a 'level-node-{i}' marker.");
         }
 
@@ -71,14 +71,14 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void Levels1Through6_AreLockedByDefault()
+        public void Levels1Through8_AreLockedByDefault()
         {
             var screen = OkinawaScreen(BuildTree());
-            for (int i = 1; i <= 6; i++)
+            for (int i = 1; i <= 8; i++)
             {
                 var node = screen.Q<Button>($"level-node-{i}");
                 Assert.IsTrue(node.ClassListContains("level-node--locked"),
-                    $"LVL {i} must start locked (LVL 1 unlocks via progression, LVL 2-6 have no gameplay yet).");
+                    $"LVL {i} must start locked (LVL 1 unlocks via progression, LVL 2-8 have no gameplay yet).");
             }
         }
 
@@ -91,7 +91,7 @@ namespace Mikey.UI.Map.Tests
             Assert.IsNotNull(panel, "Expected a 'level-panel' overlay.");
             Assert.IsFalse(panel.ClassListContains("detail-panel--open"), "Entering Okinawa must never auto-select a level.");
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 9; i++)
                 Assert.IsFalse(screen.Q<Button>($"level-node-{i}").ClassListContains("level-node--selected"));
         }
 
@@ -120,10 +120,11 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void TopBar_HasAWayBackToTheMainMenu()
+        public void TopBar_HasNoMainMenuEntry_TheMapIsTheHub()
         {
             var screen = OkinawaScreen(BuildTree());
-            Assert.IsNotNull(screen.Q<Button>("go-menu"), "Okinawa must expose a 'go-menu' navigator back to the Main Menu.");
+            Assert.IsNull(screen.Q<Button>("go-menu"),
+                "The Main Menu is retired - 'menu' is the Sign In gate now, and nothing navigates back to it.");
         }
 
         [Test]
