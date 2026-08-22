@@ -112,16 +112,31 @@ namespace Mikey.Backend
             if (incoming > progress)
                 progress = incoming;
 
-            if (profile != null && IsNewer(merged.profile.profile_updated_at, profile.UpdatedAtIso))
+            if (profile != null
+                && !LooksEmpty(merged.profile)
+                && IsNewer(merged.profile.profile_updated_at, profile.UpdatedAtIso))
             {
-                profile.DisplayName = merged.profile.display_name ?? profile.DisplayName;
-                profile.Gender = merged.profile.gender ?? profile.Gender;
+                profile.DisplayName = merged.profile.display_name;
+                profile.Gender = merged.profile.gender;
                 profile.Age = merged.profile.age;
                 profile.WeightKg = merged.profile.weight_kg;
                 profile.HeightCm = merged.profile.height_cm;
                 profile.UpdatedAtIso = merged.profile.profile_updated_at;
             }
         }
+
+        /// <summary>
+        /// Профиль, пустой целиком, но объявленный свежим, — это усечённый ответ, а не
+        /// человек, стёрший о себе сразу всё. Отличить одно от другого можно: очистка
+        /// одного поля оставляет остальные заполненными. Принять такой ответ значит
+        /// обнулить профиль, который человек заполнял руками.
+        /// </summary>
+        private static bool LooksEmpty(SyncProfile p) =>
+            string.IsNullOrEmpty(p.display_name)
+            && string.IsNullOrEmpty(p.gender)
+            && p.age == 0
+            && p.weight_kg == 0f
+            && p.height_cm == 0;
 
         /// <summary>
         /// Строго ли <paramref name="candidateIso"/> свежее <paramref name="currentIso"/>.
