@@ -463,6 +463,8 @@ GameObject:
   - component: {fileID: 1720403638}
   - component: {fileID: 1720403639}
   - component: {fileID: 1720403640}
+  - component: {fileID: 1720403643}
+  - component: {fileID: 1720403642}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -786,6 +788,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18faf2b2527e2324787f4a6cb8155e21, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapCloudTransitionController
+--- !u!114 &1720403642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8bb02bb659664b41bfd31b4de62c9e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.Backend::Mikey.Backend.AccountPanelController
+--- !u!114 &1720403643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fbfc87b4ed626e4797a5854de3da871, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.Backend::Mikey.Backend.SyncService
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -98,5 +98,15 @@ namespace Mikey.UI.SafeArea.Tests
             Assert.AreEqual("title", startScreen.stringValue,
                 "Production start screen must be 'title' (the consolidated entry screen; Splash was removed).");
         }
+
+        [Test]
+        public void UiGameObject_HasBackendSyncAndAccountPanel()
+        {
+            string scene = System.IO.File.ReadAllText("Assets/Scenes/SampleScene.unity");
+            StringAssert.Contains("Mikey.Backend.SyncService", scene,
+                "На GameObject UI нет SyncService — синхронизация не запустится.");
+            StringAssert.Contains("Mikey.Backend.AccountPanelController", scene,
+                "На GameObject UI нет AccountPanelController — блок аккаунта не оживёт.");
+        }
     }
 }
