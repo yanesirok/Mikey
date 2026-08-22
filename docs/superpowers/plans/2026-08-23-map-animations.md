@@ -16,7 +16,7 @@
 - **Анимируем только `translate`, `scale`, `rotate`, `opacity` и цвет.** Ни один анимационный путь не пишет `style.left`, `style.top`, `style.width`, `style.height`, `margin`, `padding`, `font-size`. Это стержень всего дизайна: перечисленное дёргает лэйаут каждый кадр.
 - `MapCloudLayout.Apply` остаётся единственным, кто пишет облакам `left/top/width/height/rotate` — раскладка при показе и ресайзе. Дрейф и параллакс кладутся поверх через `translate`.
 - Всем анимируемым элементам при привязке ставится `usageHints = UsageHints.DynamicTransform` (плюс `DynamicColor`, где меняется цвет или прозрачность).
-- Ambient тикает на **30 Гц** (`schedule.Execute(...).Every(33)`), живых ambient-элементов одновременно не больше двенадцати.
+- Ambient тикает на **30 Гц** (`schedule.Execute(...).Every(33)`). Потолок одновременно ДВИЖУЩИХСЯ ambient-элементов — четырнадцать: четыре облака, до девяти маркеров уровня и камера. Заблокированные маркеры не дышат вовсе, поэтому фактическое число на сегодня — около семи.
 - Никаких новых полноэкранных полупрозрачных слоёв: на карте уже лежит арт, скрим экрана, четыре облака с альфой и скрим канваса. Исключение — оверлей ink-wash, который существует только на время церемонии.
 - Ambient полностью останавливается, когда активный экран не `map` и не `mapOkinawa`, когда включена настройка «меньше движения» и когда `MapCloudTransitionController.IsTransitioning` или `MapCeremonyController.IsPlaying`.
 - Инерция и резинка **не** отключаются настройкой «меньше движения»: это отклик на палец, а не декор.
@@ -2075,7 +2075,7 @@ git add Assets/UI/Map && git commit -m "feat(map): зум по двойному 
 Здесь вводится обёртка `__breath` вокруг иконки. Это не косметика структуры, а необходимость: ambient пишет масштаб инлайном каждый тик, а инлайн-стиль перебивает USS — если бы дыхание и состояние выбора писали в один и тот же `scale`, состояние выбора просто не было бы видно.
 
 **Files:**
-- Modify: `Assets/UI/MikeyApp.uxml` (три узла главы, семь узлов уровня)
+- Modify: `Assets/UI/MikeyApp.uxml` (три узла главы, девять узлов уровня — `level-node-0`..`level-node-8`)
 - Modify: `Assets/UI/Map/Map.uss`
 - Modify: `Assets/UI/Map/MapAmbientController.cs`
 - Modify: существующие структурные тесты, если они падают на новой разметке
@@ -2144,7 +2144,7 @@ unity command run_tests --mode EditMode --filter "MapAmbientMathTests" --filter_
 
 - [ ] **Step 3: Перестроить разметку узлов уровня**
 
-Каждый из семи `level-node-N` в `Assets/UI/MikeyApp.uxml` привести к той же форме:
+Каждый из девяти `level-node-N` (`level-node-0`..`level-node-8`, глава Окинава содержит девять миссий LVL 0-8 — см. `MapMarkerLayout.Missions` и `OkinawaMapController.LevelCount`) в `Assets/UI/MikeyApp.uxml` привести к той же форме:
 
 ```xml
                         <ui:Button name="level-node-0" class="level-node level-node--0 tap-target-lg">
@@ -2734,7 +2734,7 @@ git add Assets/UI/Map && git commit -m "feat(map): приподнимание в
 
 - [ ] **Step 1: Добавить элемент волны в каждый узел**
 
-В `Assets/UI/MikeyApp.uxml` в каждый из трёх узлов главы и семи узлов уровня добавить кольцо первым потомком, до тени:
+В `Assets/UI/MikeyApp.uxml` в каждый из трёх узлов главы и девяти узлов уровня (`level-node-0`..`level-node-8`) добавить кольцо первым потомком, до тени:
 
 ```xml
                             <ui:VisualElement class="chapter-node__ripple" picking-mode="Ignore" />
