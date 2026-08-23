@@ -375,7 +375,18 @@ namespace Mikey.UI.Map
             // единственные интерактивные Button внутри вьюпорта (см.
             // JapanMapController/OkinawaMapController), поэтому evt.target
             // — дешёвый и точный признак "это тап по фону, не по кнопке".
-            if (!_dragging && !(evt.target is Button))
+            //
+            // Тап по кнопке при этом обязан ОБНУЛИТЬ зависшее ожидание, а
+            // не просто быть пропущенным: иначе фон -> маркер -> фон за
+            // DoubleTapMaxSeconds/DoubleTapMaxDistancePixels спарит третий
+            // тап с первым (тап по маркеру для автомата невидим), и наезд
+            // запустится ровно там, где игрок открыл панель, а не там, где
+            // просил зум.
+            if (evt.target is Button)
+            {
+                _lastTapTime = -1f;
+            }
+            else if (!_dragging)
             {
                 Vector2 position = evt.position;
                 bool isDoubleTap = _lastTapTime > 0f
@@ -824,11 +835,22 @@ namespace Mikey.UI.Map
                 yield break;
             }
 
+            // У потолка зума пружине не во что упираться: EaseOutBack всё
+            // равно проскакивает цель примерно на 10%, а SetZoom тут же
+            // срезает превышение клампом — вместо упругой отдачи читался бы
+            // удар в стену. Именно этот случай самый частый на практике
+            // (второй двойной тап подряд), так что у потолка доводим без
+            // перелёта.
+            bool targetIsAtCeiling = Mathf.Approximately(targetZoom, MapPanZoomMath.MaxZoom);
+
             float elapsed = 0f;
             while (elapsed < DoubleTapDurationSeconds)
             {
                 elapsed += Time.unscaledDeltaTime;
-                float t = MapPanZoomMath.EaseOutBack(elapsed / DoubleTapDurationSeconds);
+                float progress = elapsed / DoubleTapDurationSeconds;
+                float t = targetIsAtCeiling
+                    ? MapPanZoomMath.EaseOutCubic(progress)
+                    : MapPanZoomMath.EaseOutBack(progress);
                 SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
                 yield return null;
             }

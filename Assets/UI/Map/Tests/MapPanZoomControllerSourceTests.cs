@@ -598,7 +598,10 @@ namespace Mikey.UI.Map.Tests
             // указательные события всплывают до _viewport — без этой
             // проверки быстрый повторный тап по маркеру (или по двум
             // соседним маркерам подряд) читался бы как жест "двойной тап по
-            // карте".
+            // карте". Сравниваем условие ЦЕЛИКОМ ("if (evt.target is
+            // Button)"), а не отдельные подстроки-осколки — иначе тест не
+            // заметил бы случайно вернувшееся отрицание ("!(evt.target is
+            // Button)") или другую перестановку.
             string source = File.ReadAllText(SourcePath);
             int methodStart = source.IndexOf("private void OnPointerUp(PointerUpEvent evt)", System.StringComparison.Ordinal);
             Assert.Greater(methodStart, -1);
@@ -606,13 +609,50 @@ namespace Mikey.UI.Map.Tests
             Assert.Greater(methodEnd, methodStart);
             string body = source.Substring(methodStart, methodEnd - methodStart);
 
-            StringAssert.Contains("!(evt.target is Button)", body);
+            StringAssert.Contains("if (evt.target is Button)", body);
+            StringAssert.Contains("else if (!_dragging)", body,
+                "The double-tap recognition must live in the ELSE branch of the marker check, never run for a marker tap.");
 
-            int guardIndex = body.IndexOf("!(evt.target is Button)", System.StringComparison.Ordinal);
+            int markerBranchIndex = body.IndexOf("if (evt.target is Button)", System.StringComparison.Ordinal);
+            int backgroundBranchIndex = body.IndexOf("else if (!_dragging)", System.StringComparison.Ordinal);
             int startCoroutineIndex = body.IndexOf("StartCoroutine(PlayDoubleTapZoom());", System.StringComparison.Ordinal);
             Assert.Greater(startCoroutineIndex, -1, "Expected OnPointerUp to start PlayDoubleTapZoom on a recognized double tap.");
-            Assert.Greater(startCoroutineIndex, guardIndex,
-                "The marker-exclusion guard must gate the double-tap branch, not sit after it.");
+            Assert.Less(markerBranchIndex, backgroundBranchIndex,
+                "The marker check must come first, as the gating if/else-if, not after the recognition block.");
+            Assert.Greater(startCoroutineIndex, backgroundBranchIndex,
+                "Double-tap recognition must sit inside the background (non-marker) branch.");
+        }
+
+        [Test]
+        public void OnPointerUp_MarkerTap_ResetsThePendingDoubleTapWait_InsteadOfBeingIgnored()
+        {
+            // Находка ревью: если тап по маркеру просто пропускался бы (не
+            // трогая _lastTapTime), последовательность фон -> маркер -> фон
+            // в пределах DoubleTapMaxSeconds/DoubleTapMaxDistancePixels
+            // спарила бы третий тап с ПЕРВЫМ — тап по маркеру для автомата
+            // невидим, и наезд запустился бы ровно там, где игрок открыл
+            // панель маркера, а не там, где он просил зум. Ветка "evt.target
+            // is Button" обязана сама обнулять ожидание.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnPointerUp(PointerUpEvent evt)", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("\n        private void OnWheel", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            // Isolate exactly the marker (if) branch's own body — the slice
+            // between its header and the background (else-if) branch's
+            // header — rather than an embedded multi-line literal, which
+            // would be brittle against LF/CRLF normalization.
+            int markerBranchIndex = body.IndexOf("if (evt.target is Button)", System.StringComparison.Ordinal);
+            int backgroundBranchIndex = body.IndexOf("else if (!_dragging)", System.StringComparison.Ordinal);
+            Assert.Greater(markerBranchIndex, -1);
+            Assert.Greater(backgroundBranchIndex, markerBranchIndex);
+            string markerBranchBody = body.Substring(markerBranchIndex, backgroundBranchIndex - markerBranchIndex);
+
+            StringAssert.Contains("_lastTapTime = -1f;", markerBranchBody,
+                "A tap on a marker Button must reset the pending double-tap wait (_lastTapTime = -1f), not merely be skipped.");
+            StringAssert.DoesNotContain("isDoubleTap", markerBranchBody,
+                "The marker branch must be the short reset, not the full recognition block.");
         }
 
         [Test]
@@ -646,7 +686,33 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("MarkInput();", body);
             StringAssert.Contains("MapPanZoomMath.ClampZoom(startZoom * DoubleTapZoomFactor);", body,
                 "Target is a multiplier on the CURRENT zoom, not a fixed value — repeated double taps keep zooming further, up to MaxZoom.");
-            StringAssert.Contains("MapPanZoomMath.EaseOutBack(elapsed / DoubleTapDurationSeconds)", body);
+            StringAssert.Contains("MapPanZoomMath.EaseOutBack(progress)", body);
+        }
+
+        [Test]
+        public void PlayDoubleTapZoom_UsesEaseOutCubic_NotEaseOutBack_WhenTheTargetIsAtTheZoomCeiling()
+        {
+            // Находка ревью: у MaxZoom пружине не во что упираться —
+            // EaseOutBack проскакивает цель ~10%, SetZoom тут же клампит
+            // превышение, и вместо упругой отдачи читается удар в стену.
+            // Это самый частый практический случай (второй двойной тап
+            // подряд), так что у потолка доводим декелерирующей кривой без
+            // перелёта.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private IEnumerator PlayDoubleTapZoom()", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("private void SetPan(float x, float y)", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("bool targetIsAtCeiling = Mathf.Approximately(targetZoom, MapPanZoomMath.MaxZoom);", body);
+            StringAssert.Contains("? MapPanZoomMath.EaseOutCubic(progress)", body);
+            StringAssert.Contains(": MapPanZoomMath.EaseOutBack(progress);", body);
+
+            int ceilingIndex = body.IndexOf("targetIsAtCeiling = Mathf.Approximately", System.StringComparison.Ordinal);
+            int ternaryIndex = body.IndexOf("float t = targetIsAtCeiling", System.StringComparison.Ordinal);
+            Assert.Greater(ceilingIndex, -1);
+            Assert.Greater(ternaryIndex, -1);
+            Assert.Less(ceilingIndex, ternaryIndex, "targetIsAtCeiling must be computed before the loop uses it.");
         }
 
         [Test]
