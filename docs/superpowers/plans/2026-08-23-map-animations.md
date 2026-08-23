@@ -2217,9 +2217,20 @@ git add Assets/UI/Map && git commit -m "feat(map): зум по двойному 
         public const float MarkerBreathPeriodSeconds = 3.2f;
 
         /// <summary>Амплитуда дыхания маркера как добавка к масштабу.</summary>
-        public const float MarkerBreathAmplitude = 0.035f;
+        public const float MarkerBreathAmplitude = 0.025f;
 
-        /// <summary>Во сколько раз сильнее дышит ЕДИНСТВЕННАЯ текущая цель. Остальные разблокированные маркеры дышат обычной амплитудой, locked не дышат вовсе.</summary>
+        /// <summary>
+        /// Во сколько раз сильнее дышит ЕДИНСТВЕННАЯ текущая цель. Остальные
+        /// разблокированные маркеры дышат обычной амплитудой, locked не дышат
+        /// вовсе.
+        ///
+        /// <para>
+        /// Произведение с <see cref="MarkerBreathAmplitude"/> обязано укладываться
+        /// в правило композиции (ambient не больше 4%): 0.025 x 1.4 = 0.035.
+        /// Отсюда и амплитуда 0.025, а не 0.035 — с ней усиленная цель давала бы
+        /// 0.049 и правило нарушалось. Не поднимать одно, не пересчитав другое.
+        /// </para>
+        /// </summary>
         public const float FocusBreathMultiplier = 1.4f;
 ```
 
