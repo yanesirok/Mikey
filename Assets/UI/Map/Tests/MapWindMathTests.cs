@@ -17,19 +17,36 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0.75f, MapWindMath.Frac(-3.25f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.Frac(4f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.Frac(float.NaN), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Frac(float.PositiveInfinity), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Frac(float.NegativeInfinity), Tolerance);
+
+            // Округление до ровно 1.0f случается на КРОШЕЧНОМ отрицательном
+            // вводе, а не на большом: 1 - 1e-9 ближайшим float не представимо
+            // (шаг у единицы 1.19e-7). Без защиты Frac вернула бы здесь 1.
+            Assert.AreEqual(0f, MapWindMath.Frac(-1e-9f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Frac(-1e-8f), Tolerance);
         }
 
         [Test]
         public void Frac_NeverReturnsOne()
         {
-            // Округление при большом отрицательном вводе умеет вернуть ровно 1,
-            // а единица в доле пути означала бы облако за правым краем в момент,
-            // который код считает стартом полосы.
+            // Округление умеет вернуть ровно 1 при КРОШЕЧНОМ отрицательном
+            // вводе, а единица в доле пути означала бы облако за правым краем в
+            // момент, который код считает стартом полосы. Перебор -i*0.9999 сам
+            // по себе этого не ловит: его результаты лежат в [0.0001, 0.02] и к
+            // единице не подходят — опасные порядки заведены отдельно.
             for (int i = 1; i <= 200; i++)
             {
                 float value = MapWindMath.Frac(-i * 0.9999f);
                 Assert.GreaterOrEqual(value, 0f);
                 Assert.Less(value, 1f);
+            }
+
+            foreach (float tiny in new[] { -1e-9f, -1e-8f, -1e-7f, -1e-6f, -1e-5f })
+            {
+                float value = MapWindMath.Frac(tiny);
+                Assert.GreaterOrEqual(value, 0f, $"Frac({tiny}) ушла ниже нуля.");
+                Assert.Less(value, 1f, $"Frac({tiny}) вернула единицу — облако за правым краем на старте полосы.");
             }
         }
 
@@ -55,6 +72,8 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapWindMath.LaneProgress(10f, 0f, 0.4f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.LaneProgress(10f, -5f, 0.4f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.LaneProgress(float.NaN, 100f, 0.4f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.LaneProgress(float.PositiveInfinity, 100f, 0.4f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.LaneProgress(10f, float.PositiveInfinity, 0.4f), Tolerance);
         }
 
         [Test]
@@ -91,6 +110,9 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapWindMath.LaneOffsetX(0.5f, 0f, 340f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.LaneOffsetX(0.5f, 1000f, 0f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.LaneOffsetX(float.NaN, 1000f, 340f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.LaneOffsetX(float.PositiveInfinity, 1000f, 340f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.LaneOffsetX(0.5f, float.PositiveInfinity, 340f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.LaneOffsetX(0.5f, 1000f, float.PositiveInfinity), Tolerance);
         }
 
         [Test]
@@ -101,6 +123,24 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapWindMath.EdgeFade(0.5f), Tolerance);
             Assert.AreEqual(1f, MapWindMath.EdgeFade(MapWindMath.FadeEdge), Tolerance);
             Assert.AreEqual(1f, MapWindMath.EdgeFade(1f - MapWindMath.FadeEdge), Tolerance);
+        }
+
+        /// <summary>
+        /// Локальный Clamp01 пропускает NaN насквозь — оба сравнения с NaN
+        /// ложны. Без раннего выхода EdgeFade(NaN) вернула бы NaN, тот ушёл бы
+        /// через Opacity прямо в style.opacity и сломал бы отрисовку элемента
+        /// до конца сессии. Тест держит именно этот ранний выход.
+        /// </summary>
+        [Test]
+        public void EdgeFade_IsSafeOnDegenerateInput()
+        {
+            Assert.AreEqual(0f, MapWindMath.EdgeFade(float.NaN), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.EdgeFade(float.PositiveInfinity), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.EdgeFade(float.NegativeInfinity), Tolerance);
+
+            // Выход за [0, 1] клампится, а не даёт мусор.
+            Assert.AreEqual(0f, MapWindMath.EdgeFade(-1f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.EdgeFade(2f), Tolerance);
         }
 
         [Test]
@@ -159,28 +199,94 @@ namespace Mikey.UI.Map.Tests
         {
             Assert.AreEqual(1f, MapWindMath.Swell(7f, 0f, 0.4f), Tolerance);
             Assert.AreEqual(1f, MapWindMath.Swell(float.NaN, 140f, 0.4f), Tolerance);
+            Assert.AreEqual(1f, MapWindMath.Swell(7f, float.PositiveInfinity, 0.4f), Tolerance);
         }
 
         [Test]
         public void RollDegrees_StaysInsideItsAmplitude()
         {
+            float widest = 0f;
             for (int i = 0; i <= 400; i++)
             {
                 float value = MapWindMath.RollDegrees(i * 0.5f, 140f, 0.55f);
                 Assert.GreaterOrEqual(value, -MapWindMath.RollAmplitudeDegrees - Tolerance);
                 Assert.LessOrEqual(value, MapWindMath.RollAmplitudeDegrees + Tolerance);
+                widest = System.Math.Max(widest, System.Math.Abs(value));
             }
+
+            // Границы по модулю односторонни: ноль укладывается в любую из них,
+            // поэтому "return 0f" вместо тела прошёл бы весь набор. Крен обязан
+            // доказать, что вообще движется.
+            Assert.Greater(widest, MapWindMath.RollAmplitudeDegrees * 0.5f,
+                "Крен не выходит за половину своей амплитуды — похоже, он вообще не считается.");
+        }
+
+        [Test]
+        public void RollDegrees_IsPhaseAware()
+        {
+            float a = MapWindMath.RollDegrees(7f, 200f, 0.00f);
+            float b = MapWindMath.RollDegrees(7f, 200f, 0.41f);
+            float c = MapWindMath.RollDegrees(7f, 200f, 0.73f);
+
+            Assert.Greater(System.Math.Abs(a - b), Tolerance);
+            Assert.Greater(System.Math.Abs(b - c), Tolerance);
+            Assert.Greater(System.Math.Abs(a - c), Tolerance);
+        }
+
+        [Test]
+        public void RollDegrees_IsSafeOnDegenerateInput()
+        {
+            Assert.AreEqual(0f, MapWindMath.RollDegrees(7f, 0f, 0.4f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.RollDegrees(float.NaN, 140f, 0.4f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.RollDegrees(7f, float.PositiveInfinity, 0.4f), Tolerance);
         }
 
         [Test]
         public void Bob_StaysInsideItsAmplitude()
         {
             const float height = 800f;
+            float widest = 0f;
             for (int i = 0; i <= 400; i++)
             {
                 float value = MapWindMath.Bob(i * 0.5f, 140f, 0.55f, height);
                 Assert.LessOrEqual(System.Math.Abs(value), height * MapWindMath.BobAmplitude + Tolerance);
+                widest = System.Math.Max(widest, System.Math.Abs(value));
             }
+
+            // Та же дыра, что у крена: без этой строки "return 0f" вместо тела
+            // проходит весь набор, а Bob_IsSafeOnDegenerateInput ещё и
+            // подтверждает мутанта.
+            Assert.Greater(widest, height * MapWindMath.BobAmplitude * 0.5f,
+                "Покачивание не выходит за половину своей амплитуды — похоже, оно вообще не считается.");
+        }
+
+        /// <summary>
+        /// Амплитуда задана ДОЛЕЙ высоты канваса, а не пикселями — по той же
+        /// причине, что и все амплитуды MapAmbientMath. Без этой проверки
+        /// потерянный множитель canvasHeight прошёл бы мимо: границы теста
+        /// диапазона он бы не нарушил.
+        /// </summary>
+        [Test]
+        public void Bob_ScalesWithCanvasHeight()
+        {
+            float single = MapWindMath.Bob(7f, 140f, 0.55f, 800f);
+            float doubled = MapWindMath.Bob(7f, 140f, 0.55f, 1600f);
+
+            Assert.Greater(System.Math.Abs(single), Tolerance,
+                "Опорная точка обязана быть отлична от нуля, иначе удвоение ничего не доказывает.");
+            Assert.AreEqual(single * 2f, doubled, Tolerance);
+        }
+
+        [Test]
+        public void Bob_IsPhaseAware()
+        {
+            float a = MapWindMath.Bob(7f, 200f, 0.00f, 800f);
+            float b = MapWindMath.Bob(7f, 200f, 0.41f, 800f);
+            float c = MapWindMath.Bob(7f, 200f, 0.73f, 800f);
+
+            Assert.Greater(System.Math.Abs(a - b), Tolerance);
+            Assert.Greater(System.Math.Abs(b - c), Tolerance);
+            Assert.Greater(System.Math.Abs(a - c), Tolerance);
         }
 
         [Test]
@@ -188,6 +294,9 @@ namespace Mikey.UI.Map.Tests
         {
             Assert.AreEqual(0f, MapWindMath.Bob(7f, 140f, 0.4f, 0f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.Bob(7f, 140f, 0.4f, float.NaN), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Bob(7f, 140f, 0.4f, float.PositiveInfinity), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Bob(7f, 0f, 0.4f, 800f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Bob(float.NaN, 140f, 0.4f, 800f), Tolerance);
         }
 
         /// <summary>
@@ -203,7 +312,8 @@ namespace Mikey.UI.Map.Tests
             float peak = rest * (1f + MapWindMath.OpacityAmplitude);
             float trough = rest * (1f - MapWindMath.OpacityAmplitude);
             int sampledAtFullFade = 0;
-            float highest = 0f;
+            float highest = float.NegativeInfinity;
+            float lowest = float.PositiveInfinity;
 
             for (int i = 0; i <= 400; i++)
             {
@@ -212,14 +322,17 @@ namespace Mikey.UI.Map.Tests
                 float value = MapWindMath.Opacity(rest, progress, t, 140f, 0.55f, 1f);
 
                 Assert.GreaterOrEqual(value, 0f, "Прозрачность никогда не отрицательна.");
-                if (value > highest)
-                    highest = value;
                 Assert.LessOrEqual(value, peak + Tolerance,
                     "Пик огибающей — потолок прозрачности на всём периоде.");
 
+                // Края полосы гасятся в ноль штатно, поэтому и нижняя граница, и
+                // оба сторожа двусторонности спрашиваются только там, где
+                // краевое затухание уже равно единице.
                 if (MapWindMath.EdgeFade(progress) >= 1f - Tolerance)
                 {
                     sampledAtFullFade++;
+                    highest = System.Math.Max(highest, value);
+                    lowest = System.Math.Min(lowest, value);
                     Assert.GreaterOrEqual(value, trough - Tolerance,
                         "Вне краевого затухания провал огибающей — пол прозрачности.");
                 }
@@ -228,8 +341,11 @@ namespace Mikey.UI.Map.Tests
             Assert.Greater(sampledAtFullFade, 0,
                 "Выборка обязана попасть в середину полосы, иначе нижняя граница не проверена вовсе.");
             Assert.Greater(highest, rest + Tolerance,
-                "Пульсация двусторонняя: облако обязано уметь и подсвечиваться. "
+                "Пульсация двусторонняя: облако обязано уметь подсвечиваться. "
                 + "Односторонняя форма вниз пролезла бы через обе границы выше незамеченной.");
+            Assert.Less(lowest, rest - Tolerance,
+                "Пульсация двусторонняя: облако обязано уметь и приглушаться. "
+                + "Односторонняя форма вверх пролезла бы через обе границы выше незамеченной.");
         }
 
         /// <summary>
@@ -278,6 +394,34 @@ namespace Mikey.UI.Map.Tests
         {
             Assert.AreEqual(0f, MapWindMath.Opacity(float.NaN, 0.5f, 7f, 140f, 0.4f, 1f), Tolerance);
             Assert.AreEqual(0f, MapWindMath.Opacity(-1f, 0.5f, 7f, 140f, 0.4f, 1f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Opacity(float.PositiveInfinity, 0.5f, 7f, 140f, 0.4f, 1f), Tolerance);
+
+            // Испорченная доля пути гасит облако, а не красит его в NaN.
+            Assert.AreEqual(0f, MapWindMath.Opacity(0.24f, float.NaN, 7f, 140f, 0.4f, 1f), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Opacity(0.24f, float.PositiveInfinity, 7f, 140f, 0.4f, 1f), Tolerance);
+
+            // То же для множителя ввода в кадр.
+            Assert.AreEqual(0f, MapWindMath.Opacity(0.24f, 0.5f, 7f, 140f, 0.4f, float.NaN), Tolerance);
+            Assert.AreEqual(0f, MapWindMath.Opacity(0.24f, 0.5f, 7f, 140f, 0.4f, -1f), Tolerance);
+            // Небезопасный settle прячет облако, а не показывает его: слой
+            // декоративный, и пропавшее облако безобиднее залипшего. Маркеры
+            // выбирают наоборот (MapAmbientMath.MarkerEntranceProgress -> 1),
+            // потому что невидимый навсегда маркер — это потерянный экран.
+            Assert.AreEqual(0f, MapWindMath.Opacity(0.24f, 0.5f, 7f, 140f, 0.4f, float.PositiveInfinity), Tolerance);
+        }
+
+        /// <summary>
+        /// Вырожденный период — единственный вид испорченного ввода, на котором
+        /// покой прозрачности НЕ ноль: пульсация глохнет, а покой полосы
+        /// остаётся. Ранний возврат нулём сделал бы облако невидимым.
+        /// </summary>
+        [Test]
+        public void Opacity_FallsBackToTheLaneRestOnDegeneratePeriod()
+        {
+            Assert.AreEqual(0.24f, MapWindMath.Opacity(0.24f, 0.5f, 7f, 0f, 0.4f, 1f), Tolerance);
+            Assert.AreEqual(0.24f, MapWindMath.Opacity(0.24f, 0.5f, 7f, -5f, 0.4f, 1f), Tolerance);
+            Assert.AreEqual(0.24f, MapWindMath.Opacity(0.24f, 0.5f, 7f, float.NaN, 0.4f, 1f), Tolerance);
+            Assert.AreEqual(0.24f, MapWindMath.Opacity(0.24f, 0.5f, float.NaN, 140f, 0.4f, 1f), Tolerance);
         }
     }
 }

@@ -37,10 +37,13 @@ namespace Mikey.UI.Map
 
         /// <summary>
         /// Дробная часть в <c>[0, 1)</c>, корректная для отрицательного ввода.
-        /// Единица не возвращается никогда: при большом отрицательном вводе
-        /// вычитание умеет округлиться ровно до 1, а единица в доле пути
-        /// означала бы облако за правым краем в момент, который остальной код
-        /// считает стартом полосы.
+        /// Единица не возвращается никогда: при КРОШЕЧНОМ отрицательном вводе
+        /// разность округляется ровно до 1 — у <c>-1e-9f</c> точное значение
+        /// <c>1 - 1e-9</c> ближайшим float не представимо (шаг у единицы
+        /// 1.19e-7), и результат схлопывается в <c>1.0f</c>. Большой ввод как
+        /// раз безопасен: там дробная часть далека от границы. А единица в
+        /// доле пути означала бы облако за правым краем в момент, который
+        /// остальной код считает стартом полосы.
         /// </summary>
         public static float Frac(float value)
         {
@@ -65,9 +68,20 @@ namespace Mikey.UI.Map
 
         /// <summary>
         /// Горизонтальное смещение относительно левого края канваса. Путь
-        /// длиной <c>canvasWidth + cloudWidth</c>: в нуле облако целиком за
-        /// левым краем, в единице — целиком за правым, поэтому прыжок
-        /// заворачивания происходит вне кадра и не виден в принципе.
+        /// длиной <c>canvasWidth + cloudWidth</c>: в нуле бокс облака равен
+        /// ровно <c>[-w, 0]</c>, в единице — ровно <c>[W, W + w]</c>.
+        ///
+        /// <para>
+        /// Очистка краёв точная и с НУЛЕВЫМ запасом, и одной её мало.
+        /// <see cref="Swell"/> (до ×1.05 от центра) и <see cref="RollDegrees"/>
+        /// (±1.6°) заводят этот бокс обратно в кадр примерно на
+        /// <c>0.0125·w + (h/2)·sin 1.6°</c> — для ближней полосы при ширине
+        /// канваса 1000 это около 24 пикселей. Заворачивание невидимо ровно
+        /// потому, что <see cref="EdgeFade"/> в этих точках равен нулю:
+        /// затухание здесь несущее, а не страховочное. Снять его,
+        /// положившись на «геометрии достаточно», значит получить видимый
+        /// щелчок на каждом обороте каждого облака. См. §6.2 спеки.
+        /// </para>
         /// </summary>
         public static float LaneOffsetX(float progress01, float canvasWidth, float cloudWidth)
         {
@@ -122,6 +136,9 @@ namespace Mikey.UI.Map
         /// <summary>Крен в градусах.</summary>
         public static float RollDegrees(float timeSeconds, float crossSeconds, float phase01)
         {
+            if (!IsFinite(timeSeconds) || !IsFinite(crossSeconds) || crossSeconds <= 0f)
+                return 0f;
+
             return RollAmplitudeDegrees
                 * MapAmbientMath.Wave(timeSeconds, crossSeconds * RollPeriodRatio, phase01);
         }
@@ -153,8 +170,13 @@ namespace Mikey.UI.Map
             if (!IsFinite(restOpacity) || restOpacity <= 0f)
                 return 0f;
 
-            float pulse = 1f + OpacityAmplitude
-                * MapAmbientMath.Wave(timeSeconds, crossSeconds * OpacityPeriodRatio, phase01);
+            // Вырожденный период глушит ТОЛЬКО пульсацию. Ранний возврат нулём,
+            // как у Bob и RollDegrees, здесь был бы не покоем, а невидимым
+            // облаком: покой прозрачности — это покой полосы.
+            float pulse = IsFinite(crossSeconds) && crossSeconds > 0f
+                ? 1f + OpacityAmplitude
+                    * MapAmbientMath.Wave(timeSeconds, crossSeconds * OpacityPeriodRatio, phase01)
+                : 1f;
             float settle = IsFinite(settle01) ? Clamp01(settle01) : 0f;
 
             return Clamp01(restOpacity * EdgeFade(progress01) * pulse * settle);
