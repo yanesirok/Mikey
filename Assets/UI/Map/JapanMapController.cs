@@ -304,6 +304,9 @@ namespace Mikey.UI.Map
                 return;
             }
 
+            if (node != null && node.ClassListContains(LockedNodeClass))
+                MapNodeFeedback.PlayRefusal(node);
+
             SelectChapter(chapterId, node);
         }
 

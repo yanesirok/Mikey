@@ -426,10 +426,19 @@
     color: var(--bone);
     -unity-text-align: middle-center;
 }
+/* transition-property здесь, а не в отдельном правиле под .chapter-node--selected:
+   там уже есть свой width/height, второе правило на тот же селектор задвоило
+   бы текст без пользы. Переход только на translate/scale — свойства, которыми
+   владеет выбор (см. .chapter-node--selected .chapter-node__icon ниже); сама
+   иконка, а не обёртка дыхания, потому что ту непрерывно пишет ambient
+   инлайном, и USS там не победит. */
 .chapter-node__icon {
     width: 66px;
     height: 66px;
     -unity-background-scale-mode: scale-to-fit;
+    transition-property: translate, scale;
+    transition-duration: 0.18s;
+    transition-timing-function: ease-out;
 }
 /* Обёртка дыхания. Собственных визуальных свойств не имеет: существует
    ровно для того, чтобы ambient-слой писал непрерывный масштаб СЮДА, а
@@ -477,8 +486,11 @@
 .chapter-node--locked .chapter-node__label {
     color: var(--muted);
 }
+/* Выбранный маркер приподнимается, а его тень расходится и бледнеет —
+   вместе это читается как «поднялся над картой». */
 .chapter-node--selected .chapter-node__icon {
-    scale: 1.08;
+    translate: 0 -6px;
+    scale: 1.10;
 }
 
 /* ---------- Okinawa mission markers (LVL 0-8) ----------
@@ -511,10 +523,15 @@
     color: var(--bone);
     -unity-text-align: middle-center;
 }
+/* Симметрично .chapter-node__icon: transition-property на translate/scale
+   прямо здесь, чтобы не задваивать селектор отдельным правилом ниже. */
 .level-node__icon {
     width: 54px;
     height: 54px;
     -unity-background-scale-mode: scale-to-fit;
+    transition-property: translate, scale;
+    transition-duration: 0.18s;
+    transition-timing-function: ease-out;
 }
 .level-node__breath {
     align-items: center;
@@ -555,7 +572,8 @@
     color: var(--muted);
 }
 .level-node--selected .level-node__icon {
-    scale: 1.1;
+    translate: 0 -6px;
+    scale: 1.10;
 }
 
 /* ---------- shared detail panel (chapter panel + level popup) ----------

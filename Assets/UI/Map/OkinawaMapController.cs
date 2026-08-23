@@ -343,6 +343,9 @@ namespace Mikey.UI.Map
         {
             bool locked = IsLevelLocked(index);
 
+            if (locked && _levelNodes[index] != null)
+                MapNodeFeedback.PlayRefusal(_levelNodes[index]);
+
             _panelEyebrow.text = "LEVEL";
             _panelTitle.text = $"LVL {index}";
 
