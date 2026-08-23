@@ -8,7 +8,8 @@ namespace Mikey.UI.Progression.Tests
     /// Regression guard for the Profile/shared-nav redesign: real persisted
     /// storage in the app is now PlayerPrefsTutorialProgressStorage's
     /// "Mikey.TutorialProgress.State" key, PlayerPrefsAudioSettingsStorage's
-    /// Music/SFX/Trainer Voice volumes, ProfileDisplayNameStorage's old
+    /// Music/SFX/Trainer Voice volumes, PlayerPrefsMotionSettingsStorage's
+    /// "Mikey.Settings.ReducedMotion" key, ProfileDisplayNameStorage's old
     /// "Mikey.Profile.DisplayName" key (retained, unwritten, purely as a
     /// migration source — see ProfileUserDataStorage), and
     /// ProfileUserDataStorage's "Mikey.Profile.UserData" key — the one primary
@@ -23,6 +24,7 @@ namespace Mikey.UI.Progression.Tests
         {
             "PlayerPrefsTutorialProgressStorage.cs",
             "PlayerPrefsAudioSettingsStorage.cs",
+            "PlayerPrefsMotionSettingsStorage.cs",
             "ProfileDisplayNameStorage.cs",
             "ProfileUserDataStorage.cs",
             // this file itself: the assertion text below legitimately contains the
