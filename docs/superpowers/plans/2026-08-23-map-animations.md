@@ -1953,9 +1953,12 @@ unity command run_tests --mode EditMode --filter "MapPanZoomMathTests" --filter_
         }
 ```
 
-В `OnDisable()` добавить остановку корутины:
+Вынести гашение оттяжки в помощник по образцу `StopInertia()`:
 
 ```csharp
+        /// <summary>Гасит оттяжку и останавливает её возврат. Единственное место, обнуляющее эти поля.</summary>
+        private void StopRubberBand()
+        {
             if (_rubberBandRoutine != null)
             {
                 StopCoroutine(_rubberBandRoutine);
@@ -1963,7 +1966,12 @@ unity command run_tests --mode EditMode --filter "MapPanZoomMathTests" --filter_
             }
             _rubberBandX = 0f;
             _rubberBandY = 0f;
+        }
 ```
+
+Вызвать его из `OnDisable()`, `OnPointerDown`, ветки старта пинча, `ResetTransform()` и `SetViewToSourceFocalPoint()`. Естественное завершение `ReleaseRubberBand()` тоже провести через него, чтобы обнуление жило ровно в одном месте — как у инерции.
+
+> **НЕ вызывать его из `AnimateViewToSourceFocalPoint`**, хотя `StopInertia()` там стоит и соблазн симметрии велик. Разница существенная. Инерция пишет в тот же `_panX`/`_panY`, что и анимация перехода, поэтому непогашенная инерция реально дралась бы с ней за поле — гашение там несущее. Оттяжка же живёт в собственных `_rubberBandX`/`_rubberBandY`, которых эта корутина не касается вовсе: оставленная в покое, она просто доедет до нуля своим чередом, пока пан анимируется. А синхронное обнуление даёт видимый скачок до 12% вьюпорта на первом же кадре — причём на ИСХОДНОМ экране, который игрок ещё видит (фаза approach идёт до подмены). `SetViewToSourceFocalPoint` — другое дело: он работает на ещё не показанном экране назначения, там скачок невидим.
 
 - [ ] **Step 6: Прогнать тесты карты**
 
