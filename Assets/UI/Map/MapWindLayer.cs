@@ -33,6 +33,16 @@ namespace Mikey.UI.Map
         public void Bind(VisualElement root, string prefix)
         {
             _layer = root?.Q<VisualElement>(prefix + "layer");
+
+            // Инлайновый display живёт на элементе разметки и переживает уход с
+            // экрана, а поле ниже заявляет, что слой показан. Не свести их здесь
+            // значит получить залипание: вход при включённом «меньше движения»
+            // оставляет на элементе display:none, и после повторной привязки
+            // SetVisible(true) упирается в свой ранний выход visible == _visible
+            // и молча возвращается — слой невидим до конца сессии.
+            if (_layer != null)
+                _layer.style.display = DisplayStyle.Flex;
+
             _laidOutWidth = 0f;
             _laidOutHeight = 0f;
             _visible = true;

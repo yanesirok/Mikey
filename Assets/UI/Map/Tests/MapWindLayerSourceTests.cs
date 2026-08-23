@@ -107,6 +107,21 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void BindPutsTheElementIntoTheStateItsVisibilityFieldClaims()
+        {
+            // Инлайновый display живёт на элементе разметки и переживает уход с
+            // экрана. Bind заявляет полем _visible = true, что слой показан; если
+            // при этом на элементе остался display:none с прошлого визита при
+            // включённом «меньше движения», ранний выход по visible == _visible в
+            // SetVisible превращается в залипание — слой невидим до конца сессии.
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "public void Bind(VisualElement root, string prefix)");
+
+            StringAssert.Contains("style.display = DisplayStyle.Flex", body,
+                "Bind обязан привести элемент к тому состоянию, которое заявляет полем _visible.");
+        }
+
+        [Test]
         public void DoesNotStartASecondScheduler()
         {
             string source = File.ReadAllText(SourcePath);
