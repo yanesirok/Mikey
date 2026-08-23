@@ -147,6 +147,20 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void ApproachWeight_MovesTowardTargetGraduallyWhenDecreasing()
+        {
+            // Возрастание уже покрыто ApproachWeight_MovesTowardTargetAndArrives —
+            // здесь та же проверка постепенного, непрямого шага, но на убывание;
+            // без неё симметричная ветвь (from - step) была бы проверена только
+            // мгновенным клампом в ноль оверсайз-дельтой, а не частичным шагом.
+            float w = MapAmbientMath.ApproachWeight(1f, 0f, 0.2f, 0.4f);
+            Assert.AreEqual(0.5f, w, Tolerance);
+
+            w = MapAmbientMath.ApproachWeight(w, 0f, 0.2f, 0.4f);
+            Assert.AreEqual(0f, w, Tolerance);
+        }
+
+        [Test]
         public void ApproachWeight_NeverLeavesZeroOne()
         {
             Assert.AreEqual(0f, MapAmbientMath.ApproachWeight(0f, 0f, 1f, 0.4f), Tolerance);

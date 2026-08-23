@@ -197,6 +197,7 @@ namespace Mikey.UI.Map
                 return;
 
             _elapsedSeconds = 0f;
+            _kenBurnsWeight = 0f;
             OnDemandRendering.renderFrameInterval = MapRenderFrameInterval;
             _tick = _root.schedule.Execute(Tick).Every(TickIntervalMs);
         }

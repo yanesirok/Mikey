@@ -231,7 +231,7 @@ namespace Mikey.UI.Map
             if (!_isPinching)
             {
                 _isPinching = true;
-                _lastInputTime = Time.unscaledTime;
+                MarkInput();
                 _pinchStartDistance = currentDistance;
                 _pinchStartZoom = _zoom;
                 EndDrag(); // a second finger landing mid-drag means this is a pinch, not a pan.
@@ -242,13 +242,14 @@ namespace Mikey.UI.Map
             if (_pinchStartDistance > 0.01f)
             {
                 float ratio = currentDistance / _pinchStartDistance;
+                MarkInput();
                 SetZoom(_pinchStartZoom * ratio);
             }
         }
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            _lastInputTime = Time.unscaledTime;
+            MarkInput();
             if (_pointerDown || _isPinching || MapCloudTransitionController.IsTransitioning)
                 return;
 
@@ -264,6 +265,11 @@ namespace Mikey.UI.Map
             if (!_pointerDown || evt.pointerId != _activePointerId || _isPinching)
                 return;
 
+            // Безусловно на каждом кадре перетаскивания, а не только при
+            // пересечении порога — иначе долгий пан пересёк бы порог
+            // простоя прямо под пальцем.
+            MarkInput();
+
             Vector2 current = evt.position;
             Vector2 delta = current - _downPosition;
 
@@ -272,7 +278,6 @@ namespace Mikey.UI.Map
                 if (delta.sqrMagnitude < DragThresholdPixels * DragThresholdPixels)
                     return;
                 _dragging = true;
-                _lastInputTime = Time.unscaledTime;
                 _viewport.CapturePointer(_activePointerId);
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
             }
@@ -289,7 +294,7 @@ namespace Mikey.UI.Map
 
         private void OnWheel(WheelEvent evt)
         {
-            _lastInputTime = Time.unscaledTime;
+            MarkInput();
             if (MapCloudTransitionController.IsTransitioning)
             {
                 evt.StopPropagation();
@@ -348,6 +353,7 @@ namespace Mikey.UI.Map
         private void ResetTransform()
         {
             CancelIntroZoomAnimation();
+            MarkInput();
             _zoom = MapPanZoomMath.MinZoom;
             SetPan(0f, 0f);
             ApplyZoom();
@@ -622,11 +628,22 @@ namespace Mikey.UI.Map
         /// </summary>
         public void SetAmbientOffset(float panX, float panY, float zoomMultiplier)
         {
-            _ambientPanX = float.IsNaN(panX) ? 0f : panX;
-            _ambientPanY = float.IsNaN(panY) ? 0f : panY;
-            _ambientZoomMultiplier = float.IsNaN(zoomMultiplier) || zoomMultiplier <= 0f ? 1f : zoomMultiplier;
+            _ambientPanX = IsFinite(panX) ? panX : 0f;
+            _ambientPanY = IsFinite(panY) ? panY : 0f;
+            _ambientZoomMultiplier = IsFinite(zoomMultiplier) && zoomMultiplier > 0f ? zoomMultiplier : 1f;
             ApplyCanvasTransform();
         }
+
+        /// <summary>
+        /// Отмечает «игрок только что действовал». Вызывается со ВСЕХ путей
+        /// реального ввода, включая продолжение уже идущего жеста — а не только
+        /// его начало. Иначе непрерывный пан или пинч длиннее IdleDelaySeconds
+        /// пересёк бы порог простоя прямо под пальцем, и Ken Burns начал бы
+        /// уводить камеру поверх активного жеста игрока.
+        /// </summary>
+        private void MarkInput() => _lastInputTime = Time.unscaledTime;
+
+        private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
 
         /// <summary>Сколько секунд прошло с последнего действия игрока — ambient включает Ken Burns только в простое.</summary>
         public float SecondsSinceLastInput => Time.unscaledTime - _lastInputTime;
