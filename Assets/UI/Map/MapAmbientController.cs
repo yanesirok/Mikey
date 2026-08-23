@@ -257,6 +257,15 @@ namespace Mikey.UI.Map
             // TickMarkers сам решает, что писать заблокированным и живым —
             // здесь не дублируем эту логику. reducedMotion защёлкивается
             // здесь же, один раз на весь вход — см. поле _markerEntranceReducedMotion.
+            //
+            // _elapsedSeconds тоже сбрасывается здесь, а не только в
+            // StartTicking (которая вызывается ПОСЛЕ этого синхронного
+            // TickMarkers): иначе при повторном входе на экран дыхание,
+            // которое теперь сомножитель в MarkerScale, стартовало бы со
+            // старого значения с прошлого визита, а не с гарантированной по
+            // контракту Breath единицы — первый нарисованный кадр был бы
+            // чуть мимо 0.92 у каждого маркера (см. ре-ре-ре-ревью задачи 9).
+            _elapsedSeconds = 0f;
             _markerEntranceElapsedSeconds = 0f;
             _markerEntranceReducedMotion = _motion != null && _motion.ReducedMotion;
             TickMarkers();
@@ -276,9 +285,36 @@ namespace Mikey.UI.Map
                 return;
 
             if (_motion != null && _motion.ReducedMotion)
+            {
+                // Включение настройки посреди каскада не должно замораживать
+                // маркеры на полпути (полупрозрачные, смещённые) до
+                // следующего входа на экран — этот дефект появился именно с
+                // каскадом (раньше замирать было нечему), значит чинится
+                // здесь же, а не оставляется как "было и раньше".
+                SettleMarkerEntranceImmediately();
                 StopTicking();
+            }
             else
                 StartTicking();
+        }
+
+        /// <summary>
+        /// Форсирует вход у всех маркеров в завершённое состояние и красит
+        /// его — один вызов TickMarkers с "бесконечным" временем входа даёт
+        /// ровно те же точные значения (см. MarkerEntranceTransform), что и
+        /// естественное завершение, переиспользуя тот же путь вместо второго
+        /// набора присваиваний. Нужно перед остановкой тика посреди каскада
+        /// (см. OnMotionSettingsChanged) — единственный путь, где тик может
+        /// остановиться, пока чей-то вход ещё не завершён: уход с экрана
+        /// карты (OnScreenChanged) и отключение компонента (OnDisable) сюда
+        /// не относятся — оба случая либо перерисовывают всё заново при
+        /// следующем ResolveScreenElements, либо скрывают дерево целиком, а
+        /// самоостановка Tick по завершении входа уже settled по построению.
+        /// </summary>
+        private void SettleMarkerEntranceImmediately()
+        {
+            _markerEntranceElapsedSeconds = float.PositiveInfinity;
+            TickMarkers();
         }
 
         /// <summary>
@@ -477,7 +513,7 @@ namespace Mikey.UI.Map
                 MapAmbientMath.MarkerEntranceTransform(entranceProgress, _markerEntranceReducedMotion,
                     out float opacity, out float offsetY, out float entranceMultiplier);
 
-                float scale = breathScale * entranceMultiplier;
+                float scale = MapAmbientMath.MarkerScale(breathScale, entranceMultiplier);
 
                 if (breath != null)
                 {

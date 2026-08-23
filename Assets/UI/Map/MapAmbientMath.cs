@@ -259,6 +259,22 @@ namespace Mikey.UI.Map
             scaleMultiplier = MarkerEntranceScale(eased, reducedMotion);
         }
 
+        /// <summary>
+        /// Итоговый масштаб маркера — произведение дыхания (или покоя, 1, для
+        /// заблокированного) на множитель входа из MarkerEntranceTransform,
+        /// который сам стремится к 1. Вынесено отдельной функцией именно
+        /// затем, чтобы произведение было проверяемо тестом напрямую: до
+        /// этой правки оно считалось прямо в TickMarkers, и ни один тест его
+        /// не закреплял — регрессия на границе входа (см. ре-ре-ревью задачи
+        /// 9) прошла бы мимо снова.
+        /// </summary>
+        public static float MarkerScale(float breathScale, float entranceScaleMultiplier)
+        {
+            if (!IsFinite(breathScale) || !IsFinite(entranceScaleMultiplier))
+                return 1f;
+            return breathScale * entranceScaleMultiplier;
+        }
+
         /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
         public const float IdleDelaySeconds = 5f;
 

@@ -439,5 +439,29 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, offsetY, Tolerance);
             Assert.AreEqual(1f, scaleMultiplier, Tolerance);
         }
+
+        // ---------- MarkerScale: закрепляет само произведение (ре-ре-ре-ревью задачи 9) ----------
+
+        [Test]
+        public void MarkerScale_IsTheProductOfBreathAndEntranceMultiplier()
+        {
+            Assert.AreEqual(1.02f * 0.92f, MapAmbientMath.MarkerScale(1.02f, 0.92f), Tolerance);
+        }
+
+        [Test]
+        public void MarkerScale_AtRestForBothInputs_IsExactlyOne()
+        {
+            // Ровно та точка, где раньше был разрыв: вход завершён
+            // (множитель 1) и дыхание в состоянии покоя (1) — произведение
+            // обязано быть точной единицей, не "почти".
+            Assert.AreEqual(1f, MapAmbientMath.MarkerScale(1f, 1f), Tolerance);
+        }
+
+        [Test]
+        public void MarkerScale_IsSafeOnDegenerateInput()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerScale(float.NaN, 0.92f), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.MarkerScale(1.02f, float.NaN), Tolerance);
+        }
     }
 }
