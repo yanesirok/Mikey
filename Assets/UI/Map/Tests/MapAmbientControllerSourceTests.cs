@@ -39,27 +39,156 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("TickIntervalMs = 33", source);
         }
 
+        /// <remarks>
+        /// Раньше этот тест искал имена констант где угодно в файле и проходил
+        /// бы на коде, где ветки «не экран карты» нет вовсе — имена остались бы
+        /// в объявлениях. Проверяется САМА развилка OnScreenChanged.
+        /// </remarks>
         [Test]
         public void StopsOutsideMapScreens()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("JapanScreenId", source);
-            StringAssert.Contains("OkinawaScreenId", source);
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void OnScreenChanged(string screenId)");
+
+            StringAssert.Contains("screenId == JapanScreenId || screenId == OkinawaScreenId", body,
+                "Ambient must decide it is on a map screen from the two map screen ids, nothing else.");
+
+            int start = body.IndexOf("StartTicking();", System.StringComparison.Ordinal);
+            Assert.Greater(start, -1, "Expected the on-a-map-screen branch to start ticking.");
+
+            int elseBranch = body.IndexOf("else", start, System.StringComparison.Ordinal);
+            Assert.Greater(elseBranch, start, "Expected an else branch for every screen that is not a map screen.");
+
+            int leave = body.IndexOf("LeaveMapScreen();", elseBranch, System.StringComparison.Ordinal);
+            Assert.Greater(leave, elseBranch,
+                "Leaving a map screen must stop the tick AND restore the frame rate — otherwise ambient keeps ticking (and the map keeps throttling rendering) on every other screen in the app.");
         }
 
+        /// <remarks>
+        /// Раньше проверялось лишь то, что слова "ReducedMotion" и
+        /// "IsTransitioning" встречаются в файле, — они встречаются и в
+        /// комментариях. Проверяется, что обе проверки СТОЯТ В Tick и
+        /// возвращают управление ДО непрерывной части ambient.
+        /// </remarks>
         [Test]
         public void RespectsReducedMotionAndTransition()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("ReducedMotion", source);
-            StringAssert.Contains("MapCloudTransitionController.IsTransitioning", source);
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void Tick()");
+
+            int clouds = body.IndexOf("TickClouds();", System.StringComparison.Ordinal);
+            int camera = body.IndexOf("TickCamera();", System.StringComparison.Ordinal);
+            Assert.Greater(clouds, -1, "Expected Tick to drive the clouds.");
+            Assert.Greater(camera, clouds, "Expected Tick to drive the camera after the clouds.");
+
+            int transitionGuard = body.IndexOf("MapCloudTransitionController.IsTransitioning", System.StringComparison.Ordinal);
+            Assert.Greater(transitionGuard, -1, "Expected a cross-screen-transition guard in Tick.");
+            int transitionReturn = body.IndexOf("return;", transitionGuard, System.StringComparison.Ordinal);
+            Assert.Greater(transitionReturn, transitionGuard, "The transition guard must return.");
+            Assert.Less(transitionReturn, clouds, "The transition guard must return before any ambient write.");
+
+            int reducedGuard = body.IndexOf("if (liveReducedMotion)", System.StringComparison.Ordinal);
+            Assert.Greater(reducedGuard, -1, "Expected a live reduced-motion branch in Tick.");
+            int reducedReturn = body.IndexOf("return;", reducedGuard, System.StringComparison.Ordinal);
+            Assert.Greater(reducedReturn, reducedGuard, "The reduced-motion branch must return.");
+            Assert.Less(reducedReturn, clouds,
+                "Reduced motion must return before the clouds and the camera — only the short marker entrance may tick under it.");
         }
 
+        /// <remarks>
+        /// Раньше проверялось лишь наличие имени свойства и НЕ проверялись
+        /// значения — этот тест прошёл бы и на коде, который возвращает полную
+        /// частоту кадров, пока карта ещё открыта (тик под «меньше движения»
+        /// сам себя останавливает, и такой читатель платил бы за карту вдвое).
+        /// </remarks>
         [Test]
         public void ThrottlesRenderingWhileOnTheMap()
         {
             string source = File.ReadAllText(SourcePath);
-            StringAssert.Contains("OnDemandRendering.renderFrameInterval", source);
+            StringAssert.Contains("MapRenderFrameInterval = 2", source,
+                "The map's throttled interval must stay 2 — the whole \"ambient costs less than the static map\" claim rests on it.");
+
+            string start = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void StartTicking()");
+            StringAssert.Contains("OnDemandRendering.renderFrameInterval = MapRenderFrameInterval;", start,
+                "Entering a map screen must throttle rendering.");
+
+            string stop = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void StopTicking()");
+            StringAssert.DoesNotContain("renderFrameInterval", stop,
+                "StopTicking also fires while the map is still open (reduced motion turned on; the entrance tick self-stopping under it). Restoring the full frame rate there makes a reduced-motion visit cost double, with nothing on screen moving.");
+
+            string leave = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void LeaveMapScreen()");
+            StringAssert.Contains("OnDemandRendering.renderFrameInterval = 1;", leave,
+                "Actually leaving the map must restore the full frame rate.");
+            StringAssert.Contains("StopTicking();", leave,
+                "Leaving must also stop the tick and settle everything it moved.");
+        }
+
+        /// <remarks>
+        /// Дефект финального ревью: StopTicking возвращал в покой камеру, но не
+        /// облака. Под «меньше движения», включённым посреди визита, каждое
+        /// облако оставалось на своём последнем смещении и не-покойной
+        /// прозрачности до конца сессии — инлайн живёт на элементах разметки и
+        /// переживает повторный вход на экран.
+        /// </remarks>
+        [Test]
+        public void StopTicking_SettlesEverythingTheTickMoved()
+        {
+            string source = File.ReadAllText(SourcePath);
+            string stop = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void StopTicking()");
+
+            StringAssert.Contains("SetAmbientOffset(0f, 0f, 1f)", stop,
+                "The camera's ambient offset must go back to rest.");
+            StringAssert.Contains("ResetCloudDrift();", stop,
+                "The clouds' drift must go back to rest too, or they freeze off-rest for the rest of the session.");
+
+            string reset = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void ResetCloudDrift()");
+            StringAssert.Contains("cloud.style.translate = StyleKeyword.Null;", reset,
+                "The drift offset must be cleared.");
+            StringAssert.Contains("cloud.style.opacity = _cloudRestOpacity[i];", reset,
+                "Cloud rest opacity is itself an inline style written by MapCloudLayout.Apply — it must be restored by value, never cleared to Null, or the layout's own opacity goes with the drift.");
+        }
+
+        /// <remarks>
+        /// Вторая половина того же дефекта: живые маркеры замирали посреди
+        /// вдоха. Множитель дыхания обязан смотреть на ЖИВУЮ настройку, а не на
+        /// защёлкнутую _markerEntranceReducedMotion (та про арифметику каскада).
+        /// </remarks>
+        [Test]
+        public void MarkerBreath_StopsAtRestUnderReducedMotion()
+        {
+            string source = File.ReadAllText(SourcePath);
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void TickMarkers()");
+
+            StringAssert.Contains("bool reducedMotion = _motion != null && _motion.ReducedMotion;", body,
+                "TickMarkers must read the live reduced-motion setting.");
+            StringAssert.Contains("alive && !reducedMotion", body,
+                "Only an unlocked marker with motion allowed may breathe; under reduced motion the factor must be the exact rest value, not whatever phase the tick froze on.");
+        }
+
+        /// <remarks>
+        /// Дефект финального ревью: прозрачность входа писалась ОБЁРТКЕ
+        /// дыхания, родителю одной лишь иконки. Тень и подпись ей сёстры,
+        /// поэтому подписи выскакивали непрозрачными на первом кадре, а тень
+        /// рисовалась темнее и шире своего покоя, пока пин ещё невидим.
+        /// </remarks>
+        [Test]
+        public void MarkerEntranceOpacity_IsWrittenToTheNode_NotOnlyToTheBreathWrapper()
+        {
+            string source = File.ReadAllText(SourcePath);
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, "private void TickMarkers()");
+
+            StringAssert.Contains("node.style.opacity = opacity;", body,
+                "The entrance opacity must land on the marker node, so shadow and label fade in with their own pin.");
+            StringAssert.DoesNotContain("breath.style.opacity", body,
+                "Keeping the entrance opacity on the breath wrapper as well would square it on the icon and leave the node's siblings out of the entrance again.");
+
+            // The node's own translate is the pin-tip anchor and is not ours.
+            StringAssert.DoesNotContain("node.style.translate", body,
+                "\"translate: -50% -100%\" anchors the pin tip to its map coordinate — the entrance must never touch it.");
+            StringAssert.DoesNotContain("node.style.scale", body,
+                "The entrance scale belongs on the breath wrapper, not on the anchored node.");
+            StringAssert.Contains("breath.style.translate", body, "The entrance offset stays on the breath wrapper.");
+            StringAssert.Contains("breath.style.scale", body, "The entrance/breath scale stays on the breath wrapper.");
         }
 
         [Test]

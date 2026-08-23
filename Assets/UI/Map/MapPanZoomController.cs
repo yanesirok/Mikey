@@ -207,6 +207,15 @@ namespace Mikey.UI.Map
                 yield break;
             }
 
+            // Канвас — единственный элемент карты, которому трансформация
+            // пишется КАЖДЫЙ кадр (пан, инерция, резинка, двойной тап, вводный
+            // зум, дыхание бумаги, Ken Burns). Без этой подсказки движок
+            // запекает трансформацию в вершины, то есть пересобирает геометрию
+            // всего поддерева канваса — арт, скрим, слой облаков и каждую
+            // кнопку-маркер с её подписью — на каждом таком кадре. Весь
+            // расчёт стоимости в дизайне анимаций карты условен на ней.
+            _canvas.usageHints = UsageHints.DynamicTransform;
+
             _onPointerDown = OnPointerDown;
             _onPointerMove = OnPointerMove;
             _onPointerUp = OnPointerUp;
@@ -696,6 +705,14 @@ namespace Mikey.UI.Map
             CancelIntroZoomAnimation();
             StopInertia();
             StopRubberBand();
+            // Переход сам ТОЛЬКО ЧТО выставил кадр этой камеры, и уходить с
+            // него Ken Burns обязан не раньше положенных IdleDelaySeconds
+            // простоя. Без этого часы простоя продолжали бы идти с последнего
+            // касания на ИСХОДНОМ экране (OnScreenChanged на переходе
+            // пропускает ResetTransform — единственный другой MarkInput на
+            // этом пути), и камера начинала бы плыть на первом же видимом
+            // кадре нового экрана.
+            MarkInput();
 
             _zoom = MapPanZoomMath.ClampZoom(zoom);
             ApplyZoom();
@@ -784,12 +801,19 @@ namespace Mikey.UI.Map
                 _zoom = MapPanZoomMath.ClampZoom(Mathf.LerpUnclamped(startZoom, clampedTargetZoom, t));
                 ApplyZoom();
                 SetPan(Mathf.LerpUnclamped(startPanX, targetPanX, t), Mathf.LerpUnclamped(startPanY, targetPanY, t));
+                // Каждый кадр, а не один раз на старте: это движение идёт во
+                // времени, и отметка только в начале дала бы неполную льготу —
+                // к моменту, когда камера ВСТАЛА, простоя уже насчиталось бы
+                // durationSeconds. Тот же довод, по которому MarkInput стоит на
+                // продолжении пана и пинча, а не только на их начале.
+                MarkInput();
                 yield return null;
             }
 
             _zoom = clampedTargetZoom;
             ApplyZoom();
             SetPan(targetPanX, targetPanY);
+            MarkInput();
         }
 
         private void CancelIntroZoomAnimation()
@@ -916,20 +940,45 @@ namespace Mikey.UI.Map
         /// <summary>
         /// ЕДИНСТВЕННОЕ место, которое пишет трансформацию канваса. Логический
         /// пан/зум (управление игрока) и ambient-добавка (дыхание бумаги, Ken
-        /// Burns) складываются здесь, а не спорят за transform: ambient
-        /// сознательно не клампится вместе с паном, его амплитуда заведомо
-        /// меньше процента и вылезти за край карты не может.
+        /// Burns) складываются здесь, а не спорят за transform.
+        ///
+        /// <para>
+        /// Сумма клампится ЗДЕСЬ ещё раз, против ФАКТИЧЕСКОГО масштаба. SetPan
+        /// клампит только логический пан и только против <c>_zoom</c>, поэтому
+        /// на границе карты (а это и есть состояние покоя при первом входе:
+        /// вводный зум ведёт камеру к текущей главе и упирается в кламп, если
+        /// та у края) любая добавка ambient по определению уже за краем —
+        /// «амплитуда мала» там не аргумент, запас ровно нулевой. Клампится
+        /// именно сумма, а не <c>_panX</c>: логический пан остаётся
+        /// нетронутым, поэтому дыхание не «съедает» позицию камеры понемногу
+        /// каждый цикл, а лишь модулирует показанное смещение внутри запаса.
+        /// </para>
+        ///
+        /// <para>
+        /// Масштаб не опускается ниже <see cref="MapPanZoomMath.MinZoom"/>:
+        /// множитель ambient уходит под единицу (Ken Burns вычитает до 1.5 %),
+        /// и на полностью отдалённой карте (<c>_zoom == MinZoom</c>) это
+        /// открыло бы полосу фона сразу по всем четырём краям, чего никаким
+        /// клампом пана не исправить. Порезан при этом ровно тот случай, где
+        /// отдаляться и так запрещено; на любом зуме выше 1.015 волна Ken
+        /// Burns проходит целиком.
+        /// </para>
         /// </summary>
         private void ApplyCanvasTransform()
         {
             if (_canvas == null)
                 return;
 
+            float scale = Mathf.Max(_zoom * _ambientZoomMultiplier, MapPanZoomMath.MinZoom);
+            float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
+            float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
+
+            // Резинка прибавляется ПОСЛЕ клампа намеренно: она и существует
+            // затем, чтобы карта заходила за свой край с сопротивлением.
             _canvas.transform.position = new Vector3(
-                _panX + _ambientPanX + _rubberBandX,
-                _panY + _ambientPanY + _rubberBandY,
+                MapPanZoomMath.ClampPan(_panX + _ambientPanX, scale, viewportWidth) + _rubberBandX,
+                MapPanZoomMath.ClampPan(_panY + _ambientPanY, scale, viewportHeight) + _rubberBandY,
                 0f);
-            float scale = _zoom * _ambientZoomMultiplier;
             _canvas.transform.scale = new Vector3(scale, scale, 1f);
         }
 

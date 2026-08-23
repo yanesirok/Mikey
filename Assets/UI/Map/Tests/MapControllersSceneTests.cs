@@ -83,6 +83,22 @@ namespace Mikey.UI.Map.Tests
                 "UI GameObject must have a MapAmbientController for the map's ambient motion to run in a real build.");
         }
 
+        /// <remarks>
+        /// Пропуск финального ревью: сцена стерегла оба контроллера карты, но
+        /// не хранилище настройки движения. Убери его из сцены — и тумблер
+        /// «меньше движения» молча исчезает из модала настроек (контроллер
+        /// достаёт его через GetComponent и прячет строку, если его нет), а
+        /// MapAmbientController крутит ambient безусловно. Ни ошибки, ни
+        /// падения теста — просто настройки больше нет.
+        /// </remarks>
+        [Test]
+        public void UiGameObject_HasMotionSettingsStore()
+        {
+            GameObject ui = OpenUiGameObject();
+            Assert.IsNotNull(ui.GetComponent<Mikey.UI.Settings.MotionSettingsStore>(),
+                "UI GameObject must have a MotionSettingsStore: without it the reduced-motion toggle silently disappears from the settings modal and the map's ambient motion runs unconditionally, with nothing reporting an error.");
+        }
+
         [Test]
         public void JapanMapController_HasOkinawaPreviewClipWired()
         {

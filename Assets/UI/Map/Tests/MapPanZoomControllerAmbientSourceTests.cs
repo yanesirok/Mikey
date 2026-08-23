@@ -248,7 +248,98 @@ namespace Mikey.UI.Map.Tests
                 "SetPan() clamps the logical pan — the rubber band must never mix into that computation.");
         }
 
-        private static int CountOccurrences(string haystack, string needle)
+        [Test]
+        public void SetViewToSourceFocalPoint_MarksInput_SoKenBurnsHonoursTheIdleGraceOnTheNewScreen()
+        {
+            // A Japan<->Okinawa transition plants the destination camera here,
+            // and OnScreenChanged deliberately skips ResetTransform() (the only
+            // other MarkInput() on that path) while IsTransitioning. Without a
+            // MarkInput() here the idle clock keeps running from the last touch
+            // on the SOURCE screen, so the freshly framed camera starts drifting
+            // on its first visible frame instead of after the idle grace.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)");
+            StringAssert.Contains("MarkInput();", body,
+                "SetViewToSourceFocalPoint must restart the idle clock, or Ken Burns takes over the transferred view immediately.");
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_MarksInputPerFrame_NotOnlyAtTheStart()
+        {
+            // This one moves the camera OVER TIME. Marking input once up front
+            // would leave only (grace - durationSeconds) of quiet after the
+            // camera actually stops, so the mark has to live inside the loop
+            // and be repeated on the final settling write.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "public IEnumerator AnimateViewToSourceFocalPoint(float targetSourceX, float targetSourceY, float targetZoom, float durationSeconds)");
+
+            int loopIndex = body.IndexOf("while (elapsed < durationSeconds)", System.StringComparison.Ordinal);
+            Assert.Greater(loopIndex, -1, "Expected the animation loop.");
+            int yieldIndex = body.IndexOf("yield return null;", loopIndex, System.StringComparison.Ordinal);
+            Assert.Greater(yieldIndex, loopIndex, "Expected the loop's frame yield.");
+
+            string loopBody = body.Substring(loopIndex, yieldIndex - loopIndex);
+            StringAssert.Contains("MarkInput();", loopBody,
+                "MarkInput() must fire on every frame this coroutine drives the camera, not once at the start.");
+
+            string afterLoop = body.Substring(yieldIndex);
+            StringAssert.Contains("MarkInput();", afterLoop,
+                "The final settling write must mark input too, so the idle grace is measured from where the camera stopped.");
+        }
+
+        [Test]
+        public void ApplyCanvasTransform_ClampsTheAmbientSum_AndNeverScalesBelowMinZoom()
+        {
+            // SetPan() clamps the LOGICAL pan against _zoom alone, so at the
+            // clamp boundary (which is the resting state on a fresh entry
+            // whenever the current chapter sits near a map edge) any ambient
+            // offset added afterwards is by definition past the edge. And at
+            // _zoom == MinZoom the ambient zoom multiplier bottoms out below 1,
+            // shrinking the canvas inside its own viewport — a strip of
+            // background on all four sides that no pan clamp can fix.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void ApplyCanvasTransform()");
+
+            StringAssert.Contains("MapPanZoomMath.ClampPan(_panX + _ambientPanX", body,
+                "The ambient X offset must be clamped together with the logical pan, not added past the clamp.");
+            StringAssert.Contains("MapPanZoomMath.ClampPan(_panY + _ambientPanY", body,
+                "The ambient Y offset must be clamped together with the logical pan, not added past the clamp.");
+            StringAssert.Contains("MapPanZoomMath.MinZoom", body,
+                "The effective scale must never fall below MinZoom, or the ambient zoom dip exposes background on every edge.");
+
+            // The clamp has to be against the EFFECTIVE scale that is actually
+            // written to the canvas — clamping against _zoom while scaling by
+            // something smaller would leave exactly the gap it was meant to close.
+            int scaleAssign = body.IndexOf("float scale =", System.StringComparison.Ordinal);
+            int clampIndex = body.IndexOf("MapPanZoomMath.ClampPan(_panX + _ambientPanX", System.StringComparison.Ordinal);
+            Assert.Greater(scaleAssign, -1, "Expected the effective scale to be computed here.");
+            Assert.Less(scaleAssign, clampIndex, "The effective scale must be computed before it is used to clamp the pan.");
+            StringAssert.Contains("scale, viewportWidth", body,
+                "The X clamp must use the effective scale, not the bare logical zoom.");
+            StringAssert.Contains("scale, viewportHeight", body,
+                "The Y clamp must use the effective scale, not the bare logical zoom.");
+        }
+
+        [Test]
+        public void PanCanvas_IsHintedAsADynamicTransform()
+        {
+            // The canvas is the one element written every single frame — pan,
+            // inertia, rubber band, double tap, opening zoom, paper breath, Ken
+            // Burns. Unhinted, each of those writes bakes the transform into
+            // vertex data and regenerates the geometry of the whole canvas
+            // subtree: art, scrim, cloud layer and every marker button with its
+            // label. The design's entire cost argument is conditional on this.
+            string source = File.ReadAllText(ControllerPath);
+            StringAssert.Contains("_canvas.usageHints = UsageHints.DynamicTransform;", source,
+                "The pan canvas must be hinted as a dynamic transform at bind time.");
+
+            string body = ExtractMethodBody(source, "private IEnumerator BindWhenReady()");
+            StringAssert.Contains("_canvas.usageHints = UsageHints.DynamicTransform;", body,
+                "The hint must be set at bind time, not somewhere that may never run.");
+        }
+
+        /// <summary>Shared with the other map source-tests in this assembly — one brace-aware extractor, not a copy per file.</summary>
+        internal static int CountOccurrences(string haystack, string needle)
         {
             int count = 0;
             int index = haystack.IndexOf(needle, System.StringComparison.Ordinal);
@@ -266,7 +357,7 @@ namespace Mikey.UI.Map.Tests
         /// методов внутри есть вложенные блоки (if/for), и первая же "}"
         /// закрыла бы вложенный блок, а не сам метод.
         /// </summary>
-        private static string ExtractMethodBody(string source, string methodSignature)
+        internal static string ExtractMethodBody(string source, string methodSignature)
         {
             int signatureIndex = source.IndexOf(methodSignature, System.StringComparison.Ordinal);
             Assert.Greater(signatureIndex, -1, $"Expected to find '{methodSignature}'.");

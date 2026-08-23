@@ -127,7 +127,7 @@ namespace Mikey.UI.Map
                 _bindRoutine = null;
             }
 
-            StopTicking();
+            LeaveMapScreen();
 
             if (_motion != null)
                 _motion.Changed -= OnMotionSettingsChanged;
@@ -185,7 +185,7 @@ namespace Mikey.UI.Map
                 StartTicking();
             }
             else
-                StopTicking();
+                LeaveMapScreen();
         }
 
         /// <summary>
@@ -287,6 +287,13 @@ namespace Mikey.UI.Map
             // чуть мимо 0.92 у каждого маркера (см. ре-ре-ре-ревью задачи 9).
             _elapsedSeconds = 0f;
             _markerEntranceElapsedSeconds = 0f;
+            // Вес Ken Burns тоже принадлежит ВХОДУ НА ЭКРАН, а не тику:
+            // StartTicking (единственное другое место, где он сбрасывался)
+            // на переходе Япония<->Окинава возвращается сразу — тик с
+            // прошлого экрана ещё жив, — и вес доезжал бы на новый экран
+            // тем, чем закончил на старом. Экран, кадр которого только что
+            // поставил переход, обязан начинать из полного покоя.
+            _kenBurnsWeight = 0f;
             _markerEntranceReducedMotion = _motion != null && _motion.ReducedMotion;
             TickMarkers();
         }
@@ -359,15 +366,61 @@ namespace Mikey.UI.Map
             _tick = _root.schedule.Execute(Tick).Every(TickIntervalMs);
         }
 
+        /// <summary>
+        /// Останавливает тик и возвращает В ПОКОЙ всё, что тик успел сдвинуть:
+        /// добавку камеры, дрейф облаков. Частоту кадров здесь НЕ возвращает —
+        /// см. <see cref="LeaveMapScreen"/>.
+        /// </summary>
         private void StopTicking()
         {
             _panZoom?.SetAmbientOffset(0f, 0f, 1f);
+            ResetCloudDrift();
 
             if (_tick != null)
             {
                 _tick.Pause();
                 _tick = null;
             }
+        }
+
+        /// <summary>
+        /// Снимает дрейф облаков. Без этого «меньше движения», включённое
+        /// посреди визита, оставляло бы каждое облако на его последнем
+        /// смещении и не-покойной прозрачности до конца сессии — инлайн живёт
+        /// на самих элементах разметки и переживает даже повторный вход на
+        /// экран.
+        ///
+        /// <para>
+        /// Смещение снимается в Null (у ".map-cloud" своего translate в USS
+        /// нет, очистка и есть покой), а прозрачность ВОЗВРАЩАЕТСЯ ЗНАЧЕНИЕМ:
+        /// её покой — тоже инлайн, его пишет MapCloudLayout.Apply из пресета,
+        /// и Null стёр бы вместе с дрейфом ещё и раскладку.
+        /// </para>
+        /// </summary>
+        private void ResetCloudDrift()
+        {
+            for (int i = 0; i < _clouds.Length; i++)
+            {
+                VisualElement cloud = _clouds[i];
+                if (cloud == null)
+                    continue;
+                cloud.style.translate = StyleKeyword.Null;
+                cloud.style.opacity = _cloudRestOpacity[i];
+            }
+        }
+
+        /// <summary>
+        /// Настоящий уход с экранов карты — единственный случай, когда частота
+        /// кадров обязана вернуться к полной. Тик останавливается и по другим
+        /// поводам (включили «меньше движения»; вход маркеров под ним
+        /// доигрался и тик снял сам себя), и на них карта всё ещё показана и
+        /// всё ещё статична: вернуть там единицу означало бы, что читатель
+        /// настройки «меньше движения» весь визит платит за карту ВДВОЕ против
+        /// всех остальных.
+        /// </summary>
+        private void LeaveMapScreen()
+        {
+            StopTicking();
             OnDemandRendering.renderFrameInterval = 1;
         }
 
@@ -505,27 +558,37 @@ namespace Mikey.UI.Map
         /// Вызывается и синхронно, один раз, из ResolveScreenElements (красит
         /// t=0 сразу, до первого реального тика — иначе тень маркера
         /// рисовалась бы без заданной прозрачности первый кадр после показа
-        /// экрана), и затем каждый тик. reducedMotion читается из
-        /// _markerEntranceReducedMotion — защёлкнутого на момент старта
-        /// входа, не из живой настройки, см. это поле.
+        /// экрана), и затем каждый тик. reducedMotion для АРИФМЕТИКИ ВХОДА
+        /// читается из _markerEntranceReducedMotion — защёлкнутого на момент
+        /// старта входа, см. это поле; дыхание, наоборот, смотрит на живую
+        /// настройку, чтобы замереть в тот же момент, когда её переключили.
         /// </para>
         /// </summary>
         private void TickMarkers()
         {
+            // Живая настройка, не защёлкнутая _markerEntranceReducedMotion:
+            // та существует ради арифметики каскада (см. это поле), а дыхание
+            // обязано замереть в тот же момент, когда игрок сдвинул тумблер,
+            // иначе живые маркеры остаются застывшими посреди вдоха до конца
+            // сессии — SettleMarkerEntranceImmediately доводит вход, но не
+            // дыхание.
+            bool reducedMotion = _motion != null && _motion.ReducedMotion;
+
             for (int i = 0; i < _markerBreaths.Count; i++)
             {
                 bool alive = _markerAlive[i];
                 float entranceProgress = MapAmbientMath.MarkerEntranceProgress(i, _markerEntranceElapsedSeconds, _markerEntranceReducedMotion);
                 bool settled = entranceProgress >= 1f;
+                bool wasSettled = _markerEntranceSettled[i];
 
-                if (settled && !alive && _markerEntranceSettled[i])
+                if (settled && !alive && wasSettled)
                     continue;
                 _markerEntranceSettled[i] = settled;
 
                 VisualElement breath = _markerBreaths[i];
                 VisualElement shadow = _markerShadows[i];
 
-                float breathScale = alive
+                float breathScale = alive && !reducedMotion
                     ? MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds,
                         MapAmbientMath.MarkerBreathAmplitude * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f))
                     : 1f;
@@ -535,9 +598,30 @@ namespace Mikey.UI.Map
 
                 float scale = MapAmbientMath.MarkerScale(breathScale, entranceMultiplier);
 
+                // Прозрачность входа пишется САМОМУ УЗЛУ, а не обёртке дыхания.
+                // Обёртка — родитель одной лишь иконки; тень и подпись ей
+                // СЁСТРЫ, и пока прозрачность жила на ней, входил один значок:
+                // подписи ("OKINAWA", "LVL 0"...) выскакивали непрозрачными на
+                // первом же кадре, а тень рисовалась ТЕМНЕЕ и ШИРЕ своего покоя
+                // (её прозрачность выводится из масштаба, а тот в начале входа
+                // 0.92) — девять чёрных эллипсов без пинов почти на секунду при
+                // входе на Окинаву. На узле прозрачность бесплатна и
+                // перемножается с детьми, поэтому входит МАРКЕР целиком, как и
+                // описано в дизайне, а тень с подписью проявляются вместе со
+                // своим пином. Собственный "translate: -50% -100%" узла —
+                // привязка кончика пина — при этом не трогается: смещение и
+                // масштаб входа остаются на обёртке.
+                //
+                // Пишется только пока вход идёт, плюс ровно один раз в момент
+                // его завершения: у живого маркера тик крутится вечно, и
+                // писать ему opacity 1 каждые 33 мс значило бы гонять
+                // перекраску всего поддерева узла впустую.
+                VisualElement node = _markerNodes[i];
+                if (node != null && (!settled || !wasSettled))
+                    node.style.opacity = opacity;
+
                 if (breath != null)
                 {
-                    breath.style.opacity = opacity;
                     breath.style.translate = new Translate(0, offsetY);
                     breath.style.scale = new Scale(new Vector2(scale, scale));
                 }
@@ -549,7 +633,7 @@ namespace Mikey.UI.Map
                 // ResolveScreenElements — см. _markerSelectedClass: оно
                 // меняется тапом по ходу показа экрана, а не только на
                 // входе на него.
-                bool selected = _markerNodes[i] != null && _markerNodes[i].ClassListContains(_markerSelectedClass);
+                bool selected = node != null && node.ClassListContains(_markerSelectedClass);
 
                 // Тень всегда в противофазе к ТЕКУЩЕМУ scale, откуда бы он ни
                 // взялся — из каскада появления, из дыхания или из их

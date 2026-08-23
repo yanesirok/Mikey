@@ -301,7 +301,11 @@ namespace Mikey.UI.Map
             if (hasView)
                 _okinawaPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);
 
-            GetComponent<MapCeremonyController>()?.PlayTransitionBlot();
+            // Клякса ставится на экран НАЗНАЧЕНИЯ — тот же самый, что уходит в
+            // Show() следующей строкой (см. MapCeremonyController.PlayTransitionBlot
+            // и сторожа MapCeremonyControllerSourceTests): исходный экран этой
+            // же подменой скрывается целиком, и клякса в нём была бы не видна.
+            GetComponent<MapCeremonyController>()?.PlayTransitionBlot("mapOkinawa");
             _navigator?.Show("mapOkinawa");
 
             if (hasView && _okinawaPanZoom != null)
@@ -345,7 +349,8 @@ namespace Mikey.UI.Map
             // 3B; JapanMapController.OnScreenChanged does not reset this on
             // its own for a generic screen-changed-to-Japan event.
             MapNavigationState.Current = MapContext.JapanWorld;
-            GetComponent<MapCeremonyController>()?.PlayTransitionBlot();
+            // Экран назначения, симметрично PlayJapanToOkinawa выше.
+            GetComponent<MapCeremonyController>()?.PlayTransitionBlot("map");
             _navigator?.Show("map");
 
             if (hasView && _japanPanZoom != null)

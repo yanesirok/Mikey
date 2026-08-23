@@ -92,6 +92,32 @@ namespace Mikey.UI.Map.Tests
             Assert.IsTrue(Regex.IsMatch(uss, @"\.detail-panel--revealed \.detail-panel__cta\s*\{[^}]*transition-delay:\s*0\.36s;"));
         }
 
+        /// <summary>
+        /// Дефект финального ревью: ".detail-panel__cta--locked { opacity: 0.5 }"
+        /// имеет специфичность (0,1,0), а правило каскада
+        /// ".detail-panel--revealed .detail-panel__cta { opacity: 1 }" — (0,2,0)
+        /// и объявлено позже. Каскад просто перебивал приглушение, и КАЖДАЯ
+        /// заблокированная панель главы (две из трёх) и КАЖДЫЙ заблокированный
+        /// попап уровня (восемь из девяти) показывали неактивную кнопку в
+        /// полную силу. Сторожа не было вовсе — потому и уехало.
+        /// </summary>
+        [Test]
+        public void LockedCta_StaysDimmed_AfterTheContentCascadeRevealsIt()
+        {
+            string uss = ReadUssWithoutComments();
+
+            int revealed = uss.IndexOf(".detail-panel--revealed .detail-panel__cta {", System.StringComparison.Ordinal);
+            Assert.Greater(revealed, -1,
+                "No \".detail-panel--revealed .detail-panel__cta\" rule found -- this test checked nothing.");
+
+            int lockedRevealed = uss.IndexOf(".detail-panel--revealed .detail-panel__cta--locked", System.StringComparison.Ordinal);
+            Assert.Greater(lockedRevealed, revealed,
+                "The locked CTA's dimming must be re-stated with a selector that carries the same \"--revealed\" ancestor AND is declared after the cascade's reveal rule. A bare \".detail-panel__cta--locked\" is (0,1,0) and loses to the cascade's (0,2,0).");
+
+            Assert.IsTrue(Regex.IsMatch(uss, @"\.detail-panel--revealed \.detail-panel__cta--locked\s*\{[^}]*opacity:\s*0\.5;"),
+                "The winning rule must actually restore opacity 0.5 -- the same dimming the base \".detail-panel__cta--locked\" rule declares.");
+        }
+
         [Test]
         public void ChapterMetaCascade_RevealsBetweenDescAndCta()
         {

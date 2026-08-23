@@ -32,6 +32,18 @@ namespace Mikey.UI.Map
         private const int MaxRootResolveFrames = 30;
 
         private const string JapanScreenId = "map";
+        private const string OkinawaScreenId = "mapOkinawa";
+
+        /// <summary>
+        /// Ink-wash каждого экрана карты — своя копия под своим именем. Одна
+        /// общая копия невозможна: экраны скрываются целиком
+        /// (<c>.screen { display: none }</c>), и слой, живущий внутри одного
+        /// из них, невидим ровно тогда, когда виден другой.
+        /// </summary>
+        private const string JapanInkWashName = "map-inkwash";
+        private const string OkinawaInkWashName = "okinawa-inkwash";
+
+        private const string InkWashClass = "map-inkwash";
 
         private const string InkWashPlayingClass = "map-inkwash--playing";
         private const string InkWashDissolvingClass = "map-inkwash--dissolving";
@@ -127,13 +139,14 @@ namespace Mikey.UI.Map
                 layer.style.opacity = StyleKeyword.Null;
             }
 
-            VisualElement inkWash = _root?.Q<VisualElement>("map-inkwash");
-            if (inkWash != null)
+            // По классу, а не по имени: копий ink-wash столько же, сколько
+            // экранов карты, и прерванная церемония могла играть в любой.
+            _root?.Query<VisualElement>(className: InkWashClass).ForEach(inkWash =>
             {
                 inkWash.RemoveFromClassList(InkWashPlayingClass);
                 inkWash.RemoveFromClassList(InkWashDissolvingClass);
                 inkWash.RemoveFromClassList(InkWashFastClass);
-            }
+            });
 
             // Печать -- динамически созданный VisualElement, который сам
             // убирает себя последней строкой PlaySealRoutine; прерванная
@@ -179,11 +192,21 @@ namespace Mikey.UI.Map
         /// <summary>Проявление карты чернильным размывом — играет один раз за сессию, при первом входе на мировую карту.</summary>
         public void PlayMapEntryInkWash()
         {
-            VisualElement inkWash = _root?.Q<VisualElement>("map-inkwash");
+            VisualElement inkWash = ResolveInkWash(JapanScreenId);
             if (inkWash == null)
                 return;
 
             StartCeremony(PlayInkWashRoutine(inkWash, InkWashSeconds));
+        }
+
+        /// <summary>Ink-wash того экрана карты, о котором идёт речь. Неизвестный экран — null, а не «что-нибудь похожее».</summary>
+        private VisualElement ResolveInkWash(string screenId)
+        {
+            if (screenId == JapanScreenId)
+                return _root?.Q<VisualElement>(JapanInkWashName);
+            if (screenId == OkinawaScreenId)
+                return _root?.Q<VisualElement>(OkinawaInkWashName);
+            return null;
         }
 
         /// <summary>
@@ -194,10 +217,21 @@ namespace Mikey.UI.Map
         /// MapCloudTransitionController), и накрывать её целиком нечем;
         /// клякса лишь маскирует кадр подмены. Живёт 0.3 с, поэтому не
         /// поднимает IsPlaying надолго и ambient не успевает застыть.
+        ///
+        /// <para>
+        /// <paramref name="destinationScreenId"/> — экран, который вот-вот
+        /// ПОКАЖУТ, тот же самый, что уходит в <c>Show()</c> строкой ниже у
+        /// вызывающего. Это и есть суть параметра: экраны скрываются целиком
+        /// (<c>.screen { display: none }</c>), и клякса, сыгранная в
+        /// исходном экране, растворялась бы в поддереве, которое подмена
+        /// прячет тем же кадром — то есть невидимо. Непрозрачное состояние
+        /// ставится ещё до <c>Show()</c>, поэтому экран назначения появляется
+        /// уже накрытым и только потом проявляется из-под кляксы.
+        /// </para>
         /// </summary>
-        public void PlayTransitionBlot()
+        public void PlayTransitionBlot(string destinationScreenId)
         {
-            VisualElement inkWash = _root?.Q<VisualElement>("map-inkwash");
+            VisualElement inkWash = ResolveInkWash(destinationScreenId);
             if (inkWash == null)
                 return;
 

@@ -975,6 +975,20 @@
                      completing the ink-fade begun by the Japan screen. -->
                 <ui:VisualElement name="okinawa-transition-overlay" class="map-transition-overlay map-transition-overlay--visible" picking-mode="Ignore" />
 
+                <!-- Клякса перехода: своя копия на КАЖДОМ экране карты.
+                     Клякса маскирует кадр подмены экранов, поэтому обязана
+                     жить на том экране, который в этот момент ПОЯВЛЯЕТСЯ:
+                     единственная копия внутри японского экрана растворялась
+                     бы целиком в скрытом поддереве, когда карта уходит на
+                     Окинаву. См. MapCeremonyController.PlayTransitionBlot,
+                     который выбирает копию по экрану назначения. В покое
+                     display:none, так что постоянной цены не несёт. -->
+                <ui:VisualElement name="okinawa-inkwash" class="map-inkwash" picking-mode="Ignore">
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--a" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--b" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--c" picking-mode="Ignore" />
+                </ui:VisualElement>
+
                 <!-- top quick-access HUD: same translucent dark-glass overlay
                      system as the Japan world map (see Map.uss ".map-topbar"
                      and the "map" screen's own copy of this block for the
