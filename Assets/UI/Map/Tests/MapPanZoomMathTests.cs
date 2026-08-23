@@ -375,5 +375,33 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapPanZoomMath.RubberBand(float.NaN, 1000f), 0.0005f);
             Assert.AreEqual(0f, MapPanZoomMath.RubberBand(float.PositiveInfinity, 1000f), 0.0005f);
         }
+
+        // ---------- EaseOutBack: elastic overshoot for the double-tap zoom ----------
+
+        [Test]
+        public void EaseOutBack_StartsAtZeroAndEndsAtOne()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutBack(0f), 0.0005f);
+            Assert.AreEqual(1f, MapPanZoomMath.EaseOutBack(1f), 0.0005f);
+        }
+
+        [Test]
+        public void EaseOutBack_ActuallyOvershoots()
+        {
+            float peak = 0f;
+            for (int i = 0; i <= 100; i++)
+                peak = System.Math.Max(peak, MapPanZoomMath.EaseOutBack(i / 100f));
+
+            Assert.Greater(peak, 1f, "Без перелёта это обычный ease-out, а перелёт здесь и есть смысл.");
+            Assert.Less(peak, 1.2f, "Перелёт должен читаться как упругость, а не как промах.");
+        }
+
+        [Test]
+        public void EaseOutBack_ClampsItsInput()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutBack(-3f), 0.0005f);
+            Assert.AreEqual(1f, MapPanZoomMath.EaseOutBack(4f), 0.0005f);
+            Assert.AreEqual(0f, MapPanZoomMath.EaseOutBack(float.NaN), 0.0005f);
+        }
     }
 }

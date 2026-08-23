@@ -577,5 +577,107 @@ namespace Mikey.UI.Map.Tests
             string body = source.Substring(methodStart, methodEnd - methodStart);
             StringAssert.DoesNotContain("StartCoroutine", body);
         }
+
+        // ---------- double tap: elastic zoom overshoot (see PlayDoubleTapZoom) ----------
+
+        [Test]
+        public void DoubleTap_HasElasticZoomTuningConstants()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("private const float DoubleTapMaxSeconds = 0.3f;", source);
+            StringAssert.Contains("private const float DoubleTapMaxDistancePixels = 40f;", source);
+            StringAssert.Contains("private const float DoubleTapZoomFactor = 1.6f;", source);
+            StringAssert.Contains("private const float DoubleTapDurationSeconds = 0.34f;", source);
+        }
+
+        [Test]
+        public void OnPointerUp_RecognizesDoubleTap_OnlyForBackgroundTaps_NotMarkerButtons()
+        {
+            // Маркеры (chapter-node-*/level-node-*) — Button-элементы внутри
+            // вьюпорта (см. JapanMapController/OkinawaMapController), а
+            // указательные события всплывают до _viewport — без этой
+            // проверки быстрый повторный тап по маркеру (или по двум
+            // соседним маркерам подряд) читался бы как жест "двойной тап по
+            // карте".
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnPointerUp(PointerUpEvent evt)", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("\n        private void OnWheel", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("!(evt.target is Button)", body);
+
+            int guardIndex = body.IndexOf("!(evt.target is Button)", System.StringComparison.Ordinal);
+            int startCoroutineIndex = body.IndexOf("StartCoroutine(PlayDoubleTapZoom());", System.StringComparison.Ordinal);
+            Assert.Greater(startCoroutineIndex, -1, "Expected OnPointerUp to start PlayDoubleTapZoom on a recognized double tap.");
+            Assert.Greater(startCoroutineIndex, guardIndex,
+                "The marker-exclusion guard must gate the double-tap branch, not sit after it.");
+        }
+
+        [Test]
+        public void OnPointerUp_DoubleTap_CancelsAnyInFlightDoubleTapZoom_BeforeStartingANewOne()
+        {
+            // A third/fourth tap forming a fresh double-tap pair while the
+            // first naezd is still playing must restart cleanly, not run
+            // two overlapping zoom coroutines fighting over _zoom.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnPointerUp(PointerUpEvent evt)", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("\n        private void OnWheel", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("if (_doubleTapRoutine != null)", body);
+            StringAssert.Contains("StopCoroutine(_doubleTapRoutine);", body);
+            StringAssert.Contains("_doubleTapRoutine = StartCoroutine(PlayDoubleTapZoom());", body);
+        }
+
+        [Test]
+        public void PlayDoubleTapZoom_CancelsIntroZoom_MarksInput_AndUsesEaseOutBack()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private IEnumerator PlayDoubleTapZoom()", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("private void SetPan(float x, float y)", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("CancelIntroZoomAnimation();", body,
+                "A bare tap doesn't cancel the opening animation (see OnPointerDown) — the naezd must cancel it itself, or the two would fight over _zoom.");
+            StringAssert.Contains("MarkInput();", body);
+            StringAssert.Contains("MapPanZoomMath.ClampZoom(startZoom * DoubleTapZoomFactor);", body,
+                "Target is a multiplier on the CURRENT zoom, not a fixed value — repeated double taps keep zooming further, up to MaxZoom.");
+            StringAssert.Contains("MapPanZoomMath.EaseOutBack(elapsed / DoubleTapDurationSeconds)", body);
+        }
+
+        [Test]
+        public void PlayDoubleTapZoom_SkipsTheAnimation_WhenAlreadyAtTheClampedTarget()
+        {
+            // At MaxZoom, ClampZoom(startZoom * DoubleTapZoomFactor) ==
+            // startZoom — a double tap there must bail out rather than
+            // lerp between two equal values through EaseOutBack, which
+            // would still visibly jerk the picture despite going nowhere.
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private IEnumerator PlayDoubleTapZoom()", System.StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("private void SetPan(float x, float y)", methodStart, System.StringComparison.Ordinal);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("if (Mathf.Approximately(startZoom, targetZoom))", body);
+            StringAssert.Contains("yield break;", body);
+        }
+
+        [Test]
+        public void OnDisable_StopsTheDoubleTapRoutine_NoLeak()
+        {
+            string source = File.ReadAllText(SourcePath);
+            int methodStart = source.IndexOf("private void OnDisable()", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1);
+            int methodEnd = source.IndexOf("private IEnumerator BindWhenReady()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart);
+            string body = source.Substring(methodStart, methodEnd - methodStart);
+
+            StringAssert.Contains("if (_doubleTapRoutine != null)", body);
+            StringAssert.Contains("StopCoroutine(_doubleTapRoutine);", body);
+            StringAssert.Contains("_doubleTapRoutine = null;", body);
+        }
     }
 }

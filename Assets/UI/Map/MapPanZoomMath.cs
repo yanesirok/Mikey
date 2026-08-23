@@ -130,6 +130,23 @@ namespace Mikey.UI.Map
 
         private static float Pow3(float v) => v * v * v;
 
+        /// <summary>Величина перелёта в <see cref="EaseOutBack"/> — канонический коэффициент Пеннера, даёт около 10% промаха сверху.</summary>
+        public const float BackOvershoot = 1.70158f;
+
+        /// <summary>
+        /// Кривая с упругим перелётом: доезжает чуть дальше цели и
+        /// возвращается. В отличие от <see cref="EaseOutCubic"/> (вход на
+        /// экран, всегда из мёртвой точки) применяется там, где движение
+        /// должно ощущаться как отклик на действие игрока — двойной тап,
+        /// появление маркеров, раскрытие свитка.
+        /// </summary>
+        public static float EaseOutBack(float t)
+        {
+            float clamped = Clamp(IsFinite(t) ? t : 0f, 0f, 1f);
+            float inv = clamped - 1f;
+            return 1f + (BackOvershoot + 1f) * inv * inv * inv + BackOvershoot * inv * inv;
+        }
+
         /// <summary>
         /// The pan offset (one axis) that places a given point of the
         /// UNSCALED canvas (<paramref name="canvasNormalized"/>, 0-1 against

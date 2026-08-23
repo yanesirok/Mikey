@@ -52,6 +52,20 @@ namespace Mikey.UI.Map
         /// <summary>Where the current chapter marker lands vertically when the Japan world map opens focused on it — slightly below dead center (0.5) so the marker is never crowded under the topbar at the top of the screen. Horizontal framing stays dead center (0.5); the topbar doesn't constrain that axis.</summary>
         private const float ChapterFocusTargetNormalizedY = 0.56f;
 
+        // ---------- double tap: elastic zoom overshoot (see PlayDoubleTapZoom) ----------
+
+        /// <summary>Max gap between the two taps of a double tap. Longer than this, the second tap starts a fresh potential pair instead.</summary>
+        private const float DoubleTapMaxSeconds = 0.3f;
+
+        /// <summary>Max screen-space drift between the two taps of a double tap — keeps an accidental two-finger-ish double touch from being read as one.</summary>
+        private const float DoubleTapMaxDistancePixels = 40f;
+
+        /// <summary>How much closer a double tap zooms in, as a multiplier on the CURRENT zoom (not a fixed target) — so repeated double taps keep zooming further, up to MapPanZoomMath.MaxZoom.</summary>
+        private const float DoubleTapZoomFactor = 1.6f;
+
+        /// <summary>How long the double-tap zoom's elastic overshoot-and-settle takes (see MapPanZoomMath.EaseOutBack).</summary>
+        private const float DoubleTapDurationSeconds = 0.34f;
+
         [Tooltip("The ScreenManager screen id this instance belongs to (e.g. 'map' or 'mapOkinawa'). Pan/zoom resets whenever this screen becomes active.")]
         [SerializeField] private string screenId = "map";
 
@@ -103,6 +117,10 @@ namespace Mikey.UI.Map
         private Coroutine _introZoomRoutine;
         private bool _bound;
 
+        private float _lastTapTime = -1f;
+        private Vector2 _lastTapPosition;
+        private Coroutine _doubleTapRoutine;
+
         /// <summary>This instance's configured screen id — exposed read-only so MapCloudTransitionController can tell apart the Japan ("map") and Okinawa ("mapOkinawa") sibling instances when transferring view state across a chapter transition.</summary>
         public string ScreenId => screenId;
 
@@ -131,6 +149,12 @@ namespace Mikey.UI.Map
             }
             CancelIntroZoomAnimation();
             StopRubberBand();
+
+            if (_doubleTapRoutine != null)
+            {
+                StopCoroutine(_doubleTapRoutine);
+                _doubleTapRoutine = null;
+            }
 
             if (_bound && _viewport != null)
             {
@@ -342,6 +366,36 @@ namespace Mikey.UI.Map
         {
             if (evt.pointerId != _activePointerId)
                 return;
+
+            // Двойной тап распознаём только по фону канваса, а не по
+            // маркерам: указательные события всплывают от Button к
+            // _viewport, так что без проверки evt.target быстрый выбор
+            // двух соседних маркеров (или повторный тап по одному и тому
+            // же) читался бы как жест "зум по двойному тапу". Маркеры —
+            // единственные интерактивные Button внутри вьюпорта (см.
+            // JapanMapController/OkinawaMapController), поэтому evt.target
+            // — дешёвый и точный признак "это тап по фону, не по кнопке".
+            if (!_dragging && !(evt.target is Button))
+            {
+                Vector2 position = evt.position;
+                bool isDoubleTap = _lastTapTime > 0f
+                    && Time.unscaledTime - _lastTapTime <= DoubleTapMaxSeconds
+                    && Vector2.Distance(position, _lastTapPosition) <= DoubleTapMaxDistancePixels;
+
+                if (isDoubleTap)
+                {
+                    _lastTapTime = -1f;
+                    if (_doubleTapRoutine != null)
+                        StopCoroutine(_doubleTapRoutine);
+                    _doubleTapRoutine = StartCoroutine(PlayDoubleTapZoom());
+                }
+                else
+                {
+                    _lastTapTime = Time.unscaledTime;
+                    _lastTapPosition = position;
+                }
+            }
+
             EndDrag();
         }
 
@@ -733,6 +787,54 @@ namespace Mikey.UI.Map
                 return;
             StopCoroutine(_introZoomRoutine);
             _introZoomRoutine = null;
+        }
+
+        /// <summary>
+        /// Зум по двойному тапу: доезжает чуть дальше цели и возвращается
+        /// (см. MapPanZoomMath.EaseOutBack). Пивот — центр канваса, тот же,
+        /// что у колеса и пинча: зум «в точку тапа» здесь не нужен, карта и
+        /// так центрируется на интересном объекте паном.
+        ///
+        /// <para>
+        /// Не гасит инерцию/оттяжку сама — это уже сделано OnPointerDown()
+        /// для КАЖДОГО касания (см. её StopInertia()/StopRubberBand()),
+        /// включая оба тапа этого жеста, ещё до того как OnPointerUp вообще
+        /// распознаёт двойной тап: к моменту запуска этой корутины
+        /// _velocityX/_velocityY и _rubberBandX/_rubberBandY уже нулевые.
+        /// Повторный вызов здесь был бы мёртвым кодом. CancelIntroZoomAnimation()
+        /// — другое дело: одиночный тап НЕ отменяет вводный зум (тот
+        /// прерывается только реальным жестом — драгом, колесом, пинчем), так
+        /// что без явной отмены здесь наезд дрался бы за _zoom с ещё идущей
+        /// PlayIntroZoomAnimation.
+        /// </para>
+        /// </summary>
+        private IEnumerator PlayDoubleTapZoom()
+        {
+            CancelIntroZoomAnimation();
+            MarkInput();
+
+            float startZoom = _zoom;
+            float targetZoom = MapPanZoomMath.ClampZoom(startZoom * DoubleTapZoomFactor);
+            if (Mathf.Approximately(startZoom, targetZoom))
+            {
+                // Уже на MaxZoom (или ClampZoom иначе не даёт сдвинуться) —
+                // сыграть тут нечего, а лерп между двумя равными значениями
+                // всё равно дёрнул бы картинку через EaseOutBack.
+                _doubleTapRoutine = null;
+                yield break;
+            }
+
+            float elapsed = 0f;
+            while (elapsed < DoubleTapDurationSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = MapPanZoomMath.EaseOutBack(elapsed / DoubleTapDurationSeconds);
+                SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
+                yield return null;
+            }
+
+            SetZoom(targetZoom);
+            _doubleTapRoutine = null;
         }
 
         private void SetPan(float x, float y)
