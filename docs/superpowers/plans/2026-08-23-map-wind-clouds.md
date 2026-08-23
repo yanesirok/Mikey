@@ -20,7 +20,8 @@
 - `MapPanZoomController.ApplyCanvasTransform` остаётся единственным писателем трансформа канваса.
 - XML-комментарии в UXML **не могут содержать `--`**. Имена классов проекта содержат. Нарушение молча ломает загрузку всего UXML, и тесты становятся пустыми, а не красными.
 - `:not()` в USS не поддерживается этой версией редактора.
-- **Каждая задача прогоняет полный EditMode-набор**, а не только свои сборки: `unity command run_tests --mode EditMode --format json`. Отфильтрованного прогона недостаточно — в прошлый раз регрессия пережила три ревью именно из-за фильтров.
+- **Каждая задача прогоняет полный EditMode-набор**, а не только свои сборки. Но НИКОГДА одной командой: полный прогон без `--filter` не укладывается во внутренний таймаут пакета `com.unity.pipeline`, отменяет сам себя и роняет HTTP-сервер редактора. Тот же объём набирается перебором восемнадцати сборок (шаблон — в шагах задач). `--timeout 400` обязателен: умолчание CLI 30 секунд, набор в него не влезает.
+- **Перед прогоном — явная перекомпиляция.** `run_tests` гоняет ранее собранную сборку и новых правок может не видеть; за одну сессию это трижды дало ложно-зелёный результат. Порядок: `unity command recompile`, двухфазное ожидание `recompile_status` (сначала переход В компиляцию, потом её завершение; статус приходит вложенной экранированной строкой БЕЗ пробела после двоеточия, разбирать по `\"status\":\"`), затем `run_tests`.
 - **Никогда не трогать и не индексировать** `Assets/UI/Map/MapMarkerLayout.cs` и `Assets/UI/Map/Tests/MapMarkerLayoutTests.cs` — владелец правит их параллельно, они намеренно не в коммите.
 - **Никогда `git add -A` или `git add .`** — индексировать только явно названные пути и проверять `git diff --cached --stat` перед каждым коммитом.
 - Работать через навык `unity-cli`, а не через сырой `Unity.exe`. `eval` не видит `internal`-члены: всё, что зовётся из CLI, должно быть `public`.
@@ -466,7 +467,12 @@ namespace Mikey.UI.Map
 - [ ] **Шаг 4: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный, включая новые `MapWindMathTests`.
@@ -795,7 +801,12 @@ namespace Mikey.UI.Map
 - [ ] **Шаг 4: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный. Тест `TotalQuadAreaStaysInsideTheBudget` должен насчитать около 1.518.
@@ -1116,7 +1127,12 @@ unity command run_tests --mode EditMode --filter Mikey.UI.Map.Tests --filter_typ
 - [ ] **Шаг 6: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный. Если тесты СОСЕДНИХ файлов вдруг стали
@@ -1440,7 +1456,12 @@ namespace Mikey.UI.Map
 - [ ] **Шаг 4: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный.
@@ -1577,7 +1598,12 @@ unity command run_tests --mode EditMode --filter Mikey.UI.Map.Tests --filter_typ
 - [ ] **Шаг 4: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный. В частности, `NeverWritesLayoutProperties`
@@ -1937,7 +1963,12 @@ unity command run_tests --mode EditMode --filter Mikey.UI.Map.Tests --filter_typ
 - [ ] **Шаг 5: прогнать и убедиться, что проходит**
 
 ```bash
-unity command run_tests --mode EditMode --format json
+for A in Mikey.Backend.Tests Mikey.Fight.Tests Mikey.Pose.Tests Mikey.UI.Audio.Tests          Mikey.UI.CameraTest.Tests Mikey.UI.Combine.Tests Mikey.UI.Home.Tests Mikey.UI.Intro.Tests          Mikey.UI.Map.Tests Mikey.UI.Media.Tests Mikey.UI.Navigation.Tests Mikey.UI.Practice.Tests          Mikey.UI.Profile.Tests Mikey.UI.Progression.Tests Mikey.UI.SafeArea.Tests          Mikey.UI.Settings.Tests Mikey.UI.Techniques.Tests Mikey.UI.Title.Tests; do
+  printf '%-34s ' "$A"
+  unity command run_tests --mode EditMode --filter "$A" --filter_type assembly --format json --timeout 400     2>&1 | grep -oE '"(Total|Passed|Failed)": [0-9]+' | tr '
+' ' '
+  echo
+done
 ```
 
 Ожидание: весь набор зелёный.
