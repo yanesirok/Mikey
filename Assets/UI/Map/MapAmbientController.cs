@@ -53,6 +53,11 @@ namespace Mikey.UI.Map
         private VisualElement _canvas;
         private MapPanZoomController _panZoom;
 
+        private readonly System.Collections.Generic.List<VisualElement> _markerBreaths = new System.Collections.Generic.List<VisualElement>();
+        private readonly System.Collections.Generic.List<VisualElement> _markerShadows = new System.Collections.Generic.List<VisualElement>();
+        private readonly System.Collections.Generic.List<bool> _markerAlive = new System.Collections.Generic.List<bool>();
+        private int _focusMarkerIndex = -1;
+
         private void OnEnable()
         {
             if (_bound)
@@ -168,6 +173,42 @@ namespace Mikey.UI.Map
                     break;
                 }
             }
+
+            _markerBreaths.Clear();
+            _markerShadows.Clear();
+            _markerAlive.Clear();
+            _focusMarkerIndex = -1;
+
+            string nodeClass = japan ? "chapter-node" : "level-node";
+            var nodes = _root?.Query<VisualElement>(className: nodeClass).ToList();
+            if (nodes == null)
+                return;
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                VisualElement node = nodes[i];
+                VisualElement breath = node.Q<VisualElement>(className: nodeClass + "__breath");
+                VisualElement shadow = node.Q<VisualElement>(className: nodeClass + "__shadow");
+
+                if (breath != null)
+                    breath.usageHints = UsageHints.DynamicTransform;
+                if (shadow != null)
+                    shadow.usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor;
+
+                _markerBreaths.Add(breath);
+                _markerShadows.Add(shadow);
+
+                // Состояние блокировки читается из класса, а не из отдельного
+                // API контроллеров: класс уже есть, он единственный источник
+                // правды для внешнего вида, и ambient не заводит вторую копию
+                // этого знания. Снимок берётся здесь, при смене экрана, а не
+                // на каждом тике — блокировки за время показа экрана не
+                // меняются, а тик обязан оставаться дешёвым.
+                bool alive = !node.ClassListContains(nodeClass + "--locked");
+                _markerAlive.Add(alive);
+                if (alive)
+                    _focusMarkerIndex = i;
+            }
         }
 
         /// <summary>
@@ -234,6 +275,7 @@ namespace Mikey.UI.Map
             _elapsedSeconds += TickIntervalMs / 1000f;
             TickClouds();
             TickCamera();
+            TickMarkers();
         }
 
         /// <summary>
@@ -299,6 +341,44 @@ namespace Mikey.UI.Map
                 kenPanX * _kenBurnsWeight,
                 kenPanY * _kenBurnsWeight,
                 breath + kenZoom * _kenBurnsWeight);
+        }
+
+        /// <summary>
+        /// Дышат только разблокированные маркеры, и ровно один — текущая цель —
+        /// дышит сильнее остальных. Заблокированные стоят абсолютно
+        /// неподвижно: контраст сам ведёт взгляд, и никакие стрелки-указатели
+        /// поверх карты не нужны.
+        /// </summary>
+        private void TickMarkers()
+        {
+            for (int i = 0; i < _markerBreaths.Count; i++)
+            {
+                VisualElement breath = _markerBreaths[i];
+                if (breath == null)
+                    continue;
+
+                if (!_markerAlive[i])
+                {
+                    breath.style.scale = new Scale(Vector2.one);
+                    continue;
+                }
+
+                float amplitude = MapAmbientMath.MarkerBreathAmplitude
+                    * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f);
+                float scale = MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds, amplitude);
+                breath.style.scale = new Scale(new Vector2(scale, scale));
+
+                VisualElement shadow = _markerShadows[i];
+                if (shadow == null)
+                    continue;
+
+                // Тень идёт в противофазе: маркер поднимается — тень
+                // поджимается и бледнеет. Иначе это читается как рост
+                // объекта, а не как отрыв от поверхности.
+                float shadowScale = 2f - scale;
+                shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
+                shadow.style.opacity = 0.35f - (scale - 1f) * 2f;
+            }
         }
     }
 }

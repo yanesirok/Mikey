@@ -47,6 +47,15 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void MarkerBreath_RespectsTheAmbientCompositionRule()
+        {
+            Assert.GreaterOrEqual(MapAmbientMath.MarkerBreathPeriodSeconds, 3f,
+                "Правило композиции: ambient не короче трёх секунд.");
+            Assert.LessOrEqual(MapAmbientMath.MarkerBreathAmplitude * MapAmbientMath.FocusBreathMultiplier, 0.04f + Tolerance,
+                "Правило композиции: ambient не больше четырёх процентов, включая усиленную цель.");
+        }
+
+        [Test]
         public void CloudDrift_StaysInsideItsAmplitudeBudget()
         {
             for (int index = 0; index < MapAmbientMath.CloudCount; index++)

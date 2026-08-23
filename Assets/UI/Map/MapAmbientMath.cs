@@ -116,6 +116,20 @@ namespace Mikey.UI.Map
         /// <summary>Амплитуда дыхания бумаги как множитель зума: 1.000 - 1.006.</summary>
         public const float PaperBreathAmplitude = 0.006f;
 
+        /// <summary>Период дыхания маркера — заметно быстрее неба: маркер живой объект, а не погода.</summary>
+        public const float MarkerBreathPeriodSeconds = 3.2f;
+
+        /// <summary>
+        /// Амплитуда дыхания маркера как добавка к масштабу. 0.025, а не
+        /// 0.035: с FocusBreathMultiplier = 1.4 усиленная цель обязана
+        /// остаться в бюджете «не больше четырёх процентов» — с 0.035 это
+        /// уже 4.9%, что рвёт MarkerBreath_RespectsTheAmbientCompositionRule.
+        /// </summary>
+        public const float MarkerBreathAmplitude = 0.025f;
+
+        /// <summary>Во сколько раз сильнее дышит ЕДИНСТВЕННАЯ текущая цель. Остальные разблокированные маркеры дышат обычной амплитудой, locked не дышат вовсе.</summary>
+        public const float FocusBreathMultiplier = 1.4f;
+
         /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
         public const float IdleDelaySeconds = 5f;
 

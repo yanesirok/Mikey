@@ -166,11 +166,19 @@ namespace Mikey.UI.Map.Tests
             var okinawa = root.Q<Button>("chapter-node-okinawa");
             Assert.IsNotNull(okinawa);
             var children = okinawa.Children().ToList();
+            var breath = okinawa.Q<VisualElement>(className: "chapter-node__breath");
+            var icon = okinawa.Q<VisualElement>(className: "chapter-node__icon");
+            Assert.IsNotNull(breath, "Expected a '.chapter-node__breath' wrapper: ambient writes scale there, USS selection state stays on the icon.");
+            Assert.IsNotNull(icon);
+            Assert.AreSame(breath, icon.parent, "The icon must live inside the breath wrapper.");
+
+            int shadowIndex = children.IndexOf(okinawa.Q<VisualElement>(className: "chapter-node__shadow"));
             int labelIndex = children.IndexOf(okinawa.Q<Label>(className: "chapter-node__label"));
-            int iconIndex = children.IndexOf(okinawa.Q<VisualElement>(className: "chapter-node__icon"));
+            int breathIndex = children.IndexOf(breath);
+            Assert.AreEqual(0, shadowIndex, "Shadow must be declared first so it paints under everything else.");
             Assert.GreaterOrEqual(labelIndex, 0);
-            Assert.GreaterOrEqual(iconIndex, 0);
-            Assert.Less(labelIndex, iconIndex, "Label must come before the icon so the node's bottom edge is the icon's bottom edge (the pin tip).");
+            Assert.GreaterOrEqual(breathIndex, 0);
+            Assert.Less(labelIndex, breathIndex, "Label must come before the breath wrapper so the node's bottom edge is the icon's bottom edge (the pin tip).");
         }
 
         [Test]
@@ -180,11 +188,19 @@ namespace Mikey.UI.Map.Tests
             var level0 = root.Q<Button>("level-node-0");
             Assert.IsNotNull(level0);
             var children = level0.Children().ToList();
+            var breath = level0.Q<VisualElement>(className: "level-node__breath");
+            var icon = level0.Q<VisualElement>(className: "level-node__icon");
+            Assert.IsNotNull(breath, "Expected a '.level-node__breath' wrapper: ambient writes scale there, USS selection state stays on the icon.");
+            Assert.IsNotNull(icon);
+            Assert.AreSame(breath, icon.parent, "The icon must live inside the breath wrapper.");
+
+            int shadowIndex = children.IndexOf(level0.Q<VisualElement>(className: "level-node__shadow"));
             int labelIndex = children.IndexOf(level0.Q<Label>(className: "level-node__label"));
-            int iconIndex = children.IndexOf(level0.Q<VisualElement>(className: "level-node__icon"));
+            int breathIndex = children.IndexOf(breath);
+            Assert.AreEqual(0, shadowIndex, "Shadow must be declared first so it paints under everything else.");
             Assert.GreaterOrEqual(labelIndex, 0);
-            Assert.GreaterOrEqual(iconIndex, 0);
-            Assert.Less(labelIndex, iconIndex, "Label must come before the icon so the node's bottom edge is the icon's bottom edge (the pin tip).");
+            Assert.GreaterOrEqual(breathIndex, 0);
+            Assert.Less(labelIndex, breathIndex, "Label must come before the breath wrapper so the node's bottom edge is the icon's bottom edge (the pin tip).");
         }
 
         // ---------- markers stay attached to the transformed map artboard ----------

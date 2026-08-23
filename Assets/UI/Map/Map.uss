@@ -431,6 +431,27 @@
     height: 66px;
     -unity-background-scale-mode: scale-to-fit;
 }
+/* Обёртка дыхания. Собственных визуальных свойств не имеет: существует
+   ровно для того, чтобы ambient-слой писал непрерывный масштаб СЮДА, а
+   USS-состояния (выбран/заблокирован) остались на иконке. Инлайн-стиль
+   перебивает USS, поэтому делить одно свойство между ними нельзя. */
+.chapter-node__breath {
+    align-items: center;
+    justify-content: center;
+}
+
+/* Тень под кончиком пина: отрывает маркер от бумаги. Эллипс, а не
+   изображение — та же техника, что у ореола в топбаре, где блюра нет. */
+.chapter-node__shadow {
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    translate: -50% 0;
+    width: 46px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.35);
+}
 .chapter-node__icon--okinawa {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_okinawa.png");
 }
@@ -489,6 +510,20 @@
     width: 54px;
     height: 54px;
     -unity-background-scale-mode: scale-to-fit;
+}
+.level-node__breath {
+    align-items: center;
+    justify-content: center;
+}
+.level-node__shadow {
+    position: absolute;
+    left: 50%;
+    bottom: -4px;
+    translate: -50% 0;
+    width: 36px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.35);
 }
 .level-node__icon--special {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_lvl0.png");

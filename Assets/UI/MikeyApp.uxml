@@ -638,20 +638,37 @@
                              coordinates are the pin's bottom TIP, and ".chapter-node"
                              anchors via "translate: -50% -100%" in Map.uss. -->
                         <ui:Button name="chapter-node-okinawa" class="chapter-node chapter-node--okinawa tap-target-lg">
+                            <!-- Тень объявлена первой, чтобы красилась под всем
+                                 остальным. Она absolute, поэтому колоночную
+                                 раскладку узла не трогает и привязка кончика
+                                 пина остаётся прежней. -->
+                            <ui:VisualElement class="chapter-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="OKINAWA" class="chapter-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
+                            <!-- Обёртка дыхания: ambient пишет scale ИМЕННО ей,
+                                 а состояние выбора живёт на самой иконке. Два
+                                 вложенных transform перемножаются сами, и
+                                 инлайн-стиль ambient не затирает USS выбора. -->
+                            <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
 
                         <!-- Chapter 1: visible, tappable, locked for now. -->
                         <ui:Button name="chapter-node-fukuoka" class="chapter-node chapter-node--fukuoka chapter-node--locked tap-target-lg">
+                            <ui:VisualElement class="chapter-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="FUKUOKA" class="chapter-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
 
                         <!-- Chapter 2: visible, tappable, locked for now. -->
                         <ui:Button name="chapter-node-hiroshima" class="chapter-node chapter-node--hiroshima chapter-node--locked tap-target-lg">
+                            <ui:VisualElement class="chapter-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="HIROSHIMA" class="chapter-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
+                            <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
 
                         <!-- Map Pass 3B decorative cloud overlay (corrected
@@ -809,43 +826,70 @@
                              "translate: -50% -100%" in Map.uss. -->
                         <!-- LVL 0: unlocked (existing starting assessment flow). -->
                         <ui:Button name="level-node-0" class="level-node level-node--0 tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 0" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <!-- LVL 1: visible but locked until Level1Unlocked. -->
                         <ui:Button name="level-node-1" class="level-node level-node--1 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 1" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <!-- LVL 2-8: visible but always locked for now; no
                              gameplay built for these yet. -->
                         <ui:Button name="level-node-2" class="level-node level-node--2 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 2" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-3" class="level-node level-node--3 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 3" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-4" class="level-node level-node--4 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 4" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-5" class="level-node level-node--5 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 5" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-6" class="level-node level-node--6 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 6" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-7" class="level-node level-node--7 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 7" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
                         <ui:Button name="level-node-8" class="level-node level-node--8 level-node--locked tap-target-lg">
+                            <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
                             <ui:Label text="LVL 8" class="level-node__label" picking-mode="Ignore" />
-                            <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
+                                <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:Button>
 
                         <!-- Map Pass 3B decorative cloud overlay (corrected
