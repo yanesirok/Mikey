@@ -295,21 +295,46 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("MapNodeFeedback.PlayRefusal(node);", toggleBody);
 
             // Ripple + stamp must sit INSIDE an unlocked-only gate using the
-            // same LockedNodeClass signal, negated.
-            int gateIndex = selectBody.IndexOf("if (node != null && !node.ClassListContains(LockedNodeClass))", System.StringComparison.Ordinal);
-            Assert.Greater(gateIndex, -1,
+            // same LockedNodeClass signal, negated. Brace-depth-aware, not a
+            // naive first "}" — a nested block inside the gate later would
+            // silently shrink a naive range and false-negative this test.
+            string gateSignature = "if (node != null && !node.ClassListContains(LockedNodeClass))";
+            Assert.Greater(selectBody.IndexOf(gateSignature, System.StringComparison.Ordinal), -1,
                 "Expected PlayRipple/PlaySealStamp to be gated behind the SAME LockedNodeClass signal the " +
                 "refusal shake uses (negated) — a future edit that reunifies the call sites and drops this " +
                 "gate would silently confirm an action that never happened for a locked marker.");
-            int gateBraceOpen = selectBody.IndexOf('{', gateIndex);
-            int gateBraceClose = selectBody.IndexOf('}', gateBraceOpen);
-            Assert.Greater(gateBraceOpen, gateIndex);
-            Assert.Greater(gateBraceClose, gateBraceOpen);
+            string gateBody = ExtractMethodBody(selectBody, gateSignature);
 
-            int rippleIndex = selectBody.IndexOf("MapNodeFeedback.PlayRipple(node);", System.StringComparison.Ordinal);
-            int stampIndex = selectBody.IndexOf("PlaySealStamp();", System.StringComparison.Ordinal);
-            Assert.That(rippleIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlayRipple must be inside the unlocked gate.");
-            Assert.That(stampIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlaySealStamp must be inside the unlocked gate.");
+            StringAssert.Contains("MapNodeFeedback.PlayRipple(node);", gateBody, "PlayRipple must be inside the unlocked gate.");
+            StringAssert.Contains("PlaySealStamp();", gateBody, "PlaySealStamp must be inside the unlocked gate.");
+        }
+
+        /// <summary>
+        /// Извлекает тело блока (метода или if) по его сигнатуре/условию,
+        /// считая глубину фигурных скобок — а не наивным поиском первой "}":
+        /// вложенный блок внутри закрыл бы её раньше времени. Тот же приём,
+        /// что и в MapPanZoomControllerAmbientSourceTests.
+        /// </summary>
+        private static string ExtractMethodBody(string source, string signature)
+        {
+            int signatureIndex = source.IndexOf(signature, System.StringComparison.Ordinal);
+            Assert.Greater(signatureIndex, -1, $"Expected to find '{signature}'.");
+
+            int braceOpen = source.IndexOf('{', signatureIndex);
+            int depth = 0;
+            int i = braceOpen;
+            for (; i < source.Length; i++)
+            {
+                if (source[i] == '{')
+                    depth++;
+                else if (source[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                        break;
+                }
+            }
+            return source.Substring(braceOpen, i - braceOpen + 1);
         }
     }
 }

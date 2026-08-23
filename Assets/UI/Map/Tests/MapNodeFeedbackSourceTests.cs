@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 
 namespace Mikey.UI.Map.Tests
@@ -14,6 +16,7 @@ namespace Mikey.UI.Map.Tests
     public class MapNodeFeedbackSourceTests
     {
         private const string SourcePath = "Assets/UI/Map/MapNodeFeedback.cs";
+        private const string UssPath = "Assets/UI/Map/Map.uss";
 
         /// <remarks>
         /// Сканирование ТЕКСТА, а не синтаксического дерева: намеренно грубо,
@@ -204,6 +207,44 @@ namespace Mikey.UI.Map.Tests
             Assert.Greater(secondGuard, -1,
                 "Expected the delayed 'remove class' cleanup step to ALSO bail out if a newer tap superseded it — " +
                 "otherwise an earlier tap's cleanup could fire mid-transition on a later tap and cut its expansion short.");
+        }
+
+        /// <summary>
+        /// Ре-ревью: RippleDurationMs (уборка — снятие --rippling) обязан
+        /// оставаться СТРОГО больше transition-duration кольца в Map.uss, а
+        /// не просто совпадать по счастливой случайности двух захардкоженных
+        /// чисел. Если одно из них поедет без другого, запас молча
+        /// схлопнется или станет отрицательным — и вернётся ровно тот баг,
+        /// который чинит счётчик поколения выше: уборка прилетает посреди
+        /// ещё не доигравшего перехода, обрывая расширение кольца видимым
+        /// скачком. Числа читаются из обоих файлов по тексту (тот же приём,
+        /// что и во всём этом классе), а не задаются в тесте по памяти — так
+        /// расхождение ловится в любую сторону, а не только когда кто-то
+        /// не обновит тест заодно с константой.
+        /// </summary>
+        [Test]
+        public void RippleDurationMs_StaysStrictlyGreaterThanTheUssTransitionDuration()
+        {
+            string uss = File.ReadAllText(UssPath);
+            int rippleRuleStart = uss.IndexOf(".chapter-node__ripple,", System.StringComparison.Ordinal);
+            Assert.Greater(rippleRuleStart, -1, "Expected the ripple rule in Map.uss.");
+            int rippleRuleEnd = uss.IndexOf('}', rippleRuleStart);
+            Assert.Greater(rippleRuleEnd, rippleRuleStart);
+            string rippleRule = uss.Substring(rippleRuleStart, rippleRuleEnd - rippleRuleStart);
+
+            Match durationMatch = Regex.Match(rippleRule, @"transition-duration:\s*([\d.]+)s;");
+            Assert.IsTrue(durationMatch.Success, "Expected a 'transition-duration: <N>s;' declaration on the ripple rule.");
+            float ussDurationMs = float.Parse(durationMatch.Groups[1].Value, CultureInfo.InvariantCulture) * 1000f;
+
+            string source = File.ReadAllText(SourcePath);
+            Match constMatch = Regex.Match(source, @"RippleDurationMs\s*=\s*(\d+);");
+            Assert.IsTrue(constMatch.Success, "Expected 'RippleDurationMs = <N>;' in MapNodeFeedback.cs.");
+            int rippleDurationMs = int.Parse(constMatch.Groups[1].Value, CultureInfo.InvariantCulture);
+
+            Assert.Greater(rippleDurationMs, ussDurationMs,
+                "RippleDurationMs must stay strictly greater than the ring's USS transition-duration — " +
+                "otherwise the delayed cleanup fires before the transition finishes, cutting the ring's " +
+                "expansion short with a visible snap-back.");
         }
     }
 }
