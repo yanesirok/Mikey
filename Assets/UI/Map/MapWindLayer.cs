@@ -58,7 +58,13 @@ namespace Mikey.UI.Map
         /// <summary>Один шаг движения слоя.</summary>
         public void Tick(float timeSeconds, float canvasWidth, float canvasHeight, float panX, float panY)
         {
-            if (canvasWidth <= 0f || canvasHeight <= 0f)
+            // Форма с отрицанием намеренная: NaN > 0 ложно, поэтому она отсекает
+            // и NaN, а "<= 0f" его пропускает. resolvedStyle.width канваса до
+            // первого прохода раскладки именно NaN, и такой тик прошёл бы внутрь:
+            // высота легла бы нулём, а поскольку NaN == NaN ложно, память размера
+            // не совпала бы никогда — слой перекладывался бы каждым кадром, ровно
+            // тот проход раскладки в кадре, которого весь дизайн избегает.
+            if (!(canvasWidth > 0f) || !(canvasHeight > 0f))
                 return;
 
             EnsureLayout(canvasWidth, canvasHeight);
