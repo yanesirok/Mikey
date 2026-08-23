@@ -1457,15 +1457,25 @@ unity command run_tests --mode EditMode --filter "MapPanZoomControllerAmbientSou
 
         /// <summary>Сколько секунд прошло с последнего действия игрока — ambient включает Ken Burns только в простое.</summary>
         public float SecondsSinceLastInput => Time.unscaledTime - _lastInputTime;
+
+        /// <summary>
+        /// Отмечает «игрок только что действовал». Вызывается со ВСЕХ путей
+        /// реального ввода, включая продолжение уже идущего жеста — а не только
+        /// его начало. Иначе непрерывный пан или пинч длиннее IdleDelaySeconds
+        /// пересёк бы порог простоя прямо под пальцем, и Ken Burns начал бы
+        /// уводить камеру поверх активного жеста игрока.
+        /// </summary>
+        private void MarkInput() => _lastInputTime = Time.unscaledTime;
 ```
 
-В начало `OnPointerDown`, `OnWheel` и в ветку старта пинча в `Update()` добавить строку:
+Вызвать `MarkInput()` из всех путей реального ввода:
 
-```csharp
-            _lastInputTime = Time.unscaledTime;
-```
+- в начале `OnPointerDown`;
+- в начале `OnWheel`;
+- в ветке старта пинча в `Update()` **и в ветке его продолжения** — там, где применяется `SetZoom(_pinchStartZoom * ratio)`;
+- в `OnPointerMove` — **безусловно на каждом кадре перетаскивания**, а не только при пересечении порога.
 
-а также в `OnPointerMove` внутри блока `if (!_dragging) { … }` после `_dragging = true;`.
+Отдельно вызвать `MarkInput()` в `ResetTransform()`. Без этого счётчик простоя считается от запуска приложения, а не от входа на экран: `_lastInputTime` по умолчанию равен нулю, и к моменту, когда игрок доберётся до карты через заставку и меню, порог простоя давно пройден — Ken Burns включился бы сразу при появлении экрана, поверх вводного зума.
 
 - [ ] **Step 8: Подключить камеру в драйвере**
 
