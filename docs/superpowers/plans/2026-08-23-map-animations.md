@@ -94,6 +94,10 @@ namespace Mikey.UI.Settings.Tests
         [Test]
         public void PersistsAndRaisesChangedOnlyOnRealChange()
         {
+            // Свой сброс, а не расчёт на TearDown соседа: тест обязан проходить
+            // и когда его гоняют в одиночку по фильтру, первым в свежем процессе.
+            PlayerPrefs.DeleteKey(Key);
+
             var go = new GameObject("motion");
             var store = go.AddComponent<MotionSettingsStore>();
 
@@ -330,6 +334,9 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("style.top", source);
             StringAssert.DoesNotContain("style.width", source);
             StringAssert.DoesNotContain("style.height", source);
+            StringAssert.DoesNotContain("style.margin", source);
+            StringAssert.DoesNotContain("style.padding", source);
+            StringAssert.DoesNotContain("style.fontSize", source);
         }
 
         [Test]
@@ -470,6 +477,9 @@ namespace Mikey.UI.Map
                 _navigator = null;
             }
 
+            if (_motion != null)
+                _motion.Changed -= OnMotionSettingsChanged;
+
             _root = null;
             _motion = null;
             _bound = false;
@@ -494,6 +504,8 @@ namespace Mikey.UI.Map
 
             _root = document.rootVisualElement;
             _motion = GetComponent<IMotionSettings>();
+            if (_motion != null)
+                _motion.Changed += OnMotionSettingsChanged;
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
@@ -513,6 +525,25 @@ namespace Mikey.UI.Map
                 StartTicking();
             else
                 StopTicking();
+        }
+
+        /// <summary>
+        /// Настройка «меньше движения» переключается из модала, который
+        /// открывается ПОВЕРХ карты и экран не меняет — значит ScreenChanged не
+        /// придёт, и реакция обязана идти от самой настройки. Без этой подписки
+        /// выключение движения ловилось бы следующим тиком, а обратное
+        /// включение не ловилось бы никогда: тик к тому моменту уже остановлен,
+        /// и ambient молчал бы до следующего входа на экран карты.
+        /// </summary>
+        private void OnMotionSettingsChanged()
+        {
+            if (!_onMapScreen)
+                return;
+
+            if (_motion != null && _motion.ReducedMotion)
+                StopTicking();
+            else
+                StartTicking();
         }
 
         private void StartTicking()
@@ -2390,6 +2421,9 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("style.top", source);
             StringAssert.DoesNotContain("style.width", source);
             StringAssert.DoesNotContain("style.height", source);
+            StringAssert.DoesNotContain("style.margin", source);
+            StringAssert.DoesNotContain("style.padding", source);
+            StringAssert.DoesNotContain("style.fontSize", source);
         }
 
         [Test]
@@ -3288,6 +3322,9 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("style.top", source);
             StringAssert.DoesNotContain("style.width", source);
             StringAssert.DoesNotContain("style.height", source);
+            StringAssert.DoesNotContain("style.margin", source);
+            StringAssert.DoesNotContain("style.padding", source);
+            StringAssert.DoesNotContain("style.fontSize", source);
         }
 
         [Test]
