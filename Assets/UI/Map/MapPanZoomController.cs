@@ -95,6 +95,12 @@ namespace Mikey.UI.Map
         /// <summary>Current zoom level, for capturing view state before a Japan&lt;-&gt;Okinawa cloud transition (see MapCloudTransitionController).</summary>
         public float CurrentZoom => _zoom;
 
+        /// <summary>Текущий горизонтальный пан в пикселях — читается ambient-слоем для параллакса облаков (см. MapAmbientController).</summary>
+        public float CurrentPanX => _panX;
+
+        /// <summary>Текущий вертикальный пан в пикселях — см. <see cref="CurrentPanX"/>.</summary>
+        public float CurrentPanY => _panY;
+
         private void OnEnable()
         {
             if (_bound)

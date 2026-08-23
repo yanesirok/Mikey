@@ -82,6 +82,34 @@ namespace Mikey.UI.Map
             opacityDelta = DriftOpacityAmplitude * Wave(timeSeconds, period * 0.77f, phase);
         }
 
+        /// <summary>
+        /// Насколько быстрее карты движется каждое облако. Больше единицы —
+        /// облако «ближе к камере». Порядок совпадает с порядком в
+        /// <see cref="CloudDriftPeriodsSeconds"/>.
+        /// </summary>
+        public static readonly float[] CloudParallaxFactors = { 1.04f, 1.06f, 1.10f, 1.12f };
+
+        /// <summary>
+        /// Потолок параллакс-смещения. Без него на максимальном зуме, где пан
+        /// исчисляется сотнями пикселей, облака уехали бы из композиции
+        /// целиком — а они часть рисунка карты, а не свободный слой.
+        /// </summary>
+        public const float MaxParallaxOffsetPixels = 40f;
+
+        /// <summary>Смещение облака относительно карты при данном пане и его множителе глубины.</summary>
+        public static float ParallaxOffset(float pan, float factor)
+        {
+            if (!IsFinite(pan) || !IsFinite(factor))
+                return 0f;
+
+            float offset = pan * (factor - 1f);
+            if (offset > MaxParallaxOffsetPixels)
+                return MaxParallaxOffsetPixels;
+            if (offset < -MaxParallaxOffsetPixels)
+                return -MaxParallaxOffsetPixels;
+            return offset;
+        }
+
         private static double WaveAngle(float timeSeconds, float periodSeconds)
         {
             if (!IsFinite(timeSeconds) || !IsFinite(periodSeconds) || periodSeconds <= 0f)

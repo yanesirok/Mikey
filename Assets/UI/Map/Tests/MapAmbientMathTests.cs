@@ -74,10 +74,66 @@ namespace Mikey.UI.Map.Tests
         [Test]
         public void CloudDrift_IsSafeOnOutOfRangeIndex()
         {
-            MapAmbientMath.CloudDrift(-1, 7f, 1000f, 500f, out float dx, out float dy, out float dOpacity);
+            MapAmbientMath.CloudDrift(-1, 7f, 1000f, 500f, out float dxLow, out float dyLow, out float dOpacityLow);
+            Assert.AreEqual(0f, dxLow, Tolerance);
+            Assert.AreEqual(0f, dyLow, Tolerance);
+            Assert.AreEqual(0f, dOpacityLow, Tolerance);
+
+            // Код защищает обе стороны диапазона — верхняя граница проверяется
+            // так же, как и нижняя.
+            MapAmbientMath.CloudDrift(MapAmbientMath.CloudCount, 7f, 1000f, 500f, out float dxHigh, out float dyHigh, out float dOpacityHigh);
+            Assert.AreEqual(0f, dxHigh, Tolerance);
+            Assert.AreEqual(0f, dyHigh, Tolerance);
+            Assert.AreEqual(0f, dOpacityHigh, Tolerance);
+        }
+
+        [Test]
+        public void CloudDrift_IsSafeOnDegenerateCanvasSize()
+        {
+            AssertCloudDriftIsZero(0f, 500f);
+            AssertCloudDriftIsZero(1000f, 0f);
+            AssertCloudDriftIsZero(-1000f, 500f);
+            AssertCloudDriftIsZero(1000f, -500f);
+            AssertCloudDriftIsZero(float.NaN, 500f);
+            AssertCloudDriftIsZero(1000f, float.NaN);
+        }
+
+        private static void AssertCloudDriftIsZero(float canvasWidth, float canvasHeight)
+        {
+            MapAmbientMath.CloudDrift(0, 7f, canvasWidth, canvasHeight, out float dx, out float dy, out float dOpacity);
             Assert.AreEqual(0f, dx, Tolerance);
             Assert.AreEqual(0f, dy, Tolerance);
             Assert.AreEqual(0f, dOpacity, Tolerance);
+        }
+
+        [Test]
+        public void ParallaxOffset_IsZeroWhenFactorIsOne()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(250f, 1f), Tolerance);
+        }
+
+        [Test]
+        public void ParallaxOffset_MovesWithThePanForFactorsAboveOne()
+        {
+            float offset = MapAmbientMath.ParallaxOffset(100f, 1.1f);
+            Assert.Greater(offset, 0f, "Ближнее облако должно уходить в ту же сторону, что и пан, но дальше.");
+            Assert.AreEqual(10f, offset, Tolerance);
+        }
+
+        [Test]
+        public void ParallaxOffset_IsCapped()
+        {
+            float offset = MapAmbientMath.ParallaxOffset(100000f, 1.12f);
+            Assert.AreEqual(MapAmbientMath.MaxParallaxOffsetPixels, offset, Tolerance);
+            Assert.AreEqual(-MapAmbientMath.MaxParallaxOffsetPixels, MapAmbientMath.ParallaxOffset(-100000f, 1.12f), Tolerance);
+        }
+
+        [Test]
+        public void ParallaxFactors_AreDefinedForEveryCloudAndAboveOne()
+        {
+            Assert.AreEqual(MapAmbientMath.CloudCount, MapAmbientMath.CloudParallaxFactors.Length);
+            foreach (float factor in MapAmbientMath.CloudParallaxFactors)
+                Assert.Greater(factor, 1f);
         }
     }
 }

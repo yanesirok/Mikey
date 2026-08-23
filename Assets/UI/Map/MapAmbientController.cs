@@ -50,6 +50,7 @@ namespace Mikey.UI.Map
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
         private VisualElement _canvas;
+        private MapPanZoomController _panZoom;
 
         private void OnEnable()
         {
@@ -156,6 +157,16 @@ namespace Mikey.UI.Map
                 if (_clouds[i] != null)
                     _clouds[i].usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor;
             }
+
+            _panZoom = null;
+            foreach (MapPanZoomController candidate in GetComponents<MapPanZoomController>())
+            {
+                if (candidate.ScreenId == screenId)
+                {
+                    _panZoom = candidate;
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -231,6 +242,9 @@ namespace Mikey.UI.Map
             if (width <= 0f || height <= 0f)
                 return;
 
+            float panX = _panZoom?.CurrentPanX ?? 0f;
+            float panY = _panZoom?.CurrentPanY ?? 0f;
+
             for (int i = 0; i < MapAmbientMath.CloudCount; i++)
             {
                 VisualElement cloud = _clouds[i];
@@ -240,8 +254,16 @@ namespace Mikey.UI.Map
                 MapAmbientMath.CloudDrift(i, _elapsedSeconds, width, height,
                     out float dx, out float dy, out float dOpacity);
 
+                float factor = MapAmbientMath.CloudParallaxFactors[i];
+                dx += MapAmbientMath.ParallaxOffset(panX, factor);
+                dy += MapAmbientMath.ParallaxOffset(panY, factor);
+
                 cloud.style.translate = new Translate(dx, dy);
-                cloud.style.opacity = _cloudRestOpacity[i] + dOpacity;
+                // Клампим: у правого облака прозрачность покоя ровно 1.00
+                // (см. MapCloudLayout), и без ограничения верхняя половина
+                // синуса упиралась бы в потолок — облако умело бы только
+                // темнеть, но не светлеть, то есть дышало бы вполсилы.
+                cloud.style.opacity = Mathf.Clamp01(_cloudRestOpacity[i] + dOpacity);
             }
         }
     }

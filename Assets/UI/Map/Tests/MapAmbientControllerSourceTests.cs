@@ -68,5 +68,47 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("Changed += OnMotionSettingsChanged", source);
             StringAssert.Contains("Changed -= OnMotionSettingsChanged", source);
         }
+
+        /// <summary>
+        /// В ResolveScreenElements массив суффиксов имён облаков и массив их
+        /// прозрачностей покоя спарены по индексу. Перестановка одного
+        /// массива относительно другого молча спарит движение одного облака
+        /// с прозрачностью покоя другого — ни один рантайм-тест этого не
+        /// поймает, поэтому проверяем по тексту, что оба массива перечисляют
+        /// облака в одном и том же порядке (right-01/Right1, left-01/Left1,
+        /// left-02/Left2, bottom-01/Bottom1).
+        /// </summary>
+        [Test]
+        public void ResolveScreenElements_CloudSuffixOrder_MatchesRestOpacityFieldOrder()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int suffixesStart = source.IndexOf("string[] suffixes = {", System.StringComparison.Ordinal);
+            int suffixesEnd = source.IndexOf("};", suffixesStart, System.StringComparison.Ordinal);
+            Assert.Greater(suffixesStart, -1, "Expected the cloud suffix array literal.");
+            Assert.Greater(suffixesEnd, suffixesStart);
+            string suffixesText = source.Substring(suffixesStart, suffixesEnd - suffixesStart);
+
+            int opacityStart = source.IndexOf("restOpacity =", suffixesEnd, System.StringComparison.Ordinal);
+            int opacityEnd = source.IndexOf("};", opacityStart, System.StringComparison.Ordinal);
+            Assert.Greater(opacityStart, -1, "Expected the rest-opacity array literal.");
+            Assert.Greater(opacityEnd, opacityStart);
+            string opacityText = source.Substring(opacityStart, opacityEnd - opacityStart);
+
+            string[] expectedSuffixOrder = { "right-01", "left-01", "left-02", "bottom-01" };
+            string[] expectedPresetFieldOrder = { "Right1", "Left1", "Left2", "Bottom1" };
+
+            int lastSuffixIndex = -1;
+            int lastFieldIndex = -1;
+            for (int i = 0; i < expectedSuffixOrder.Length; i++)
+            {
+                int suffixIndex = suffixesText.IndexOf("\"" + expectedSuffixOrder[i] + "\"", System.StringComparison.Ordinal);
+                int fieldIndex = opacityText.IndexOf("preset." + expectedPresetFieldOrder[i] + ".Opacity", System.StringComparison.Ordinal);
+                Assert.Greater(suffixIndex, lastSuffixIndex, $"Suffix '{expectedSuffixOrder[i]}' out of order in the suffixes array.");
+                Assert.Greater(fieldIndex, lastFieldIndex, $"Preset field '{expectedPresetFieldOrder[i]}' out of order in the restOpacity array.");
+                lastSuffixIndex = suffixIndex;
+                lastFieldIndex = fieldIndex;
+            }
+        }
     }
 }
