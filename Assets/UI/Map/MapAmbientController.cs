@@ -64,6 +64,9 @@ namespace Mikey.UI.Map
 
             StopTicking();
 
+            if (_motion != null)
+                _motion.Changed -= OnMotionSettingsChanged;
+
             if (_navigator != null)
             {
                 _navigator.ScreenChanged -= OnScreenChanged;
@@ -94,6 +97,8 @@ namespace Mikey.UI.Map
 
             _root = document.rootVisualElement;
             _motion = GetComponent<IMotionSettings>();
+            if (_motion != null)
+                _motion.Changed += OnMotionSettingsChanged;
 
             _navigator = GetComponent<IScreenNavigator>();
             if (_navigator != null)
@@ -113,6 +118,25 @@ namespace Mikey.UI.Map
                 StartTicking();
             else
                 StopTicking();
+        }
+
+        /// <summary>
+        /// Настройка «меньше движения» переключается из модала, который
+        /// открывается ПОВЕРХ карты и экран не меняет — значит ScreenChanged не
+        /// придёт, и реакция обязана идти от самой настройки. Без этой подписки
+        /// выключение движения ловилось бы следующим тиком, а обратное
+        /// включение не ловилось бы никогда: тик к тому моменту уже остановлен,
+        /// и ambient молчал бы до следующего входа на экран карты.
+        /// </summary>
+        private void OnMotionSettingsChanged()
+        {
+            if (!_onMapScreen)
+                return;
+
+            if (_motion != null && _motion.ReducedMotion)
+                StopTicking();
+            else
+                StartTicking();
         }
 
         private void StartTicking()

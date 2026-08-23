@@ -23,6 +23,9 @@ namespace Mikey.UI.Settings.Tests
         [Test]
         public void PersistsAndRaisesChangedOnlyOnRealChange()
         {
+            // Свой сброс, а не расчёт на TearDown соседа: тест обязан проходить
+            // и когда его гоняют в одиночку по фильтру, первым в свежем процессе.
+            PlayerPrefs.DeleteKey(Key);
             var go = new GameObject("motion");
             var store = go.AddComponent<MotionSettingsStore>();
 

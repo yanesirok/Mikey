@@ -25,6 +25,9 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("style.top", source);
             StringAssert.DoesNotContain("style.width", source);
             StringAssert.DoesNotContain("style.height", source);
+            StringAssert.DoesNotContain("style.margin", source);
+            StringAssert.DoesNotContain("style.padding", source);
+            StringAssert.DoesNotContain("style.fontSize", source);
         }
 
         [Test]
@@ -56,6 +59,14 @@ namespace Mikey.UI.Map.Tests
         {
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("OnDemandRendering.renderFrameInterval", source);
+        }
+
+        [Test]
+        public void SubscribesToMotionSettingsChanged()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.Contains("Changed += OnMotionSettingsChanged", source);
+            StringAssert.Contains("Changed -= OnMotionSettingsChanged", source);
         }
     }
 }
