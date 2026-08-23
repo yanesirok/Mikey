@@ -323,6 +323,16 @@ namespace Mikey.UI.Map
                 ClosePanel();
                 return;
             }
+
+            // Дрожь отказа — здесь, в пути тапа, а не в ShowLevelPanel: ту
+            // зовёт ещё и RefreshLevelLockStates (из OnProgressChanged, на
+            // любую синхронизацию прогресса), и безусловный вызов там дёргал
+            // бы уже открытую панель «почему закрыто» без единого действия
+            // игрока — по образцу того, как это уже сделано в
+            // JapanMapController.ToggleChapter.
+            if (IsLevelLocked(index) && _levelNodes[index] != null)
+                MapNodeFeedback.PlayRefusal(_levelNodes[index]);
+
             SelectLevel(index);
         }
 
@@ -342,9 +352,6 @@ namespace Mikey.UI.Map
         private void ShowLevelPanel(int index)
         {
             bool locked = IsLevelLocked(index);
-
-            if (locked && _levelNodes[index] != null)
-                MapNodeFeedback.PlayRefusal(_levelNodes[index]);
 
             _panelEyebrow.text = "LEVEL";
             _panelTitle.text = $"LVL {index}";
