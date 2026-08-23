@@ -342,8 +342,15 @@ namespace Mikey.UI.Map
 
             _selectedLevel = index;
             _levelNodes[index].AddToClassList(SelectedNodeClass);
-            MapNodeFeedback.PlayRipple(_levelNodes[index]);
-            GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
+            // Волна и звук печати подтверждают ВХОД — заблокированному узлу
+            // подтверждать нечего (дрожь отказа в OnLevelNodeClicked уже
+            // сказала «нет»). Тот же IsLevelLocked, что уже решает дрожь
+            // там, чтобы оба сигнала читались по одному правилу.
+            if (!IsLevelLocked(index) && _levelNodes[index] != null)
+            {
+                MapNodeFeedback.PlayRipple(_levelNodes[index]);
+                GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
+            }
             SetOutsideCatcherActive(true);
 
             ShowLevelPanel(index);

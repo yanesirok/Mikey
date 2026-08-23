@@ -262,5 +262,54 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("Destroy(_okinawaPlayer.gameObject);", source);
             StringAssert.Contains("_okinawaRenderTexture.Release();", source);
         }
+
+        /// <summary>
+        /// Ре-ревью задачи 11: волна и звук печати подтверждают ВХОД, а тап
+        /// по заблокированному узлу входа не совершает (дрожь отказа уже
+        /// сказала «нет» в ToggleChapter, панель откроется с объяснением) —
+        /// оба сигнала «принято, засчитано» должны молчать там же. Гейт —
+        /// ТОТ ЖЕ признак блокировки (LockedNodeClass), которым уже
+        /// пользуется дрожь в ToggleChapter, а не отдельное параллельное
+        /// условие, которое легко рассинхронизировать будущей правкой.
+        /// Текстовая проверка: EditMode не гоняет реальный тап по кнопке
+        /// (см. класс-докстринг), поведение проверяемо только по коду.
+        /// </summary>
+        [Test]
+        public void RippleAndSealStamp_OnlyPlayForAnUnlockedNode_RefusalStillPlaysForALockedOne()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int toggleStart = source.IndexOf("private void ToggleChapter(string chapterId, Button node)", System.StringComparison.Ordinal);
+            Assert.Greater(toggleStart, -1, "Expected ToggleChapter in the source.");
+            int selectStart = source.IndexOf("private void SelectChapter(string chapterId, Button node)", toggleStart, System.StringComparison.Ordinal);
+            Assert.Greater(selectStart, toggleStart, "Expected SelectChapter right after ToggleChapter.");
+            int selectEnd = source.IndexOf("private void ShowOkinawaPanel()", selectStart, System.StringComparison.Ordinal);
+            Assert.Greater(selectEnd, selectStart, "Expected ShowOkinawaPanel right after SelectChapter.");
+
+            string toggleBody = source.Substring(toggleStart, selectStart - toggleStart);
+            string selectBody = source.Substring(selectStart, selectEnd - selectStart);
+
+            // The refusal shake is unconditional on a locked tap, unchanged
+            // by this gate.
+            StringAssert.Contains("if (node != null && node.ClassListContains(LockedNodeClass))", toggleBody);
+            StringAssert.Contains("MapNodeFeedback.PlayRefusal(node);", toggleBody);
+
+            // Ripple + stamp must sit INSIDE an unlocked-only gate using the
+            // same LockedNodeClass signal, negated.
+            int gateIndex = selectBody.IndexOf("if (node != null && !node.ClassListContains(LockedNodeClass))", System.StringComparison.Ordinal);
+            Assert.Greater(gateIndex, -1,
+                "Expected PlayRipple/PlaySealStamp to be gated behind the SAME LockedNodeClass signal the " +
+                "refusal shake uses (negated) — a future edit that reunifies the call sites and drops this " +
+                "gate would silently confirm an action that never happened for a locked marker.");
+            int gateBraceOpen = selectBody.IndexOf('{', gateIndex);
+            int gateBraceClose = selectBody.IndexOf('}', gateBraceOpen);
+            Assert.Greater(gateBraceOpen, gateIndex);
+            Assert.Greater(gateBraceClose, gateBraceOpen);
+
+            int rippleIndex = selectBody.IndexOf("MapNodeFeedback.PlayRipple(node);", System.StringComparison.Ordinal);
+            int stampIndex = selectBody.IndexOf("PlaySealStamp();", System.StringComparison.Ordinal);
+            Assert.That(rippleIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlayRipple must be inside the unlocked gate.");
+            Assert.That(stampIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlaySealStamp must be inside the unlocked gate.");
+        }
     }
 }

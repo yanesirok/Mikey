@@ -285,5 +285,54 @@ namespace Mikey.UI.Map.Tests
             StringAssert.DoesNotContain("_settingsModal", source);
             StringAssert.DoesNotContain("IAudioSettings", source);
         }
+
+        /// <summary>
+        /// Ре-ревью задачи 11: волна и звук печати подтверждают ВХОД, а тап
+        /// по заблокированному уровню входа не совершает (дрожь отказа уже
+        /// сказала «нет» в OnLevelNodeClicked, панель откроется с
+        /// объяснением) — оба сигнала «принято, засчитано» должны молчать
+        /// там же. Гейт — ТОТ ЖЕ IsLevelLocked, которым уже пользуется дрожь
+        /// в OnLevelNodeClicked, а не отдельное параллельное условие,
+        /// которое легко рассинхронизировать будущей правкой. Текстовая
+        /// проверка: EditMode не гоняет реальный тап по кнопке (см.
+        /// класс-докстринг), поведение проверяемо только по коду.
+        /// </summary>
+        [Test]
+        public void RippleAndSealStamp_OnlyPlayForAnUnlockedLevel_RefusalStillPlaysForALockedOne()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int clickedStart = source.IndexOf("private void OnLevelNodeClicked(int index)", System.StringComparison.Ordinal);
+            Assert.Greater(clickedStart, -1, "Expected OnLevelNodeClicked in the source.");
+            int selectStart = source.IndexOf("private void SelectLevel(int index)", clickedStart, System.StringComparison.Ordinal);
+            Assert.Greater(selectStart, clickedStart, "Expected SelectLevel right after OnLevelNodeClicked.");
+            int selectEnd = source.IndexOf("private void ShowLevelPanel(int index)", selectStart, System.StringComparison.Ordinal);
+            Assert.Greater(selectEnd, selectStart, "Expected ShowLevelPanel right after SelectLevel.");
+
+            string clickedBody = source.Substring(clickedStart, selectStart - clickedStart);
+            string selectBody = source.Substring(selectStart, selectEnd - selectStart);
+
+            // The refusal shake is unconditional on a locked tap, unchanged
+            // by this gate.
+            StringAssert.Contains("if (IsLevelLocked(index) && _levelNodes[index] != null)", clickedBody);
+            StringAssert.Contains("MapNodeFeedback.PlayRefusal(_levelNodes[index]);", clickedBody);
+
+            // Ripple + stamp must sit INSIDE an unlocked-only gate using the
+            // same IsLevelLocked signal, negated.
+            int gateIndex = selectBody.IndexOf("if (!IsLevelLocked(index)", System.StringComparison.Ordinal);
+            Assert.Greater(gateIndex, -1,
+                "Expected PlayRipple/PlaySealStamp to be gated behind the SAME IsLevelLocked signal the " +
+                "refusal shake uses (negated) — a future edit that reunifies the call sites and drops this " +
+                "gate would silently confirm an action that never happened for a locked level.");
+            int gateBraceOpen = selectBody.IndexOf('{', gateIndex);
+            int gateBraceClose = selectBody.IndexOf('}', gateBraceOpen);
+            Assert.Greater(gateBraceOpen, gateIndex);
+            Assert.Greater(gateBraceClose, gateBraceOpen);
+
+            int rippleIndex = selectBody.IndexOf("MapNodeFeedback.PlayRipple(_levelNodes[index]);", System.StringComparison.Ordinal);
+            int stampIndex = selectBody.IndexOf("PlaySealStamp();", System.StringComparison.Ordinal);
+            Assert.That(rippleIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlayRipple must be inside the unlocked gate.");
+            Assert.That(stampIndex, Is.InRange(gateBraceOpen, gateBraceClose), "PlaySealStamp must be inside the unlocked gate.");
+        }
     }
 }

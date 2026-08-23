@@ -316,8 +316,15 @@ namespace Mikey.UI.Map
 
             _selectedChapter = chapterId;
             node.AddToClassList(SelectedNodeClass);
-            MapNodeFeedback.PlayRipple(node);
-            GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
+            // Волна и звук печати подтверждают ВХОД — заблокированному узлу
+            // подтверждать нечего (дрожь отказа в ToggleChapter уже сказала
+            // «нет»). Тот же признак блокировки, что уже решает дрожь там,
+            // чтобы оба сигнала читались по одному правилу.
+            if (node != null && !node.ClassListContains(LockedNodeClass))
+            {
+                MapNodeFeedback.PlayRipple(node);
+                GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
+            }
             SetOutsideCatcherActive(true);
 
             if (chapterId == OkinawaChapterId)
