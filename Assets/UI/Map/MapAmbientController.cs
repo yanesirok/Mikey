@@ -209,18 +209,27 @@ namespace Mikey.UI.Map
                 if (alive)
                     _focusMarkerIndex = i;
 
-                // Заблокированные маркеры стоят абсолютно неподвижно, а
-                // значит их состояние покоя достаточно выставить один раз
-                // здесь, а не переписывать каждый тик впустую.
-                if (!alive)
+                // Покой выставляется ВСЕМ маркерам на каждом входе на экран,
+                // не только заблокированным: цвет тени непрозрачен, и видимой
+                // альфой владеет исключительно этот inline opacity — у
+                // живого маркера её никто не задаёт до первого тика, значит
+                // один кадр после показа экрана его тень рисовалась бы
+                // сплошным чёрным. Живым тик (см. TickMarkers) перепишет
+                // значение сразу же, лишней работы это не создаёт.
+                //
+                // Обёртке масштаб снимается через StyleKeyword.Null, а не
+                // выставляется явной единицей: тот же элемент читает каскад
+                // появления маркеров (MapNodeFeedback), и явный инлайн-
+                // масштаб перебил бы его стартовое USS-состояние независимо
+                // от того, какой из двух контроллеров экрана отработает
+                // раньше. Null лишь снимает прошлый инлайн и отдаёт решение
+                // USS — в покое это тот же единичный масштаб.
+                if (breath != null)
+                    breath.style.scale = StyleKeyword.Null;
+                if (shadow != null)
                 {
-                    if (breath != null)
-                        breath.style.scale = new Scale(Vector2.one);
-                    if (shadow != null)
-                    {
-                        shadow.style.scale = new Scale(Vector2.one);
-                        shadow.style.opacity = MapAmbientMath.MarkerShadowRestOpacity;
-                    }
+                    shadow.style.scale = new Scale(Vector2.one);
+                    shadow.style.opacity = MapAmbientMath.MarkerShadowRestOpacity;
                 }
             }
         }

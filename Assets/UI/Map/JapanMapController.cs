@@ -475,6 +475,14 @@ namespace Mikey.UI.Map
 
                 ResetToDefaultState();
                 RefreshTechniquesGate();
+
+                // Каскад появления маркеров: юг -> север, тот же порядок,
+                // что и в MapMarkerLayout.Chapters — маркеры становятся на
+                // места оттуда, где игрок сейчас, туда, куда он пойдёт.
+                var motion = GetComponent<Mikey.UI.Settings.IMotionSettings>();
+                MapNodeFeedback.PlayEntranceCascade(
+                    new[] { _okinawaNode, _fukuokaNode, _hiroshimaNode },
+                    motion != null && motion.ReducedMotion);
             }
             else
             {

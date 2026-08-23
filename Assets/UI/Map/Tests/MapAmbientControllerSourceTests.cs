@@ -153,5 +153,58 @@ namespace Mikey.UI.Map.Tests
                 lastFactorIndex = factorIndex;
             }
         }
+
+        /// <summary>
+        /// Тень маркера должна оставаться непрозрачной ЦВЕТОМ: видимой альфой
+        /// владеет только inline opacity, которую пишет TickMarkers/
+        /// ResolveScreenElements. UI Toolkit перемножает opacity элемента на
+        /// альфу его цвета — верни альфу в rgba(...), и вместе с inline
+        /// opacity 0.35 реальная прозрачность станет втрое бледнее
+        /// задуманного (0.35*0.35 = 0.12), а дыхание тени станет практически
+        /// неразличимым. Ни один рантайм-тест этого не поймает (сравнивать
+        /// пришлось бы с УЖЕ испорченным ожиданием), поэтому проверяем текст
+        /// правила напрямую — тот же приём, что и в MapCloudAssetsTests.
+        /// </summary>
+        [TestCase(".chapter-node__shadow {")]
+        [TestCase(".level-node__shadow {")]
+        public void MarkerShadowRule_UsesOpaqueColor_AlphaOwnedExclusivelyByInlineOpacity(string selector)
+        {
+            string uss = System.IO.File.ReadAllText(UssPath);
+            string block = ExtractRuleBlock(uss, selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            StringAssert.Contains("background-color: rgb(", block);
+            // Matched on the declaration itself, not "DoesNotContain(rgba()"
+            // over the whole block: the rule's own comment explains the
+            // rgba() pitfall in prose and would otherwise trip this test on
+            // its own documentation.
+            StringAssert.DoesNotContain("background-color: rgba(", block);
+        }
+
+        private const string UssPath = "Assets/UI/Map/Map.uss";
+
+        private static string ExtractRuleBlock(string uss, string header)
+        {
+            int start = uss.IndexOf(header, System.StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+
+            int open = uss.IndexOf('{', start);
+            if (open < 0)
+                return null;
+
+            int depth = 0;
+            for (int i = open; i < uss.Length; i++)
+            {
+                if (uss[i] == '{')
+                    depth++;
+                else if (uss[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                        return uss.Substring(open + 1, i - open - 1);
+                }
+            }
+            return null;
+        }
     }
 }

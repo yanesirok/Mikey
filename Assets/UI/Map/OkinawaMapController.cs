@@ -521,6 +521,9 @@ namespace Mikey.UI.Map
             RefreshLevelLockStates();
             RefreshTechniquesGate();
             _transitionOverlay?.RemoveFromClassList(TransitionVisibleClass);
+
+            var motion = GetComponent<Mikey.UI.Settings.IMotionSettings>();
+            MapNodeFeedback.PlayEntranceCascade(_levelNodes, motion != null && motion.ReducedMotion);
         }
     }
 }

@@ -558,6 +558,44 @@
     scale: 1.1;
 }
 
+/* ---------- появление маркеров каскадом ----------
+   Состояние покоя описано на обёртке дыхания, а не на самом узле: у узла
+   translate занят привязкой кончика пина к точке карты (см. ".chapter-node"),
+   и трогать его нельзя ни при каких обстоятельствах.
+
+   "ease-out-back" даёт лёгкий перелёт — маркер как будто становится на
+   место, а не выплывает. Если версия редактора не понимает эту функцию
+   (в консоли будет предупреждение разбора USS), заменить на "ease-out":
+   каскад останется, пропадёт только упругость. */
+.chapter-node__breath,
+.level-node__breath {
+    transition-property: translate, opacity, scale;
+    transition-duration: 0.32s;
+    transition-timing-function: ease-out-back;
+}
+
+/* Стартовое состояние каскада: ставится без перехода, снимается следующим
+   кадром — тогда переход и проигрывается. */
+.map-node--enter .chapter-node__breath,
+.map-node--enter .level-node__breath {
+    translate: 0 -14px;
+    opacity: 0;
+    scale: 0.92;
+}
+
+/* "Меньше движения": каскад схлопывается в короткое проявление без
+   смещения и без перелёта. */
+.map-node--reduced .chapter-node__breath,
+.map-node--reduced .level-node__breath {
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out;
+}
+.map-node--reduced.map-node--enter .chapter-node__breath,
+.map-node--reduced.map-node--enter .level-node__breath {
+    translate: 0 0;
+    scale: 1;
+}
+
 /* ---------- shared detail panel (chapter panel + level popup) ----------
    ONE overlay panel style used by both the Japan chapter panel and the
    Okinawa level popup. Slides in from the right OVER the map — the stage
