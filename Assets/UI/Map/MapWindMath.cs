@@ -128,19 +128,24 @@ namespace Mikey.UI.Map
 
         /// <summary>
         /// Итоговая прозрачность: покой полосы, приглушённый краевым
-        /// затуханием, пульсацией и множителем ввода в кадр. Всё множительно,
-        /// поэтому результат никогда не превышает покой полосы и дальняя
-        /// полоса не умеет выйти на передний план.
+        /// затуханием и множителем ввода в кадр, и качнутый двусторонней
+        /// пульсацией.
         ///
         /// <para>
-        /// Пульсация односторонняя — <c>[1 - OpacityAmplitude, 1]</c>, той же
-        /// формы, что и <see cref="Swell"/>, только вниз. Двусторонняя
-        /// <c>1 + OpacityAmplitude * Wave</c> давала бы множитель до 1.18 и
-        /// прямо ломала бы главное свойство слоя: при покое дальней полосы
-        /// 0.24 она выходила бы на 0.283, то есть выше покоя средней — ровно
-        /// тот выход дальней полосы на передний план, против которого стоит
-        /// Opacity_NeverExceedsTheLaneRest. Клампа в <c>[0, 1]</c> для этого
-        /// мало: он режет по единице, а не по покою полосы.
+        /// Множительность даёт не «не выше покоя», а ограниченную огибающую
+        /// ВОКРУГ покоя: <c>restOpacity * [1 - OpacityAmplitude, 1 +
+        /// OpacityAmplitude]</c>, со средним ровно в покое. Облако умеет и
+        /// приглушаться, и подсвечиваться — односторонняя пульсация лишила бы
+        /// слой подсветки и занизила бы его среднюю прозрачность примерно на
+        /// девять процентов.
+        /// </para>
+        ///
+        /// <para>
+        /// Инвариант глубины — не «прозрачность не превышает свой покой», а
+        /// «полосы не меняются местами»: огибающие дальней и средней полос не
+        /// пересекаются (0.14 * 1.18 = 0.165 &lt; 0.197 = 0.24 * 0.82). Это
+        /// свойство пары покоев, а не одной функции, поэтому охраняется
+        /// отдельным тестом FarBandCanNeverOutshineTheMidBand. См. §6.4 спеки.
         /// </para>
         /// </summary>
         public static float Opacity(float restOpacity, float progress01, float timeSeconds, float crossSeconds, float phase01, float settle01)
@@ -148,8 +153,8 @@ namespace Mikey.UI.Map
             if (!IsFinite(restOpacity) || restOpacity <= 0f)
                 return 0f;
 
-            float pulse = 1f - OpacityAmplitude * 0.5f
-                * (1f - MapAmbientMath.Wave(timeSeconds, crossSeconds * OpacityPeriodRatio, phase01));
+            float pulse = 1f + OpacityAmplitude
+                * MapAmbientMath.Wave(timeSeconds, crossSeconds * OpacityPeriodRatio, phase01);
             float settle = IsFinite(settle01) ? Clamp01(settle01) : 0f;
 
             return Clamp01(restOpacity * EdgeFade(progress01) * pulse * settle);

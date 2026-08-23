@@ -190,18 +190,69 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(0f, MapWindMath.Bob(7f, 140f, 0.4f, float.NaN), Tolerance);
         }
 
+        /// <summary>
+        /// Истинная граница прозрачности: пульсация двусторонняя, поэтому
+        /// значение ходит по огибающей ВОКРУГ покоя полосы, а не под ним.
+        /// Нижняя граница спрашивается только там, где краевое затухание равно
+        /// единице — на концах полосы облако гасится в ноль штатно.
+        /// </summary>
         [Test]
-        public void Opacity_NeverExceedsTheLaneRest()
+        public void Opacity_StaysInsideItsEnvelopeAroundTheLaneRest()
         {
+            const float rest = 0.24f;
+            float peak = rest * (1f + MapWindMath.OpacityAmplitude);
+            float trough = rest * (1f - MapWindMath.OpacityAmplitude);
+            int sampledAtFullFade = 0;
+            float highest = 0f;
+
             for (int i = 0; i <= 400; i++)
             {
                 float t = i * 0.5f;
                 float progress = MapWindMath.LaneProgress(t, 140f, 0.55f);
-                float value = MapWindMath.Opacity(0.24f, progress, t, 140f, 0.55f, 1f);
-                Assert.GreaterOrEqual(value, 0f);
-                Assert.LessOrEqual(value, 0.24f + Tolerance,
-                    "Прозрачность множительна: дальняя полоса не должна уметь выйти на передний план.");
+                float value = MapWindMath.Opacity(rest, progress, t, 140f, 0.55f, 1f);
+
+                Assert.GreaterOrEqual(value, 0f, "Прозрачность никогда не отрицательна.");
+                if (value > highest)
+                    highest = value;
+                Assert.LessOrEqual(value, peak + Tolerance,
+                    "Пик огибающей — потолок прозрачности на всём периоде.");
+
+                if (MapWindMath.EdgeFade(progress) >= 1f - Tolerance)
+                {
+                    sampledAtFullFade++;
+                    Assert.GreaterOrEqual(value, trough - Tolerance,
+                        "Вне краевого затухания провал огибающей — пол прозрачности.");
+                }
             }
+
+            Assert.Greater(sampledAtFullFade, 0,
+                "Выборка обязана попасть в середину полосы, иначе нижняя граница не проверена вовсе.");
+            Assert.Greater(highest, rest + Tolerance,
+                "Пульсация двусторонняя: облако обязано уметь и подсвечиваться. "
+                + "Односторонняя форма вниз пролезла бы через обе границы выше незамеченной.");
+        }
+
+        /// <summary>
+        /// Настоящий инвариант глубины: полосы не меняются местами. Проверяется
+        /// по огибающим, а не по одному мгновению — пульсация двусторонняя, и
+        /// совпадение фаз ничего не гарантирует.
+        ///
+        /// <para>
+        /// Покои 0.14 и 0.24 стоят здесь константами намеренно: MapWindLayout
+        /// появится только в следующей задаче, а инвариант обязан охраняться уже
+        /// сейчас. Когда раскладка появится, значения возьмутся из неё.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void FarBandCanNeverOutshineTheMidBand()
+        {
+            const float far = 0.14f;
+            const float mid = 0.24f;
+            float farPeak = far * (1f + MapWindMath.OpacityAmplitude);
+            float midTrough = mid * (1f - MapWindMath.OpacityAmplitude);
+
+            Assert.Less(farPeak, midTrough,
+                $"Дальняя полоса в пике ({farPeak:F3}) обязана оставаться бледнее средней в провале ({midTrough:F3}).");
         }
 
         [Test]
