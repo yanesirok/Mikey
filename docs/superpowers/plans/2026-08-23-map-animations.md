@@ -936,7 +936,11 @@ unity command run_tests --mode EditMode --filter "MapAmbientMathTests" --filter_
                     out float dx, out float dy, out float dOpacity);
 
                 cloud.style.translate = new Translate(dx, dy);
-                cloud.style.opacity = _cloudRestOpacity[i] + dOpacity;
+                // Клампим: у правого облака прозрачность покоя ровно 1.00
+                // (см. MapCloudLayout), и без ограничения верхняя половина
+                // синуса упиралась бы в потолок — облако умело бы только
+                // темнеть, но не светлеть, то есть дышало бы вполсилы.
+                cloud.style.opacity = Mathf.Clamp01(_cloudRestOpacity[i] + dOpacity);
             }
         }
 ```
@@ -1118,7 +1122,11 @@ unity command run_tests --mode EditMode --filter "MapAmbientMathTests" --filter_
                 dy += MapAmbientMath.ParallaxOffset(panY, factor);
 
                 cloud.style.translate = new Translate(dx, dy);
-                cloud.style.opacity = _cloudRestOpacity[i] + dOpacity;
+                // Клампим: у правого облака прозрачность покоя ровно 1.00
+                // (см. MapCloudLayout), и без ограничения верхняя половина
+                // синуса упиралась бы в потолок — облако умело бы только
+                // темнеть, но не светлеть, то есть дышало бы вполсилы.
+                cloud.style.opacity = Mathf.Clamp01(_cloudRestOpacity[i] + dOpacity);
             }
 ```
 
