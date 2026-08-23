@@ -225,6 +225,19 @@ namespace Mikey.UI.Map.Tests
             // inertia and cross-screen transitions would all inherit the
             // "illegal" overscrolled position.
             string source = File.ReadAllText(ControllerPath);
+
+            // The real guarantee: an assignment to _panX/_panY anywhere else
+            // in the file — with ANY right-hand side, not just a rubber-band
+            // typo — must fail this test. Checking only the ClampPan(...)
+            // spelling would pass right through a one-character slip like
+            // "_panX = MapPanZoomMath.RubberBand(...)": that substring
+            // contains neither "ClampPan(" nor "SetPan()"'s body, so the two
+            // narrower checks below wouldn't see it.
+            Assert.AreEqual(1, CountOccurrences(source, "_panX = "),
+                "Expected _panX to be assigned in exactly one place: SetPan().");
+            Assert.AreEqual(1, CountOccurrences(source, "_panY = "),
+                "Expected _panY to be assigned in exactly one place: SetPan().");
+
             Assert.AreEqual(1, CountOccurrences(source, "_panX = MapPanZoomMath.ClampPan("),
                 "Expected _panX to be written in exactly one place: SetPan().");
             Assert.AreEqual(1, CountOccurrences(source, "_panY = MapPanZoomMath.ClampPan("),
