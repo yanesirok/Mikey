@@ -75,14 +75,48 @@ namespace Mikey.UI.Map.Tests
             Assert.Less(grownOpacity, restOpacity, "Тень должна бледнеть по мере роста маркера.");
         }
 
+        /// <summary>
+        /// Заказ ре-ревью задачи 10: тень выбранного маркера обязана быть
+        /// шире и бледнее тени невыбранного ПРИ ОДНОЙ И ТОЙ ЖЕ фазе дыхания
+        /// — сравнение проводится на нескольких фазах (покой, пик дыхания
+        /// усиленной цели, старт входа), чтобы добавка выбора не оказалась
+        /// заметна только в одной случайной точке.
+        /// </summary>
+        [Test]
+        public void MarkerShadowScale_AndOpacity_SelectedIsWiderAndPalerThanUnselected_AtSamePhase()
+        {
+            float[] breathPhases =
+            {
+                1f,
+                1f + MapAmbientMath.MarkerBreathAmplitude * MapAmbientMath.FocusBreathMultiplier,
+                MapAmbientMath.MarkerEntranceStartScale,
+            };
+
+            foreach (float breathScale in breathPhases)
+            {
+                float unselectedScale = MapAmbientMath.MarkerShadowScale(breathScale, selected: false);
+                float selectedScale = MapAmbientMath.MarkerShadowScale(breathScale, selected: true);
+                Assert.Greater(selectedScale, unselectedScale,
+                    $"Тень выбранного маркера должна быть шире невыбранного при breathScale={breathScale}.");
+
+                float unselectedOpacity = MapAmbientMath.MarkerShadowOpacity(breathScale, selected: false);
+                float selectedOpacity = MapAmbientMath.MarkerShadowOpacity(breathScale, selected: true);
+                Assert.Less(selectedOpacity, unselectedOpacity,
+                    $"Тень выбранного маркера должна быть бледнее невыбранного при breathScale={breathScale}.");
+            }
+        }
+
         [Test]
         public void MarkerShadowOpacity_NeverLeavesZeroToOne()
         {
-            for (float breathScale = -1f; breathScale <= 3f; breathScale += 0.1f)
+            foreach (bool selected in new[] { false, true })
             {
-                float opacity = MapAmbientMath.MarkerShadowOpacity(breathScale);
-                Assert.GreaterOrEqual(opacity, 0f - Tolerance);
-                Assert.LessOrEqual(opacity, 1f + Tolerance);
+                for (float breathScale = -1f; breathScale <= 3f; breathScale += 0.1f)
+                {
+                    float opacity = MapAmbientMath.MarkerShadowOpacity(breathScale, selected);
+                    Assert.GreaterOrEqual(opacity, 0f - Tolerance);
+                    Assert.LessOrEqual(opacity, 1f + Tolerance);
+                }
             }
         }
 
@@ -91,6 +125,10 @@ namespace Mikey.UI.Map.Tests
         {
             Assert.AreEqual(1f, MapAmbientMath.MarkerShadowScale(float.NaN), Tolerance);
             Assert.AreEqual(MapAmbientMath.MarkerShadowRestOpacity, MapAmbientMath.MarkerShadowOpacity(float.NaN), Tolerance);
+            Assert.AreEqual(1f + MapAmbientMath.MarkerShadowSelectedScaleBonus,
+                MapAmbientMath.MarkerShadowScale(float.NaN, selected: true), Tolerance);
+            Assert.AreEqual(MapAmbientMath.MarkerShadowRestOpacity - MapAmbientMath.MarkerShadowSelectedOpacityDrop,
+                MapAmbientMath.MarkerShadowOpacity(float.NaN, selected: true), Tolerance);
         }
 
         [Test]

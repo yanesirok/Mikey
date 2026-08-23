@@ -84,6 +84,7 @@ namespace Mikey.UI.Map
 
         private readonly System.Collections.Generic.List<VisualElement> _markerBreaths = new System.Collections.Generic.List<VisualElement>();
         private readonly System.Collections.Generic.List<VisualElement> _markerShadows = new System.Collections.Generic.List<VisualElement>();
+        private readonly System.Collections.Generic.List<VisualElement> _markerNodes = new System.Collections.Generic.List<VisualElement>();
         private readonly System.Collections.Generic.List<bool> _markerAlive = new System.Collections.Generic.List<bool>();
 
         /// <summary>
@@ -94,6 +95,22 @@ namespace Mikey.UI.Map
         /// </summary>
         private readonly System.Collections.Generic.List<bool> _markerEntranceSettled = new System.Collections.Generic.List<bool>();
         private int _focusMarkerIndex = -1;
+
+        /// <summary>
+        /// nodeClass + "--selected" для текущего экрана. В отличие от
+        /// _markerAlive (снимок на смену экрана — блокировка не меняется,
+        /// пока экран открыт) состояние выбора меняется тапом ПРЯМО ВО
+        /// ВРЕМЯ показа экрана, поэтому снимок здесь неприменим: его читают
+        /// каждый тик через ClassListContains в TickMarkers, а не один раз
+        /// в ResolveScreenElements. На ~12 маркерах это порядка четырёхсот
+        /// сравнений строк в секунду — на фоне остального тика ничтожно.
+        /// Правило "не читать классы в тике" тут не нарушается, а
+        /// уточняется: снимок — для того, что не меняется без смены
+        /// экрана; то, что меняется по действию игрока, читается на месте.
+        /// Не заводи для этого снимок обратно — это сломает реакцию тени на
+        /// выбор.
+        /// </summary>
+        private string _markerSelectedClass;
 
         private void OnEnable()
         {
@@ -213,11 +230,13 @@ namespace Mikey.UI.Map
 
             _markerBreaths.Clear();
             _markerShadows.Clear();
+            _markerNodes.Clear();
             _markerAlive.Clear();
             _markerEntranceSettled.Clear();
             _focusMarkerIndex = -1;
 
             string nodeClass = japan ? "chapter-node" : "level-node";
+            _markerSelectedClass = nodeClass + "--selected";
             var nodes = _root?.Query<VisualElement>(className: nodeClass).ToList();
             if (nodes == null)
                 return;
@@ -235,6 +254,7 @@ namespace Mikey.UI.Map
 
                 _markerBreaths.Add(breath);
                 _markerShadows.Add(shadow);
+                _markerNodes.Add(node);
 
                 // Состояние блокировки читается из класса, а не из отдельного
                 // API контроллеров: класс уже есть, он единственный источник
@@ -525,13 +545,21 @@ namespace Mikey.UI.Map
                 if (shadow == null)
                     continue;
 
+                // Состояние выбора читается ЗДЕСЬ, в тике, а не снимком в
+                // ResolveScreenElements — см. _markerSelectedClass: оно
+                // меняется тапом по ходу показа экрана, а не только на
+                // входе на него.
+                bool selected = _markerNodes[i] != null && _markerNodes[i].ClassListContains(_markerSelectedClass);
+
                 // Тень всегда в противофазе к ТЕКУЩЕМУ scale, откуда бы он ни
                 // взялся — из каскада появления, из дыхания или из их
                 // произведения: маркер поднимается — тень поджимается и
-                // бледнеет.
-                float shadowScale = MapAmbientMath.MarkerShadowScale(scale);
+                // бледнеет. Выбранный маркер поверх этого получает свою
+                // добавку — шире и бледнее, чем дало бы одно дыхание,
+                // читается вместе с приподнятой иконкой (см. Map.uss).
+                float shadowScale = MapAmbientMath.MarkerShadowScale(scale, selected);
                 shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
-                shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale);
+                shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale, selected);
             }
         }
     }

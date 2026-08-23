@@ -136,20 +136,43 @@ namespace Mikey.UI.Map
         /// <summary>Насколько бледнеет тень на единицу роста маркера.</summary>
         public const float MarkerShadowOpacityPerScale = 2f;
 
-        /// <summary>Масштаб тени в противофазе к дыханию: маркер растёт — тень поджимается.</summary>
-        public static float MarkerShadowScale(float breathScale)
+        /// <summary>
+        /// Насколько шире тень выбранного маркера сверх обычной формулы
+        /// дыхания. Читается вместе с приподнятой на 6px и увеличенной до
+        /// 1.10 иконкой (см. Map.uss ".chapter-node--selected .chapter-node__icon")
+        /// как «маркер оторвался от бумаги».
+        /// </summary>
+        public const float MarkerShadowSelectedScaleBonus = 0.18f;
+
+        /// <summary>Насколько бледнеет тень выбранного маркера сверх обычной формулы дыхания.</summary>
+        public const float MarkerShadowSelectedOpacityDrop = 0.12f;
+
+        /// <summary>
+        /// Масштаб тени в противофазе к дыханию: маркер растёт — тень
+        /// поджимается. У выбранного маркера поверх этого добавляется
+        /// <see cref="MarkerShadowSelectedScaleBonus"/> — независимо от фазы
+        /// дыхания тень выбранного обязана быть шире, чем у невыбранного.
+        /// </summary>
+        public static float MarkerShadowScale(float breathScale, bool selected = false)
         {
-            if (!IsFinite(breathScale))
-                return 1f;
-            return 2f - breathScale;
+            float value = IsFinite(breathScale) ? 2f - breathScale : 1f;
+            return selected ? value + MarkerShadowSelectedScaleBonus : value;
         }
 
-        /// <summary>Прозрачность тени в противофазе. Клампится в [0, 1]: перемножения с альфой цвета больше нет, поэтому выход за диапазон был бы виден напрямую.</summary>
-        public static float MarkerShadowOpacity(float breathScale)
+        /// <summary>
+        /// Прозрачность тени в противофазе. Клампится в [0, 1]: перемножения
+        /// с альфой цвета больше нет, поэтому выход за диапазон был бы виден
+        /// напрямую. У выбранного маркера вычитается
+        /// <see cref="MarkerShadowSelectedOpacityDrop"/> до клампа.
+        /// </summary>
+        public static float MarkerShadowOpacity(float breathScale, bool selected = false)
         {
-            if (!IsFinite(breathScale))
-                return MarkerShadowRestOpacity;
-            return Clamp01(MarkerShadowRestOpacity - (breathScale - 1f) * MarkerShadowOpacityPerScale);
+            float value = IsFinite(breathScale)
+                ? MarkerShadowRestOpacity - (breathScale - 1f) * MarkerShadowOpacityPerScale
+                : MarkerShadowRestOpacity;
+            if (selected)
+                value -= MarkerShadowSelectedOpacityDrop;
+            return Clamp01(value);
         }
 
         // ---------- каскад появления маркеров ----------
