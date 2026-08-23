@@ -468,6 +468,7 @@ GameObject:
   - component: {fileID: 1720403642}
   - component: {fileID: 1720403645}
   - component: {fileID: 1720403644}
+  - component: {fileID: 1720403646}
   m_Layer: 0
   m_Name: UI
   m_TagString: Untagged
@@ -677,6 +678,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Mikey.UI.Audio::Mikey.UI.Audio.AudioController
   menuMusicClip: {fileID: 8300000, guid: 23cdc616676a6714da8c7efc3db76f48, type: 3}
   uiClickClip: {fileID: 8300000, guid: 692bb875ccbbc4446be6f2166f1648ee, type: 3}
+  sealStampClip: {fileID: 0}
 --- !u!114 &1720403632
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -853,6 +855,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e588034c8ce96b4c84be5373c273d3f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Mikey.UI.Settings::Mikey.UI.Settings.MotionSettingsStore
+--- !u!114 &1720403646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720403616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b694ed2e80ebb9d4f85d855443d48615, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Mikey.UI.Map::Mikey.UI.Map.MapCeremonyController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

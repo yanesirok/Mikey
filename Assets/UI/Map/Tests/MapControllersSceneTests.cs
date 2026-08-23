@@ -57,6 +57,14 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void UiGameObject_HasMapCeremonyController()
+        {
+            GameObject ui = OpenUiGameObject();
+            Assert.IsNotNull(ui.GetComponent<MapCeremonyController>(),
+                "UI GameObject must have a MapCeremonyController for the map's one-shot ceremonies to run in a real build.");
+        }
+
+        [Test]
         public void UiGameObject_DoesNotHaveTheRetiredMapLevelPreviewController()
         {
             GameObject ui = OpenUiGameObject();

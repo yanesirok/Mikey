@@ -1040,3 +1040,79 @@
    "map-topbar-settings" / "okinawa-topbar-settings" buttons above are its
    open triggers; their own icon styling (".map-topbar__settings-*") is
    unrelated and stays here, unchanged. */
+
+/* ---------- ink-wash при входе на карту ----------
+   В покое полностью прозрачен: слоя как такового нет. Пятна расходятся
+   масштабом и гаснут прозрачностью — ни одного геометрического свойства. */
+.map-inkwash {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+}
+.map-inkwash--playing {
+    opacity: 1;
+}
+.map-inkwash__blot {
+    position: absolute;
+    border-radius: 50%;
+    background-color: var(--base);
+    scale: 1;
+    opacity: 1;
+    transition-property: scale, opacity;
+    transition-duration: 0.6s;
+    transition-timing-function: ease-out;
+}
+.map-inkwash--dissolving .map-inkwash__blot {
+    scale: 1.8;
+    opacity: 0;
+}
+/* Клякса перехода между главами укорочена: играет 0.3с, а не 0.6с — иначе
+   отставала бы от подмены экранов, которую маскирует. */
+.map-inkwash--fast .map-inkwash__blot {
+    transition-duration: 0.3s;
+}
+.map-inkwash__blot--a {
+    left: -20%;
+    top: -30%;
+    width: 90%;
+    height: 140%;
+}
+.map-inkwash__blot--b {
+    left: 30%;
+    top: -20%;
+    width: 90%;
+    height: 140%;
+}
+.map-inkwash__blot--c {
+    left: 10%;
+    top: 10%;
+    width: 90%;
+    height: 130%;
+}
+
+/* ---------- печать церемонии ----------
+   Одна и та же печать используется и для разблокировки главы, и для штампа
+   «пройдено» на маркере уровня — разница только в том, кто её вызвал. */
+.map-seal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    border-width: 6px;
+    border-color: var(--seal);
+    opacity: 0;
+    scale: 1.7;
+    transition-property: scale, opacity;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out-back;
+}
+.map-seal--stamped {
+    opacity: 1;
+    scale: 1;
+}

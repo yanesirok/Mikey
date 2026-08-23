@@ -382,7 +382,7 @@ namespace Mikey.UI.Map
         {
             if (!_bound || !_onMapScreen)
                 return;
-            if (MapCloudTransitionController.IsTransitioning)
+            if (MapCloudTransitionController.IsTransitioning || MapCeremonyController.IsPlaying)
                 return;
 
             bool liveReducedMotion = _motion != null && _motion.ReducedMotion;

@@ -301,6 +301,7 @@ namespace Mikey.UI.Map
             if (hasView)
                 _okinawaPanZoom?.SetViewToSourceFocalPoint(focusX, focusY, capturedZoom);
 
+            GetComponent<MapCeremonyController>()?.PlayTransitionBlot();
             _navigator?.Show("mapOkinawa");
 
             if (hasView && _okinawaPanZoom != null)
@@ -344,6 +345,7 @@ namespace Mikey.UI.Map
             // 3B; JapanMapController.OnScreenChanged does not reset this on
             // its own for a generic screen-changed-to-Japan event.
             MapNavigationState.Current = MapContext.JapanWorld;
+            GetComponent<MapCeremonyController>()?.PlayTransitionBlot();
             _navigator?.Show("map");
 
             if (hasView && _japanPanZoom != null)

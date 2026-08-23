@@ -740,6 +740,17 @@
                      transition (JapanMapController). -->
                 <ui:VisualElement name="map-transition-overlay" class="map-transition-overlay" picking-mode="Ignore" />
 
+                <!-- Проявление карты при входе: три чернильных пятна расходятся
+                     и гаснут. Существует только на время церемонии — в покое
+                     полностью прозрачен и не участвует ни в отрисовке, ни в
+                     попадании, поэтому постоянного полноэкранного слоя это не
+                     добавляет. -->
+                <ui:VisualElement name="map-inkwash" class="map-inkwash" picking-mode="Ignore">
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--a" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--b" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-inkwash__blot map-inkwash__blot--c" picking-mode="Ignore" />
+                </ui:VisualElement>
+
                 <!-- top quick-access HUD: translucent dark-glass overlay ON
                      TOP of the map stage (see Map.uss ".map-topbar"), not a
                      row that pushes it down — declared after the stage/
