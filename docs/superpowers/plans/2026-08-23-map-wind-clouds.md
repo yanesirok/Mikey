@@ -1309,7 +1309,10 @@ namespace Mikey.UI.Map.Tests
 unity command run_tests --mode EditMode --filter Mikey.UI.Map.Tests --filter_type assembly --format json
 ```
 
-Ожидание: ошибка компиляции — `MapWindLayer` не существует.
+Ожидание: девять красных. Ошибки компиляции НЕ будет — source-тесты
+добираются до класса по пути файла, а не по типу, поэтому сборка
+компилируется чисто, а тесты падают в рантайме на `FileNotFoundException`.
+Чистая компиляция здесь не означает «правка не легла».
 
 - [ ] **Шаг 3: написать реализацию**
 
