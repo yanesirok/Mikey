@@ -90,6 +90,116 @@ namespace Mikey.UI.Map.Tests
                 "MarkInput() must be called on every pinch-continuation frame, not only at pinch start — otherwise a pinch longer than IdleDelaySeconds crosses the idle threshold mid-gesture.");
         }
 
+        // ---------- StopInertia: discrete camera placement must kill in-flight coast ----------
+
+        [Test]
+        public void StopInertia_ClearsVelocityAndTheInertiaFlag()
+        {
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void StopInertia()");
+            StringAssert.Contains("_velocityX = 0f;", body);
+            StringAssert.Contains("_velocityY = 0f;", body);
+            StringAssert.Contains("_inertiaActive = false;", body);
+        }
+
+        [Test]
+        public void InertiaReset_OnlyLivesInsideStopInertia_NoDuplicatedInlineResets()
+        {
+            // The velocity/flag reset must route through the shared helper
+            // everywhere — a duplicated inline copy at some call site could
+            // silently drift out of sync (e.g. gain a field StopInertia()
+            // clears but the inline copy forgets).
+            string source = File.ReadAllText(ControllerPath);
+            Assert.AreEqual(1, CountOccurrences(source, "_velocityX = 0f;"),
+                "Expected the velocity reset to live in exactly one place: StopInertia().");
+            Assert.AreEqual(1, CountOccurrences(source, "_velocityY = 0f;"),
+                "Expected the velocity reset to live in exactly one place: StopInertia().");
+            Assert.AreEqual(1, CountOccurrences(source, "_inertiaActive = false;"),
+                "Expected the inertia-flag reset to live in exactly one place: StopInertia().");
+        }
+
+        [Test]
+        public void OnPointerDown_StopsInertia()
+        {
+            // A fresh touch must kill any in-flight coast immediately, or the
+            // still-sliding map would fight the player's new drag.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void OnPointerDown(PointerDownEvent evt)");
+            StringAssert.Contains("StopInertia();", body);
+        }
+
+        [Test]
+        public void OnWheel_StopsInertia()
+        {
+            // A wheel zoom is real input too — it must break an in-flight
+            // coast exactly like a fresh touch does.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void OnWheel(WheelEvent evt)");
+            StringAssert.Contains("StopInertia();", body);
+        }
+
+        [Test]
+        public void Update_PinchStart_StopsInertia_AfterEndDrag()
+        {
+            // EndDrag(), called when the second finger lands, may itself arm
+            // inertia from the drag that preceded it. A pinch start is a
+            // fresh gesture, so StopInertia() must run AFTER EndDrag() to
+            // override that — otherwise stale, undecayed velocity would
+            // survive the pinch and resume panning once it ends.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void Update()");
+
+            int pinchStartIndex = body.IndexOf("_isPinching = true;", System.StringComparison.Ordinal);
+            Assert.Greater(pinchStartIndex, -1, "Expected the pinch-start branch in Update().");
+
+            int endDragIndex = body.IndexOf("EndDrag();", pinchStartIndex, System.StringComparison.Ordinal);
+            Assert.Greater(endDragIndex, pinchStartIndex, "Expected EndDrag() in the pinch-start branch.");
+
+            int stopInertiaIndex = body.IndexOf("StopInertia();", endDragIndex, System.StringComparison.Ordinal);
+            Assert.Greater(stopInertiaIndex, endDragIndex,
+                "StopInertia() must run after EndDrag() in the pinch-start branch.");
+        }
+
+        [Test]
+        public void ResetTransform_StopsInertia()
+        {
+            // A fresh screen entry snaps the camera discretely — leftover
+            // inertia velocity from before the reset must not survive to
+            // drive the camera afterward.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "private void ResetTransform()");
+            StringAssert.Contains("StopInertia();", body);
+        }
+
+        [Test]
+        public void SetViewToSourceFocalPoint_StopsInertia()
+        {
+            // MapCloudTransitionController plants the destination screen's
+            // camera here while fully hidden under cloud cover. A throw made
+            // on the source screen just before the transition must not
+            // resume once IsTransitioning clears and reveals the new view.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "public void SetViewToSourceFocalPoint(float sourceNormalizedX, float sourceNormalizedY, float zoom)");
+            StringAssert.Contains("StopInertia();", body);
+        }
+
+        [Test]
+        public void AnimateViewToSourceFocalPoint_StopsInertia_BeforeTheAnimationLoop()
+        {
+            // This coroutine drives the camera itself frame by frame during a
+            // Japan<->Okinawa transition — any leftover inertia velocity must
+            // be cleared before the loop starts, not fight it mid-flight.
+            string source = File.ReadAllText(ControllerPath);
+            string body = ExtractMethodBody(source, "public IEnumerator AnimateViewToSourceFocalPoint(float targetSourceX, float targetSourceY, float targetZoom, float durationSeconds)");
+
+            int stopIndex = body.IndexOf("StopInertia();", System.StringComparison.Ordinal);
+            Assert.Greater(stopIndex, -1, "Expected a StopInertia() call.");
+
+            int loopIndex = body.IndexOf("while (elapsed < durationSeconds)", System.StringComparison.Ordinal);
+            Assert.Greater(loopIndex, -1, "Expected the animation loop.");
+            Assert.Less(stopIndex, loopIndex, "StopInertia() must run before the animation loop starts driving the camera itself.");
+        }
+
         private static int CountOccurrences(string haystack, string needle)
         {
             int count = 0;

@@ -215,7 +215,7 @@ namespace Mikey.UI.Map
                 _velocityX = MapAmbientMath.DecayVelocity(_velocityX, inertiaDt);
                 _velocityY = MapAmbientMath.DecayVelocity(_velocityY, inertiaDt);
                 if (MapAmbientMath.IsInertiaFinished(_velocityX, _velocityY))
-                    _inertiaActive = false;
+                    StopInertia();
             }
 
             Touchscreen touchscreen = Touchscreen.current;
@@ -258,9 +258,7 @@ namespace Mikey.UI.Map
                 // that preceded this second finger — a pinch start is itself
                 // a fresh gesture, so that stale, undecayed velocity must not
                 // survive to resume the pan once the pinch ends.
-                _velocityX = 0f;
-                _velocityY = 0f;
-                _inertiaActive = false;
+                StopInertia();
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
                 return;
             }
@@ -286,9 +284,7 @@ namespace Mikey.UI.Map
             _dragStartPan = new Vector2(_panX, _panY);
 
             // Новое касание мгновенно перехватывает управление и гасит доезд.
-            _velocityX = 0f;
-            _velocityY = 0f;
-            _inertiaActive = false;
+            StopInertia();
             _lastMovePosition = evt.position;
             _lastMoveTime = Time.unscaledTime;
         }
@@ -349,6 +345,7 @@ namespace Mikey.UI.Map
             }
 
             CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
+            StopInertia(); // a wheel zoom is real input too — it must break any in-flight coast.
 
             // Only the direction of one wheel event is used, not its raw
             // magnitude (see WheelZoomStep) — this is what keeps the step
@@ -373,6 +370,25 @@ namespace Mikey.UI.Map
             _pointerDown = false;
             _dragging = false;
             _activePointerId = -1;
+        }
+
+        /// <summary>
+        /// Гасит инерцию НАСМЕРТЬ. Вызывается отовсюду, где камера ставится
+        /// заново дискретно, а не движется пальцем: новое касание, старт пинча,
+        /// сброс при входе на экран и перенос вида при межэкранном переходе.
+        ///
+        /// <para>
+        /// Проверки в Update() инерцию только ПРИОСТАНАВЛИВАЮТ, а не гасят.
+        /// Поэтому бросок карты прямо перед переходом оставил бы скорость
+        /// взведённой, и на первом же кадре после перехода камера поехала бы
+        /// поверх свежепоставленной рамки — движение, которого игрок не просил.
+        /// </para>
+        /// </summary>
+        private void StopInertia()
+        {
+            _velocityX = 0f;
+            _velocityY = 0f;
+            _inertiaActive = false;
         }
 
         private void OnScreenChanged(string changedScreenId)
@@ -403,6 +419,7 @@ namespace Mikey.UI.Map
         private void ResetTransform()
         {
             CancelIntroZoomAnimation();
+            StopInertia();
             MarkInput();
             _zoom = MapPanZoomMath.MinZoom;
             SetPan(0f, 0f);
@@ -537,6 +554,7 @@ namespace Mikey.UI.Map
                 return;
 
             CancelIntroZoomAnimation();
+            StopInertia();
 
             _zoom = MapPanZoomMath.ClampZoom(zoom);
             ApplyZoom();
@@ -583,6 +601,7 @@ namespace Mikey.UI.Map
         public IEnumerator AnimateViewToSourceFocalPoint(float targetSourceX, float targetSourceY, float targetZoom, float durationSeconds)
         {
             CancelIntroZoomAnimation();
+            StopInertia();
 
             float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
             float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
