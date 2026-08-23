@@ -92,5 +92,46 @@ namespace Mikey.UI.Map.Tests
                 "The shake must not target the breath wrapper — TickMarkers keeps writing its " +
                 "translate for up to ~0.88s into the entrance cascade, while a tap is already possible.");
         }
+
+        /// <summary>
+        /// Ре-ревью: иконка сама объявляет transition-property (см. Map.uss,
+        /// ради плавного подъёма выбранного). Без подавления перехода три
+        /// голых записи смещения подряд перезапускали бы 0.18с переход
+        /// заново на каждой — вместо резкого толчка отказа получилось бы
+        /// вязкое покачивание, не успевающее доиграть между 70-миллисекундными
+        /// кадрами. Проверяем: переход снимается ДО первой записи смещения, и
+        /// финальный шаг возвращает смещение И переход ОДНИМ присваиванием —
+        /// не двумя раздельными отложенными вызовами, иначе между ними будет
+        /// окно, где один стиль уже отдан обратно, а другой ещё нет.
+        /// </summary>
+        [Test]
+        public void Refusal_SuspendsTransitionBeforeShaking_AndRestoresItWithTheSameStepAsTheOffset()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int disableIndex = source.IndexOf("transitionProperty = new List<StylePropertyName>()", System.StringComparison.Ordinal);
+            Assert.Greater(disableIndex, -1, "Expected the shake to disable the icon's transition before writing any offset.");
+
+            int firstOffsetWriteIndex = source.IndexOf("new Translate(offset", System.StringComparison.Ordinal);
+            Assert.Greater(firstOffsetWriteIndex, -1, "Expected a shake frame writing Translate(offset, ...).");
+            Assert.Less(disableIndex, firstOffsetWriteIndex,
+                "The transition must be disabled before the first shake frame is written, or that frame " +
+                "would ease in over 0.18s instead of snapping.");
+
+            // The LAST ".Execute(() =>" in the file is the final settle step
+            // (the loop body contributes exactly one earlier occurrence).
+            int lastExecute = source.LastIndexOf(".Execute(() =>", System.StringComparison.Ordinal);
+            Assert.Greater(lastExecute, disableIndex, "Expected a final .Execute block after the disable.");
+            int lastExecuteLater = source.IndexOf(".ExecuteLater(", lastExecute, System.StringComparison.Ordinal);
+            Assert.Greater(lastExecuteLater, lastExecute);
+            string finalStep = source.Substring(lastExecute, lastExecuteLater - lastExecute);
+
+            StringAssert.Contains("style.translate = StyleKeyword.Null", finalStep,
+                "The final step must clear the inline translate.");
+            StringAssert.Contains("style.transitionProperty = StyleKeyword.Null", finalStep,
+                "The final step must restore the transition IN THE SAME step as clearing the offset — " +
+                "splitting them across two scheduled calls would leave a window where one is already " +
+                "handed back to styles while the other still isn't.");
+        }
     }
 }
