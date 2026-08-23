@@ -47,6 +47,10 @@ namespace Mikey.UI.Map
         private bool _onMapScreen;
         private float _elapsedSeconds;
 
+        private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
+        private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
+        private VisualElement _canvas;
+
         private void OnEnable()
         {
             if (_bound)
@@ -115,9 +119,43 @@ namespace Mikey.UI.Map
         {
             _onMapScreen = screenId == JapanScreenId || screenId == OkinawaScreenId;
             if (_onMapScreen)
+            {
+                ResolveScreenElements(screenId);
                 StartTicking();
+            }
             else
                 StopTicking();
+        }
+
+        /// <summary>
+        /// Забирает элементы того экрана, который сейчас показан. Имена
+        /// отличаются между экранами ("map-cloud-*" против "okinawa-cloud-*"),
+        /// а прозрачность покоя берётся из соответствующего пресета
+        /// MapCloudLayout — контроллер её не выдумывает.
+        /// </summary>
+        private void ResolveScreenElements(string screenId)
+        {
+            bool japan = screenId == JapanScreenId;
+            string prefix = japan ? "map-cloud-" : "okinawa-cloud-";
+            _canvas = _root?.Q<VisualElement>(japan ? "map-canvas" : "okinawa-canvas");
+
+            string[] suffixes = { "right-01", "left-01", "left-02", "bottom-01" };
+            MapCloudPreset preset = japan ? MapCloudLayout.JapanRest : MapCloudLayout.OkinawaRest;
+            float[] restOpacity =
+            {
+                preset.Right1.Opacity,
+                preset.Left1.Opacity,
+                preset.Left2.Opacity,
+                preset.Bottom1.Opacity,
+            };
+
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                _clouds[i] = _root?.Q<VisualElement>(prefix + suffixes[i]);
+                _cloudRestOpacity[i] = restOpacity[i];
+                if (_clouds[i] != null)
+                    _clouds[i].usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor;
+            }
         }
 
         /// <summary>
@@ -179,6 +217,32 @@ namespace Mikey.UI.Map
                 return;
 
             _elapsedSeconds += TickIntervalMs / 1000f;
+            TickClouds();
+        }
+
+        /// <summary>
+        /// Кладёт дрейф MapAmbientMath поверх раскладки покоя, которую уже
+        /// выставил MapCloudLayout.Apply — никогда её не подменяя.
+        /// </summary>
+        private void TickClouds()
+        {
+            float width = _canvas?.resolvedStyle.width ?? 0f;
+            float height = _canvas?.resolvedStyle.height ?? 0f;
+            if (width <= 0f || height <= 0f)
+                return;
+
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                VisualElement cloud = _clouds[i];
+                if (cloud == null)
+                    continue;
+
+                MapAmbientMath.CloudDrift(i, _elapsedSeconds, width, height,
+                    out float dx, out float dy, out float dOpacity);
+
+                cloud.style.translate = new Translate(dx, dy);
+                cloud.style.opacity = _cloudRestOpacity[i] + dOpacity;
+            }
         }
     }
 }
