@@ -130,6 +130,28 @@ namespace Mikey.UI.Map
         /// <summary>Во сколько раз сильнее дышит ЕДИНСТВЕННАЯ текущая цель. Остальные разблокированные маркеры дышат обычной амплитудой, locked не дышат вовсе.</summary>
         public const float FocusBreathMultiplier = 1.4f;
 
+        /// <summary>Прозрачность тени маркера в покое. Видимой альфой владеет только она — цвет тени непрозрачен, см. Map.uss.</summary>
+        public const float MarkerShadowRestOpacity = 0.35f;
+
+        /// <summary>Насколько бледнеет тень на единицу роста маркера.</summary>
+        public const float MarkerShadowOpacityPerScale = 2f;
+
+        /// <summary>Масштаб тени в противофазе к дыханию: маркер растёт — тень поджимается.</summary>
+        public static float MarkerShadowScale(float breathScale)
+        {
+            if (!IsFinite(breathScale))
+                return 1f;
+            return 2f - breathScale;
+        }
+
+        /// <summary>Прозрачность тени в противофазе. Клампится в [0, 1]: перемножения с альфой цвета больше нет, поэтому выход за диапазон был бы виден напрямую.</summary>
+        public static float MarkerShadowOpacity(float breathScale)
+        {
+            if (!IsFinite(breathScale))
+                return MarkerShadowRestOpacity;
+            return Clamp01(MarkerShadowRestOpacity - (breathScale - 1f) * MarkerShadowOpacityPerScale);
+        }
+
         /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
         public const float IdleDelaySeconds = 5f;
 

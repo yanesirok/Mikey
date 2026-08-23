@@ -56,6 +56,44 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
+        public void MarkerShadowScale_AndOpacity_AtRest_ReturnRestValues()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerShadowScale(1f), Tolerance);
+            Assert.AreEqual(MapAmbientMath.MarkerShadowRestOpacity, MapAmbientMath.MarkerShadowOpacity(1f), Tolerance);
+        }
+
+        [Test]
+        public void MarkerShadowScale_AndOpacity_ShrinkAndFadeAsBreathGrows()
+        {
+            float maxBreath = 1f + MapAmbientMath.MarkerBreathAmplitude * MapAmbientMath.FocusBreathMultiplier;
+            float restScale = MapAmbientMath.MarkerShadowScale(1f);
+            float restOpacity = MapAmbientMath.MarkerShadowOpacity(1f);
+            float grownScale = MapAmbientMath.MarkerShadowScale(maxBreath);
+            float grownOpacity = MapAmbientMath.MarkerShadowOpacity(maxBreath);
+
+            Assert.Less(grownScale, restScale, "Тень должна поджиматься по мере роста маркера.");
+            Assert.Less(grownOpacity, restOpacity, "Тень должна бледнеть по мере роста маркера.");
+        }
+
+        [Test]
+        public void MarkerShadowOpacity_NeverLeavesZeroToOne()
+        {
+            for (float breathScale = -1f; breathScale <= 3f; breathScale += 0.1f)
+            {
+                float opacity = MapAmbientMath.MarkerShadowOpacity(breathScale);
+                Assert.GreaterOrEqual(opacity, 0f - Tolerance);
+                Assert.LessOrEqual(opacity, 1f + Tolerance);
+            }
+        }
+
+        [Test]
+        public void MarkerShadowScale_AndOpacity_AreSafeOnNaN()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerShadowScale(float.NaN), Tolerance);
+            Assert.AreEqual(MapAmbientMath.MarkerShadowRestOpacity, MapAmbientMath.MarkerShadowOpacity(float.NaN), Tolerance);
+        }
+
+        [Test]
         public void CloudDrift_StaysInsideItsAmplitudeBudget()
         {
             for (int index = 0; index < MapAmbientMath.CloudCount; index++)

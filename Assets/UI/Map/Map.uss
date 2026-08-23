@@ -450,7 +450,12 @@
     width: 46px;
     height: 12px;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.35);
+    /* Цвет НЕПРОЗРАЧНЫЙ намеренно: видимой альфой владеет только inline
+       opacity, которую пишет ambient. UI Toolkit перемножает opacity на
+       альфу цвета, поэтому rgba(...,0.35) вместе с opacity 0.35 дал бы
+       реальные 0.12 — тень была бы втрое бледнее задуманного, а её дыхание
+       практически неразличимо. */
+    background-color: rgb(0, 0, 0);
 }
 .chapter-node__icon--okinawa {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Chapters/chapter_okinawa.png");
@@ -523,7 +528,12 @@
     width: 36px;
     height: 10px;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.35);
+    /* Цвет НЕПРОЗРАЧНЫЙ намеренно: видимой альфой владеет только inline
+       opacity, которую пишет ambient. UI Toolkit перемножает opacity на
+       альфу цвета, поэтому rgba(...,0.35) вместе с opacity 0.35 дал бы
+       реальные 0.12 — тень была бы втрое бледнее задуманного, а её дыхание
+       практически неразличимо. */
+    background-color: rgb(0, 0, 0);
 }
 .level-node__icon--special {
     background-image: url("/Assets/UI/Media/Images/Map/Markers/Missions/mission_lvl0.png");

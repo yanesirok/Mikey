@@ -208,6 +208,20 @@ namespace Mikey.UI.Map
                 _markerAlive.Add(alive);
                 if (alive)
                     _focusMarkerIndex = i;
+
+                // Заблокированные маркеры стоят абсолютно неподвижно, а
+                // значит их состояние покоя достаточно выставить один раз
+                // здесь, а не переписывать каждый тик впустую.
+                if (!alive)
+                {
+                    if (breath != null)
+                        breath.style.scale = new Scale(Vector2.one);
+                    if (shadow != null)
+                    {
+                        shadow.style.scale = new Scale(Vector2.one);
+                        shadow.style.opacity = MapAmbientMath.MarkerShadowRestOpacity;
+                    }
+                }
             }
         }
 
@@ -353,15 +367,15 @@ namespace Mikey.UI.Map
         {
             for (int i = 0; i < _markerBreaths.Count; i++)
             {
+                // Заблокированные уже приведены в покой один раз в
+                // ResolveScreenElements и не меняются, пока экран открыт —
+                // писать им каждый тик незачем.
+                if (!_markerAlive[i])
+                    continue;
+
                 VisualElement breath = _markerBreaths[i];
                 if (breath == null)
                     continue;
-
-                if (!_markerAlive[i])
-                {
-                    breath.style.scale = new Scale(Vector2.one);
-                    continue;
-                }
 
                 float amplitude = MapAmbientMath.MarkerBreathAmplitude
                     * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f);
@@ -375,9 +389,9 @@ namespace Mikey.UI.Map
                 // Тень идёт в противофазе: маркер поднимается — тень
                 // поджимается и бледнеет. Иначе это читается как рост
                 // объекта, а не как отрыв от поверхности.
-                float shadowScale = 2f - scale;
+                float shadowScale = MapAmbientMath.MarkerShadowScale(scale);
                 shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
-                shadow.style.opacity = 0.35f - (scale - 1f) * 2f;
+                shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale);
             }
         }
     }
