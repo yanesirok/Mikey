@@ -200,6 +200,41 @@ namespace Mikey.UI.Map.Tests
             Assert.Less(stopIndex, loopIndex, "StopInertia() must run before the animation loop starts driving the camera itself.");
         }
 
+        // ---------- StopRubberBand: same discrete-placement guarantee, for the border rubber band ----------
+
+        [Test]
+        public void RubberBandReset_OnlyLivesInsideStopRubberBand_NoDuplicatedInlineResets()
+        {
+            // Same drift risk as InertiaReset_OnlyLivesInsideStopInertia_...
+            // above: a duplicated inline copy of the rubber-band reset could
+            // silently fall out of sync with StopRubberBand() (e.g. forget
+            // to also clear _rubberBandRoutine).
+            string source = File.ReadAllText(ControllerPath);
+            Assert.AreEqual(1, CountOccurrences(source, "_rubberBandX = 0f;"),
+                "Expected the rubber-band reset to live in exactly one place: StopRubberBand().");
+            Assert.AreEqual(1, CountOccurrences(source, "_rubberBandY = 0f;"),
+                "Expected the rubber-band reset to live in exactly one place: StopRubberBand().");
+        }
+
+        [Test]
+        public void RubberBandNeverLeaksIntoTheLogicalPan()
+        {
+            // The border rubber band must stay purely visual: _panX/_panY
+            // may only ever be written by SetPan()'s own ClampPan() calls,
+            // never by MapPanZoomMath.RubberBand() — otherwise zoom,
+            // inertia and cross-screen transitions would all inherit the
+            // "illegal" overscrolled position.
+            string source = File.ReadAllText(ControllerPath);
+            Assert.AreEqual(1, CountOccurrences(source, "_panX = MapPanZoomMath.ClampPan("),
+                "Expected _panX to be written in exactly one place: SetPan().");
+            Assert.AreEqual(1, CountOccurrences(source, "_panY = MapPanZoomMath.ClampPan("),
+                "Expected _panY to be written in exactly one place: SetPan().");
+
+            string setPanBody = ExtractMethodBody(source, "private void SetPan(float x, float y)");
+            StringAssert.DoesNotContain("RubberBand", setPanBody,
+                "SetPan() clamps the logical pan — the rubber band must never mix into that computation.");
+        }
+
         private static int CountOccurrences(string haystack, string needle)
         {
             int count = 0;

@@ -371,7 +371,9 @@ namespace Mikey.UI.Map.Tests
         public void RubberBand_IsSafeOnDegenerateViewport()
         {
             Assert.AreEqual(0f, MapPanZoomMath.RubberBand(100f, 0f), 0.0005f);
+            Assert.AreEqual(0f, MapPanZoomMath.RubberBand(100f, -1000f), 0.0005f);
             Assert.AreEqual(0f, MapPanZoomMath.RubberBand(float.NaN, 1000f), 0.0005f);
+            Assert.AreEqual(0f, MapPanZoomMath.RubberBand(float.PositiveInfinity, 1000f), 0.0005f);
         }
     }
 }

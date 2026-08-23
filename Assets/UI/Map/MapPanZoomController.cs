@@ -457,10 +457,12 @@ namespace Mikey.UI.Map
                 yield return null;
             }
 
-            _rubberBandX = 0f;
-            _rubberBandY = 0f;
+            // Естественное завершение маршрутизируется через тот же
+            // помощник, что и досрочный обрыв — StopCoroutine на
+            // собственном, ещё не расчищенном дескрипторе здесь безопасный
+            // no-op (корутина и так последней строкой сама себя завершает).
+            StopRubberBand();
             ApplyCanvasTransform();
-            _rubberBandRoutine = null;
         }
 
         private void OnScreenChanged(string changedScreenId)
@@ -676,7 +678,17 @@ namespace Mikey.UI.Map
         {
             CancelIntroZoomAnimation();
             StopInertia();
-            StopRubberBand();
+            // NB: no StopRubberBand() here — this coroutine only ever writes
+            // _panX/_panY, never _rubberBandX/_rubberBandY, so there's no
+            // field to race with. Cutting the rubber band short here would
+            // instead SNAP the still-visible source screen (this approach
+            // phase runs before the screen swap) by up to 12% of the
+            // viewport in one frame. Left alone, it just eases to zero on
+            // its own schedule while the pan animates — no conflict.
+            // (SetViewToSourceFocalPoint, by contrast, DOES call
+            // StopRubberBand() — it plants the destination screen's view
+            // while still hidden under cloud cover, so the same snap is
+            // invisible there.)
 
             float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
             float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
