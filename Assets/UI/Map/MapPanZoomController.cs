@@ -74,6 +74,10 @@ namespace Mikey.UI.Map
         private float _panX;
         private float _panY;
         private float _zoom = MapPanZoomMath.DefaultZoom;
+        private float _ambientPanX;
+        private float _ambientPanY;
+        private float _ambientZoomMultiplier = 1f;
+        private float _lastInputTime;
 
         private bool _pointerDown;
         private bool _dragging;
@@ -227,6 +231,7 @@ namespace Mikey.UI.Map
             if (!_isPinching)
             {
                 _isPinching = true;
+                _lastInputTime = Time.unscaledTime;
                 _pinchStartDistance = currentDistance;
                 _pinchStartZoom = _zoom;
                 EndDrag(); // a second finger landing mid-drag means this is a pinch, not a pan.
@@ -243,6 +248,7 @@ namespace Mikey.UI.Map
 
         private void OnPointerDown(PointerDownEvent evt)
         {
+            _lastInputTime = Time.unscaledTime;
             if (_pointerDown || _isPinching || MapCloudTransitionController.IsTransitioning)
                 return;
 
@@ -266,6 +272,7 @@ namespace Mikey.UI.Map
                 if (delta.sqrMagnitude < DragThresholdPixels * DragThresholdPixels)
                     return;
                 _dragging = true;
+                _lastInputTime = Time.unscaledTime;
                 _viewport.CapturePointer(_activePointerId);
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
             }
@@ -282,6 +289,7 @@ namespace Mikey.UI.Map
 
         private void OnWheel(WheelEvent evt)
         {
+            _lastInputTime = Time.unscaledTime;
             if (MapCloudTransitionController.IsTransitioning)
             {
                 evt.StopPropagation();
@@ -573,8 +581,7 @@ namespace Mikey.UI.Map
             _panX = MapPanZoomMath.ClampPan(x, _zoom, viewportWidth);
             _panY = MapPanZoomMath.ClampPan(y, _zoom, viewportHeight);
 
-            if (_canvas != null)
-                _canvas.transform.position = new Vector3(_panX, _panY, 0f);
+            ApplyCanvasTransform();
         }
 
         private void SetZoom(float zoom)
@@ -588,10 +595,40 @@ namespace Mikey.UI.Map
             SetPan(_panX, _panY);
         }
 
-        private void ApplyZoom()
+        private void ApplyZoom() => ApplyCanvasTransform();
+
+        /// <summary>
+        /// ЕДИНСТВЕННОЕ место, которое пишет трансформацию канваса. Логический
+        /// пан/зум (управление игрока) и ambient-добавка (дыхание бумаги, Ken
+        /// Burns) складываются здесь, а не спорят за transform: ambient
+        /// сознательно не клампится вместе с паном, его амплитуда заведомо
+        /// меньше процента и вылезти за край карты не может.
+        /// </summary>
+        private void ApplyCanvasTransform()
         {
-            if (_canvas != null)
-                _canvas.transform.scale = new Vector3(_zoom, _zoom, 1f);
+            if (_canvas == null)
+                return;
+
+            _canvas.transform.position = new Vector3(_panX + _ambientPanX, _panY + _ambientPanY, 0f);
+            float scale = _zoom * _ambientZoomMultiplier;
+            _canvas.transform.scale = new Vector3(scale, scale, 1f);
         }
+
+        /// <summary>
+        /// Ambient-добавка к камере: смещение в пикселях и множитель зума.
+        /// Вызывается MapAmbientController на каждом его тике; логический
+        /// пан/зум при этом не меняется, поэтому ни клампы, ни сохранённая
+        /// рамка перехода между экранами не съезжают.
+        /// </summary>
+        public void SetAmbientOffset(float panX, float panY, float zoomMultiplier)
+        {
+            _ambientPanX = float.IsNaN(panX) ? 0f : panX;
+            _ambientPanY = float.IsNaN(panY) ? 0f : panY;
+            _ambientZoomMultiplier = float.IsNaN(zoomMultiplier) || zoomMultiplier <= 0f ? 1f : zoomMultiplier;
+            ApplyCanvasTransform();
+        }
+
+        /// <summary>Сколько секунд прошло с последнего действия игрока — ambient включает Ken Burns только в простое.</summary>
+        public float SecondsSinceLastInput => Time.unscaledTime - _lastInputTime;
     }
 }

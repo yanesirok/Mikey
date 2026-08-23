@@ -135,5 +135,58 @@ namespace Mikey.UI.Map.Tests
             foreach (float factor in MapAmbientMath.CloudParallaxFactors)
                 Assert.Greater(factor, 1f);
         }
+
+        [Test]
+        public void ApproachWeight_MovesTowardTargetAndArrives()
+        {
+            float w = MapAmbientMath.ApproachWeight(0f, 1f, 0.2f, 0.4f);
+            Assert.AreEqual(0.5f, w, Tolerance);
+
+            w = MapAmbientMath.ApproachWeight(w, 1f, 0.2f, 0.4f);
+            Assert.AreEqual(1f, w, Tolerance);
+        }
+
+        [Test]
+        public void ApproachWeight_NeverLeavesZeroOne()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.ApproachWeight(0f, 0f, 1f, 0.4f), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.ApproachWeight(1f, 1f, 1f, 0.4f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ApproachWeight(0.1f, 0f, 10f, 0.4f), Tolerance);
+        }
+
+        [Test]
+        public void ApproachWeight_IsSafeOnZeroFade()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.ApproachWeight(0f, 1f, 0.016f, 0f), Tolerance);
+        }
+
+        [Test]
+        public void KenBurns_StartsAtRestAndStaysInsideItsBudget()
+        {
+            MapAmbientMath.KenBurns(0f, 1000f, 500f, out float x0, out float y0, out float z0);
+            Assert.AreEqual(0f, x0, Tolerance);
+            Assert.AreEqual(0f, y0, Tolerance);
+            Assert.AreEqual(0f, z0, Tolerance);
+
+            for (int step = 0; step <= 200; step++)
+            {
+                MapAmbientMath.KenBurns(step * 0.5f, 1000f, 500f, out float x, out float y, out float z);
+                Assert.LessOrEqual(System.Math.Abs(x), 1000f * MapAmbientMath.KenBurnsPanAmplitude + Tolerance);
+                Assert.LessOrEqual(System.Math.Abs(y), 500f * MapAmbientMath.KenBurnsPanAmplitude + Tolerance);
+                Assert.LessOrEqual(System.Math.Abs(z), MapAmbientMath.KenBurnsZoomAmplitude + Tolerance);
+            }
+        }
+
+        [Test]
+        public void PaperBreath_IsAtMostSixPromille()
+        {
+            Assert.AreEqual(0.006f, MapAmbientMath.PaperBreathAmplitude, Tolerance);
+            for (int step = 0; step <= 100; step++)
+            {
+                float v = MapAmbientMath.Breath(step * 0.5f, MapAmbientMath.PaperBreathPeriodSeconds, MapAmbientMath.PaperBreathAmplitude);
+                Assert.GreaterOrEqual(v, 1f - Tolerance);
+                Assert.LessOrEqual(v, 1.006f + Tolerance);
+            }
+        }
     }
 }

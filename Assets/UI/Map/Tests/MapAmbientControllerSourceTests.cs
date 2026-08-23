@@ -16,6 +16,7 @@ namespace Mikey.UI.Map.Tests
     public class MapAmbientControllerSourceTests
     {
         private const string SourcePath = "Assets/UI/Map/MapAmbientController.cs";
+        private const string MathSourcePath = "Assets/UI/Map/MapAmbientMath.cs";
 
         [Test]
         public void NeverWritesLayoutProperties()
@@ -108,6 +109,48 @@ namespace Mikey.UI.Map.Tests
                 Assert.Greater(fieldIndex, lastFieldIndex, $"Preset field '{expectedPresetFieldOrder[i]}' out of order in the restOpacity array.");
                 lastSuffixIndex = suffixIndex;
                 lastFieldIndex = fieldIndex;
+            }
+        }
+
+        /// <summary>
+        /// MapAmbientMath.CloudParallaxFactors — четвёртый позиционный массив
+        /// «на облако», спаренный по индексу с _clouds[i] и suffixes[i] (см.
+        /// TickClouds: <c>MapAmbientMath.CloudParallaxFactors[i]</c>). Тот же
+        /// риск тихой перестановки, что и у пары suffixes/restOpacity выше —
+        /// проверяем тем же приёмом, что оба массива перечисляют облака в
+        /// одном порядке (right-01, left-01, left-02, bottom-01).
+        /// </summary>
+        [Test]
+        public void ResolveScreenElements_CloudSuffixOrder_MatchesParallaxFactorOrder()
+        {
+            string controllerSource = File.ReadAllText(SourcePath);
+
+            int suffixesStart = controllerSource.IndexOf("string[] suffixes = {", System.StringComparison.Ordinal);
+            int suffixesEnd = controllerSource.IndexOf("};", suffixesStart, System.StringComparison.Ordinal);
+            Assert.Greater(suffixesStart, -1, "Expected the cloud suffix array literal.");
+            Assert.Greater(suffixesEnd, suffixesStart);
+            string suffixesText = controllerSource.Substring(suffixesStart, suffixesEnd - suffixesStart);
+
+            string mathSource = File.ReadAllText(MathSourcePath);
+            int factorsStart = mathSource.IndexOf("CloudParallaxFactors = {", System.StringComparison.Ordinal);
+            int factorsEnd = mathSource.IndexOf("};", factorsStart, System.StringComparison.Ordinal);
+            Assert.Greater(factorsStart, -1, "Expected the CloudParallaxFactors array literal.");
+            Assert.Greater(factorsEnd, factorsStart);
+            string factorsText = mathSource.Substring(factorsStart, factorsEnd - factorsStart);
+
+            string[] expectedSuffixOrder = { "right-01", "left-01", "left-02", "bottom-01" };
+            string[] expectedFactorLiterals = { "1.04f", "1.06f", "1.10f", "1.12f" };
+
+            int lastSuffixIndex = -1;
+            int lastFactorIndex = -1;
+            for (int i = 0; i < expectedSuffixOrder.Length; i++)
+            {
+                int suffixIndex = suffixesText.IndexOf("\"" + expectedSuffixOrder[i] + "\"", System.StringComparison.Ordinal);
+                int factorIndex = factorsText.IndexOf(expectedFactorLiterals[i], System.StringComparison.Ordinal);
+                Assert.Greater(suffixIndex, lastSuffixIndex, $"Suffix '{expectedSuffixOrder[i]}' out of order in the suffixes array.");
+                Assert.Greater(factorIndex, lastFactorIndex, $"Parallax factor '{expectedFactorLiterals[i]}' out of order in CloudParallaxFactors.");
+                lastSuffixIndex = suffixIndex;
+                lastFactorIndex = factorIndex;
             }
         }
     }

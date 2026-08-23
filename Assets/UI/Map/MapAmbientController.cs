@@ -46,6 +46,7 @@ namespace Mikey.UI.Map
         private bool _bound;
         private bool _onMapScreen;
         private float _elapsedSeconds;
+        private float _kenBurnsWeight;
 
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
@@ -202,6 +203,8 @@ namespace Mikey.UI.Map
 
         private void StopTicking()
         {
+            _panZoom?.SetAmbientOffset(0f, 0f, 1f);
+
             if (_tick != null)
             {
                 _tick.Pause();
@@ -229,6 +232,7 @@ namespace Mikey.UI.Map
 
             _elapsedSeconds += TickIntervalMs / 1000f;
             TickClouds();
+            TickCamera();
         }
 
         /// <summary>
@@ -265,6 +269,35 @@ namespace Mikey.UI.Map
                 // темнеть, но не светлеть, то есть дышало бы вполсилы.
                 cloud.style.opacity = Mathf.Clamp01(_cloudRestOpacity[i] + dOpacity);
             }
+        }
+
+        /// <summary>
+        /// Дыхание бумаги идёт всегда, Ken Burns — только в простое и с
+        /// плавным набором/гашением веса. Обе добавки уезжают в
+        /// MapPanZoomController одним вызовом: канвас пишет только он.
+        /// </summary>
+        private void TickCamera()
+        {
+            if (_panZoom == null)
+                return;
+
+            float width = _canvas?.resolvedStyle.width ?? 0f;
+            float height = _canvas?.resolvedStyle.height ?? 0f;
+
+            float target = _panZoom.SecondsSinceLastInput >= MapAmbientMath.IdleDelaySeconds ? 1f : 0f;
+            _kenBurnsWeight = MapAmbientMath.ApproachWeight(
+                _kenBurnsWeight, target, TickIntervalMs / 1000f, MapAmbientMath.KenBurnsFadeSeconds);
+
+            MapAmbientMath.KenBurns(_elapsedSeconds, width, height,
+                out float kenPanX, out float kenPanY, out float kenZoom);
+
+            float breath = MapAmbientMath.Breath(
+                _elapsedSeconds, MapAmbientMath.PaperBreathPeriodSeconds, MapAmbientMath.PaperBreathAmplitude);
+
+            _panZoom.SetAmbientOffset(
+                kenPanX * _kenBurnsWeight,
+                kenPanY * _kenBurnsWeight,
+                breath + kenZoom * _kenBurnsWeight);
         }
     }
 }

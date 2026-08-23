@@ -110,6 +110,70 @@ namespace Mikey.UI.Map
             return offset;
         }
 
+        /// <summary>Период «дыхания бумаги» — очень длинный специально: это должно чувствоваться телом, а не читаться глазом.</summary>
+        public const float PaperBreathPeriodSeconds = 24f;
+
+        /// <summary>Амплитуда дыхания бумаги как множитель зума: 1.000 - 1.006.</summary>
+        public const float PaperBreathAmplitude = 0.006f;
+
+        /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
+        public const float IdleDelaySeconds = 5f;
+
+        /// <summary>За сколько Ken Burns набирает полную силу и гаснет при касании. Гашение через вес, а не мгновенным нулём — иначе на касании был бы рывок.</summary>
+        public const float KenBurnsFadeSeconds = 0.4f;
+
+        /// <summary>Период дрейфа камеры в простое.</summary>
+        public const float KenBurnsPeriodSeconds = 40f;
+
+        /// <summary>Доля вьюпорта, на которую камера уходит в простое.</summary>
+        public const float KenBurnsPanAmplitude = 0.008f;
+
+        /// <summary>Добавка к множителю зума в простое.</summary>
+        public const float KenBurnsZoomAmplitude = 0.015f;
+
+        /// <summary>
+        /// Плавно ведёт вес эффекта к цели со скоростью «полный ход за
+        /// <paramref name="fadeSeconds"/>». Используется, чтобы Ken Burns
+        /// затухал при касании за 0.4 с, а не обрывался кадром.
+        /// </summary>
+        public static float ApproachWeight(float current, float target, float deltaSeconds, float fadeSeconds)
+        {
+            float from = IsFinite(current) ? Clamp01(current) : 0f;
+            float to = IsFinite(target) ? Clamp01(target) : 0f;
+            if (!IsFinite(deltaSeconds) || deltaSeconds <= 0f)
+                return from;
+            if (!IsFinite(fadeSeconds) || fadeSeconds <= 0f)
+                return to;
+
+            float step = deltaSeconds / fadeSeconds;
+            if (to > from)
+                return from + step >= to ? to : from + step;
+            return from - step <= to ? to : from - step;
+        }
+
+        /// <summary>
+        /// Смещение камеры в простое. Горизонталь и вертикаль идут разными
+        /// периодами, поэтому траектория — медленная петля, а не движение
+        /// по прямой туда-обратно. В нуле времени всё ровно по нулям, чтобы
+        /// включение эффекта не давало скачка.
+        /// </summary>
+        public static void KenBurns(float timeSeconds, float viewportWidth, float viewportHeight,
+            out float panX, out float panY, out float zoomDelta)
+        {
+            panX = 0f;
+            panY = 0f;
+            zoomDelta = 0f;
+
+            if (!IsFinite(viewportWidth) || !IsFinite(viewportHeight) || viewportWidth <= 0f || viewportHeight <= 0f)
+                return;
+
+            panX = viewportWidth * KenBurnsPanAmplitude * Wave(timeSeconds, KenBurnsPeriodSeconds, 0f);
+            panY = viewportHeight * KenBurnsPanAmplitude * Wave(timeSeconds, KenBurnsPeriodSeconds * 1.618f, 0f);
+            zoomDelta = KenBurnsZoomAmplitude * Wave(timeSeconds, KenBurnsPeriodSeconds * 1.31f, 0f);
+        }
+
+        private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
+
         private static double WaveAngle(float timeSeconds, float periodSeconds)
         {
             if (!IsFinite(timeSeconds) || !IsFinite(periodSeconds) || periodSeconds <= 0f)
