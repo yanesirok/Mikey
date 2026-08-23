@@ -1,0 +1,176 @@
+using System.IO;
+using System.Text.RegularExpressions;
+using NUnit.Framework;
+
+namespace Mikey.UI.Map.Tests
+{
+    /// <summary>
+    /// Разметка и стили плывущего слоя. Ключевой контракт — порядок
+    /// объявления: слой обязан идти ПОСЛЕ арта карты и ДО первого маркера,
+    /// иначе облако начнёт проходить перед единственным интерактивным
+    /// элементом экрана.
+    /// </summary>
+    public class MapWindLayerUxmlTests
+    {
+        private const string UxmlPath = "Assets/UI/MikeyApp.uxml";
+        private const string UssPath = "Assets/UI/Map/Map.uss";
+
+        [Test]
+        public void BothScreensDeclareSevenWindClouds()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            for (int i = 0; i < MapWindLayout.Clouds.Length; i++)
+            {
+                StringAssert.Contains($"name=\"map-wind-{i}\"", uxml);
+                StringAssert.Contains($"name=\"okinawa-wind-{i}\"", uxml);
+            }
+
+            StringAssert.Contains("name=\"map-wind-layer\"", uxml);
+            StringAssert.Contains("name=\"okinawa-wind-layer\"", uxml);
+        }
+
+        [Test]
+        public void EveryWindCloudCarriesTheTextureClassItsLaneDeclares()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            for (int i = 0; i < MapWindLayout.Clouds.Length; i++)
+            {
+                string expected = MapWindLayout.Clouds[i].TextureClass;
+                AssertElementHasClass(uxml, $"map-wind-{i}", expected);
+                AssertElementHasClass(uxml, $"okinawa-wind-{i}", expected);
+            }
+        }
+
+        [Test]
+        public void WindLayerIsDeclaredAfterTheArtAndBeforeTheFirstMarker()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            int japanArt = uxml.IndexOf("class=\"map-canvas-art\"", System.StringComparison.Ordinal);
+            int japanWind = uxml.IndexOf("name=\"map-wind-layer\"", System.StringComparison.Ordinal);
+            int japanMarker = uxml.IndexOf("name=\"chapter-node-okinawa\"", System.StringComparison.Ordinal);
+
+            Assert.Greater(japanArt, -1);
+            Assert.Greater(japanWind, japanArt, "Ветер обязан краситься поверх арта карты.");
+            Assert.Less(japanWind, japanMarker, "Ветер обязан краситься ПОД маркерами.");
+
+            int okiArt = uxml.IndexOf("class=\"okinawa-canvas-art\"", System.StringComparison.Ordinal);
+            int okiWind = uxml.IndexOf("name=\"okinawa-wind-layer\"", System.StringComparison.Ordinal);
+            int okiMarker = uxml.IndexOf("name=\"level-node-0\"", System.StringComparison.Ordinal);
+
+            Assert.Greater(okiArt, -1);
+            Assert.Greater(okiWind, okiArt);
+            Assert.Less(okiWind, okiMarker);
+        }
+
+        [Test]
+        public void FramingCloudLayerStillPaintsAboveTheWind()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            int japanWind = uxml.IndexOf("name=\"map-wind-layer\"", System.StringComparison.Ordinal);
+            int japanFrame = uxml.IndexOf("name=\"map-cloud-layer\"", System.StringComparison.Ordinal);
+            Assert.Less(japanWind, japanFrame, "Рамка маскирует край карты и обязана оставаться сверху.");
+
+            int okiWind = uxml.IndexOf("name=\"okinawa-wind-layer\"", System.StringComparison.Ordinal);
+            int okiFrame = uxml.IndexOf("name=\"okinawa-cloud-layer\"", System.StringComparison.Ordinal);
+            Assert.Less(okiWind, okiFrame);
+        }
+
+        [Test]
+        public void EveryWindElementIgnoresPicking()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            foreach (Match match in Regex.Matches(uxml, @"<ui:VisualElement[^>]*name=""(?:map|okinawa)-wind[^""]*""[^>]*/?>"))
+            {
+                StringAssert.Contains("picking-mode=\"Ignore\"", match.Value,
+                    $"Декоративное облако не должно перехватывать тап: {match.Value}");
+            }
+        }
+
+        [Test]
+        public void WindRestsInvisibleSoResetCannotFlashItOpaque()
+        {
+            // Тик снимает инлайн в StyleKeyword.Null, а Null отдаёт значение
+            // обратно USS. Без opacity:0 здесь сброшенное облако вспыхнуло бы
+            // полностью непрозрачным.
+            string block = ExtractRuleBlock(File.ReadAllText(UssPath), ".map-wind");
+            Assert.IsNotNull(block, "Ожидалось правило '.map-wind' в Map.uss.");
+            StringAssert.Contains("opacity: 0", block);
+        }
+
+        [Test]
+        public void WindTextureClassesPointAtTheSameFilesAsTheFramingOnes()
+        {
+            string uss = File.ReadAllText(UssPath);
+            string[] suffixes = { "left-01", "left-02", "right-01", "bottom-01" };
+
+            foreach (string suffix in suffixes)
+            {
+                string wind = ExtractRuleBlock(uss, $".map-wind--{suffix}");
+                string frame = ExtractRuleBlock(uss, $".map-cloud--{suffix}");
+
+                Assert.IsNotNull(wind, $"Ожидалось правило '.map-wind--{suffix}'.");
+                Assert.IsNotNull(frame, $"Ожидалось правило '.map-cloud--{suffix}'.");
+
+                string windUrl = ExtractUrl(wind);
+                string frameUrl = ExtractUrl(frame);
+                Assert.AreEqual(frameUrl, windUrl,
+                    $"'.map-wind--{suffix}' и '.map-cloud--{suffix}' обязаны указывать на один файл.");
+            }
+        }
+
+        /// <summary>
+        /// У ветра не должно быть CSS-переходов ВООБЩЕ: всё его движение
+        /// считает тик, и переход поверх посчитанного значения дал бы борьбу
+        /// двух источников за одно свойство. Разбираются именно БЛОКИ по
+        /// селектору, а не весь файл подстрокой — иначе тест спотыкался бы о
+        /// переходы соседних правил.
+        /// </summary>
+        [Test]
+        public void WindDeclaresNoCssTransitionsAtAll()
+        {
+            string uss = File.ReadAllText(UssPath);
+            string withoutComments = Regex.Replace(uss, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
+            int checkedBlocks = 0;
+
+            foreach (Match block in Regex.Matches(withoutComments, @"([^{}]+)\{([^{}]*)\}"))
+            {
+                if (!block.Groups[1].Value.Contains("map-wind"))
+                    continue;
+
+                checkedBlocks++;
+                StringAssert.DoesNotContain("transition", block.Groups[2].Value,
+                    $"Правило \"{block.Groups[1].Value.Trim()}\" объявляет CSS-переход — " +
+                    "движение ветра целиком считает MapWindLayer.Tick.");
+            }
+
+            Assert.GreaterOrEqual(checkedBlocks, 6,
+                "Ожидались правила слоя, базовое и четыре класса текстур — тест ничего не проверил.");
+        }
+
+        private static void AssertElementHasClass(string uxml, string elementName, string className)
+        {
+            Match match = Regex.Match(uxml, $@"<ui:VisualElement[^>]*name=""{Regex.Escape(elementName)}""[^>]*>");
+            Assert.IsTrue(match.Success, $"Не найден элемент '{elementName}' в разметке.");
+            StringAssert.Contains(className, match.Value,
+                $"Элемент '{elementName}' обязан нести класс текстуры '{className}' из своей полосы.");
+        }
+
+        private static string ExtractRuleBlock(string uss, string selector)
+        {
+            Match match = Regex.Match(uss, Regex.Escape(selector) + @"\s*\{([^}]*)\}");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        private static string ExtractUrl(string block)
+        {
+            Match match = Regex.Match(block, @"url\(""([^""]+)""\)");
+            Assert.IsTrue(match.Success, $"В блоке нет background-image: {block}");
+            return match.Groups[1].Value;
+        }
+    }
+}

@@ -627,6 +627,25 @@
                         <ui:VisualElement class="map-canvas-art" picking-mode="Ignore" />
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
+                        <!-- Плывущий слой: семь облаков на трёх полосах
+                             глубины, см. MapWindLayout. Объявлен здесь, а не
+                             рядом со слоем рамки внизу, намеренно: тут он
+                             красится над артом карты, но ПОД маркерами.
+                             Размер и высоту пишет MapWindLayout.Apply при
+                             показе и на смене размера; путь, крен, набухание и
+                             прозрачность считает MapWindLayer.Tick. Классы
+                             текстур переиспользуют те же четыре PNG, что и
+                             рамка. -->
+                        <ui:VisualElement name="map-wind-layer" class="map-wind-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="map-wind-0" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-1" class="map-wind map-wind--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-2" class="map-wind map-wind--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-6" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                        </ui:VisualElement>
+
                         <!-- Chapter 0: unlocked, current starting chapter. Position
                              (style.left/top, percent) is applied at bind time by
                              JapanMapController from MapMarkerLayout.Chapters — not
@@ -823,6 +842,19 @@
                     <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
                         <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
+
+                        <!-- Плывущий слой Окинавы. Полосы те же, что на
+                             Японии, см. MapWindLayout: композиция полос от
+                             экрана не зависит. -->
+                        <ui:VisualElement name="okinawa-wind-layer" class="map-wind-layer" picking-mode="Ignore">
+                            <ui:VisualElement name="okinawa-wind-0" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-1" class="map-wind map-wind--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-2" class="map-wind map-wind--left-02" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-6" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                        </ui:VisualElement>
 
                         <!-- LVL 0-8: Okinawa's mission set (1 Special + 4
                              Training + 3 Fight + 1 Boss Fight, see

@@ -1007,6 +1007,48 @@
     opacity: 1;
 }
 
+/* ---------- плывущий слой облаков ----------
+   Семь элементов на экран, ребёнок той же ".pan-canvas", что арт, маркеры и
+   рамка — значит, слой панится и зумится вместе с картой и клипуется
+   существующим overflow:hidden у ".pan-stage". Своего клипа слой не заводит:
+   двойной клип уже ломал композицию рамки.
+
+   Объявляется в разметке ПОСЛЕ арта и ДО первого маркера, поэтому красится
+   над картой, но под пинами. Облако, проходящее перед пином, задевало бы
+   единственный интерактивный элемент экрана ради красоты.
+
+   CSS-переходов здесь нет НИ ОДНОГО и быть не должно: всё движение считает
+   тик MapWindLayer, а переход поверх посчитанного значения дал бы борьбу
+   двух источников за одно свойство.
+
+   opacity:0 — это состояние покоя. Тик снимает свой инлайн в
+   StyleKeyword.Null, а Null отдаёт значение обратно сюда; без нуля здесь
+   сброшенное облако вспыхнуло бы полностью непрозрачным. */
+.map-wind-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+.map-wind {
+    position: absolute;
+    opacity: 0;
+    -unity-background-scale-mode: stretch;
+}
+.map-wind--left-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_01.png");
+}
+.map-wind--left-02 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_02.png");
+}
+.map-wind--right-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_right_01.png");
+}
+.map-wind--bottom-01 {
+    background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_bottom_01.png");
+}
+
 /* ---------- Map Pass 3B decorative cloud overlay (corrected architecture) ----------
    The four sumi-e cloud PNGs, positioned/sized/rotated/opacity per
    MapCloudLayout — a child of ".pan-canvas" (the SAME transformed map
