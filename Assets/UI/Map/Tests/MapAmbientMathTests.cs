@@ -283,5 +283,104 @@ namespace Mikey.UI.Map.Tests
             Assert.Greater(blended, 0f);
             Assert.Less(blended, 1000f, "Одиночный выброс не должен целиком становиться скоростью броска.");
         }
+
+        // ---------- каскад появления маркеров (взамен снятого USS-перехода — ре-ревью задачи 9) ----------
+
+        [Test]
+        public void MarkerEntranceProgress_MarkerZero_StartsImmediately()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceProgress(0, 0f, reducedMotion: false), Tolerance);
+            Assert.AreEqual(0.5f, MapAmbientMath.MarkerEntranceProgress(0, MapAmbientMath.MarkerEntranceDurationSeconds * 0.5f, reducedMotion: false), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(0, MapAmbientMath.MarkerEntranceDurationSeconds, reducedMotion: false), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceProgress_LaterMarker_WaitsOutItsStepDelayBeforeMoving()
+        {
+            float delay = 2 * MapAmbientMath.MarkerEntranceStepSeconds;
+
+            // До истечения задержки — на нуле, а не в отрицательной/сломанной зоне.
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceProgress(2, 0f, reducedMotion: false), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceProgress(2, delay * 0.5f, reducedMotion: false), Tolerance);
+
+            // Ровно на границе задержки — вход только начинается.
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceProgress(2, delay, reducedMotion: false), Tolerance);
+
+            // Завершается через полную длительность ПОСЛЕ задержки, не от t=0.
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(2, delay + MapAmbientMath.MarkerEntranceDurationSeconds, reducedMotion: false), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceProgress_ClampsPastCompletion_NeverGoesBackDown()
+        {
+            float wayPastDone = MapAmbientMath.MarkerEntranceDurationSeconds * 100f;
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(5, wayPastDone, reducedMotion: false), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceProgress_ReducedMotion_DropsTheStepDelay_AllMarkersMoveTogether()
+        {
+            // Тот же индекс 5, который под полным движением ещё стоял бы в
+            // задержке — под reducedMotion уже наравне со всеми.
+            float t = MapAmbientMath.MarkerEntranceReducedDurationSeconds * 0.5f;
+            Assert.AreEqual(
+                MapAmbientMath.MarkerEntranceProgress(0, t, reducedMotion: true),
+                MapAmbientMath.MarkerEntranceProgress(5, t, reducedMotion: true),
+                Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceProgress_ReducedMotion_UsesTheShorterDuration()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(0, MapAmbientMath.MarkerEntranceReducedDurationSeconds, reducedMotion: true), Tolerance);
+            Assert.Less(MapAmbientMath.MarkerEntranceReducedDurationSeconds, MapAmbientMath.MarkerEntranceDurationSeconds,
+                "Схлопнутый вход обязан быть короче полного — иначе «меньше движения» не читалось бы короче.");
+        }
+
+        [Test]
+        public void MarkerEntranceProgress_IsSafeOnDegenerateInput()
+        {
+            // Испорченный ввод не должен вешать маркер невидимым навсегда —
+            // вход считается завершённым.
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(0, float.NaN, reducedMotion: false), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceProgress(0, float.PositiveInfinity, reducedMotion: false), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceProgress(-1, 0f, reducedMotion: false), Tolerance,
+                "Отрицательный индекс не должен давать отрицательную задержку (вход раньше t=0).");
+        }
+
+        [Test]
+        public void MarkerEntranceScale_GoesFromStartScaleToOne()
+        {
+            Assert.AreEqual(MapAmbientMath.MarkerEntranceStartScale, MapAmbientMath.MarkerEntranceScale(0f, reducedMotion: false), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceScale(1f, reducedMotion: false), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceScale_ReducedMotion_NeverLeavesOne()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceScale(0f, reducedMotion: true), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceScale(1f, reducedMotion: true), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceOffsetY_GoesFromStartOffsetToZero()
+        {
+            Assert.AreEqual(MapAmbientMath.MarkerEntranceStartOffsetY, MapAmbientMath.MarkerEntranceOffsetY(0f, reducedMotion: false), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceOffsetY(1f, reducedMotion: false), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceOffsetY_ReducedMotion_NeverMoves()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceOffsetY(0f, reducedMotion: true), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceOffsetY(1f, reducedMotion: true), Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceScale_AndOffsetY_AreSafeOnDegenerateInput()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceScale(float.NaN, reducedMotion: false), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceOffsetY(float.NaN, reducedMotion: false), Tolerance);
+        }
     }
 }

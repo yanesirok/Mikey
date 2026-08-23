@@ -10,7 +10,15 @@ namespace Mikey.UI.Map
     /// <summary>
     /// Единственный драйвер непрерывного («ambient») движения на обоих экранах
     /// карты: дрейф и параллакс облаков, дыхание бумаги, Ken Burns в простое,
-    /// дыхание маркеров.
+    /// каскадное появление маркеров при входе на экран и их дыхание после.
+    ///
+    /// <para>
+    /// Каскад появления — численный, не USS-переход: живёт в TickMarkers
+    /// наравне с дыханием (см. MapAmbientMath.MarkerEntranceProgress), пишется
+    /// тем же присваиванием, что и дыхание, и потому не может гоняться с ним
+    /// за scale. Под «меньше движения» тикает только он (см. StartTicking/
+    /// Tick) — короткий и сам себя останавливает, а не непрерывный ambient.
+    /// </para>
     ///
     /// <para>
     /// Тикает на 30 Гц, а не по кадру: у ambient-движения периоды в десятки
@@ -47,6 +55,16 @@ namespace Mikey.UI.Map
         private bool _onMapScreen;
         private float _elapsedSeconds;
         private float _kenBurnsWeight;
+
+        /// <summary>
+        /// Секунды с начала входа на текущий экран, отдельно от
+        /// <see cref="_elapsedSeconds"/>: та сбрасывается на каждый
+        /// <see cref="StartTicking"/> (в т.ч. при выключении «меньше
+        /// движения» посреди визита на экран), а каскад появления маркеров
+        /// должен отсчитываться только от настоящего входа на экран — см.
+        /// <see cref="ResolveScreenElements"/>.
+        /// </summary>
+        private float _markerEntranceElapsedSeconds;
 
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
@@ -208,30 +226,17 @@ namespace Mikey.UI.Map
                 _markerAlive.Add(alive);
                 if (alive)
                     _focusMarkerIndex = i;
-
-                // Покой выставляется ВСЕМ маркерам на каждом входе на экран,
-                // не только заблокированным: цвет тени непрозрачен, и видимой
-                // альфой владеет исключительно этот inline opacity — у
-                // живого маркера её никто не задаёт до первого тика, значит
-                // один кадр после показа экрана его тень рисовалась бы
-                // сплошным чёрным. Живым тик (см. TickMarkers) перепишет
-                // значение сразу же, лишней работы это не создаёт.
-                //
-                // Обёртке масштаб снимается через StyleKeyword.Null, а не
-                // выставляется явной единицей: тот же элемент читает каскад
-                // появления маркеров (MapNodeFeedback), и явный инлайн-
-                // масштаб перебил бы его стартовое USS-состояние независимо
-                // от того, какой из двух контроллеров экрана отработает
-                // раньше. Null лишь снимает прошлый инлайн и отдаёт решение
-                // USS — в покое это тот же единичный масштаб.
-                if (breath != null)
-                    breath.style.scale = StyleKeyword.Null;
-                if (shadow != null)
-                {
-                    shadow.style.scale = new Scale(Vector2.one);
-                    shadow.style.opacity = MapAmbientMath.MarkerShadowRestOpacity;
-                }
             }
+
+            // Каскад появления начинается заново на каждом входе на экран —
+            // и красится синхронно, одним вызовом TickMarkers на t=0, а не
+            // отдельным "состоянием покоя": иначе ровно тот же класс багов,
+            // что чинил предыдущий ре-ревью (тень без заданной opacity до
+            // первого тика), возник бы заново для translate/scale каскада.
+            // TickMarkers сам решает, что писать заблокированным и живым —
+            // здесь не дублируем эту логику.
+            _markerEntranceElapsedSeconds = 0f;
+            TickMarkers(_motion != null && _motion.ReducedMotion);
         }
 
         /// <summary>
@@ -253,11 +258,20 @@ namespace Mikey.UI.Map
                 StartTicking();
         }
 
+        /// <summary>
+        /// Не отказывается стартовать под «меньше движения» — короткий вход
+        /// маркеров (см. TickMarkers/MarkerEntranceProgress) тикает и тогда,
+        /// это не непрерывный ambient, а одноразовый эффект ограниченной
+        /// длительности. Единственный вызов этого метода, который вообще
+        /// может случиться при включённом «меньше движения», приходит из
+        /// OnScreenChanged на настоящем входе на экран (см.
+        /// OnMotionSettingsChanged — он зовёт StartTicking только когда
+        /// настройка уже выключена); Tick сам остановит себя, как только вход
+        /// у всех маркеров закончится.
+        /// </summary>
         private void StartTicking()
         {
             if (_root == null || _tick != null)
-                return;
-            if (_motion != null && _motion.ReducedMotion)
                 return;
 
             _elapsedSeconds = 0f;
@@ -279,26 +293,34 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
-        /// Один шаг ambient-движения. Пока только копит время — конкретные
-        /// каналы (облака, камера, маркеры) добавляются следующими задачами
-        /// плана и каждый живёт в своём приватном методе.
+        /// Один шаг ambient-движения. Облака/камера/дыхание маркеров стоят
+        /// под «меньше движения» — тикает только вход маркеров, короткий и
+        /// ограниченный по времени (см. TickMarkers), а как только он у всех
+        /// маркеров закончился, тик сам себя останавливает: непрерывный
+        /// ambient под «меньше движения» не включается никогда.
         /// </summary>
         private void Tick()
         {
             if (!_bound || !_onMapScreen)
                 return;
-            if (_motion != null && _motion.ReducedMotion)
-            {
-                StopTicking();
-                return;
-            }
             if (MapCloudTransitionController.IsTransitioning)
                 return;
 
+            bool reducedMotion = _motion != null && _motion.ReducedMotion;
             _elapsedSeconds += TickIntervalMs / 1000f;
+            _markerEntranceElapsedSeconds += TickIntervalMs / 1000f;
+
+            TickMarkers(reducedMotion);
+
+            if (reducedMotion)
+            {
+                if (_markerEntranceElapsedSeconds >= MapAmbientMath.MarkerEntranceReducedDurationSeconds)
+                    StopTicking();
+                return;
+            }
+
             TickClouds();
             TickCamera();
-            TickMarkers();
         }
 
         /// <summary>
@@ -367,37 +389,63 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
-        /// Дышат только разблокированные маркеры, и ровно один — текущая цель —
-        /// дышит сильнее остальных. Заблокированные стоят абсолютно
-        /// неподвижно: контраст сам ведёт взгляд, и никакие стрелки-указатели
-        /// поверх карты не нужны.
+        /// Пока вход маркера не завершён — им управляет каскад появления
+        /// (translate/opacity/scale, от <see cref="_markerEntranceElapsedSeconds"/>
+        /// и индекса, см. MapAmbientMath.MarkerEntranceProgress); как только
+        /// завершён — заблокированный застывает неподвижно, а
+        /// разблокированный переходит на дыхание (и ровно один — текущая
+        /// цель — дышит сильнее остальных). Оба источника scale пишут в ОДНО
+        /// и то же присваивание ниже, а не в конкурирующие переходы/классы —
+        /// гонки между ними нет по построению. Вызывается и синхронно, один
+        /// раз, из ResolveScreenElements (красит t=0 сразу, до первого
+        /// реального тика — иначе тень маркера рисовалась бы без заданной
+        /// прозрачности первый кадр после показа экрана), и затем каждый тик.
         /// </summary>
-        private void TickMarkers()
+        private void TickMarkers(bool reducedMotion)
         {
             for (int i = 0; i < _markerBreaths.Count; i++)
             {
-                // Заблокированные уже приведены в покой один раз в
-                // ResolveScreenElements и не меняются, пока экран открыт —
-                // писать им каждый тик незачем.
-                if (!_markerAlive[i])
-                    continue;
-
                 VisualElement breath = _markerBreaths[i];
-                if (breath == null)
-                    continue;
-
-                float amplitude = MapAmbientMath.MarkerBreathAmplitude
-                    * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f);
-                float scale = MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds, amplitude);
-                breath.style.scale = new Scale(new Vector2(scale, scale));
-
                 VisualElement shadow = _markerShadows[i];
+
+                float entranceProgress = MapAmbientMath.MarkerEntranceProgress(i, _markerEntranceElapsedSeconds, reducedMotion);
+                float scale;
+
+                if (entranceProgress < 1f)
+                {
+                    float eased = reducedMotion ? entranceProgress : MapPanZoomMath.EaseOutBack(entranceProgress);
+                    scale = MapAmbientMath.MarkerEntranceScale(eased, reducedMotion);
+                    if (breath != null)
+                    {
+                        breath.style.translate = new Translate(0, MapAmbientMath.MarkerEntranceOffsetY(eased, reducedMotion));
+                        breath.style.opacity = entranceProgress;
+                        breath.style.scale = new Scale(new Vector2(scale, scale));
+                    }
+                }
+                else if (_markerAlive[i])
+                {
+                    float amplitude = MapAmbientMath.MarkerBreathAmplitude
+                        * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f);
+                    scale = MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds, amplitude);
+                    if (breath != null)
+                        breath.style.scale = new Scale(new Vector2(scale, scale));
+                }
+                else
+                {
+                    // Заблокированный, вход уже закончился: стоит абсолютно
+                    // неподвижно на последнем значении каскада (scale 1,
+                    // translate 0) — писать больше нечего.
+                    continue;
+                }
+
                 if (shadow == null)
                     continue;
 
-                // Тень идёт в противофазе: маркер поднимается — тень
-                // поджимается и бледнеет. Иначе это читается как рост
-                // объекта, а не как отрыв от поверхности.
+                // Тень всегда в противофазе к ТЕКУЩЕМУ scale, откуда бы он ни
+                // взялся — из каскада появления или из дыхания: маркер
+                // поднимается — тень поджимается и бледнеет. Иначе отрыв
+                // маркера от бумаги читался бы только во время дыхания, а не
+                // всё время, что маркер на экране.
                 float shadowScale = MapAmbientMath.MarkerShadowScale(scale);
                 shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
                 shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale);

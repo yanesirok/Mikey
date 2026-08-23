@@ -152,6 +152,79 @@ namespace Mikey.UI.Map
             return Clamp01(MarkerShadowRestOpacity - (breathScale - 1f) * MarkerShadowOpacityPerScale);
         }
 
+        // ---------- каскад появления маркеров ----------
+        // Раньше был USS-переходом (класс ".map-node--enter" + transitionDelay
+        // по индексу). Не работал: transitionDelay действует в обе стороны
+        // перехода, а класс снимался (ExecuteLater(0), следующий кадр) раньше,
+        // чем задержка большинства маркеров успевала истечь — переход "туда"
+        // не успевал стартовать, и возвращаться было неоткуда. Каскадило
+        // только у маркера с индексом 0 (задержка 0). См. ре-ревью задачи 9.
+        //
+        // Численный привод той же 30 Гц Tick, что и дыхание — без классов,
+        // без переходов, без гонки: пока вход не завершён, тик пишет каскад;
+        // как только завершён — тик пишет дыхание. Одно и то же присваивание
+        // каждый тик, конкурировать некому по построению.
+
+        /// <summary>Задержка перед стартом входа маркера в каскаде появления, по индексу узла (0 — без задержки).</summary>
+        public const float MarkerEntranceStepSeconds = 0.07f;
+
+        /// <summary>Длительность входа одного маркера (полная версия, с перелётом).</summary>
+        public const float MarkerEntranceDurationSeconds = 0.32f;
+
+        /// <summary>Длительность входа под «меньше движения» — общее проявление без ступеньки по индексу и без перелёта.</summary>
+        public const float MarkerEntranceReducedDurationSeconds = 0.15f;
+
+        /// <summary>Смещение маркера по Y в начале входа (полная версия, до кривой перелёта). Под reducedMotion не используется — там смещения нет вовсе.</summary>
+        public const float MarkerEntranceStartOffsetY = -14f;
+
+        /// <summary>Масштаб маркера в начале входа (полная версия, до кривой перелёта). Под reducedMotion не используется — там масштаб не участвует, каскад схлопнут в одну прозрачность.</summary>
+        public const float MarkerEntranceStartScale = 0.92f;
+
+        /// <summary>
+        /// Линейный прогресс входа маркера с данным индексом в [0, 1] к моменту
+        /// <paramref name="timeSeconds"/> с начала показа экрана (0 — ещё не
+        /// начал, 1 — вход завершён, дальше маркером управляет дыхание). Под
+        /// reducedMotion ступенька по индексу снята: все маркеры входят
+        /// одновременно за <see cref="MarkerEntranceReducedDurationSeconds"/>.
+        /// Безопасно на NaN/бесконечности/отрицательном индексе — вход
+        /// считается завершённым (1), а не зависает на середине: испорченный
+        /// ввод не должен оставлять маркер невидимым навсегда.
+        /// </summary>
+        public static float MarkerEntranceProgress(int index, float timeSeconds, bool reducedMotion)
+        {
+            float duration = reducedMotion ? MarkerEntranceReducedDurationSeconds : MarkerEntranceDurationSeconds;
+            if (!IsFinite(timeSeconds) || duration <= 0f)
+                return 1f;
+
+            float delay = !reducedMotion && index > 0 ? index * MarkerEntranceStepSeconds : 0f;
+            return Clamp01((timeSeconds - delay) / duration);
+        }
+
+        /// <summary>
+        /// Масштаб маркера во время входа от прогресса, уже пропущенного через
+        /// перелётную кривую (<see cref="MapPanZoomMath.EaseOutBack"/> — это
+        /// решает вызывающая сторона, здесь только линейная интерполяция).
+        /// Под reducedMotion масштаб в каскаде не участвует — всегда 1.
+        /// </summary>
+        public static float MarkerEntranceScale(float easedProgress, bool reducedMotion)
+        {
+            if (reducedMotion)
+                return 1f;
+            if (!IsFinite(easedProgress))
+                return 1f;
+            return MarkerEntranceStartScale + (1f - MarkerEntranceStartScale) * easedProgress;
+        }
+
+        /// <summary>Смещение маркера по Y во время входа, от того же эйзенного прогресса. Под reducedMotion смещения нет.</summary>
+        public static float MarkerEntranceOffsetY(float easedProgress, bool reducedMotion)
+        {
+            if (reducedMotion)
+                return 0f;
+            if (!IsFinite(easedProgress))
+                return 0f;
+            return MarkerEntranceStartOffsetY * (1f - easedProgress);
+        }
+
         /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
         public const float IdleDelaySeconds = 5f;
 
