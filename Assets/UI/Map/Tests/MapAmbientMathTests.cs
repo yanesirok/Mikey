@@ -202,5 +202,39 @@ namespace Mikey.UI.Map.Tests
                 Assert.LessOrEqual(v, 1.006f + Tolerance);
             }
         }
+
+        [Test]
+        public void DecayVelocity_LosesTheSameFractionEverySecond()
+        {
+            float afterOne = MapAmbientMath.DecayVelocity(1000f, 1f);
+            Assert.AreEqual(1000f * MapAmbientMath.InertiaRemainingPerSecond, afterOne, 0.01f);
+
+            float afterTwo = MapAmbientMath.DecayVelocity(afterOne, 1f);
+            Assert.AreEqual(1000f * MapAmbientMath.InertiaRemainingPerSecond * MapAmbientMath.InertiaRemainingPerSecond, afterTwo, 0.01f);
+        }
+
+        [Test]
+        public void DecayVelocity_IsIndependentOfStepSize()
+        {
+            float oneStep = MapAmbientMath.DecayVelocity(1000f, 0.5f);
+            float twoSteps = MapAmbientMath.DecayVelocity(MapAmbientMath.DecayVelocity(1000f, 0.25f), 0.25f);
+            Assert.AreEqual(oneStep, twoSteps, 0.01f);
+        }
+
+        [Test]
+        public void IsInertiaFinished_TripsBelowTheStopSpeed()
+        {
+            Assert.IsTrue(MapAmbientMath.IsInertiaFinished(0f, 0f));
+            Assert.IsTrue(MapAmbientMath.IsInertiaFinished(10f, 10f));
+            Assert.IsFalse(MapAmbientMath.IsInertiaFinished(500f, 0f));
+        }
+
+        [Test]
+        public void BlendVelocity_FollowsTheLatestSampleButSmoothsSpikes()
+        {
+            float blended = MapAmbientMath.BlendVelocity(0f, 1000f);
+            Assert.Greater(blended, 0f);
+            Assert.Less(blended, 1000f, "Одиночный выброс не должен целиком становиться скоростью броска.");
+        }
     }
 }

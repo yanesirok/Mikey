@@ -172,6 +172,46 @@ namespace Mikey.UI.Map
             zoomDelta = KenBurnsZoomAmplitude * Wave(timeSeconds, KenBurnsPeriodSeconds * 1.31f, 0f);
         }
 
+        /// <summary>Какая доля скорости броска остаётся через секунду. Подобрано так, чтобы карта доезжала примерно за полсекунды и не «ехала вечно».</summary>
+        public const float InertiaRemainingPerSecond = 0.06f;
+
+        /// <summary>Ниже этой скорости (пикселей в секунду) инерция считается законченной и гасится, чтобы карта не дрожала на околонулевых значениях.</summary>
+        public const float InertiaStopSpeedPixelsPerSecond = 40f;
+
+        /// <summary>Вес последнего замера в сглаживании скорости пальца.</summary>
+        public const float VelocitySampleWeight = 0.6f;
+
+        /// <summary>Затухание скорости за произвольный шаг времени. Экспонента, а не вычитание, — иначе результат зависел бы от частоты кадров.</summary>
+        public static float DecayVelocity(float velocity, float deltaSeconds)
+        {
+            if (!IsFinite(velocity))
+                return 0f;
+            if (!IsFinite(deltaSeconds) || deltaSeconds <= 0f)
+                return velocity;
+            return velocity * (float)System.Math.Pow(InertiaRemainingPerSecond, deltaSeconds);
+        }
+
+        /// <summary>
+        /// Сглаживание скорости пальца: одиночный дёрганый замер не должен
+        /// целиком становиться скоростью броска — на тач-экране такие выбросы
+        /// обычны и дают «выстрел» карты вместо броска.
+        /// </summary>
+        public static float BlendVelocity(float previous, float sample)
+        {
+            float prev = IsFinite(previous) ? previous : 0f;
+            float next = IsFinite(sample) ? sample : 0f;
+            return prev * (1f - VelocitySampleWeight) + next * VelocitySampleWeight;
+        }
+
+        /// <summary>Достаточно ли скорость упала, чтобы остановиться.</summary>
+        public static bool IsInertiaFinished(float velocityX, float velocityY)
+        {
+            if (!IsFinite(velocityX) || !IsFinite(velocityY))
+                return true;
+            double speed = System.Math.Sqrt(velocityX * (double)velocityX + velocityY * (double)velocityY);
+            return speed < InertiaStopSpeedPixelsPerSecond;
+        }
+
         private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
 
         private static double WaveAngle(float timeSeconds, float periodSeconds)

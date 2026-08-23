@@ -89,6 +89,12 @@ namespace Mikey.UI.Map
         private float _pinchStartDistance;
         private float _pinchStartZoom;
 
+        private float _velocityX;
+        private float _velocityY;
+        private Vector2 _lastMovePosition;
+        private float _lastMoveTime;
+        private bool _inertiaActive;
+
         private Coroutine _bindRoutine;
         private Coroutine _introZoomRoutine;
         private bool _bound;
@@ -199,6 +205,19 @@ namespace Mikey.UI.Map
             if (!_bound || MapCloudTransitionController.IsTransitioning)
                 return;
 
+            // Инерция — доезд уже отпущенного жеста, а не новый ввод: не
+            // зовём MarkInput() отсюда, иначе часы простоя (SecondsSinceLastInput)
+            // считали бы от остановки карты, а не от отпускания пальца.
+            if (_inertiaActive && !_pointerDown && !_isPinching)
+            {
+                float inertiaDt = Time.unscaledDeltaTime;
+                SetPan(_panX + _velocityX * inertiaDt, _panY + _velocityY * inertiaDt);
+                _velocityX = MapAmbientMath.DecayVelocity(_velocityX, inertiaDt);
+                _velocityY = MapAmbientMath.DecayVelocity(_velocityY, inertiaDt);
+                if (MapAmbientMath.IsInertiaFinished(_velocityX, _velocityY))
+                    _inertiaActive = false;
+            }
+
             Touchscreen touchscreen = Touchscreen.current;
             if (touchscreen == null)
             {
@@ -235,6 +254,13 @@ namespace Mikey.UI.Map
                 _pinchStartDistance = currentDistance;
                 _pinchStartZoom = _zoom;
                 EndDrag(); // a second finger landing mid-drag means this is a pinch, not a pan.
+                // EndDrag() above may have just armed inertia from the drag
+                // that preceded this second finger — a pinch start is itself
+                // a fresh gesture, so that stale, undecayed velocity must not
+                // survive to resume the pan once the pinch ends.
+                _velocityX = 0f;
+                _velocityY = 0f;
+                _inertiaActive = false;
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
                 return;
             }
@@ -258,6 +284,13 @@ namespace Mikey.UI.Map
             _activePointerId = evt.pointerId;
             _downPosition = evt.position;
             _dragStartPan = new Vector2(_panX, _panY);
+
+            // Новое касание мгновенно перехватывает управление и гасит доезд.
+            _velocityX = 0f;
+            _velocityY = 0f;
+            _inertiaActive = false;
+            _lastMovePosition = evt.position;
+            _lastMoveTime = Time.unscaledTime;
         }
 
         private void OnPointerMove(PointerMoveEvent evt)
@@ -283,6 +316,20 @@ namespace Mikey.UI.Map
             }
 
             SetPan(_dragStartPan.x + delta.x, _dragStartPan.y + delta.y);
+
+            // Копим скорость пальца для инерции после отпускания — сглажена
+            // через BlendVelocity, чтобы одиночный дёрганый замер не стал
+            // целиком скоростью броска.
+            float now = Time.unscaledTime;
+            float dt = now - _lastMoveTime;
+            if (dt > 0.001f && dt < 0.25f)
+            {
+                Vector2 step = current - _lastMovePosition;
+                _velocityX = MapAmbientMath.BlendVelocity(_velocityX, step.x / dt);
+                _velocityY = MapAmbientMath.BlendVelocity(_velocityY, step.y / dt);
+            }
+            _lastMovePosition = current;
+            _lastMoveTime = now;
         }
 
         private void OnPointerUp(PointerUpEvent evt)
@@ -317,6 +364,9 @@ namespace Mikey.UI.Map
 
         private void EndDrag()
         {
+            if (_dragging && !MapAmbientMath.IsInertiaFinished(_velocityX, _velocityY))
+                _inertiaActive = true;
+
             if (_dragging && _viewport != null && _viewport.HasPointerCapture(_activePointerId))
                 _viewport.ReleasePointer(_activePointerId);
 
