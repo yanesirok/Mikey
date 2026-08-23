@@ -339,5 +339,39 @@ namespace Mikey.UI.Map.Tests
             float result2 = MapPanZoomMath.CanvasNormalizedAtViewportCenter(10f, 1.4f, 0f);
             Assert.AreEqual(0.5f, result2);
         }
+
+        // ---------- RubberBand: border overscroll resistance during a direct drag ----------
+
+        [Test]
+        public void RubberBand_IsZeroWithoutOvershoot()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.RubberBand(0f, 1000f), 0.0005f);
+        }
+
+        [Test]
+        public void RubberBand_ResistsMoreTheFurtherYouPull()
+        {
+            float small = MapPanZoomMath.RubberBand(50f, 1000f);
+            float large = MapPanZoomMath.RubberBand(500f, 1000f);
+
+            Assert.Less(small, 50f, "Резинка обязана отдавать меньше, чем в неё тянут.");
+            Assert.Greater(large, small);
+            Assert.Less(large / 500f, small / 50f, "Сопротивление должно расти с натяжением.");
+        }
+
+        [Test]
+        public void RubberBand_IsCappedAndSymmetric()
+        {
+            float cap = 1000f * MapPanZoomMath.MaxRubberBandFraction;
+            Assert.AreEqual(cap, MapPanZoomMath.RubberBand(100000f, 1000f), 0.0005f);
+            Assert.AreEqual(-cap, MapPanZoomMath.RubberBand(-100000f, 1000f), 0.0005f);
+        }
+
+        [Test]
+        public void RubberBand_IsSafeOnDegenerateViewport()
+        {
+            Assert.AreEqual(0f, MapPanZoomMath.RubberBand(100f, 0f), 0.0005f);
+            Assert.AreEqual(0f, MapPanZoomMath.RubberBand(float.NaN, 1000f), 0.0005f);
+        }
     }
 }

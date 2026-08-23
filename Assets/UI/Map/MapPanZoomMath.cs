@@ -170,6 +170,31 @@ namespace Mikey.UI.Map
             return 0.5f - pan / (zoom * viewportDimension);
         }
 
+        /// <summary>Дальше этой доли вьюпорта карту не оттянуть ни при каком усилии.</summary>
+        public const float MaxRubberBandFraction = 0.12f;
+
+        /// <summary>Жёсткость резинки. Меньше — туже.</summary>
+        public const float RubberBandCoefficient = 0.55f;
+
+        /// <summary>
+        /// Насколько карта реально уезжает за свою границу, когда игрок тянет
+        /// её на <paramref name="overshoot"/> пикселей дальше допустимого.
+        /// Отдача убывает с натяжением, поэтому край ощущается упругим, а не
+        /// как стена и не как свободный ход.
+        /// </summary>
+        public static float RubberBand(float overshoot, float viewportDimension)
+        {
+            if (!IsFinite(overshoot) || !IsFinite(viewportDimension) || viewportDimension <= 0f)
+                return 0f;
+
+            float sign = overshoot < 0f ? -1f : 1f;
+            float magnitude = overshoot * sign;
+
+            float damped = (1f - 1f / (magnitude * RubberBandCoefficient / viewportDimension + 1f)) * viewportDimension;
+            float cap = viewportDimension * MaxRubberBandFraction;
+            return sign * (damped > cap ? cap : damped);
+        }
+
         private static float Clamp(float v, float min, float max) => v < min ? min : (v > max ? max : v);
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);

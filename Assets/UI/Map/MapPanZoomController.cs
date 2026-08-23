@@ -95,6 +95,10 @@ namespace Mikey.UI.Map
         private float _lastMoveTime;
         private bool _inertiaActive;
 
+        private float _rubberBandX;
+        private float _rubberBandY;
+        private Coroutine _rubberBandRoutine;
+
         private Coroutine _bindRoutine;
         private Coroutine _introZoomRoutine;
         private bool _bound;
@@ -126,6 +130,7 @@ namespace Mikey.UI.Map
                 _bindRoutine = null;
             }
             CancelIntroZoomAnimation();
+            StopRubberBand();
 
             if (_bound && _viewport != null)
             {
@@ -259,6 +264,7 @@ namespace Mikey.UI.Map
                 // a fresh gesture, so that stale, undecayed velocity must not
                 // survive to resume the pan once the pinch ends.
                 StopInertia();
+                StopRubberBand();
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
                 return;
             }
@@ -285,6 +291,7 @@ namespace Mikey.UI.Map
 
             // Новое касание мгновенно перехватывает управление и гасит доезд.
             StopInertia();
+            StopRubberBand();
             _lastMovePosition = evt.position;
             _lastMoveTime = Time.unscaledTime;
         }
@@ -311,7 +318,10 @@ namespace Mikey.UI.Map
                 CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
             }
 
-            SetPan(_dragStartPan.x + delta.x, _dragStartPan.y + delta.y);
+            // За границей карта продолжает идти за пальцем, но с
+            // сопротивлением (см. SetPanWithRubberBand) — оттяжка не
+            // трогает _panX/_panY, поэтому клампы ниже остаются законными.
+            SetPanWithRubberBand(_dragStartPan.x + delta.x, _dragStartPan.y + delta.y);
 
             // Копим скорость пальца для инерции после отпускания — сглажена
             // через BlendVelocity, чтобы одиночный дёрганый замер не стал
@@ -346,6 +356,7 @@ namespace Mikey.UI.Map
 
             CancelIntroZoomAnimation(); // the player is taking control — don't fight the opening animation.
             StopInertia(); // a wheel zoom is real input too — it must break any in-flight coast.
+            StopRubberBand();
 
             // Only the direction of one wheel event is used, not its raw
             // magnitude (see WheelZoomStep) — this is what keeps the step
@@ -370,6 +381,17 @@ namespace Mikey.UI.Map
             _pointerDown = false;
             _dragging = false;
             _activePointerId = -1;
+
+            // Отпустили палец, а карта всё ещё оттянута за границу — отдать
+            // резинку обратно. Живёт отдельно от инерции: инерция (см.
+            // Update()) продолжает уже законно заклампленный пан, резинка
+            // лишь стирает свою собственную визуальную добавку к нему.
+            if (_rubberBandX != 0f || _rubberBandY != 0f)
+            {
+                if (_rubberBandRoutine != null)
+                    StopCoroutine(_rubberBandRoutine);
+                _rubberBandRoutine = StartCoroutine(ReleaseRubberBand());
+            }
         }
 
         /// <summary>
@@ -389,6 +411,56 @@ namespace Mikey.UI.Map
             _velocityX = 0f;
             _velocityY = 0f;
             _inertiaActive = false;
+        }
+
+        /// <summary>
+        /// Обрывает возврат резинки насмерть и обнуляет оттяжку — тот же
+        /// принцип, что и <see cref="StopInertia"/>, для того же набора мест:
+        /// если камера ставится заново дискретно, пока возврат ещё не
+        /// доехал, недоехавшая оттяжка не должна тащиться поверх новой
+        /// рамки (свежего жеста, зума колесом, входа на экран или переноса
+        /// вида между экранами).
+        /// </summary>
+        private void StopRubberBand()
+        {
+            if (_rubberBandRoutine != null)
+            {
+                StopCoroutine(_rubberBandRoutine);
+                _rubberBandRoutine = null;
+            }
+            _rubberBandX = 0f;
+            _rubberBandY = 0f;
+        }
+
+        /// <summary>How long the rubber band takes to ease back to zero once the finger releases at (or past) the border.</summary>
+        private const float RubberBandReleaseSeconds = 0.28f;
+
+        /// <summary>
+        /// Eases the rubber band offset back to zero after EndDrag() arms it
+        /// — the finger let go while the map was pulled past its edge.
+        /// Started/stopped only via EndDrag()/StopRubberBand(), never
+        /// StartCoroutine'd elsewhere.
+        /// </summary>
+        private IEnumerator ReleaseRubberBand()
+        {
+            float startX = _rubberBandX;
+            float startY = _rubberBandY;
+            float elapsed = 0f;
+
+            while (elapsed < RubberBandReleaseSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = MapPanZoomMath.EaseOutCubic(elapsed / RubberBandReleaseSeconds);
+                _rubberBandX = Mathf.LerpUnclamped(startX, 0f, t);
+                _rubberBandY = Mathf.LerpUnclamped(startY, 0f, t);
+                ApplyCanvasTransform();
+                yield return null;
+            }
+
+            _rubberBandX = 0f;
+            _rubberBandY = 0f;
+            ApplyCanvasTransform();
+            _rubberBandRoutine = null;
         }
 
         private void OnScreenChanged(string changedScreenId)
@@ -420,6 +492,7 @@ namespace Mikey.UI.Map
         {
             CancelIntroZoomAnimation();
             StopInertia();
+            StopRubberBand();
             MarkInput();
             _zoom = MapPanZoomMath.MinZoom;
             SetPan(0f, 0f);
@@ -555,6 +628,7 @@ namespace Mikey.UI.Map
 
             CancelIntroZoomAnimation();
             StopInertia();
+            StopRubberBand();
 
             _zoom = MapPanZoomMath.ClampZoom(zoom);
             ApplyZoom();
@@ -602,6 +676,7 @@ namespace Mikey.UI.Map
         {
             CancelIntroZoomAnimation();
             StopInertia();
+            StopRubberBand();
 
             float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
             float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
@@ -659,6 +734,36 @@ namespace Mikey.UI.Map
             ApplyCanvasTransform();
         }
 
+        /// <summary>
+        /// Пан во время прямого перетаскивания: за границей карта продолжает
+        /// идти, но с сопротивлением. Оттяжка живёт ОТДЕЛЬНО от логического
+        /// пана (_panX/_panY остаются законно заклампленными через SetPan),
+        /// поэтому ни зум, ни переход между экранами, ни инерция не
+        /// наследуют «нелегальную» позицию — см. ApplyCanvasTransform.
+        /// </summary>
+        private void SetPanWithRubberBand(float x, float y)
+        {
+            float viewportWidth = _viewport?.resolvedStyle.width ?? 0f;
+            float viewportHeight = _viewport?.resolvedStyle.height ?? 0f;
+
+            float maxX = MapPanZoomMath.MaxPanForZoom(_zoom, viewportWidth);
+            float maxY = MapPanZoomMath.MaxPanForZoom(_zoom, viewportHeight);
+
+            _rubberBandX = MapPanZoomMath.RubberBand(Overshoot(x, maxX), viewportWidth);
+            _rubberBandY = MapPanZoomMath.RubberBand(Overshoot(y, maxY), viewportHeight);
+
+            SetPan(x, y);
+        }
+
+        private static float Overshoot(float value, float limit)
+        {
+            if (value > limit)
+                return value - limit;
+            if (value < -limit)
+                return value + limit;
+            return 0f;
+        }
+
         private void SetZoom(float zoom)
         {
             _zoom = MapPanZoomMath.ClampZoom(zoom);
@@ -684,7 +789,10 @@ namespace Mikey.UI.Map
             if (_canvas == null)
                 return;
 
-            _canvas.transform.position = new Vector3(_panX + _ambientPanX, _panY + _ambientPanY, 0f);
+            _canvas.transform.position = new Vector3(
+                _panX + _ambientPanX + _rubberBandX,
+                _panY + _ambientPanY + _rubberBandY,
+                0f);
             float scale = _zoom * _ambientZoomMultiplier;
             _canvas.transform.scale = new Vector3(scale, scale, 1f);
         }
