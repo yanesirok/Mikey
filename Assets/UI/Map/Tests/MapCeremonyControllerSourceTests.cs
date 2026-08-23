@@ -58,5 +58,34 @@ namespace Mikey.UI.Map.Tests
             string source = File.ReadAllText(AmbientPath);
             StringAssert.Contains("MapCeremonyController.IsPlaying", source);
         }
+
+        /// <remarks>
+        /// Регрессия ревью T14/1: бриф хардкодил печать разблокировки на
+        /// узел Фукуоки независимо от переданного chapterId. Проверяем И
+        /// отсутствие захардкоженного имени, И наличие резолюции из
+        /// параметра -- по отдельности первая половина ловит "убрали
+        /// хардкод, но не заменили его резолюцией", вторая -- "резолюция
+        /// есть, но хардкод рядом остался".
+        /// </remarks>
+        [Test]
+        public void ChapterUnlockSealResolvesNodeFromTheRequestedChapterId()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("\"chapter-node-fukuoka\"", source);
+            StringAssert.Contains("$\"chapter-node-{chapterId}\"", source);
+        }
+
+        /// <remarks>
+        /// Регрессия ревью T14/2: бриф множил долю на константу 1000f
+        /// вместо фактической ширины слоя облаков. Симметрично предыдущему
+        /// тесту: отсутствие константы плюс наличие чтения resolvedStyle.
+        /// </remarks>
+        [Test]
+        public void CloudDivergenceUsesTheCloudLayersActualWidth()
+        {
+            string source = File.ReadAllText(SourcePath);
+            StringAssert.DoesNotContain("1000f", source);
+            StringAssert.Contains("resolvedStyle.width", source);
+        }
     }
 }

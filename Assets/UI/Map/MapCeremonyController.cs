@@ -55,9 +55,13 @@ namespace Mikey.UI.Map
 
         /// <summary>
         /// Истина на всё время любой церемонии. Ambient проверяет этот флаг и
-        /// уступает — иначе он и церемония писали бы облакам одно и то же
-        /// свойство. Тот же приём, что уже применён в
-        /// MapCloudTransitionController.IsTransitioning.
+        /// уступает — НЕ потому что дерутся за одно и то же свойство одного
+        /// элемента (расхождение облаков пишет translate/opacity родителю
+        /// map-cloud-layer, а ambient — четырём дочерним облакам;
+        /// преобразования складываются, а не перезаписываются), а потому что
+        /// ambient не должен продолжать дрейф/дыхание/Ken Burns поверх сцены,
+        /// которая обязана читаться как одно поставленное движение. Тот же
+        /// приём, что уже применён в MapCloudTransitionController.IsTransitioning.
         /// </summary>
         public static bool IsPlaying { get; private set; }
 
@@ -86,6 +90,13 @@ namespace Mikey.UI.Map
             {
                 StopCoroutine(_ceremonyRoutine);
                 _ceremonyRoutine = null;
+
+                // Остановленная корутина не доигрывает свой собственный
+                // возврат в покой (он сидит в последних строках КАЖДОЙ
+                // Play*Routine) -- без этого слой облаков остаётся смещён,
+                // ink-wash непрозрачен, а печать висит в иерархии навсегда.
+                // Досюда добраться больше некому, поэтому досводим здесь.
+                ResetCeremonyVisuals();
             }
             if (_navigator != null)
             {
@@ -96,6 +107,39 @@ namespace Mikey.UI.Map
             IsPlaying = false;
             _root = null;
             _bound = false;
+        }
+
+        /// <summary>
+        /// Досводит визуал ЛЮБОЙ прерванной церемонии до состояния покоя --
+        /// вызывается только когда её корутину остановили извне (см.
+        /// OnDisable), поэтому финальные строки самой Play*Routine не
+        /// выполнились. Метёт по всем трём видам возможного мусора сразу,
+        /// а не только по тому, что играло: очистка уже-в-покое элемента --
+        /// no-op, а знать заранее, какая именно церемония была прервана,
+        /// незачем.
+        /// </summary>
+        private void ResetCeremonyVisuals()
+        {
+            VisualElement layer = _root?.Q<VisualElement>("map-cloud-layer");
+            if (layer != null)
+            {
+                layer.style.translate = StyleKeyword.Null;
+                layer.style.opacity = StyleKeyword.Null;
+            }
+
+            VisualElement inkWash = _root?.Q<VisualElement>("map-inkwash");
+            if (inkWash != null)
+            {
+                inkWash.RemoveFromClassList(InkWashPlayingClass);
+                inkWash.RemoveFromClassList(InkWashDissolvingClass);
+                inkWash.RemoveFromClassList(InkWashFastClass);
+            }
+
+            // Печать -- динамически созданный VisualElement, который сам
+            // убирает себя последней строкой PlaySealRoutine; прерванная
+            // корутина туда не доходит, и он остаётся висеть в иерархии
+            // узла главы/уровня навсегда.
+            _root?.Query<VisualElement>(className: "map-seal").ForEach(seal => seal.RemoveFromHierarchy());
         }
 
         private IEnumerator BindWhenReady()
@@ -143,9 +187,11 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
-        /// Короткая чернильная клякса в момент подмены экранов на переходе
-        /// Япония-Окинава. Сам переход — честная кинематографичная камера
-        /// (см. MapCloudTransitionController), и накрывать её целиком нечем;
+        /// Короткая чернильная клякса в момент подмены экранов. Зовётся из
+        /// MapCloudTransitionController в ОБЕ стороны перехода
+        /// (Япония->Окинава и Окинава->Япония), не только в одну. Сам
+        /// переход — честная кинематографичная камера (см.
+        /// MapCloudTransitionController), и накрывать её целиком нечем;
         /// клякса лишь маскирует кадр подмены. Живёт 0.3 с, поэтому не
         /// поднимает IsPlaying надолго и ambient не успевает застыть.
         /// </summary>
