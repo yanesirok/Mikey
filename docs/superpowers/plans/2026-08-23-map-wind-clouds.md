@@ -213,9 +213,10 @@ namespace Mikey.UI.Map.Tests
             float b = MapWindMath.Swell(7f, 200f, 0.41f);
             float c = MapWindMath.Swell(7f, 200f, 0.73f);
 
-            Assert.AreNotEqual(a, b, Tolerance);
-            Assert.AreNotEqual(b, c, Tolerance);
-            Assert.AreNotEqual(a, c, Tolerance);
+            // NUnit 3 не имеет перегрузки AreNotEqual с допуском — только AreEqual.
+            Assert.Greater(System.Math.Abs(a - b), Tolerance);
+            Assert.Greater(System.Math.Abs(b - c), Tolerance);
+            Assert.Greater(System.Math.Abs(a - c), Tolerance);
         }
 
         [Test]
@@ -537,7 +538,9 @@ namespace Mikey.UI.Map.Tests
             {
                 for (int j = i + 1; j < MapWindLayout.Clouds.Length; j++)
                 {
-                    Assert.AreNotEqual(MapWindLayout.Clouds[i].Phase, MapWindLayout.Clouds[j].Phase, Tolerance,
+                    // NUnit 3 не имеет перегрузки AreNotEqual с допуском — только AreEqual.
+                    Assert.That(MapWindLayout.Clouds[i].Phase,
+                        Is.Not.EqualTo(MapWindLayout.Clouds[j].Phase).Within(Tolerance),
                         $"Облака {i} и {j} стартуют из одной точки полосы.");
                 }
             }
@@ -1637,7 +1640,8 @@ git commit -m "feat(map): подключить плывущий слой к ambi
             // Составная — не должна, иначе небо снова читается зацикленной гифкой.
             float atStart = MapAmbientMath.Compound(0.5f, 26f, 0.37f);
             float aPeriodLater = MapAmbientMath.Compound(26.5f, 26f, 0.37f);
-            Assert.AreNotEqual(atStart, aPeriodLater, Tolerance);
+            // NUnit 3 не имеет перегрузки AreNotEqual с допуском — только AreEqual.
+            Assert.Greater(System.Math.Abs(atStart - aPeriodLater), Tolerance);
         }
 
         [Test]
