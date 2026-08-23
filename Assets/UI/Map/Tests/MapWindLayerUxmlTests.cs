@@ -72,10 +72,14 @@ namespace Mikey.UI.Map.Tests
 
             int japanWind = uxml.IndexOf("name=\"map-wind-layer\"", System.StringComparison.Ordinal);
             int japanFrame = uxml.IndexOf("name=\"map-cloud-layer\"", System.StringComparison.Ordinal);
+            Assert.Greater(japanWind, -1, "Слой ветра Японии не найден в разметке.");
+            Assert.Greater(japanFrame, -1, "Слой рамки Японии не найден в разметке.");
             Assert.Less(japanWind, japanFrame, "Рамка маскирует край карты и обязана оставаться сверху.");
 
             int okiWind = uxml.IndexOf("name=\"okinawa-wind-layer\"", System.StringComparison.Ordinal);
             int okiFrame = uxml.IndexOf("name=\"okinawa-cloud-layer\"", System.StringComparison.Ordinal);
+            Assert.Greater(okiWind, -1, "Слой ветра Окинавы не найден в разметке.");
+            Assert.Greater(okiFrame, -1, "Слой рамки Окинавы не найден в разметке.");
             Assert.Less(okiWind, okiFrame);
         }
 
@@ -84,7 +88,16 @@ namespace Mikey.UI.Map.Tests
         {
             string uxml = File.ReadAllText(UxmlPath);
 
-            foreach (Match match in Regex.Matches(uxml, @"<ui:VisualElement[^>]*name=""(?:map|okinawa)-wind[^""]*""[^>]*/?>"))
+            MatchCollection matches = Regex.Matches(uxml, @"<ui:VisualElement[^>]*name=""(?:map|okinawa)-wind[^""]*""[^>]*/?>");
+
+            // Без этой проверки тест проходит вхолостую, когда разметки ещё (или уже) нет:
+            // цикл ниже просто не выполняется. Хуже того, такой холостой проход
+            // неотличим от симптома сломанного UXML, из-за которого тесты становятся
+            // пустыми, а не красными. Семь облаков на двух экранах плюс два слоя.
+            Assert.AreEqual(MapWindLayout.Clouds.Length * 2 + 2, matches.Count,
+                "Ожидались 16 элементов ветра в разметке — тест не проверил ничего.");
+
+            foreach (Match match in matches)
             {
                 StringAssert.Contains("picking-mode=\"Ignore\"", match.Value,
                     $"Декоративное облако не должно перехватывать тап: {match.Value}");
