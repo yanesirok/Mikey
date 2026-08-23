@@ -789,8 +789,13 @@
 .detail-panel--scroll {
     translate: 0 0;
     overflow: hidden;
+    /* "transition-property: opacity" is not a live effect -- nothing on this
+       element ever changes opacity. It exists only to overwrite the base
+       ".detail-panel" rule's "transition-property: translate", since this
+       container's own translate is now pinned at 0 0 forever and must never
+       pick up a transition again. No transition-duration is declared
+       because there is nothing here for one to time. */
     transition-property: opacity;
-    transition-duration: 0.2s;
     background-color: rgba(0, 0, 0, 0);
     border-left-width: 0;
 }
