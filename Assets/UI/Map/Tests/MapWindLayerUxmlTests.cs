@@ -1,6 +1,9 @@
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine.UIElements;
 
 namespace Mikey.UI.Map.Tests
 {
@@ -163,6 +166,43 @@ namespace Mikey.UI.Map.Tests
 
             Assert.GreaterOrEqual(checkedBlocks, 6,
                 "Ожидались правила слоя, базовое и четыре класса текстур — тест ничего не проверил.");
+        }
+
+        /// <summary>
+        /// Единственный тест файла, который РАЗБИРАЕТ разметку, а не читает её
+        /// текстом. Нужен отдельно от остальных восьми именно потому, что
+        /// сломанная загрузка UXML — например, двойной дефис в теле
+        /// XML-комментария — не делает их красными, а делает ПУСТЫМИ:
+        /// текст на диске по-прежнему содержит нужные подстроки, проверки
+        /// проходят, а дерева уже нет и экран пуст. Здесь поломка
+        /// проявляется НАПРЯМУЮ: ассет либо не грузится, либо отдаёт
+        /// дерево без ветровых элементов.
+        /// </summary>
+        [Test]
+        public void MarkupParsesIntoATreeSoABrokenCommentCannotHideAsAnEmptySuite()
+        {
+            var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
+            Assert.IsNotNull(vta, $"{UxmlPath} не загрузился как VisualTreeAsset.");
+
+            var root = new VisualElement();
+            vta.CloneTree(root);
+            var all = root.Query<VisualElement>().ToList();
+            Assert.Greater(all.Count, 0, "Дерево инстанцировалось пустым — разметка не разобралась.");
+
+            var wind = all.Where(e => !string.IsNullOrEmpty(e.name) &&
+                    (e.name.StartsWith("map-wind") || e.name.StartsWith("okinawa-wind")))
+                .ToList();
+
+            Assert.AreEqual(MapWindLayout.Clouds.Length * 2 + 2, wind.Count,
+                "В разобранном дереве ожидались семь облаков на двух экранах плюс два слоя.");
+
+            Assert.AreEqual(MapWindLayout.Clouds.Length * 2,
+                wind.Count(e => e.GetClasses().Any(c => c.StartsWith("map-wind--"))),
+                "Класс текстуры обязан быть у четырнадцати облаков и ни у одного слоя.");
+
+            foreach (var element in wind)
+                Assert.AreEqual(PickingMode.Ignore, element.pickingMode,
+                    $"Элемент ветра из дерева перехватывает тап: {element.name}");
         }
 
         private static void AssertElementHasClass(string uxml, string elementName, string className)

@@ -1034,7 +1034,7 @@
 .map-wind {
     position: absolute;
     opacity: 0;
-    -unity-background-scale-mode: stretch;
+    -unity-background-scale-mode: stretch-to-fill;
 }
 .map-wind--left-01 {
     background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_01.png");
