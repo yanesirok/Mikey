@@ -2317,7 +2317,12 @@ unity command run_tests --mode EditMode --filter "MapAmbientMathTests" --filter_
     width: 46px;
     height: 12px;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.35);
+    /* Цвет НЕПРОЗРАЧНЫЙ намеренно: видимой альфой владеет только inline
+       opacity, которую пишет ambient. UI Toolkit перемножает opacity на
+       альфу цвета, поэтому rgba(...,0.35) вместе с opacity 0.35 дал бы
+       реальные 0.12 — тень была бы втрое бледнее задуманного, а её дыхание
+       практически неразличимо. */
+    background-color: rgb(0, 0, 0);
 }
 ```
 
@@ -2336,7 +2341,12 @@ unity command run_tests --mode EditMode --filter "MapAmbientMathTests" --filter_
     width: 36px;
     height: 10px;
     border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.35);
+    /* Цвет НЕПРОЗРАЧНЫЙ намеренно: видимой альфой владеет только inline
+       opacity, которую пишет ambient. UI Toolkit перемножает opacity на
+       альфу цвета, поэтому rgba(...,0.35) вместе с opacity 0.35 дал бы
+       реальные 0.12 — тень была бы втрое бледнее задуманного, а её дыхание
+       практически неразличимо. */
+    background-color: rgb(0, 0, 0);
 }
 ```
 
@@ -2422,7 +2432,9 @@ unity command run_tests --mode EditMode --filter "Mikey.UI.Map.Tests" --filter_t
 
                 if (!_markerAlive[i])
                 {
-                    breath.style.scale = new Scale(Vector2.one);
+                    // Заблокированные приведены в покой один раз при смене
+                    // экрана (см. ResolveScreenElements) — писать им что-либо
+                    // каждый тик незачем, они не меняются.
                     continue;
                 }
 
@@ -2437,10 +2449,13 @@ unity command run_tests --mode EditMode --filter "Mikey.UI.Map.Tests" --filter_t
 
                 // Тень идёт в противофазе: маркер поднимается — тень
                 // поджимается и бледнеет. Иначе это читается как рост
-                // объекта, а не как отрыв от поверхности.
-                float shadowScale = 2f - scale;
+                // объекта, а не как отрыв от поверхности. Обе формулы живут в
+                // MapAmbientMath, потому что встроенные сюда они не покрывались
+                // бы ни одним тестом — именно так сюда и попала ошибка с
+                // перемножением альфы.
+                float shadowScale = MapAmbientMath.MarkerShadowScale(scale);
                 shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
-                shadow.style.opacity = 0.35f - (scale - 1f) * 2f;
+                shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale);
             }
         }
 ```
