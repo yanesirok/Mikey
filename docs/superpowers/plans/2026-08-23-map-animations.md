@@ -2088,7 +2088,17 @@ unity command run_tests --mode EditMode --filter "MapPanZoomMathTests" --filter_
 в `OnPointerUp`, до вызова `EndDrag()`, добавить распознавание:
 
 ```csharp
-            if (!_dragging)
+            // Тап по кнопке (маркер главы или уровня) не участвует в
+            // распознавании — и обязан ОБНУЛИТЬ ожидание, а не просто быть
+            // пропущенным. Иначе последовательность «фон -> маркер -> фон»
+            // за DoubleTapMaxSeconds спарит третий тап с первым: тап по
+            // маркеру окажется для автомата невидимым, и наезд запустится
+            // там, где игрок его не просил.
+            if (evt.target is Button)
+            {
+                _lastTapTime = -1f;
+            }
+            else if (!_dragging)
             {
                 Vector2 position = evt.position;
                 bool isDoubleTap = _lastTapTime > 0f
@@ -2132,11 +2142,21 @@ unity command run_tests --mode EditMode --filter "MapPanZoomMathTests" --filter_
                 yield break;
             }
 
+            // У потолка зума упругость выключается. EaseOutBack проскакивает
+            // цель примерно на 10%, а SetZoom тут же срезает превышение
+            // клампом — вместо упругой отдачи читается удар в стену. Пружине
+            // не во что упираться на пределе, поэтому доводим ease-out без
+            // перелёта. Случай не редкий: это второй двойной тап подряд.
+            bool targetIsAtCeiling = Mathf.Approximately(targetZoom, MapPanZoomMath.MaxZoom);
+
             float elapsed = 0f;
             while (elapsed < DoubleTapDurationSeconds)
             {
                 elapsed += Time.unscaledDeltaTime;
-                float t = MapPanZoomMath.EaseOutBack(elapsed / DoubleTapDurationSeconds);
+                float progress = elapsed / DoubleTapDurationSeconds;
+                float t = targetIsAtCeiling
+                    ? MapPanZoomMath.EaseOutCubic(progress)
+                    : MapPanZoomMath.EaseOutBack(progress);
                 SetZoom(Mathf.LerpUnclamped(startZoom, targetZoom, t));
                 yield return null;
             }
