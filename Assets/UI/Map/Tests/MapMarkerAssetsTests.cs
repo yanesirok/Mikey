@@ -135,6 +135,29 @@ namespace Mikey.UI.Map.Tests
             Assert.Less(r, 255, "A tint must still be present — locked markers stay visually distinct from unlocked ones.");
         }
 
+        /// <summary>
+        /// Ре-ревью задачи 10: заблокированный маркер получает класс выбора
+        /// безусловно (SelectChapter/SelectLevel открывают панель "почему
+        /// заблокировано" и для locked тоже) — но поднимать его иконку при
+        /// этом нельзя: подъём читается как "выбрано, заходи" одновременно
+        /// с дрожью отказа, которая говорит "нельзя". Правило более высокой
+        /// специфичности (два класса на узле, не :not()) обязано вернуть
+        /// иконку в покой. Без этого теста правило тихо исчезнет при
+        /// следующей правке файла — тот же приём, что у сторожа
+        /// непрозрачности тени маркера.
+        /// </summary>
+        [TestCase(".chapter-node--locked.chapter-node--selected .chapter-node__icon {")]
+        [TestCase(".level-node--locked.level-node--selected .level-node__icon {")]
+        public void LockedAndSelectedIcon_OverridesLiftBackToRest(string selector)
+        {
+            string block = ExtractRuleBlock(File.ReadAllText(UssPath), selector);
+            Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
+            StringAssert.Contains("translate: 0 0;", block,
+                "Locked+selected must cancel the lift's translate, or a locked marker would still rise on tap.");
+            StringAssert.Contains("scale: 1;", block,
+                "Locked+selected must cancel the lift's scale, or a locked marker would still grow on tap.");
+        }
+
         [Test]
         public void ChapterAndLevelNodes_KeepTheSharedTapTargetTouchArea()
         {

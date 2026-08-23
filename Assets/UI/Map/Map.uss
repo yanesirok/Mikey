@@ -492,6 +492,19 @@
     translate: 0 -6px;
     scale: 1.10;
 }
+/* Заблокированный маркер не поднимается, даже если тоже получил класс
+   выбора (SelectChapter вешает его безусловно — открывает панель с
+   объяснением "заблокировано" и для locked тоже). Подъём читается как
+   "выбрано, заходи" и спорит с дрожью отказа в тот же момент — сигналы
+   противоречат друг другу. Комбинация двух классов на узле, а не :not():
+   поддержка ограниченного набора селекторов в UI Toolkit непроверена, а
+   два класса на одном элементе работают гарантированно. Специфичность
+   компаунд-селектора выше, чем у одного класса ".chapter-node--selected",
+   и вдобавок объявлено ПОСЛЕ него в файле — перебивает в любом случае. */
+.chapter-node--locked.chapter-node--selected .chapter-node__icon {
+    translate: 0 0;
+    scale: 1;
+}
 
 /* ---------- Okinawa mission markers (LVL 0-8) ----------
    Same treatment as the chapter markers: the final supplied mission marker
@@ -574,6 +587,11 @@
 .level-node--selected .level-node__icon {
     translate: 0 -6px;
     scale: 1.10;
+}
+/* Симметрично .chapter-node--locked.chapter-node--selected выше. */
+.level-node--locked.level-node--selected .level-node__icon {
+    translate: 0 0;
+    scale: 1;
 }
 
 /* ---------- shared detail panel (chapter panel + level popup) ----------
