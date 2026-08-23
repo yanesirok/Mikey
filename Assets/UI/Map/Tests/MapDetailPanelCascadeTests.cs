@@ -47,15 +47,18 @@ namespace Mikey.UI.Map.Tests
             // опять останется ничем не скрытой.
             StringAssert.DoesNotContain(".scroll-panel__paper .detail-panel__eyebrow", uss);
             StringAssert.DoesNotContain(".scroll-panel__paper .detail-panel__title", uss);
+            StringAssert.DoesNotContain(".scroll-panel__paper .detail-panel__subtitle", uss);
             StringAssert.DoesNotContain(".scroll-panel__paper .detail-panel__desc", uss);
             StringAssert.DoesNotContain(".scroll-panel__paper .detail-panel__cta", uss);
 
             // Позитивная половина: скрытое состояние объявлено на общем
             // ".detail-panel" -- родительском классе, который несут ОБЕ
             // панели (chapter-panel в MikeyApp.uxml -- напрямую; level-panel
-            // -- через ".detail-panel.detail-panel--scroll"), включая
-            // ".detail-panel__meta" (счётчик уровней, есть только у панели
-            // главы, но должен быть скрыт тем же правилом).
+            // -- через ".detail-panel.detail-panel--scroll"). Включает и
+            // ".detail-panel__meta" (только у панели главы) и
+            // ".detail-panel__subtitle" (только у свитка) -- поле, которого
+            // раньше не было в этой проверке вовсе: без него откат подзаголовка
+            // назад на ".scroll-panel__paper" остался бы незамеченным.
             var blocks = ParseBlocks(uss);
             bool found = false;
             foreach (var (selector, body) in blocks)
@@ -64,6 +67,7 @@ namespace Mikey.UI.Map.Tests
                     continue;
                 found = true;
                 StringAssert.Contains(".detail-panel .detail-panel__title", selector);
+                StringAssert.Contains(".detail-panel .detail-panel__subtitle", selector);
                 StringAssert.Contains(".detail-panel .detail-panel__desc", selector);
                 StringAssert.Contains(".detail-panel .detail-panel__meta", selector);
                 StringAssert.Contains(".detail-panel .detail-panel__cta", selector);
