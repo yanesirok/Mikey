@@ -335,6 +335,49 @@
     border-radius: 18px;
 }
 
+/* Карта уходит вглубь, пока открыта панель главы: масштаб на самой сцене
+   (одна трансформация на весь экран, не на каждом элементе) плюс более
+   плотный скрим. Без этого панель читается как наклейка поверх картинки, а
+   не как слой над сценой.
+   Это НЕ то же самое, что MapPanZoomController's собственный pan/zoom —
+   тот пишет translate/scale на ".pan-canvas" (ребёнке этой сцены) поверх
+   layout-координат, которые сам же и читает через resolvedStyle.width/
+   height; ни один из этих двух transform'ов не читает и не пишет
+   resolvedStyle, так что маркеры (MapMarkerLayout, считающий свои позиции
+   от resolvedStyle "-canvas") и клампы пан/зума видят прежние layout-
+   размеры сцены независимо от того, насколько она визуально ужалась —
+   scale тут чисто отрисовочный, как CSS transform, в layout не
+   просачивается. Видимые по краям 0.75% на сторону — не пустота: под
+   сценой на весь экран уже лежит ".map-bg" (var(--base), тот же
+   тёмно-угольный, что и её собственный ".map-scrim"), так что обнажается
+   тематически тот же тёмный фон, а не дыра.
+   .pan-stage остаётся элементом, на котором висят обработчики пан/зума
+   (MapPanZoomController.viewportElementName="map-stage") — они читают
+   PointerEvent.position в координатах панели (экранных, не локальных),
+   поэтому пока сцена анимирует масштаб, drag-дельта на долю процента не
+   успевает точно совпасть с картинкой на экране. Но панель открыта, пока
+   не будет тапа по сцене — а любой такой тап сначала закрывает панель
+   через ".map-outside-catcher" (см. JapanMapController), так что реальный
+   пан начинается уже во время отката scale к 1 назад, не во время
+   стабильно открытой панели — переходное несовпадение исчезает вместе с
+   самим переходом за 0.34s, а не накапливается. */
+.pan-stage {
+    transition-property: scale;
+    transition-duration: 0.34s;
+    transition-timing-function: ease-out;
+}
+.pan-stage--pushed {
+    scale: 0.985;
+}
+.pan-canvas-scrim {
+    transition-property: background-color;
+    transition-duration: 0.34s;
+    transition-timing-function: ease-out;
+}
+.pan-stage--pushed .pan-canvas-scrim {
+    background-color: rgba(8, 10, 12, 0.32);
+}
+
 /* The pannable/zoomable content layer: MapPanZoomController applies
    transform.position (pan) and transform.scale (zoom) to this element as a
    whole, so the artwork and its marker buttons — both its children — always
@@ -657,7 +700,12 @@
     translate: 100% 0;
     transition-property: translate;
     transition-duration: 0.25s;
-    transition-timing-function: ease-out;
+    /* ease-out-back (не ease-out): панель — единственная вещь на этом
+       экране, что физически прилетает, а не просто задвигается, и лёгкий
+       перелёт продаёт это, не трогая длительность. Тот же easing уже
+       прошёл проверку версии редактора в задаче 12 (".scroll-panel__paper"
+       ниже), поэтому здесь он безопасен без повторной проверки парсера. */
+    transition-timing-function: ease-out-back;
 }
 .detail-panel--open {
     translate: 0 0;
@@ -854,16 +902,37 @@
     border-top-color: rgba(237, 230, 216, 0.18);
 }
 
-/* Каскад содержимого: проявляется после того, как бумага в основном
-   развернулась, не раньше — класс "detail-panel--revealed" висит всё
-   время, пока панель открыта (ставится/снимается в OkinawaMapController
+/* Каскад содержимого: общий для обеих панелей — свитка (уровня) и панели
+   главы. Класс "detail-panel--revealed" висит всё время, пока панель
+   открыта (ставится/снимается в OkinawaMapController и JapanMapController
    вместе с "detail-panel--open"), поэтому переход всегда успевает
-   доиграть, а не срывается сменой класса на следующем кадре. */
-.scroll-panel__paper .detail-panel__eyebrow,
-.scroll-panel__paper .detail-panel__title,
-.scroll-panel__paper .detail-panel__subtitle,
-.scroll-panel__paper .detail-panel__desc,
-.scroll-panel__paper .detail-panel__cta {
+   доиграть, а не срывается сменой класса на следующем кадре.
+   Начальное скрытое состояние висит на ".detail-panel X", а НЕ на
+   ".scroll-panel__paper X" — это и есть сама починка: у панели главы
+   своей бумаги нет (она выезжает целиком, см. ".pan-stage--pushed" выше),
+   а значит без этого её текст ничем не скрыт, и класс "revealed" просто
+   включал бы уже видимое — правила были бы на месте, класс бы ставился,
+   а каскада не было. ".detail-panel" — общий класс обеих панелей
+   (корень свитка тоже несёт его, см. UXML "level-panel"), так что один
+   список селекторов внизу покрывает содержимое любой из них без
+   отдельного дублирования на "--scroll".
+   ".detail-panel__meta" видит только панель главы (счётчик уровней под
+   описанием) — свиток его не использует, но объявлен здесь же, а не в
+   отдельном блоке, чтобы вся расстановка каскада жила в одном месте.
+   Задержки одни и те же для обеих панелей, хотя открываются они по-разному
+   (бумага разворачивается, панель главы выезжает): у свитка каскад
+   стартует в середине разворота бумаги (0.20s из её 0.42s открытия —
+   "в основном развернулась") и дотягивает до её конца; у панели главы
+   тот же 0.20s приходится на самый хвост её более короткого 0.25s выезда,
+   а хвост каскада (до 0.36s + 0.22s = 0.58s) доигрывает уже после того,
+   как панель встала на место — то же ощущение "контент договаривает то,
+   что начал контейнер", без отдельного набора чисел под вторую панель. */
+.detail-panel .detail-panel__eyebrow,
+.detail-panel .detail-panel__title,
+.detail-panel .detail-panel__subtitle,
+.detail-panel .detail-panel__desc,
+.detail-panel .detail-panel__meta,
+.detail-panel .detail-panel__cta {
     opacity: 0;
     translate: 0 8px;
     transition-property: opacity, translate;
@@ -889,6 +958,16 @@
     opacity: 1;
     translate: 0 0;
     transition-delay: 0.32s;
+}
+/* Между ".desc" и ".cta" в порядке чтения панели главы — свой слот, не
+   переиспользует "0.28s" от ".subtitle": та задержка обязана остаться
+   нетронутой ради свитка (single source of ".detail-panel__subtitle"
+   правил и для него — трогать её означало бы трогать уже одобренный
+   каскад свитка, что запрещено этой задачей). */
+.detail-panel--revealed .detail-panel__meta {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.34s;
 }
 .detail-panel--revealed .detail-panel__cta {
     opacity: 1;

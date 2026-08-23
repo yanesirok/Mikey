@@ -31,6 +31,28 @@ namespace Mikey.UI.Map.Tests
             StringAssert.Contains("ClosePanel();", source);
         }
 
+        // Мирроринг задачи 12's OkinawaMapController: PanelRevealedClass и
+        // StagePushedClass обязаны жить и умирать строго вместе с
+        // PanelOpenClass — иначе каскад/уход карты либо не успевает
+        // доиграть (снят раньше времени), либо остаётся висеть после
+        // закрытия панели (карта не возвращается на место).
+        [Test]
+        public void OpeningPanel_AlsoRevealsCascadeAndPushesStage()
+        {
+            // Normalize line endings first -- File.ReadAllText keeps the
+            // source's own CRLF, and a literal "\n" in the expected string
+            // below would silently never match on Windows checkouts.
+            string source = File.ReadAllText(SourcePath).Replace("\r\n", "\n");
+            StringAssert.Contains("_panel.AddToClassList(PanelOpenClass);\n            _panel.AddToClassList(PanelRevealedClass);\n            _stage?.AddToClassList(StagePushedClass);", source);
+        }
+
+        [Test]
+        public void ClosingPanel_AlsoHidesCascadeAndUnpushesStage()
+        {
+            string source = File.ReadAllText(SourcePath).Replace("\r\n", "\n");
+            StringAssert.Contains("_panel.RemoveFromClassList(PanelOpenClass);\n            _panel.RemoveFromClassList(PanelRevealedClass);\n            _stage?.RemoveFromClassList(StagePushedClass);", source);
+        }
+
         [Test]
         public void OutsideTap_ClosesPanel()
         {

@@ -42,6 +42,17 @@ namespace Mikey.UI.Map
         private const string SelectedNodeClass = "chapter-node--selected";
         private const string LockedNodeClass = "chapter-node--locked";
         private const string PanelOpenClass = "detail-panel--open";
+        // Каскад содержимого панели главы (см. общий блок для обеих панелей
+        // в Map.uss). Держится ровно вместе с PanelOpenClass, весь срок
+        // жизни открытой панели — не ставится классом и не снимается на
+        // следующий кадр, иначе переход обрывается, не доиграв (тот же
+        // урок, что и с каскадом задачи 9, и то же решение, что уже принято
+        // для свитка в OkinawaMapController).
+        private const string PanelRevealedClass = "detail-panel--revealed";
+        // Карта уходит вглубь синхронно с открытием/закрытием панели главы
+        // (см. ".pan-stage--pushed" в Map.uss) — держится тем же классом-
+        // партнёром, что и PanelRevealedClass выше, по той же причине.
+        private const string StagePushedClass = "pan-stage--pushed";
         private const string FallbackVisibleClass = "detail-panel__video-fallback--visible";
         private const string LockedCtaClass = "detail-panel__cta--locked";
         private const string TransitionVisibleClass = "map-transition-overlay--visible";
@@ -52,6 +63,7 @@ namespace Mikey.UI.Map
 
         private VisualElement _root;
         private VisualElement _canvas;
+        private VisualElement _stage;
         private float _lastCanvasWidth;
         private float _lastCanvasHeight;
         private Button _okinawaNode;
@@ -175,6 +187,7 @@ namespace Mikey.UI.Map
             _fukuokaNode = _root.Q<Button>("chapter-node-fukuoka");
             _hiroshimaNode = _root.Q<Button>("chapter-node-hiroshima");
             _outsideCatcher = _root.Q<VisualElement>("map-outside-catcher");
+            _stage = _root.Q<VisualElement>("map-stage");
             _panel = _root.Q<VisualElement>("chapter-panel");
             _panelVideo = _root.Q<VisualElement>("chapter-panel-video");
             _panelVideoFallback = _root.Q<VisualElement>("chapter-panel-video-fallback");
@@ -335,6 +348,8 @@ namespace Mikey.UI.Map
                 ShowLockedChapterPanel("HIROSHIMA", chapterNumber: 2);
 
             _panel.AddToClassList(PanelOpenClass);
+            _panel.AddToClassList(PanelRevealedClass);
+            _stage?.AddToClassList(StagePushedClass);
             _panel.pickingMode = PickingMode.Position;
         }
 
@@ -370,6 +385,8 @@ namespace Mikey.UI.Map
         private void ClosePanel()
         {
             _panel.RemoveFromClassList(PanelOpenClass);
+            _panel.RemoveFromClassList(PanelRevealedClass);
+            _stage?.RemoveFromClassList(StagePushedClass);
             _panel.pickingMode = PickingMode.Ignore;
             SetOutsideCatcherActive(false);
             StopOkinawaPreview();
