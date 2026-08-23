@@ -225,6 +225,40 @@ namespace Mikey.UI.Map
             return MarkerEntranceStartOffsetY * (1f - easedProgress);
         }
 
+        /// <summary>
+        /// Итог одного тика каскада появления: прозрачность, смещение по Y и
+        /// МНОЖИТЕЛЬ масштаба (не сам масштаб — контроллер умножает его на
+        /// текущее дыхание, см. MapAmbientController.TickMarkers, поэтому
+        /// границы владения между каскадом и дыханием не существует вовсе).
+        ///
+        /// <para>
+        /// Явно доводит до точного покоя (1 / 0 / 1) при progress >= 1, а не
+        /// оставляет то, что случайно получилось на предпоследнем тике: тик
+        /// 33 мс почти никогда не делит длительность входа (320/150 мс)
+        /// нацело, поэтому "прогресс ровно 1" на каком-то конкретном тике не
+        /// гарантирован — без явной доводки прозрачность застревала бы чуть
+        /// ниже единицы навсегда. См. ре-ревью задачи 9 (регрессия из
+        /// численного привода: "opacity никогда не достигает 1").
+        /// </para>
+        /// </summary>
+        public static void MarkerEntranceTransform(float progress, bool reducedMotion,
+            out float opacity, out float offsetY, out float scaleMultiplier)
+        {
+            if (!IsFinite(progress) || progress >= 1f)
+            {
+                opacity = 1f;
+                offsetY = 0f;
+                scaleMultiplier = 1f;
+                return;
+            }
+
+            float clamped = Clamp01(progress);
+            float eased = reducedMotion ? clamped : MapPanZoomMath.EaseOutBack(clamped);
+            opacity = clamped;
+            offsetY = MarkerEntranceOffsetY(eased, reducedMotion);
+            scaleMultiplier = MarkerEntranceScale(eased, reducedMotion);
+        }
+
         /// <summary>Сколько секунд без ввода до включения Ken Burns.</summary>
         public const float IdleDelaySeconds = 5f;
 

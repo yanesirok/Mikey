@@ -382,5 +382,62 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapAmbientMath.MarkerEntranceScale(float.NaN, reducedMotion: false), Tolerance);
             Assert.AreEqual(0f, MapAmbientMath.MarkerEntranceOffsetY(float.NaN, reducedMotion: false), Tolerance);
         }
+
+        // ---------- MarkerEntranceTransform: явная доводка до покоя (ре-ре-ревью задачи 9) ----------
+        // Регрессия была: opacity писалась только пока progress < 1, и дискретный
+        // 33 мс тик почти никогда не попадает в progress == 1 ровно — прозрачность
+        // застревала чуть ниже единицы навсегда. Эти тесты гоняют саму доводку
+        // напрямую, а не только чистую интерполяцию.
+
+        [Test]
+        public void MarkerEntranceTransform_AtExactlyOne_SettlesToRestExactly()
+        {
+            MapAmbientMath.MarkerEntranceTransform(1f, reducedMotion: false, out float opacity, out float offsetY, out float scaleMultiplier);
+            Assert.AreEqual(1f, opacity, Tolerance);
+            Assert.AreEqual(0f, offsetY, Tolerance);
+            Assert.AreEqual(1f, scaleMultiplier, Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceTransform_OvershootingPastOne_StillSettlesExactly()
+        {
+            // Смоделированный "перепрыгнувший" тик: 33 мс интервал почти
+            // никогда не делит длительность входа нацело, значит progress
+            // обычно перескакивает 1, а не попадает в неё ровно.
+            MapAmbientMath.MarkerEntranceTransform(1.3f, reducedMotion: false, out float opacity, out float offsetY, out float scaleMultiplier);
+            Assert.AreEqual(1f, opacity, Tolerance);
+            Assert.AreEqual(0f, offsetY, Tolerance);
+            Assert.AreEqual(1f, scaleMultiplier, Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceTransform_BeforeCompletion_TracksProgressAndStartValues()
+        {
+            MapAmbientMath.MarkerEntranceTransform(0f, reducedMotion: false, out float opacity, out float offsetY, out float scaleMultiplier);
+            Assert.AreEqual(0f, opacity, Tolerance);
+            Assert.AreEqual(MapAmbientMath.MarkerEntranceStartOffsetY, offsetY, Tolerance);
+            Assert.AreEqual(MapAmbientMath.MarkerEntranceStartScale, scaleMultiplier, Tolerance);
+
+            MapAmbientMath.MarkerEntranceTransform(0.999f, reducedMotion: false, out float lateOpacity, out _, out _);
+            Assert.Less(lateOpacity, 1f, "Прямо перед завершением прозрачность ещё не должна быть равна единице.");
+        }
+
+        [Test]
+        public void MarkerEntranceTransform_ReducedMotion_NeverMovesOrScales_OnlyOpacityRamps()
+        {
+            MapAmbientMath.MarkerEntranceTransform(0.5f, reducedMotion: true, out float opacity, out float offsetY, out float scaleMultiplier);
+            Assert.AreEqual(0.5f, opacity, Tolerance);
+            Assert.AreEqual(0f, offsetY, Tolerance);
+            Assert.AreEqual(1f, scaleMultiplier, Tolerance);
+        }
+
+        [Test]
+        public void MarkerEntranceTransform_IsSafeOnDegenerateInput()
+        {
+            MapAmbientMath.MarkerEntranceTransform(float.NaN, reducedMotion: false, out float opacity, out float offsetY, out float scaleMultiplier);
+            Assert.AreEqual(1f, opacity, Tolerance);
+            Assert.AreEqual(0f, offsetY, Tolerance);
+            Assert.AreEqual(1f, scaleMultiplier, Tolerance);
+        }
     }
 }

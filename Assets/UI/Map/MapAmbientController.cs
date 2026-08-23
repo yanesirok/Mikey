@@ -66,6 +66,17 @@ namespace Mikey.UI.Map
         /// </summary>
         private float _markerEntranceElapsedSeconds;
 
+        /// <summary>
+        /// «Меньше движения», защёлкнутое на момент старта входа (см.
+        /// ResolveScreenElements), а не перечитанное на каждом тике: вход
+        /// шага/длительности реагирует на дискретный тик, и живое
+        /// переключение настройки посреди входа пересчитало бы прогресс
+        /// против другой длительности — маркер прыгнул бы назад. Живой Tick
+        /// (непрерывный ambient) по-прежнему реагирует на настройку сразу,
+        /// это касается только внутренней математики каскада.
+        /// </summary>
+        private bool _markerEntranceReducedMotion;
+
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
         private VisualElement _canvas;
@@ -74,6 +85,14 @@ namespace Mikey.UI.Map
         private readonly System.Collections.Generic.List<VisualElement> _markerBreaths = new System.Collections.Generic.List<VisualElement>();
         private readonly System.Collections.Generic.List<VisualElement> _markerShadows = new System.Collections.Generic.List<VisualElement>();
         private readonly System.Collections.Generic.List<bool> _markerAlive = new System.Collections.Generic.List<bool>();
+
+        /// <summary>
+        /// Правда только для заблокированных: живой продолжает тикать
+        /// всегда (дыхание меняется каждый тик), а заблокированный, вход
+        /// которого уже был доведён до точного покоя один раз, дальше не
+        /// трогается — писать те же 1/0/1 каждый тик впустую незачем.
+        /// </summary>
+        private readonly System.Collections.Generic.List<bool> _markerEntranceSettled = new System.Collections.Generic.List<bool>();
         private int _focusMarkerIndex = -1;
 
         private void OnEnable()
@@ -195,6 +214,7 @@ namespace Mikey.UI.Map
             _markerBreaths.Clear();
             _markerShadows.Clear();
             _markerAlive.Clear();
+            _markerEntranceSettled.Clear();
             _focusMarkerIndex = -1;
 
             string nodeClass = japan ? "chapter-node" : "level-node";
@@ -224,6 +244,7 @@ namespace Mikey.UI.Map
                 // меняются, а тик обязан оставаться дешёвым.
                 bool alive = !node.ClassListContains(nodeClass + "--locked");
                 _markerAlive.Add(alive);
+                _markerEntranceSettled.Add(false);
                 if (alive)
                     _focusMarkerIndex = i;
             }
@@ -234,9 +255,11 @@ namespace Mikey.UI.Map
             // что чинил предыдущий ре-ревью (тень без заданной opacity до
             // первого тика), возник бы заново для translate/scale каскада.
             // TickMarkers сам решает, что писать заблокированным и живым —
-            // здесь не дублируем эту логику.
+            // здесь не дублируем эту логику. reducedMotion защёлкивается
+            // здесь же, один раз на весь вход — см. поле _markerEntranceReducedMotion.
             _markerEntranceElapsedSeconds = 0f;
-            TickMarkers(_motion != null && _motion.ReducedMotion);
+            _markerEntranceReducedMotion = _motion != null && _motion.ReducedMotion;
+            TickMarkers();
         }
 
         /// <summary>
@@ -306,15 +329,22 @@ namespace Mikey.UI.Map
             if (MapCloudTransitionController.IsTransitioning)
                 return;
 
-            bool reducedMotion = _motion != null && _motion.ReducedMotion;
+            bool liveReducedMotion = _motion != null && _motion.ReducedMotion;
             _elapsedSeconds += TickIntervalMs / 1000f;
             _markerEntranceElapsedSeconds += TickIntervalMs / 1000f;
 
-            TickMarkers(reducedMotion);
+            TickMarkers();
 
-            if (reducedMotion)
+            if (liveReducedMotion)
             {
-                if (_markerEntranceElapsedSeconds >= MapAmbientMath.MarkerEntranceReducedDurationSeconds)
+                // Готовность читаем из _markerEntranceSettled (посчитан
+                // TickMarkers по ЗАЩЁЛКНУТОМУ _markerEntranceReducedMotion,
+                // не по liveReducedMotion) — последний индекс это худший
+                // случай: под полным входом он приходит последним из-за
+                // ступеньки, под reducedMotion все приходят одновременно.
+                bool allSettled = _markerEntranceSettled.Count == 0
+                    || _markerEntranceSettled[_markerEntranceSettled.Count - 1];
+                if (allSettled)
                     StopTicking();
                 return;
             }
@@ -389,63 +419,80 @@ namespace Mikey.UI.Map
         }
 
         /// <summary>
-        /// Пока вход маркера не завершён — им управляет каскад появления
-        /// (translate/opacity/scale, от <see cref="_markerEntranceElapsedSeconds"/>
-        /// и индекса, см. MapAmbientMath.MarkerEntranceProgress); как только
-        /// завершён — заблокированный застывает неподвижно, а
-        /// разблокированный переходит на дыхание (и ровно один — текущая
-        /// цель — дышит сильнее остальных). Оба источника scale пишут в ОДНО
-        /// и то же присваивание ниже, а не в конкурирующие переходы/классы —
-        /// гонки между ними нет по построению. Вызывается и синхронно, один
-        /// раз, из ResolveScreenElements (красит t=0 сразу, до первого
-        /// реального тика — иначе тень маркера рисовалась бы без заданной
-        /// прозрачности первый кадр после показа экрана), и затем каждый тик.
+        /// Масштаб маркера — ПРОИЗВЕДЕНИЕ дыхания (или 1 для заблокированного
+        /// — он не дышит) на множитель входа (см.
+        /// MapAmbientMath.MarkerEntranceTransform), а не переключение между
+        /// "каскад владеет scale" / "дыхание владеет scale": множитель входа
+        /// сам стремится к 1, поэтому границы передачи владения не
+        /// существует, и разрыву неоткуда взяться (было — до ре-ревью:
+        /// скачок ~1.4% на последнем маркере Окинавы, потому что фаза
+        /// дыхания в момент завершения входа была произвольной).
+        ///
+        /// <para>
+        /// Прозрачность/смещение/множитель ДОВОДЯТСЯ ДО ТОЧНОГО ПОКОЯ явно —
+        /// см. MarkerEntranceTransform — а не остаются тем, что случайно
+        /// получилось на предпоследнем тике: 33-миллисекундный тик почти
+        /// никогда не делит длительность входа нацело, поэтому "прогресс
+        /// ровно 1" на каком-то тике не гарантирован. Раньше (баг из
+        /// ре-ревью) прозрачность писалась ТОЛЬКО пока прогресс < 1, и
+        /// потому никогда не доходила до 1 вовсе.
+        /// </para>
+        ///
+        /// <para>
+        /// Заблокированный, чей вход уже был доведён до точного покоя один
+        /// раз (_markerEntranceSettled), дальше не трогается — писать те же
+        /// 1/0/1 каждый тик впустую незачем. Живой продолжает тикать всегда:
+        /// дыхание меняется каждый тик независимо от входа.
+        /// </para>
+        ///
+        /// <para>
+        /// Вызывается и синхронно, один раз, из ResolveScreenElements (красит
+        /// t=0 сразу, до первого реального тика — иначе тень маркера
+        /// рисовалась бы без заданной прозрачности первый кадр после показа
+        /// экрана), и затем каждый тик. reducedMotion читается из
+        /// _markerEntranceReducedMotion — защёлкнутого на момент старта
+        /// входа, не из живой настройки, см. это поле.
+        /// </para>
         /// </summary>
-        private void TickMarkers(bool reducedMotion)
+        private void TickMarkers()
         {
             for (int i = 0; i < _markerBreaths.Count; i++)
             {
+                bool alive = _markerAlive[i];
+                float entranceProgress = MapAmbientMath.MarkerEntranceProgress(i, _markerEntranceElapsedSeconds, _markerEntranceReducedMotion);
+                bool settled = entranceProgress >= 1f;
+
+                if (settled && !alive && _markerEntranceSettled[i])
+                    continue;
+                _markerEntranceSettled[i] = settled;
+
                 VisualElement breath = _markerBreaths[i];
                 VisualElement shadow = _markerShadows[i];
 
-                float entranceProgress = MapAmbientMath.MarkerEntranceProgress(i, _markerEntranceElapsedSeconds, reducedMotion);
-                float scale;
+                float breathScale = alive
+                    ? MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds,
+                        MapAmbientMath.MarkerBreathAmplitude * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f))
+                    : 1f;
 
-                if (entranceProgress < 1f)
+                MapAmbientMath.MarkerEntranceTransform(entranceProgress, _markerEntranceReducedMotion,
+                    out float opacity, out float offsetY, out float entranceMultiplier);
+
+                float scale = breathScale * entranceMultiplier;
+
+                if (breath != null)
                 {
-                    float eased = reducedMotion ? entranceProgress : MapPanZoomMath.EaseOutBack(entranceProgress);
-                    scale = MapAmbientMath.MarkerEntranceScale(eased, reducedMotion);
-                    if (breath != null)
-                    {
-                        breath.style.translate = new Translate(0, MapAmbientMath.MarkerEntranceOffsetY(eased, reducedMotion));
-                        breath.style.opacity = entranceProgress;
-                        breath.style.scale = new Scale(new Vector2(scale, scale));
-                    }
-                }
-                else if (_markerAlive[i])
-                {
-                    float amplitude = MapAmbientMath.MarkerBreathAmplitude
-                        * (i == _focusMarkerIndex ? MapAmbientMath.FocusBreathMultiplier : 1f);
-                    scale = MapAmbientMath.Breath(_elapsedSeconds, MapAmbientMath.MarkerBreathPeriodSeconds, amplitude);
-                    if (breath != null)
-                        breath.style.scale = new Scale(new Vector2(scale, scale));
-                }
-                else
-                {
-                    // Заблокированный, вход уже закончился: стоит абсолютно
-                    // неподвижно на последнем значении каскада (scale 1,
-                    // translate 0) — писать больше нечего.
-                    continue;
+                    breath.style.opacity = opacity;
+                    breath.style.translate = new Translate(0, offsetY);
+                    breath.style.scale = new Scale(new Vector2(scale, scale));
                 }
 
                 if (shadow == null)
                     continue;
 
                 // Тень всегда в противофазе к ТЕКУЩЕМУ scale, откуда бы он ни
-                // взялся — из каскада появления или из дыхания: маркер
-                // поднимается — тень поджимается и бледнеет. Иначе отрыв
-                // маркера от бумаги читался бы только во время дыхания, а не
-                // всё время, что маркер на экране.
+                // взялся — из каскада появления, из дыхания или из их
+                // произведения: маркер поднимается — тень поджимается и
+                // бледнеет.
                 float shadowScale = MapAmbientMath.MarkerShadowScale(scale);
                 shadow.style.scale = new Scale(new Vector2(shadowScale, shadowScale));
                 shadow.style.opacity = MapAmbientMath.MarkerShadowOpacity(scale);
