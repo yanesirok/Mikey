@@ -923,23 +923,40 @@
                     <ui:VisualElement name="okinawa-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
                 </ui:VisualElement>
 
-                <!-- level detail OVERLAY popup: same shared ".detail-panel"
-                     component as the Japan chapter panel, content swapped per
-                     selection by OkinawaMapController. -->
-                <ui:VisualElement name="level-panel" class="detail-panel" picking-mode="Ignore">
-                    <ui:VisualElement class="detail-panel__content">
-                        <ui:Label name="level-panel-eyebrow" text="LEVEL" class="detail-panel__eyebrow" />
-                        <ui:Label name="level-panel-title" text="LVL 0" class="detail-panel__title" />
-                        <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="detail-panel__subtitle" />
-                        <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="detail-panel__desc" />
+                <!-- level detail OVERLAY popup: unlike the shared ".detail-panel"
+                     slide used by the Japan chapter panel, this one raises as a
+                     SCROLL, requested by name by the product owner. Contract:
+                     the outer container (".detail-panel", "scroll" modifier
+                     below) never moves and only clips (overflow:hidden); the
+                     ".scroll-panel__paper" inside it is what slides, via
+                     translate, out from under the container's own top edge,
+                     carrying the rod at its bottom edge along with it. Height
+                     is never touched (animating it would be a full layout
+                     pass every frame, exactly what this whole design avoids),
+                     and scaling Y from 0 was rejected too because it would
+                     squash the text. See Map.uss for the ".scroll-panel__*"
+                     rules and OkinawaMapController for the "revealed"
+                     modifier class that staggers the content in after the
+                     paper has mostly unrolled. NOTE: XML comments can't
+                     contain a literal double hyphen, so BEM modifier classes
+                     are named here without their leading two dashes. -->
+                <ui:VisualElement name="level-panel" class="detail-panel detail-panel--scroll" picking-mode="Ignore">
+                    <ui:VisualElement name="level-panel-paper" class="scroll-panel__paper" picking-mode="Ignore">
+                        <ui:VisualElement class="detail-panel__content">
+                            <ui:Label name="level-panel-eyebrow" text="LEVEL" class="detail-panel__eyebrow" />
+                            <ui:Label name="level-panel-title" text="LVL 0" class="detail-panel__title" />
+                            <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="detail-panel__subtitle" />
+                            <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="detail-panel__desc" />
 
-                        <!-- local controller-bound action (NOT a "go-" navigator):
-                             OkinawaMapController routes LVL 0 to "combineIntro"
-                             and LVL 1 to the existing lesson/techniques flow;
-                             disabled while locked. -->
-                        <ui:Button name="level-panel-cta" class="detail-panel__cta tap-target-lg">
-                            <ui:Label name="level-panel-cta-text" text="BEGIN" class="detail-panel__cta-text" picking-mode="Ignore" />
-                        </ui:Button>
+                            <!-- local controller-bound action (NOT a "go-" navigator):
+                                 OkinawaMapController routes LVL 0 to "combineIntro"
+                                 and LVL 1 to the existing lesson/techniques flow;
+                                 disabled while locked. -->
+                            <ui:Button name="level-panel-cta" class="detail-panel__cta tap-target-lg">
+                                <ui:Label name="level-panel-cta-text" text="BEGIN" class="detail-panel__cta-text" picking-mode="Ignore" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="scroll-panel__rod" picking-mode="Ignore" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

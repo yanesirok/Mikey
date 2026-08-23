@@ -772,6 +772,125 @@
     background-color: var(--base-3);
 }
 
+/* ---------- свиток (попап уровня) ----------
+   Единственная анимация во всём плане, чью форму назвал сам владелец
+   продукта: детали уровня раскрываются как свиток. Внешний контейнер
+   НЕ ездит: он стоит на месте и обрезает (overflow:hidden). Едет бумага
+   внутри него. Поэтому здесь снимается выездной translate базовой
+   ".detail-panel" (которая ездит справа налево для панели главы) — этот
+   контейнер всегда на экране, чтобы picking-mode:Ignore на нём и мог
+   держать свиток непроницаемым для тапов, пока он закрыт.
+   ВАЖНО: высота ".scroll-panel__paper" никогда не анимируется. Наивный
+   свиток раскрывался бы через height — это полный проход лэйаута каждый
+   кадр, ровно то, чего весь этот план анимаций избегает. Вариант
+   "scaleY от нуля" тоже был отвергнут: он сплющивал бы текст, а не
+   разворачивал его. Если через полгода это захочется «упростить» обратно
+   в height — не надо, оно будет выглядеть рабочим и стоить кадров. */
+.detail-panel--scroll {
+    translate: 0 0;
+    overflow: hidden;
+    transition-property: opacity;
+    transition-duration: 0.2s;
+    background-color: rgba(0, 0, 0, 0);
+    border-left-width: 0;
+}
+.detail-panel--scroll .detail-panel__content {
+    flex-grow: 1;
+}
+
+/* Бумага: закрытая полностью выведена за верхний край собственного
+   контейнера (translate -100% по Y, а не height:0), открытая стоит на
+   месте. Перелёт "ease-out-back" читается как разворачивание, а не как
+   выезд ящика — первая функция сглаживания такого рода в проекте, см.
+   отчёт задачи 12 о том, поддержала ли её версия редактора.
+   Закрытие и открытие сознательно НЕ различены через ":not()" — эта
+   комбинация ловится живой ошибкой парсера USS в этой версии редактора
+   ("Recursive pseudo classes are not supported", подтверждено импортом
+   этого самого файла), а ".chapter-node--locked.chapter-node--selected"
+   выше по файлу (см. комментарий там) уже документирует ту же
+   осторожность с :not() — поддержка была "непроверена", теперь она
+   проверена и не подтвердилась. Вместо этого база ".scroll-panel__paper"
+   САМА является состоянием закрытия
+   (короче, без перелёта), а более специфичный потомковый селектор
+   ".detail-panel--open .scroll-panel__paper" перебивает её на состояние
+   открытия — обычный descendant-селектор, уже проверенно рабочий по
+   всему этому файлу. */
+.scroll-panel__paper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--base-2);
+    border-left-width: 1px;
+    border-left-color: var(--line);
+    translate: 0 -100%;
+    transition-property: translate;
+    transition-duration: 0.26s;
+    transition-timing-function: ease-in;
+}
+.detail-panel--open .scroll-panel__paper {
+    translate: 0 0;
+    transition-duration: 0.42s;
+    transition-timing-function: ease-out-back;
+}
+
+/* Валик внизу бумаги. Едет вместе с ней (translate у родителя), поэтому
+   собственной анимации не имеет — одна анимируемая сущность вместо двух. */
+.scroll-panel__rod {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 14px;
+    border-radius: 7px;
+    background-color: #2A2118;
+    border-top-width: 1px;
+    border-top-color: rgba(237, 230, 216, 0.18);
+}
+
+/* Каскад содержимого: проявляется после того, как бумага в основном
+   развернулась, не раньше — класс "detail-panel--revealed" висит всё
+   время, пока панель открыта (ставится/снимается в OkinawaMapController
+   вместе с "detail-panel--open"), поэтому переход всегда успевает
+   доиграть, а не срывается сменой класса на следующем кадре. */
+.scroll-panel__paper .detail-panel__eyebrow,
+.scroll-panel__paper .detail-panel__title,
+.scroll-panel__paper .detail-panel__subtitle,
+.scroll-panel__paper .detail-panel__desc,
+.scroll-panel__paper .detail-panel__cta {
+    opacity: 0;
+    translate: 0 8px;
+    transition-property: opacity, translate;
+    transition-duration: 0.22s;
+    transition-timing-function: ease-out;
+}
+.detail-panel--revealed .detail-panel__eyebrow {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.20s;
+}
+.detail-panel--revealed .detail-panel__title {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.24s;
+}
+.detail-panel--revealed .detail-panel__subtitle {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.28s;
+}
+.detail-panel--revealed .detail-panel__desc {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.32s;
+}
+.detail-panel--revealed .detail-panel__cta {
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 0.36s;
+}
+
 /* ---------- Japan -> Okinawa ink-fade transition ----------
    A short, simple full-stage fade (never an elaborate cinematic system).
    Ignores picking; the controller guards re-entrancy in code rather than

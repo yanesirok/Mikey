@@ -37,6 +37,12 @@ namespace Mikey.UI.Map
         private const string SelectedNodeClass = "level-node--selected";
         private const string LockedNodeClass = "level-node--locked";
         private const string PanelOpenClass = "detail-panel--open";
+        // Каскад содержимого свитка (см. ".scroll-panel__*" в Map.uss).
+        // Держится ровно вместе с PanelOpenClass, весь срок жизни открытой
+        // панели — не ставится классом и не снимается на следующий кадр,
+        // иначе переход обрывается, не доиграв (тот же урок, что и с
+        // каскадом задачи 9).
+        private const string PanelRevealedClass = "detail-panel--revealed";
         private const string LockedCtaClass = "detail-panel__cta--locked";
         private const string TransitionVisibleClass = "map-transition-overlay--visible";
         private const string NavLockedClass = "map-topbar__nav-btn--locked";
@@ -355,6 +361,7 @@ namespace Mikey.UI.Map
 
             ShowLevelPanel(index);
             _panel.AddToClassList(PanelOpenClass);
+            _panel.AddToClassList(PanelRevealedClass);
             _panel.pickingMode = PickingMode.Position;
         }
 
@@ -398,6 +405,7 @@ namespace Mikey.UI.Map
         private void ClosePanel()
         {
             _panel.RemoveFromClassList(PanelOpenClass);
+            _panel.RemoveFromClassList(PanelRevealedClass);
             _panel.pickingMode = PickingMode.Ignore;
             SetOutsideCatcherActive(false);
             DeselectCurrentNode();
