@@ -354,18 +354,15 @@ namespace Mikey.UI.Map.Tests
         /// совпадение фаз ничего не гарантирует.
         ///
         /// <para>
-        /// Покои 0.14 и 0.24 стоят здесь константами намеренно: MapWindLayout
-        /// появится только в следующей задаче, а инвариант обязан охраняться уже
-        /// сейчас. Когда раскладка появится, значения возьмутся из неё.
+        /// Покои берутся из <see cref="MapWindLayout"/>: иначе таблица и её
+        /// сторож молча разъехались бы при любой правке прозрачностей.
         /// </para>
         /// </summary>
         [Test]
         public void FarBandCanNeverOutshineTheMidBand()
         {
-            const float far = 0.14f;
-            const float mid = 0.24f;
-            float farPeak = far * (1f + MapWindMath.OpacityAmplitude);
-            float midTrough = mid * (1f - MapWindMath.OpacityAmplitude);
+            float farPeak = MapWindLayout.FarRestOpacity * (1f + MapWindMath.OpacityAmplitude);
+            float midTrough = MapWindLayout.MidRestOpacity * (1f - MapWindMath.OpacityAmplitude);
 
             Assert.Less(farPeak, midTrough,
                 $"Дальняя полоса в пике ({farPeak:F3}) обязана оставаться бледнее средней в провале ({midTrough:F3}).");
