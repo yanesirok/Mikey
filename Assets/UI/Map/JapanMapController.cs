@@ -316,6 +316,8 @@ namespace Mikey.UI.Map
 
             _selectedChapter = chapterId;
             node.AddToClassList(SelectedNodeClass);
+            MapNodeFeedback.PlayRipple(node);
+            GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
             SetOutsideCatcherActive(true);
 
             if (chapterId == OkinawaChapterId)

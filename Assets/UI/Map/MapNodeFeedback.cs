@@ -1,14 +1,17 @@
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Mikey.UI.Map
 {
     /// <summary>
-    /// Одноразовые эффекты маркера сверх непрерывного ambient-движения.
-    /// Сейчас единственный — короткая дрожь отказа у заблокированного.
-    /// Отдельно от MapAmbientController (непрерывное 30 Гц движение)
-    /// намеренно: это разовая реакция на тап игрока, а не часть вечного
-    /// цикла, и ей незачем знать про дыхание/каскад появления.
+    /// Одноразовые эффекты маркера сверх непрерывного ambient-движения:
+    /// короткая дрожь отказа у заблокированного (PlayRefusal) и волна от
+    /// тапа, играющая при ЛЮБОМ выборе маркера (PlayRipple) — обе может
+    /// вызвать один и тот же тап. Отдельно от MapAmbientController
+    /// (непрерывное 30 Гц движение) намеренно: это разовые реакции на тап
+    /// игрока, а не часть вечного цикла, и им незачем знать про
+    /// дыхание/каскад появления.
     ///
     /// <para>
     /// Пишет только transform и прозрачность, как и весь остальной
@@ -111,6 +114,98 @@ namespace Mikey.UI.Map
         {
             VisualElement icon = node.Q<VisualElement>(className: "chapter-node__icon");
             return icon ?? node.Q<VisualElement>(className: "level-node__icon");
+        }
+
+        /// <summary>Пиковая прозрачность кольца в начале волны.</summary>
+        public const float RipplePeakOpacity = 0.45f;
+
+        /// <summary>
+        /// Сколько кольцо катится и гаснет, в мс — чуть больше объявленного
+        /// в Map.uss transition-duration (0.5с), чтобы уборка не срезала
+        /// последний кадр перехода.
+        /// </summary>
+        private const int RippleDurationMs = 520;
+
+        /// <summary>
+        /// Волна от тапа по маркеру — читается как «тап принят», отдельно от
+        /// дрожи отказа выше (та у заблокированного играет ДОПОЛНИТЕЛЬНО, не
+        /// вместо: обе вызываются из одного тапа контроллерами карты).
+        ///
+        /// <para>
+        /// Кольцо (__ripple) — новый элемент, ничей больше: ambient-тик
+        /// (MapAmbientController.TickMarkers) пишет только __breath и
+        /// __shadow, дрожь отказа выше пишет только __icon — писателей на
+        /// __ripple, кроме этого метода, нет.
+        /// </para>
+        ///
+        /// <para>
+        /// Кольцо САМО объявляет transition-property: opacity, scale (см.
+        /// Map.uss) — это правило действует ВСЕГДА, а не только при
+        /// добавленном классе rippling, потому что более специфичный
+        /// селектор .rippling не переобъявляет transition-property и
+        /// каскад берёт значение из базового правила. Значит голая запись
+        /// пикового opacity/scale ниже сама уехала бы 0.5с вместо
+        /// мгновенного скачка — поэтому переход сначала снимается инлайном
+        /// (тот же приём, что и в дрожи отказа выше), и лишь после
+        /// мгновенного скачка в пик возвращается на следующем кадре, когда
+        /// уже пора плавно ехать к расширенному прозрачному состоянию.
+        /// </para>
+        ///
+        /// <para>
+        /// Повторный тап до конца предыдущей волны: <see cref="VisualElement.userData"/>
+        /// кольца хранит счётчик поколения. Каждый новый вызов увеличивает
+        /// его и синхронно перехватывает кольцо (снимает переход, гасит
+        /// класс, прыгает в пик) НЕМЕДЛЕННО — даже если предыдущая волна
+        /// ещё не доиграла. Оба запланированных шага предыдущего вызова
+        /// сверяют текущее поколение перед тем как что-то писать и, если
+        /// оно уже другое, молча не делают ничего. Без этой сверки
+        /// отложенная уборка старого тапа (снятие класса на 520мс СТАРОГО
+        /// вызова) могла бы сработать посреди перехода нового — оборвав его
+        /// расширение на середине пути и дав видимый скачок обратно к
+        /// маленькому кольцу.
+        /// </para>
+        /// </summary>
+        public static void PlayRipple(VisualElement node)
+        {
+            if (node == null)
+                return;
+
+            bool chapter = node.ClassListContains("chapter-node");
+            string rippleClass = chapter ? "chapter-node__ripple" : "level-node__ripple";
+            string activeClass = chapter ? "chapter-node--rippling" : "level-node--rippling";
+
+            VisualElement ripple = node.Q<VisualElement>(className: rippleClass);
+            if (ripple == null)
+                return;
+
+            int generation = (ripple.userData is int currentGeneration ? currentGeneration : 0) + 1;
+            ripple.userData = generation;
+
+            ripple.style.transitionProperty = new List<StylePropertyName>();
+            node.RemoveFromClassList(activeClass);
+            ripple.style.opacity = RipplePeakOpacity;
+            ripple.style.scale = new Scale(new Vector2(0.4f, 0.4f));
+
+            ripple.schedule
+                .Execute(() =>
+                {
+                    if (!(ripple.userData is int g) || g != generation)
+                        return;
+                    ripple.style.opacity = StyleKeyword.Null;
+                    ripple.style.scale = StyleKeyword.Null;
+                    ripple.style.transitionProperty = StyleKeyword.Null;
+                    node.AddToClassList(activeClass);
+                })
+                .ExecuteLater(0);
+
+            ripple.schedule
+                .Execute(() =>
+                {
+                    if (!(ripple.userData is int g) || g != generation)
+                        return;
+                    node.RemoveFromClassList(activeClass);
+                })
+                .ExecuteLater(RippleDurationMs);
         }
     }
 }

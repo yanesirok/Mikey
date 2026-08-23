@@ -342,6 +342,8 @@ namespace Mikey.UI.Map
 
             _selectedLevel = index;
             _levelNodes[index].AddToClassList(SelectedNodeClass);
+            MapNodeFeedback.PlayRipple(_levelNodes[index]);
+            GetComponent<Mikey.UI.Audio.AudioController>()?.PlaySealStamp();
             SetOutsideCatcherActive(true);
 
             ShowLevelPanel(index);

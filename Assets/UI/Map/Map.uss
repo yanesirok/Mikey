@@ -594,6 +594,41 @@
     scale: 1;
 }
 
+/* ---------- tap ripple (chapter + level markers) ----------
+   Кольцо расходится от кончика пина и гаснет при тапе — общий отклик
+   «тап принят» для любого маркера, в том числе заблокированного (дрожь
+   отказа из задачи 10 играет ДОПОЛНИТЕЛЬНО, не вместо). В покое
+   прозрачность 0 и масштаб мал, поэтому элемент ничего не стоит и
+   (вместе с picking-mode="Ignore" в разметке) ничего не перехватывает.
+
+   transition-property объявлено здесь, на базовом правиле, а не только
+   под --rippling: оно действует ВСЕГДА, при любой записи opacity/scale,
+   включая инлайн-прыжок в пиковое состояние из MapNodeFeedback.PlayRipple
+   — поэтому этот прыжок там временно снимает переход, иначе сам скачок в
+   пик тоже уехал бы эти 0.5с вместо мгновенного появления. */
+.chapter-node__ripple,
+.level-node__ripple {
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    translate: -50% 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border-width: 2px;
+    border-color: #C62828;
+    opacity: 0;
+    scale: 0.4;
+    transition-property: opacity, scale;
+    transition-duration: 0.5s;
+    transition-timing-function: ease-out;
+}
+.chapter-node--rippling .chapter-node__ripple,
+.level-node--rippling .level-node__ripple {
+    opacity: 0;
+    scale: 2.2;
+}
+
 /* ---------- shared detail panel (chapter panel + level popup) ----------
    ONE overlay panel style used by both the Japan chapter panel and the
    Okinawa level popup. Slides in from the right OVER the map — the stage

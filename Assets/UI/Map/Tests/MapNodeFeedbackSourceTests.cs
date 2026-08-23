@@ -109,21 +109,35 @@ namespace Mikey.UI.Map.Tests
         {
             string source = File.ReadAllText(SourcePath);
 
-            int disableIndex = source.IndexOf("transitionProperty = new List<StylePropertyName>()", System.StringComparison.Ordinal);
-            Assert.Greater(disableIndex, -1, "Expected the shake to disable the icon's transition before writing any offset.");
+            // Bounded to PlayRefusal's own body (same span as
+            // RefusalSettlesByClearingInlineStyle_NotByWritingLiteralZero
+            // above): MapNodeFeedback now also has PlayRipple, which
+            // legitimately contains its OWN later ".Execute(() =>" blocks —
+            // an unbounded scan of the whole file would find one of those
+            // instead of PlayRefusal's final settle step.
+            int methodStart = source.IndexOf("public static void PlayRefusal(", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1, "Expected PlayRefusal in the source.");
+            int methodEnd = source.IndexOf("private static VisualElement FindIcon", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(methodEnd, methodStart, "Expected FindIcon right after PlayRefusal.");
 
-            int firstOffsetWriteIndex = source.IndexOf("new Translate(offset", System.StringComparison.Ordinal);
+            int disableIndex = source.IndexOf("transitionProperty = new List<StylePropertyName>()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(disableIndex, -1, "Expected the shake to disable the icon's transition before writing any offset.");
+            Assert.Less(disableIndex, methodEnd, "Expected the disable inside PlayRefusal.");
+
+            int firstOffsetWriteIndex = source.IndexOf("new Translate(offset", methodStart, System.StringComparison.Ordinal);
             Assert.Greater(firstOffsetWriteIndex, -1, "Expected a shake frame writing Translate(offset, ...).");
             Assert.Less(disableIndex, firstOffsetWriteIndex,
                 "The transition must be disabled before the first shake frame is written, or that frame " +
                 "would ease in over 0.18s instead of snapping.");
 
-            // The LAST ".Execute(() =>" in the file is the final settle step
-            // (the loop body contributes exactly one earlier occurrence).
-            int lastExecute = source.LastIndexOf(".Execute(() =>", System.StringComparison.Ordinal);
+            // The LAST ".Execute(() =>" WITHIN PlayRefusal's own body (up to
+            // methodEnd) is its final settle step (the loop body contributes
+            // exactly one earlier occurrence).
+            int lastExecute = source.LastIndexOf(".Execute(() =>", methodEnd, System.StringComparison.Ordinal);
             Assert.Greater(lastExecute, disableIndex, "Expected a final .Execute block after the disable.");
             int lastExecuteLater = source.IndexOf(".ExecuteLater(", lastExecute, System.StringComparison.Ordinal);
             Assert.Greater(lastExecuteLater, lastExecute);
+            Assert.Less(lastExecuteLater, methodEnd, "Expected the final step to still be inside PlayRefusal.");
             string finalStep = source.Substring(lastExecute, lastExecuteLater - lastExecute);
 
             StringAssert.Contains("style.translate = StyleKeyword.Null", finalStep,
@@ -132,6 +146,64 @@ namespace Mikey.UI.Map.Tests
                 "The final step must restore the transition IN THE SAME step as clearing the offset — " +
                 "splitting them across two scheduled calls would leave a window where one is already " +
                 "handed back to styles while the other still isn't.");
+        }
+
+        /// <summary>
+        /// Кольцо (chapter-node__ripple / level-node__ripple) само объявляет
+        /// transition-property: opacity, scale в Map.uss на БАЗОВОМ правиле —
+        /// оно действует всегда, а не только при добавленном классе
+        /// rippling. Без временного снятия перехода мгновенный прыжок в
+        /// пиковое состояние сам уехал бы 0.5с вместо появления мгновенно —
+        /// та же ловушка, что и у дрожи отказа (ProTip задачи 9/10), теперь
+        /// применительно к opacity/scale вместо translate.
+        /// </summary>
+        [Test]
+        public void Ripple_DisablesTransitionBeforeJumpingToPeak()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int methodStart = source.IndexOf("public static void PlayRipple(", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1, "Expected PlayRipple in the source.");
+
+            int disableIndex = source.IndexOf("transitionProperty = new List<StylePropertyName>()", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(disableIndex, -1, "Expected PlayRipple to disable the ring's transition before writing the peak opacity/scale.");
+
+            int peakOpacityWriteIndex = source.IndexOf("style.opacity = RipplePeakOpacity", methodStart, System.StringComparison.Ordinal);
+            Assert.Greater(peakOpacityWriteIndex, -1, "Expected PlayRipple to write the peak opacity.");
+            Assert.Less(disableIndex, peakOpacityWriteIndex,
+                "The transition must be disabled before the peak opacity/scale jump, or that jump would " +
+                "ease in over 0.5s instead of appearing instantly.");
+        }
+
+        /// <summary>
+        /// Быстрый повторный тап до конца предыдущей волны: без какой-то
+        /// защиты отложенная уборка СТАРОГО вызова (снятие класса rippling)
+        /// могла бы сработать посреди перехода НОВОГО, оборвав его на
+        /// середине пути — видимый скачок кольца обратно к маленькому.
+        /// PlayRipple защищается счётчиком поколения на
+        /// <see cref="System.Object"/> ripple.userData: каждый вызов
+        /// увеличивает счётчик, и оба отложенных шага сверяют его перед тем
+        /// как что-то менять. Runtime это не проверить (см. докстринг
+        /// класса — schedule требует живую панель), поэтому по тексту.
+        /// </summary>
+        [Test]
+        public void Ripple_GuardsAgainstStaleScheduledStepsFromAnEarlierTap()
+        {
+            string source = File.ReadAllText(SourcePath);
+
+            int methodStart = source.IndexOf("public static void PlayRipple(", System.StringComparison.Ordinal);
+            Assert.Greater(methodStart, -1, "Expected PlayRipple in the source.");
+            string body = source.Substring(methodStart);
+
+            StringAssert.Contains("ripple.userData", body,
+                "Expected PlayRipple to track a per-ripple generation token via userData.");
+
+            int firstGuard = body.IndexOf("g != generation", System.StringComparison.Ordinal);
+            int secondGuard = body.IndexOf("g != generation", firstGuard + 1, System.StringComparison.Ordinal);
+            Assert.Greater(firstGuard, -1, "Expected the delayed 'start transition' step to bail out if a newer tap superseded it.");
+            Assert.Greater(secondGuard, -1,
+                "Expected the delayed 'remove class' cleanup step to ALSO bail out if a newer tap superseded it — " +
+                "otherwise an earlier tap's cleanup could fire mid-transition on a later tap and cut its expansion short.");
         }
     }
 }

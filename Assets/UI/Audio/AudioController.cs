@@ -54,6 +54,9 @@ namespace Mikey.UI.Audio
         [SerializeField] private AudioClip menuMusicClip;
         [SerializeField] private AudioClip uiClickClip;
 
+        [Tooltip("Глухой удар печати — выбор главы/уровня на карте. Пока клип не назначен, метод молча ничего не делает.")]
+        [SerializeField] private AudioClip sealStampClip;
+
         private AudioSettingsStore _settings;
         private AudioSource _musicSource;
         private AudioSource _sfxSource;
@@ -181,6 +184,13 @@ namespace Mikey.UI.Audio
         {
             if (_sfxSource != null && uiClickClip != null)
                 _sfxSource.PlayOneShot(uiClickClip, _settings.SfxVolume);
+        }
+
+        /// <summary>Plays the seal-stamp thud at the current SFX volume. Safe to call even if no clip is assigned — wiring the real clip in is a separate content task.</summary>
+        public void PlaySealStamp()
+        {
+            if (_sfxSource != null && sealStampClip != null)
+                _sfxSource.PlayOneShot(sealStampClip, _settings.SfxVolume);
         }
 
         private void OnScreenChanged(string screenId)

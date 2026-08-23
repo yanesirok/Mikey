@@ -651,6 +651,10 @@
                             <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="chapter-node__icon chapter-node__icon--okinawa" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <!-- Волна от тапа объявлена ПОСЛЕДНЕЙ, чтобы красилась
+                                 поверх иконки — как и тень, absolute и не трогает
+                                 колоночную раскладку/привязку кончика пина. -->
+                            <ui:VisualElement class="chapter-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Chapter 1: visible, tappable, locked for now. -->
@@ -660,6 +664,7 @@
                             <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="chapter-node__icon chapter-node__icon--fukuoka" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="chapter-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Chapter 2: visible, tappable, locked for now. -->
@@ -669,6 +674,7 @@
                             <ui:VisualElement class="chapter-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="chapter-node__icon chapter-node__icon--hiroshima" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="chapter-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Map Pass 3B decorative cloud overlay (corrected
@@ -831,6 +837,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <!-- LVL 1: visible but locked until Level1Unlocked. -->
                         <ui:Button name="level-node-1" class="level-node level-node--1 level-node--locked tap-target-lg">
@@ -839,6 +846,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <!-- LVL 2-8: visible but always locked for now; no
                              gameplay built for these yet. -->
@@ -848,6 +856,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-3" class="level-node level-node--3 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -855,6 +864,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-4" class="level-node level-node--4 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -862,6 +872,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-5" class="level-node level-node--5 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -869,6 +880,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-6" class="level-node level-node--6 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -876,6 +888,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-7" class="level-node level-node--7 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -883,6 +896,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
                         <ui:Button name="level-node-8" class="level-node level-node--8 level-node--locked tap-target-lg">
                             <ui:VisualElement class="level-node__shadow" picking-mode="Ignore" />
@@ -890,6 +904,7 @@
                             <ui:VisualElement class="level-node__breath" picking-mode="Ignore">
                                 <ui:VisualElement class="level-node__icon" picking-mode="Ignore" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="level-node__ripple" picking-mode="Ignore" />
                         </ui:Button>
 
                         <!-- Map Pass 3B decorative cloud overlay (corrected
