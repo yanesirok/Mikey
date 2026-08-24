@@ -64,8 +64,16 @@ namespace Mikey.UI.Map.Tests
                 .Append(e.style.maxHeight).Append("|")
                 .Append(e.style.marginLeft).Append("|")
                 .Append(e.style.marginTop).Append("|")
+                .Append(e.style.marginRight).Append("|")
+                .Append(e.style.marginBottom).Append("|")
                 .Append(e.style.paddingLeft).Append("|")
                 .Append(e.style.paddingTop).Append("|")
+                .Append(e.style.paddingRight).Append("|")
+                .Append(e.style.paddingBottom).Append("|")
+                .Append(e.style.borderLeftWidth).Append("|")
+                .Append(e.style.borderTopWidth).Append("|")
+                .Append(e.style.borderRightWidth).Append("|")
+                .Append(e.style.borderBottomWidth).Append("|")
                 .Append(e.style.position).Append("|")
                 .Append(e.style.flexGrow).Append("|")
                 .Append(e.style.flexShrink).Append("|")
@@ -160,11 +168,19 @@ namespace Mikey.UI.Map.Tests
             // Множитель ввода в кадр на положении слепил бы все семь облаков в
             // одну точку их полос на полторы секунды, уничтожив расфазировку,
             // ради которой таблица полос и существует.
+            // Пан НЕНУЛЕВОЙ намеренно, и это единственная точка во всём наборе,
+            // где утечка множителя ввода в слагаемое параллакса вообще наблюдаема:
+            // тесты параллакса гоняют t = 20, где EaseOutCubic уже зажат в единицу,
+            // а с нулевым паном слагаемое равно нулю и домножать в нём нечего.
+            // Значения подобраны так, чтобы параллакс каждой полосы был ненулевым и
+            // при этом НЕ упирался в потолок — иначе клампинг съел бы разницу.
             const float Early = 0.3f;
+            const float PanX = 37f;
+            const float PanY = -23f;
             VisualElement root = BuildScreen();
             MapWindLayer layer = BoundLayer(root);
 
-            layer.Tick(Early, W, H, 0f, 0f);
+            layer.Tick(Early, W, H, PanX, PanY);
 
             float settle = MapPanZoomMath.EaseOutCubic(Early / MapWindLayer.SettleSeconds);
             Assert.Less(settle, 1f, "Проверка имеет смысл только внутри окна ввода.");
@@ -175,14 +191,20 @@ namespace Mikey.UI.Map.Tests
                 VisualElement c = Cloud(root, i);
                 float progress = MapWindMath.LaneProgress(Early, lane.CrossSeconds, lane.Phase);
 
+                float parallaxX = MapAmbientMath.ParallaxOffset(PanX, lane.ParallaxFactor);
+                float parallaxY = MapAmbientMath.ParallaxOffset(PanY, lane.ParallaxFactor);
+                Assert.AreNotEqual(0f, parallaxX, "Проверка пуста, если слагаемое параллакса нулевое.");
+
                 Assert.AreEqual(
-                    MapWindMath.LaneOffsetX(progress, W, W * lane.WidthFraction),
+                    MapWindMath.LaneOffsetX(progress, W, W * lane.WidthFraction) + parallaxX,
                     c.style.translate.value.x.value, 1e-3f,
-                    "Множитель ввода не смеет идти на горизонталь облака " + i + ".");
+                    "Множитель ввода не смеет идти на горизонталь облака " + i
+                    + " — ни на путь по полосе, ни на слагаемое параллакса.");
                 Assert.AreEqual(
-                    MapWindMath.Bob(Early, lane.CrossSeconds, lane.Phase, H),
+                    MapWindMath.Bob(Early, lane.CrossSeconds, lane.Phase, H) + parallaxY,
                     c.style.translate.value.y.value, 1e-3f,
-                    "Множитель ввода не смеет идти на вертикаль облака " + i + ".");
+                    "Множитель ввода не смеет идти на вертикаль облака " + i
+                    + " — ни на покачивание, ни на слагаемое параллакса.");
 
                 float unsettled = MapWindMath.Opacity(lane.RestOpacity, progress, Early,
                     lane.CrossSeconds, lane.Phase, 1f);
@@ -236,15 +258,27 @@ namespace Mikey.UI.Map.Tests
 
             layer.Tick(20f, W, H, 0f, 0f);
             var baseX = new float[MapWindLayout.Clouds.Length];
+            var baseY = new float[MapWindLayout.Clouds.Length];
             for (int i = 0; i < baseX.Length; i++)
+            {
                 baseX[i] = Cloud(root, i).style.translate.value.x.value;
+                baseY[i] = Cloud(root, i).style.translate.value.y.value;
+            }
 
-            layer.Tick(20f, W, H, 100000f, 100000f);
+            layer.Tick(20f, W, H, 100000f, -100000f);
             for (int i = 0; i < baseX.Length; i++)
+            {
+                // Обе оси: потолок только на горизонтали оставлял бы ветру право
+                // уехать на шестьдесят тысяч пикселей вверх при зелёном наборе.
                 Assert.LessOrEqual(
                     Mathf.Abs(Cloud(root, i).style.translate.value.x.value - baseX[i]),
                     MapAmbientMath.MaxParallaxOffsetPixels + 1e-3f,
-                    "Потолок MaxParallaxOffsetPixels обязан действовать и на ветер.");
+                    "Потолок обязан держать горизонталь облака " + i + ".");
+                Assert.LessOrEqual(
+                    Mathf.Abs(Cloud(root, i).style.translate.value.y.value - baseY[i]),
+                    MapAmbientMath.MaxParallaxOffsetPixels + 1e-3f,
+                    "Потолок обязан держать и вертикаль облака " + i + ".");
+            }
         }
 
         // ---------- показ, покой, привязка ----------
