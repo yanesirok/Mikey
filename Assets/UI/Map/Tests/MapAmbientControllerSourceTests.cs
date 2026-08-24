@@ -335,5 +335,108 @@ namespace Mikey.UI.Map.Tests
             }
             return null;
         }
+        // ---------- плывущий слой облаков (MapWindLayer) ----------
+
+        /// <summary>
+        /// Вырезает //-комментарии и схлопывает пробелы. Оба шага несущие:
+        /// файл комментирует прозой каждое решение, поэтому проверка по
+        /// подстроке без вырезания удовлетворялась бы ЗАКОММЕНТИРОВАННЫМ
+        /// вызовом, а схлопывание пробелов даёт право требовать соседства
+        /// двух операторов, не завися от переносов строк.
+        /// </summary>
+        private static string Code(string body)
+        {
+            string withoutComments = System.Text.RegularExpressions.Regex.Replace(body, @"//[^\r\n]*", string.Empty);
+            return System.Text.RegularExpressions.Regex.Replace(withoutComments, @"\s+", " ").Trim();
+        }
+
+        [Test]
+        public void BindsTheWindLayerForTheScreenItResolved()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void ResolveScreenElements(string screenId)"));
+
+            StringAssert.Contains("_wind.Bind(", body,
+                "The floating layer must be bound to the screen that was just resolved.");
+            StringAssert.Contains("_wind.Bind(_root, japan ? \"map-wind-\" : \"okinawa-wind-\")", body,
+                "The two prefixes must not be swapped. Asserting that \"map-wind-\" and \"okinawa-wind-\" each occur somewhere passes on a swapped ternary — which binds Okinawa's clouds while Japan is shown, on both screens.");
+        }
+
+        /// <remarks>
+        /// На прямом переходе Япония↔Окинава StopTicking не зовётся вовсе:
+        /// тик прошлого экрана ещё жив, и StartTicking возвращается сразу
+        /// (см. её комментарий про _kenBurnsWeight). Значит единственный
+        /// момент, когда инлайн прошлого экрана можно снять С ЕГО элементов,
+        /// — вплотную до перепривязки слоя на новый экран.
+        /// </remarks>
+        [Test]
+        public void ResetsTheWindLayerBeforeRebindingItToTheNextScreen()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void ResolveScreenElements(string screenId)"));
+
+            StringAssert.Contains("_wind.Reset(); _wind.Bind(", body,
+                "Reset must sit immediately BEFORE the rebind: after it, it would clear the new screen's clouds while the previous screen's inline transform stays on its own clouds until the session ends (Japan<->Okinawa never goes through StopTicking).");
+        }
+
+        [Test]
+        public void TicksTheWindLayerOnlyWhenMotionIsAllowed()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void Tick()"));
+
+            int visibility = body.IndexOf("_wind.SetVisible(!liveReducedMotion)", System.StringComparison.Ordinal);
+            int reducedBranch = body.IndexOf("if (liveReducedMotion)", System.StringComparison.Ordinal);
+            int windTick = body.IndexOf("TickWind()", System.StringComparison.Ordinal);
+
+            Assert.Greater(visibility, -1, "Видимость слоя обязана следовать за настройкой.");
+            Assert.Greater(reducedBranch, -1);
+            Assert.Greater(windTick, reducedBranch,
+                "Ветер обязан тикать ПОСЛЕ ветки раннего выхода по «меньше движения».");
+            Assert.Less(visibility, reducedBranch,
+                "Слой обязан прятаться до раннего выхода, иначе включённая настройка оставит его на экране.");
+
+            // Both orderings above are satisfiable without the behaviour they
+            // stand for, so each is pinned down once more:
+            int reducedReturn = body.IndexOf("return;", reducedBranch, System.StringComparison.Ordinal);
+            Assert.Greater(reducedReturn, reducedBranch, "The reduced-motion branch must return.");
+            Assert.Greater(windTick, reducedReturn,
+                "TickWind() must stand after the branch RETURNS, not merely after its header — inside the branch it also stands \"after\" it, and would drive the layer exactly where the setting forbids it.");
+
+            StringAssert.Contains(
+                "bool liveReducedMotion = _motion != null && _motion.ReducedMotion; _wind.SetVisible(!liveReducedMotion);",
+                body,
+                "SetVisible must be the very next statement after the setting is read. Position alone allows hiding it inside another condition (even inside \"if (!liveReducedMotion)\"), which keeps the substring order intact while hiding nothing.");
+        }
+
+        [Test]
+        public void TickWind_UsesTheAmbientClockAndTheLivePan()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void TickWind()"));
+
+            StringAssert.Contains(
+                "_wind.Tick(_elapsedSeconds, width, height, _panZoom?.CurrentPanX ?? 0f, _panZoom?.CurrentPanY ?? 0f)",
+                body,
+                "The layer's clock is the ambient _elapsedSeconds: the other elapsed field in this class (_markerEntranceElapsedSeconds) is driven to +Infinity by SettleMarkerEntranceImmediately and would turn every cloud position into NaN. The two pan axes must not be swapped either — the parallax would then run across the gesture.");
+        }
+
+        /// <remarks>
+        /// Вторая половина: «меньше движения», включённое посреди визита,
+        /// останавливает тик из OnMotionSettingsChanged, минуя SetVisible из
+        /// Tick.
+        /// </remarks>
+        [Test]
+        public void ReturnsTheWindLayerToRestWhenTickingStops()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void StopTicking()"));
+
+            StringAssert.Contains("_wind.Reset()", body,
+                "Inline transforms live on the markup elements and outlive the visit — the stopped tick must clear its own.");
+            StringAssert.Contains("_wind.SetVisible(false)", body,
+                "Turning reduced motion on mid-visit stops the tick from OnMotionSettingsChanged, bypassing Tick's SetVisible: without this line the layer stays display:Flex and its seven quads stay in the draw chain, which is the whole saving the setting promises. Hiding is right at all three stop sites — the other two are leaving the map and the tick self-stopping under the same setting.");
+        }
+
     }
 }

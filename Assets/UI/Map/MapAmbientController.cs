@@ -79,6 +79,9 @@ namespace Mikey.UI.Map
 
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
+
+        /// <summary>Плывущий слой текущего экрана. Своего планировщика у него нет — его тикает Tick ниже.</summary>
+        private readonly MapWindLayer _wind = new MapWindLayer();
         private VisualElement _canvas;
         private MapPanZoomController _panZoom;
 
@@ -217,6 +220,16 @@ namespace Mikey.UI.Map
                 if (_clouds[i] != null)
                     _clouds[i].usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor;
             }
+
+            // Сброс идёт вплотную ПЕРЕД привязкой, пока слой ещё держит
+            // элементы прошлого экрана: на прямом переходе Япония<->Окинава
+            // StopTicking не зовётся вовсе (тик прошлого экрана жив, и
+            // StartTicking возвращается сразу — см. её комментарий про
+            // _kenBurnsWeight), и без этой строки инлайн прошлого экрана
+            // остался бы висеть на ЕГО облаках: при возврате они мигнули бы
+            // позой с прошлого визита раньше, чем их перепишет первый тик.
+            _wind.Reset();
+            _wind.Bind(_root, japan ? "map-wind-" : "okinawa-wind-");
 
             _panZoom = null;
             foreach (MapPanZoomController candidate in GetComponents<MapPanZoomController>())
@@ -375,6 +388,16 @@ namespace Mikey.UI.Map
         {
             _panZoom?.SetAmbientOffset(0f, 0f, 1f);
             ResetCloudDrift();
+            _wind.Reset();
+            // И прячем: все три точки остановки — это «меньше движения»
+            // включили посреди визита (OnMotionSettingsChanged минует
+            // SetVisible из Tick), уход с карты и самоостановка под той же
+            // настройкой. Ни в одной слой не должен оставаться в цепочке
+            // отрисовки: покой .map-wind это opacity 0, то есть семь
+            // невидимых квадов, за которые незачем платить. Обратно его
+            // вернёт SetVisible(true) из Tick — Bind при новом входе на
+            // экран тоже показывает слой безусловно.
+            _wind.SetVisible(false);
 
             if (_tick != null)
             {
@@ -439,6 +462,11 @@ namespace Mikey.UI.Map
                 return;
 
             bool liveReducedMotion = _motion != null && _motion.ReducedMotion;
+            // Строго ДО раннего выхода ниже: вход на экран при включённой
+            // настройке иначе оставил бы слой показанным (Bind показывает его
+            // безусловно, снимая залипший display:none), и обещанная
+            // настройкой экономия семи квадов не работала бы.
+            _wind.SetVisible(!liveReducedMotion);
             _elapsedSeconds += TickIntervalMs / 1000f;
             _markerEntranceElapsedSeconds += TickIntervalMs / 1000f;
 
@@ -460,6 +488,7 @@ namespace Mikey.UI.Map
 
             TickClouds();
             TickCamera();
+            TickWind();
         }
 
         /// <summary>
@@ -496,6 +525,22 @@ namespace Mikey.UI.Map
                 // темнеть, но не светлеть, то есть дышало бы вполсилы.
                 cloud.style.opacity = Mathf.Clamp01(_cloudRestOpacity[i] + dOpacity);
             }
+        }
+
+        /// <summary>
+        /// Двигает плывущий слой. Размер канваса и пан читаются ровно так же,
+        /// как в <see cref="TickClouds"/> — слой живёт в том же
+        /// трансформированном канвасе, что и рамка.
+        /// </summary>
+        private void TickWind()
+        {
+            float width = _canvas?.resolvedStyle.width ?? 0f;
+            float height = _canvas?.resolvedStyle.height ?? 0f;
+            if (width <= 0f || height <= 0f)
+                return;
+
+            _wind.Tick(_elapsedSeconds, width, height,
+                _panZoom?.CurrentPanX ?? 0f, _panZoom?.CurrentPanY ?? 0f);
         }
 
         /// <summary>
