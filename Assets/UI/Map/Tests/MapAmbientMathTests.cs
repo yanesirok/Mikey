@@ -501,5 +501,206 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapAmbientMath.MarkerScale(float.NaN, 0.92f), Tolerance);
             Assert.AreEqual(1f, MapAmbientMath.MarkerScale(1.02f, float.NaN), Tolerance);
         }
+
+        // ---------- задача 6: рамка оживает — амплитуды, составная траектория, набухание, крен ----------
+
+        [Test]
+        public void FrameDriftIsFinallyAboveThePerceptionFloor()
+        {
+            // Прежние 0.012/0.006 давали размах ниже порога различения — это и
+            // была вся причина, по которой небо читалось мёртвым.
+            Assert.GreaterOrEqual(MapAmbientMath.DriftAmplitudeX, 0.03f);
+            Assert.GreaterOrEqual(MapAmbientMath.DriftAmplitudeY, 0.014f);
+            Assert.Less(MapAmbientMath.DriftAmplitudeY, MapAmbientMath.DriftAmplitudeX,
+                "Небо обязано читаться как боковой снос, а не как качели.");
+        }
+
+        [Test]
+        public void Compound_StaysInsideTheUnitRange()
+        {
+            for (int i = 0; i <= 2000; i++)
+            {
+                float value = MapAmbientMath.Compound(i * 0.1f, 26f, 0.37f);
+                Assert.GreaterOrEqual(value, -1f - Tolerance,
+                    "Без нормировки сумма двух синусоид выносит рамку за её амплитуду.");
+                Assert.LessOrEqual(value, 1f + Tolerance);
+            }
+        }
+
+        [Test]
+        public void Compound_DoesNotRepeatWithinTheBasePeriod()
+        {
+            // Одна синусоида вернулась бы в ту же точку ровно через период.
+            // Составная — не должна, иначе небо снова читается зацикленной гифкой.
+            float atStart = MapAmbientMath.Compound(0.5f, 26f, 0.37f);
+            float aPeriodLater = MapAmbientMath.Compound(26.5f, 26f, 0.37f);
+            // NUnit 3 не имеет перегрузки AreNotEqual с допуском — только AreEqual.
+            Assert.Greater(System.Math.Abs(atStart - aPeriodLater), Tolerance);
+        }
+
+        [Test]
+        public void DriftSettle_RisesFromRestToFull()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.DriftSettle(0f), Tolerance,
+                "Вход обязан начинаться из покоя: при ненулевых фазах смещение в нуле времени иначе НЕ ноль.");
+            Assert.AreEqual(1f, MapAmbientMath.DriftSettle(MapAmbientMath.DriftSettleSeconds), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.DriftSettle(99f), Tolerance);
+
+            float previous = -1f;
+            for (int i = 0; i <= 30; i++)
+            {
+                float value = MapAmbientMath.DriftSettle(i * MapAmbientMath.DriftSettleSeconds / 30f);
+                Assert.GreaterOrEqual(value, previous);
+                previous = value;
+            }
+        }
+
+        [Test]
+        public void CloudDrift_StartsAtExactRestForEveryCloud()
+        {
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                MapAmbientMath.CloudDrift(i, 0f, 1000f, 500f,
+                    out float dx, out float dy, out float dOpacity);
+
+                Assert.AreEqual(0f, dx, Tolerance, $"Облако {i} прыгает по горизонтали на первом кадре.");
+                Assert.AreEqual(0f, dy, Tolerance, $"Облако {i} прыгает по вертикали на первом кадре.");
+                Assert.AreEqual(0f, dOpacity, Tolerance, $"Облако {i} прыгает прозрачностью на первом кадре.");
+            }
+        }
+
+        [Test]
+        public void CloudDrift_StaysInsideItsDeclaredAmplitude()
+        {
+            const float width = 1000f;
+            const float height = 500f;
+
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                for (int step = 0; step <= 2000; step++)
+                {
+                    MapAmbientMath.CloudDrift(i, step * 0.1f, width, height,
+                        out float dx, out float dy, out float dOpacity);
+
+                    Assert.LessOrEqual(System.Math.Abs(dx), width * MapAmbientMath.DriftAmplitudeX + Tolerance);
+                    Assert.LessOrEqual(System.Math.Abs(dy), height * MapAmbientMath.DriftAmplitudeY + Tolerance);
+                    Assert.LessOrEqual(System.Math.Abs(dOpacity), MapAmbientMath.DriftOpacityAmplitude + Tolerance);
+                }
+            }
+        }
+
+        /// <remarks>
+        /// Угол между условиями, который не встречает ни один тест брифа:
+        /// «t = 0» закреплён CloudDrift_StartsAtExactRestForEveryCloud, потолок
+        /// — CloudDrift_StaysInsideItsDeclaredAmplitude, а вот СЕРЕДИНА ввода и
+        /// жизнь ПОСЛЕ него — нет. Без этого теста замена <c>settle</c> на
+        /// единицу переживает всё, что есть у облака 0 (его фаза нулевая, и в
+        /// нуле времени синусоида и так в нуле), а замена на постоянный ноль
+        /// переживает вообще все проверки «не больше амплитуды».
+        /// </remarks>
+        [Test]
+        public void CloudDrift_IsRampedWhileEnteringAndFullyReleasedAfterwards()
+        {
+            const float width = 1000f;
+            const float height = 500f;
+            const float midEntry = MapAmbientMath.DriftSettleSeconds * 0.5f;
+
+            MapAmbientMath.CloudDrift(1, midEntry, width, height, out float dx, out _, out _);
+            float unramped = width * MapAmbientMath.DriftAmplitudeX
+                * MapAmbientMath.Compound(midEntry, MapAmbientMath.CloudDriftPeriodsSeconds[1],
+                    MapAmbientMath.CloudDriftPhases[1]);
+
+            Assert.Greater(System.Math.Abs(unramped), 10f * Tolerance,
+                "Проба выбрана так, чтобы неослабленное смещение было заметным — иначе сравнение ниже проходит вхолостую.");
+            Assert.Less(System.Math.Abs(dx), System.Math.Abs(unramped),
+                "Посреди ввода рамка обязана идти ОСЛАБЛЕННО — иначе множителя ввода нет вовсе.");
+            Assert.AreEqual(unramped * MapAmbientMath.DriftSettle(midEntry), dx, Tolerance,
+                "Ослабление обязано быть ровно множителем ввода, а не любым другим числом меньше единицы.");
+
+            // ...и после ввода ослабление обязано СНЯТЬСЯ: постоянный
+            // множитель меньше единицы прошёл бы и предыдущую проверку, и все
+            // потолки амплитуды, оставив небо навсегда вполсилы.
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                float peak = 0f;
+                for (int step = 0; step <= 2000; step++)
+                {
+                    MapAmbientMath.CloudDrift(i, step * 0.1f, width, height, out float x, out _, out _);
+                    float magnitude = System.Math.Abs(x);
+                    if (magnitude > peak)
+                        peak = magnitude;
+                }
+
+                Assert.Greater(peak, 0.9f * width * MapAmbientMath.DriftAmplitudeX,
+                    $"Облако {i} никогда не выходит на заявленную амплитуду — ввод так и не отпустил его.");
+            }
+        }
+
+        [Test]
+        public void FrameSwell_StartsAtRestAndStaysInsideItsAmplitude()
+        {
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                Assert.AreEqual(1f, MapAmbientMath.FrameSwell(i, 0f), Tolerance,
+                    "Экран уже показан: любой масштаб кроме единицы на первом кадре — видимый скачок.");
+
+                for (int step = 0; step <= 1000; step++)
+                {
+                    float value = MapAmbientMath.FrameSwell(i, step * 0.2f);
+                    Assert.GreaterOrEqual(value, 1f - Tolerance);
+                    Assert.LessOrEqual(value, 1f + MapAmbientMath.FrameSwellAmplitude + Tolerance);
+                }
+            }
+        }
+
+        [Test]
+        public void FrameRoll_StartsAtRestAndStaysInsideItsAmplitude()
+        {
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                Assert.AreEqual(0f, MapAmbientMath.FrameRollDegrees(i, 0f), Tolerance);
+
+                for (int step = 0; step <= 1000; step++)
+                {
+                    float value = MapAmbientMath.FrameRollDegrees(i, step * 0.2f);
+                    Assert.LessOrEqual(System.Math.Abs(value),
+                        MapAmbientMath.FrameRollAmplitudeDegrees + Tolerance);
+                }
+            }
+        }
+
+        /// <remarks>
+        /// Второй угол между условиями: тесты выше гоняют цикл по всем четырём
+        /// облакам, но проверяют у каждого только границы — они целиком
+        /// проходят и на реализации, которая игнорирует индекс и гоняет всем
+        /// четырём период нулевого облака. Тогда рамка набухает и кренится
+        /// СТРОЕМ, а весь смысл разных периодов в том, что она этого не делает.
+        /// </remarks>
+        [Test]
+        public void FrameSwellAndRoll_GiveEachCloudItsOwnPeriod()
+        {
+            const float sample = 7f;
+            Assert.Greater(MapAmbientMath.CloudCount, 1, "Сравнивать не с чем — цикл ниже прошёл бы вхолостую.");
+
+            float swellOfFirst = MapAmbientMath.FrameSwell(0, sample);
+            float rollOfFirst = MapAmbientMath.FrameRollDegrees(0, sample);
+
+            for (int i = 1; i < MapAmbientMath.CloudCount; i++)
+            {
+                Assert.Greater(System.Math.Abs(MapAmbientMath.FrameSwell(i, sample) - swellOfFirst), 0.002f,
+                    $"Облако {i} набухает синхронно с нулевым — период не зависит от индекса.");
+                Assert.Greater(System.Math.Abs(MapAmbientMath.FrameRollDegrees(i, sample) - rollOfFirst), 0.002f,
+                    $"Облако {i} кренится синхронно с нулевым — период не зависит от индекса.");
+            }
+        }
+
+        [Test]
+        public void FrameHelpersAreSafeOnOutOfRangeIndex()
+        {
+            Assert.AreEqual(1f, MapAmbientMath.FrameSwell(-1, 5f), Tolerance);
+            Assert.AreEqual(1f, MapAmbientMath.FrameSwell(MapAmbientMath.CloudCount, 5f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.FrameRollDegrees(-1, 5f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.FrameRollDegrees(MapAmbientMath.CloudCount, 5f), Tolerance);
+        }
     }
 }

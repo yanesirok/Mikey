@@ -80,6 +80,9 @@ namespace Mikey.UI.Map
         private readonly VisualElement[] _clouds = new VisualElement[MapAmbientMath.CloudCount];
         private readonly float[] _cloudRestOpacity = new float[MapAmbientMath.CloudCount];
 
+        /// <summary>Угол покоя облака рамки из пресета. Крен складывается с ним: bottom1 повёрнуто на -180 градусов, и запись голого крена перевернула бы его обратно.</summary>
+        private readonly float[] _cloudRestRotation = new float[MapAmbientMath.CloudCount];
+
         /// <summary>Плывущий слой текущего экрана. Своего планировщика у него нет — его тикает Tick ниже.</summary>
         private readonly MapWindLayer _wind = new MapWindLayer();
         private VisualElement _canvas;
@@ -212,11 +215,27 @@ namespace Mikey.UI.Map
                 preset.Left2.Opacity,
                 preset.Bottom1.Opacity,
             };
+            float[] restRotation =
+            {
+                preset.Right1.RotationDegrees,
+                preset.Left1.RotationDegrees,
+                preset.Left2.RotationDegrees,
+                preset.Bottom1.RotationDegrees,
+            };
+
+            // Ровно по той же причине, что и _wind.Reset() ниже, и ровно так
+            // же вплотную ПЕРЕД перепривязкой: на прямом переходе
+            // Япония<->Окинава StopTicking не зовётся вовсе, а цикл ниже
+            // просто перевесит _clouds на элементы нового экрана — смещение,
+            // масштаб, крен и прозрачность прошлого экрана остались бы висеть
+            // инлайном на ЕГО облаках до конца сессии.
+            ResetCloudDrift();
 
             for (int i = 0; i < MapAmbientMath.CloudCount; i++)
             {
                 _clouds[i] = _root?.Q<VisualElement>(prefix + suffixes[i]);
                 _cloudRestOpacity[i] = restOpacity[i];
+                _cloudRestRotation[i] = restRotation[i];
                 if (_clouds[i] != null)
                     _clouds[i].usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor;
             }
@@ -414,10 +433,11 @@ namespace Mikey.UI.Map
         /// экран.
         ///
         /// <para>
-        /// Смещение снимается в Null (у ".map-cloud" своего translate в USS
-        /// нет, очистка и есть покой), а прозрачность ВОЗВРАЩАЕТСЯ ЗНАЧЕНИЕМ:
-        /// её покой — тоже инлайн, его пишет MapCloudLayout.Apply из пресета,
-        /// и Null стёр бы вместе с дрейфом ещё и раскладку.
+        /// Смещение и набухание снимаются в Null (у ".map-cloud" своих
+        /// translate/scale в USS нет, очистка и есть покой), а прозрачность и
+        /// УГОЛ ВОЗВРАЩАЮТСЯ ЗНАЧЕНИЕМ: их покой — тоже инлайн, его пишет
+        /// MapCloudLayout.Apply из пресета, и Null стёр бы вместе с дрейфом и
+        /// креном ещё и раскладку — bottom1 стоит на -180 градусах.
         /// </para>
         /// </summary>
         private void ResetCloudDrift()
@@ -429,6 +449,8 @@ namespace Mikey.UI.Map
                     continue;
                 cloud.style.translate = StyleKeyword.Null;
                 cloud.style.opacity = _cloudRestOpacity[i];
+                cloud.style.scale = StyleKeyword.Null;
+                cloud.style.rotate = new Rotate(new Angle(_cloudRestRotation[i], AngleUnit.Degree));
             }
         }
 
@@ -519,6 +541,11 @@ namespace Mikey.UI.Map
                 dy += MapAmbientMath.ParallaxOffset(panY, factor);
 
                 cloud.style.translate = new Translate(dx, dy);
+                float swell = MapAmbientMath.FrameSwell(i, _elapsedSeconds);
+                cloud.style.scale = new Scale(new Vector2(swell, swell));
+                cloud.style.rotate = new Rotate(new Angle(
+                    _cloudRestRotation[i] + MapAmbientMath.FrameRollDegrees(i, _elapsedSeconds),
+                    AngleUnit.Degree));
                 // Клампим: у правого облака прозрачность покоя ровно 1.00
                 // (см. MapCloudLayout), и без ограничения верхняя половина
                 // синуса упиралась бы в потолок — облако умело бы только

@@ -17,14 +17,14 @@ namespace Mikey.UI.Map
         /// <summary>Число декоративных облаков на экран — совпадает с числом элементов в MapCloudLayout.</summary>
         public const int CloudCount = 4;
 
-        /// <summary>Доля ширины канваса, на которую облако уходит от своей раскладки по горизонтали.</summary>
-        public const float DriftAmplitudeX = 0.012f;
+        /// <summary>Доля ширины канваса, на которую облако рамки уходит от своей раскладки по горизонтали. 0.035, а не прежние 0.012: ниже примерно трёх процентов движение просто не различается глазом, и небо читается мёртвым.</summary>
+        public const float DriftAmplitudeX = 0.035f;
 
         /// <summary>Доля высоты канваса по вертикали — вдвое меньше горизонтальной: небо читается как боковой снос, а не как качели.</summary>
-        public const float DriftAmplitudeY = 0.006f;
+        public const float DriftAmplitudeY = 0.016f;
 
         /// <summary>На сколько прозрачность облака уходит от своего значения покоя из MapCloudLayout.</summary>
-        public const float DriftOpacityAmplitude = 0.04f;
+        public const float DriftOpacityAmplitude = 0.07f;
 
         /// <summary>
         /// Периоды дрейфа по облакам. Взаимно непериодичны специально: с
@@ -59,6 +59,56 @@ namespace Mikey.UI.Map
             return 1f + amplitude * 0.5f * (1f - (float)System.Math.Cos(WaveAngle(timeSeconds, periodSeconds)));
         }
 
+        /// <summary>Период второй синусоиды составной траектории как доля основного периода.</summary>
+        public const float CompoundRatio = 0.377f;
+
+        /// <summary>Вес второй синусоиды.</summary>
+        public const float CompoundWeight = 0.42f;
+
+        /// <summary>
+        /// Составная траектория: вторая синусоида с несоизмеримым периодом
+        /// поверх первой. Одна синусоида возвращается в ту же точку ровно
+        /// через период, и небо читается зацикленной гифкой.
+        ///
+        /// <para>
+        /// Нормировка на <c>1 + CompoundWeight</c> обязательна: без неё сумма
+        /// двух синусоид выходит за заявленную амплитуду, и рамка уезжает
+        /// дальше, чем разрешено композицией.
+        /// </para>
+        /// </summary>
+        public static float Compound(float timeSeconds, float periodSeconds, float phase01)
+        {
+            float primary = Wave(timeSeconds, periodSeconds, phase01);
+            float secondary = Wave(timeSeconds, periodSeconds * CompoundRatio, phase01);
+            return (primary + CompoundWeight * secondary) / (1f + CompoundWeight);
+        }
+
+        /// <summary>За сколько секунд движение рамки набирает полную амплитуду после показа экрана.</summary>
+        public const float DriftSettleSeconds = 1.5f;
+
+        /// <summary>
+        /// Множитель ввода рамки в движение, 0 в нуле времени и 1 после
+        /// <see cref="DriftSettleSeconds"/>.
+        ///
+        /// <para>
+        /// Нужен потому, что фазы <see cref="CloudDriftPhases"/> ненулевые: при
+        /// t = 0 синусоида уже не в нуле, и для фазы 0.37 это около 0.73
+        /// амплитуды. На прежних 0.012 ширины это были невидимые 0.9%; на
+        /// нынешних 0.035 — заметный скачок на первом же кадре после показа
+        /// экрана. Отказаться от фаз нельзя: без них четыре облака стартуют
+        /// строем.
+        /// </para>
+        /// </summary>
+        public static float DriftSettle(float timeSeconds)
+        {
+            if (!IsFinite(timeSeconds) || timeSeconds <= 0f)
+                return 0f;
+            if (timeSeconds >= DriftSettleSeconds)
+                return 1f;
+
+            return MapPanZoomMath.EaseOutCubic(timeSeconds / DriftSettleSeconds);
+        }
+
         /// <summary>Смещение и добавка к прозрачности одного облака относительно его раскладки покоя.</summary>
         public static void CloudDrift(int index, float timeSeconds, float canvasWidth, float canvasHeight,
             out float offsetX, out float offsetY, out float opacityDelta)
@@ -74,12 +124,53 @@ namespace Mikey.UI.Map
 
             float period = CloudDriftPeriodsSeconds[index];
             float phase = CloudDriftPhases[index];
+            float settle = DriftSettle(timeSeconds);
 
-            offsetX = canvasWidth * DriftAmplitudeX * Wave(timeSeconds, period, phase);
+            offsetX = canvasWidth * DriftAmplitudeX * Compound(timeSeconds, period, phase) * settle;
             // Вертикаль идёт своим, более длинным периодом — иначе облако
             // ходило бы по прямой под 45 градусов вместо неспешной петли.
-            offsetY = canvasHeight * DriftAmplitudeY * Wave(timeSeconds, period * 1.618f, phase);
-            opacityDelta = DriftOpacityAmplitude * Wave(timeSeconds, period * 0.77f, phase);
+            offsetY = canvasHeight * DriftAmplitudeY * Compound(timeSeconds, period * 1.618f, phase) * settle;
+            opacityDelta = DriftOpacityAmplitude * Wave(timeSeconds, period * 0.77f, phase) * settle;
+        }
+
+        /// <summary>Амплитуда набухания облака рамки как добавка к масштабу.</summary>
+        public const float FrameSwellAmplitude = 0.04f;
+
+        /// <summary>Период набухания рамки как доля периода дрейфа своего облака.</summary>
+        public const float FrameSwellPeriodRatio = 0.618f;
+
+        /// <summary>Амплитуда крена рамки в градусах.</summary>
+        public const float FrameRollAmplitudeDegrees = 1.5f;
+
+        public const float FrameRollPeriodRatio = 0.347f;
+
+        /// <summary>
+        /// Множитель масштаба облака рамки. Через <see cref="Breath"/>, а не
+        /// через фазированную форму: экран уже показан, облака уже стоят на
+        /// местах, и любой масштаб кроме единицы на первом кадре был бы
+        /// видимым скачком. Разные периоды у четырёх облаков расфазируют их
+        /// сами, стартовав из общего покоя.
+        /// </summary>
+        public static float FrameSwell(int index, float timeSeconds)
+        {
+            if (index < 0 || index >= CloudCount)
+                return 1f;
+
+            return Breath(timeSeconds, CloudDriftPeriodsSeconds[index] * FrameSwellPeriodRatio, FrameSwellAmplitude);
+        }
+
+        /// <summary>
+        /// Крен облака рамки в градусах. Фаза здесь намеренно нулевая — по той
+        /// же причине, что и у <see cref="FrameSwell"/>: старт обязан быть из
+        /// покоя.
+        /// </summary>
+        public static float FrameRollDegrees(int index, float timeSeconds)
+        {
+            if (index < 0 || index >= CloudCount)
+                return 0f;
+
+            return FrameRollAmplitudeDegrees
+                * Wave(timeSeconds, CloudDriftPeriodsSeconds[index] * FrameRollPeriodRatio, 0f);
         }
 
         /// <summary>

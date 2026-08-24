@@ -474,5 +474,108 @@ namespace Mikey.UI.Map.Tests
                 "The other half of the handshake: Bind must show the layer, guarded by nothing but the null check. Make that show conditional again and a visit that ended under reduced motion leaves display:none on the markup element, where it outlives the screen — SetVisible(true) then hits its own visible == _visible early return and the layer stays invisible for the rest of the session.");
         }
 
+        // ---------- задача 6: набухание и крен рамки ----------
+
+        [Test]
+        public void FrameRollAddsToThePresetAngleInsteadOfReplacingIt()
+        {
+            // bottom1 повёрнуто на -180 градусов. Запись голого крена
+            // перевернула бы его обратно.
+            string body = MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void TickClouds()");
+
+            StringAssert.Contains("_cloudRestRotation[i]", body,
+                "Крен обязан складываться с углом из пресета.");
+            StringAssert.Contains("FrameRollDegrees", body);
+        }
+
+        /// <remarks>
+        /// Тест выше проверяет, что оба слагаемых упомянуты, — упоминание
+        /// удовлетворяется и двумя РАЗНЫМИ записями подряд, где вторая
+        /// затирает первую. Здесь закреплена сама сумма, вместе с набуханием:
+        /// без него запись масштаба вообще не понадобилась бы.
+        /// </remarks>
+        [Test]
+        public void TickClouds_WritesTheSwellAndTheSummedRoll()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void TickClouds()"));
+
+            StringAssert.Contains(
+                "float swell = MapAmbientMath.FrameSwell(i, _elapsedSeconds); "
+                + "cloud.style.scale = new Scale(new Vector2(swell, swell)); "
+                + "cloud.style.rotate = new Rotate(new Angle( "
+                + "_cloudRestRotation[i] + MapAmbientMath.FrameRollDegrees(i, _elapsedSeconds), "
+                + "AngleUnit.Degree));",
+                body,
+                "Пинается всё целиком: (1) часы обязаны быть _elapsedSeconds — второе поле времени в этом классе доводится до +Infinity через SettleMarkerEntranceImmediately и превратило бы масштаб в NaN; (2) масштаб обязан быть равномерным по обеим осям, иначе облако плющит; (3) крен обязан СКЛАДЫВАТЬСЯ с углом покоя, а не подменять его — bottom1 стоит на -180 градусах и от голого крена перевернулся бы обратно; (4) индекс обязан быть тем же i, что и у облака, которому это пишется.");
+        }
+
+        /// <remarks>
+        /// Задача 6 расширила состояние, которое тик пишет облакам рамки:
+        /// теперь это ещё масштаб и угол. Возврат в покой обязан расшириться
+        /// ровно на то же — иначе «меньше движения», включённое посреди
+        /// визита, оставит рамку набухшей и перекошенной до конца сессии.
+        /// </remarks>
+        [Test]
+        public void ResetCloudDrift_SettlesTheSwellAndTheRollToo()
+        {
+            string reset = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void ResetCloudDrift()"));
+
+            StringAssert.Contains("cloud.style.scale = StyleKeyword.Null;", reset,
+                "У \".map-cloud\" своего scale в USS нет — очистка и есть покой набухания.");
+            StringAssert.Contains(
+                "cloud.style.rotate = new Rotate(new Angle(_cloudRestRotation[i], AngleUnit.Degree));",
+                reset,
+                "А вот угол обязан возвращаться ЗНАЧЕНИЕМ, ровно по той же причине, что и прозрачность рядом: покой угла — тоже инлайн, его пишет MapCloudLayout.Apply из пресета, и Null стёр бы вместе с креном ещё и раскладку — bottom1 развернуло бы на 180 градусов.");
+        }
+
+        /// <remarks>
+        /// Тот же дефект, что задача 5 закрыла для плывущего слоя, и та же
+        /// починка: на прямом переходе Япония↔Окинава StopTicking не зовётся
+        /// вовсе (тик прошлого экрана жив, StartTicking возвращается сразу),
+        /// а цикл ниже просто перевешивает _clouds на элементы нового экрана.
+        /// Инлайн — смещение, прозрачность, а теперь ещё масштаб и крен —
+        /// остаётся висеть на облаках ПРОШЛОГО экрана до конца сессии.
+        /// </remarks>
+        [Test]
+        public void ResetsTheFrameCloudsBeforeRebindingThemToTheNextScreen()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void ResolveScreenElements(string screenId)"));
+
+            StringAssert.Contains(
+                "preset.Bottom1.RotationDegrees, }; ResetCloudDrift(); "
+                + "for (int i = 0; i < MapAmbientMath.CloudCount; i++) "
+                + "{ _clouds[i] = _root?.Q<VisualElement>(prefix + suffixes[i]);",
+                body,
+                "ResetCloudDrift() обязан начинать собственный оператор ровно между таблицами покоя и циклом перепривязки. Привязка к обеим границам — это то, что запрещает условие перед ним: \"if (!japan) ResetCloudDrift();\" удовлетворил бы простую проверку порядка, оставив инлайн Окинавы на облаках Окинавы при каждом переходе Окинава->Япония. После цикла он вычистил бы облака НОВОГО экрана, а инлайн прошлого пережил бы сессию.");
+        }
+
+        /// <remarks>
+        /// Углы пресета попадают в контроллер таблицей — её порядок обязан
+        /// совпадать с порядком имён элементов, иначе крен нижнего облака
+        /// сложится с чужим нулём и оно перевернётся. Оба пресета несут
+        /// одинаковые углы, поэтому численно перестановку не поймать ничем.
+        /// </remarks>
+        [Test]
+        public void CloudRestRotationFollowsTheSameOrderAsTheElementNames()
+        {
+            string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void ResolveScreenElements(string screenId)"));
+
+            StringAssert.Contains(
+                "string[] suffixes = { \"right-01\", \"left-01\", \"left-02\", \"bottom-01\" };",
+                body,
+                "Порядок имён элементов — основание для обеих таблиц покоя ниже.");
+            StringAssert.Contains(
+                "float[] restRotation = { preset.Right1.RotationDegrees, preset.Left1.RotationDegrees, "
+                + "preset.Left2.RotationDegrees, preset.Bottom1.RotationDegrees, };",
+                body,
+                "Углы обязаны идти в порядке имён выше. Переставь их — и bottom-01 получит чужой ноль вместо своих -180 градусов: тик сложит крен с нулём и перевернёт нижнее облако на первом же кадре.");
+            StringAssert.Contains("_cloudRestRotation[i] = restRotation[i];", body,
+                "И обязаны доехать до поля, из которого их читает тик.");
+        }
     }
 }
