@@ -546,6 +546,16 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapAmbientMath.DriftSettle(MapAmbientMath.DriftSettleSeconds), Tolerance);
             Assert.AreEqual(1f, MapAmbientMath.DriftSettle(99f), Tolerance);
 
+            // Одних концов и монотонности мало: разрывная ступень «0 в нуле,
+            // 0.95 на втором кадре» проходит их все и даёт ровно тот скачок,
+            // ради устранения которого множитель и вводился. Нужна пара —
+            // сход с нуля И замедление. Любой ease-out её проходит, линейный
+            // ввод и ступень — нет.
+            Assert.Less(MapAmbientMath.DriftSettle(MapAmbientMath.DriftSettleSeconds * 0.05f), 0.25f,
+                "Ввод обязан ОТХОДИТЬ от нуля, а не прыгать: разрывная ступень даёт тот самый скачок на втором кадре.");
+            Assert.Greater(MapAmbientMath.DriftSettle(MapAmbientMath.DriftSettleSeconds * 0.5f), 0.7f,
+                "И обязан ЗАМЕДЛЯТЬСЯ: у линейного ввода здесь ровно половина.");
+
             float previous = -1f;
             for (int i = 0; i <= 30; i++)
             {
@@ -701,6 +711,69 @@ namespace Mikey.UI.Map.Tests
             Assert.AreEqual(1f, MapAmbientMath.FrameSwell(MapAmbientMath.CloudCount, 5f), Tolerance);
             Assert.AreEqual(0f, MapAmbientMath.FrameRollDegrees(-1, 5f), Tolerance);
             Assert.AreEqual(0f, MapAmbientMath.FrameRollDegrees(MapAmbientMath.CloudCount, 5f), Tolerance);
+        }
+
+        /// <remarks>
+        /// Все проверки «не выходит за амплитуду» — зеркала собственной
+        /// константы, поэтому сверху рамку не защищает ничто: с
+        /// DriftAmplitudeX = 0.5 облако уезжает на пол-экрана и открывает
+        /// голый обрез карты, а весь набор остаётся зелёным. Потолки здесь
+        /// обоснованы КОМПОЗИЦИЕЙ («рамка только оживает, но не меняется»), а
+        /// не текущими значениями.
+        /// </remarks>
+        [Test]
+        public void FrameAmplitudesStayInsideTheCompositionBudget()
+        {
+            Assert.Less(MapAmbientMath.DriftAmplitudeX, 0.06f,
+                "Дальше этого облако рамки перестаёт маскировать обрез карты, ради чего оно и стоит на своём месте.");
+            Assert.Less(MapAmbientMath.FrameSwellAmplitude, 0.08f,
+                "Набухание — дыхание объёма, а не наезд камеры.");
+            Assert.Less(MapAmbientMath.FrameRollAmplitudeDegrees, 3f,
+                "Крен — покачивание, а не поворот.");
+
+            // «Вдвое меньше горизонтали» из doc-комментария и таблицы спеки:
+            // одного лишь Y < X мало — 0.034 против 0.035 его удовлетворяет и
+            // превращает небо в диагональ под 45 градусов.
+            Assert.Less(MapAmbientMath.DriftAmplitudeY, 0.6f * MapAmbientMath.DriftAmplitudeX,
+                "Вертикаль обязана быть заметно меньше горизонтали, иначе облако ходит по прямой под 45 градусов.");
+        }
+
+        /// <remarks>
+        /// Отношения периодов как ЗНАЧЕНИЯ не закреплены ничем: замена любого
+        /// из них на 1f не красит ни один тест. Закрывается не пересказом
+        /// чисел, а свойством расфазировки — ни одна пара движений ОДНОГО
+        /// облака не идёт общим периодом, иначе два движения слипаются в одно.
+        /// </remarks>
+        [Test]
+        public void FrameMotionsOfOneCloudNeverShareAPeriod()
+        {
+            int comparisons = 0;
+
+            for (int i = 0; i < MapAmbientMath.CloudCount; i++)
+            {
+                float basePeriod = MapAmbientMath.CloudDriftPeriodsSeconds[i];
+                float[] periods =
+                {
+                    basePeriod,
+                    basePeriod * 1.618f,
+                    basePeriod * 0.77f,
+                    basePeriod * MapAmbientMath.FrameSwellPeriodRatio,
+                    basePeriod * MapAmbientMath.FrameRollPeriodRatio,
+                };
+
+                for (int a = 0; a < periods.Length; a++)
+                {
+                    for (int b = a + 1; b < periods.Length; b++)
+                    {
+                        comparisons++;
+                        Assert.Greater(System.Math.Abs(periods[a] - periods[b]) / basePeriod, 0.05f,
+                            $"Облако {i}: движения {a} и {b} идут одним периодом и слипаются в одно.");
+                    }
+                }
+            }
+
+            Assert.AreEqual(MapAmbientMath.CloudCount * 10, comparisons,
+                "Ни одна пара не осталась непроверенной — иначе циклы прошли бы вхолостую.");
         }
     }
 }

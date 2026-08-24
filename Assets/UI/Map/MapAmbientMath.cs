@@ -142,6 +142,7 @@ namespace Mikey.UI.Map
         /// <summary>Амплитуда крена рамки в градусах.</summary>
         public const float FrameRollAmplitudeDegrees = 1.5f;
 
+        /// <summary>Период крена рамки как доля периода дрейфа своего облака.</summary>
         public const float FrameRollPeriodRatio = 0.347f;
 
         /// <summary>

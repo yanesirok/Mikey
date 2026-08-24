@@ -509,6 +509,18 @@ namespace Mikey.UI.Map.Tests
                 + "AngleUnit.Degree));",
                 body,
                 "Пинается всё целиком: (1) часы обязаны быть _elapsedSeconds — второе поле времени в этом классе доводится до +Infinity через SettleMarkerEntranceImmediately и превратило бы масштаб в NaN; (2) масштаб обязан быть равномерным по обеим осям, иначе облако плющит; (3) крен обязан СКЛАДЫВАТЬСЯ с углом покоя, а не подменять его — bottom1 стоит на -180 градусах и от голого крена перевернулся бы обратно; (4) индекс обязан быть тем же i, что и у облака, которому это пишется.");
+
+            // Само закрепление блока — это Contains, а значит вторая запись
+            // ПОСЛЕ блока оставляет закреплённую подстроку нетронутой: голый
+            // крен поверх суммы проходит, и bottom-01 переворачивается на
+            // первом же кадре. Каждое из двух свойств обязано писаться РОВНО
+            // ОДИН раз за тик.
+            Assert.AreEqual(1,
+                System.Text.RegularExpressions.Regex.Matches(body, @"style\.rotate\s*=").Count,
+                "Угол обязан писаться ровно один раз: вторая запись затирает сумму голым креном и переворачивает bottom-01 на 180 градусов на весь визит.");
+            Assert.AreEqual(1,
+                System.Text.RegularExpressions.Regex.Matches(body, @"style\.scale\s*=").Count,
+                "И масштаб тоже — по той же причине.");
         }
 
         /// <remarks>
@@ -523,12 +535,19 @@ namespace Mikey.UI.Map.Tests
             string reset = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
                 File.ReadAllText(SourcePath), "private void ResetCloudDrift()"));
 
-            StringAssert.Contains("cloud.style.scale = StyleKeyword.Null;", reset,
-                "У \".map-cloud\" своего scale в USS нет — очистка и есть покой набухания.");
+            // Две строки по отдельности обходятся условием: обёртка обеих в
+            // "if (_cloudRestRotation[i] != 0f)" сохраняет обе подстроки
+            // дословно, а трём облакам из четырёх (угол покоя 0°) оставляет
+            // набухание и крен висеть инлайном до конца сессии. Поэтому
+            // пинается НЕПРЕРЫВНЫЙ кусок тела цикла целиком — вставка любого
+            // условия между записями его ломает.
             StringAssert.Contains(
-                "cloud.style.rotate = new Rotate(new Angle(_cloudRestRotation[i], AngleUnit.Degree));",
+                "cloud.style.translate = StyleKeyword.Null; "
+                + "cloud.style.opacity = _cloudRestOpacity[i]; "
+                + "cloud.style.scale = StyleKeyword.Null; "
+                + "cloud.style.rotate = new Rotate(new Angle(_cloudRestRotation[i], AngleUnit.Degree));",
                 reset,
-                "А вот угол обязан возвращаться ЗНАЧЕНИЕМ, ровно по той же причине, что и прозрачность рядом: покой угла — тоже инлайн, его пишет MapCloudLayout.Apply из пресета, и Null стёр бы вместе с креном ещё и раскладку — bottom1 развернуло бы на 180 градусов.");
+                "Все четыре возвращения в покой обязаны идти подряд и БЕЗУСЛОВНО. Масштаб и крен тик пишет ВСЕМ четырём облакам, а не только повёрнутому bottom-01, значит и снимать их надо со всех четырёх. Смещение и набухание — в Null (своих translate/scale у \".map-cloud\" в USS нет), а прозрачность и угол — ЗНАЧЕНИЕМ: их покой тоже инлайн из MapCloudLayout.Apply, и Null стёр бы вместе с дрейфом и креном ещё и раскладку — bottom1 развернуло бы на 180 градусов.");
         }
 
         /// <remarks>
@@ -576,6 +595,42 @@ namespace Mikey.UI.Map.Tests
                 "Углы обязаны идти в порядке имён выше. Переставь их — и bottom-01 получит чужой ноль вместо своих -180 градусов: тик сложит крен с нулём и перевернёт нижнее облако на первом же кадре.");
             StringAssert.Contains("_cloudRestRotation[i] = restRotation[i];", body,
                 "И обязаны доехать до поля, из которого их читает тик.");
+        }
+
+        /// <remarks>
+        /// <see cref="NeverWritesLayoutProperties"/> — чёрный список, и он
+        /// неполон по построению: в нём нет ни right/bottom, ни position, ни
+        /// flexGrow/flexBasis/minWidth, так что покадровая запись
+        /// <c>cloud.style.right</c> в <see cref="TickClouds"/> прошла бы его
+        /// целиком, дав полный проход лэйаута каждый тик. Задача 6 добавила в
+        /// TickClouds две новые покадровые записи, поэтому инвариант
+        /// закрепляется с правильной стороны — БЕЛЫМ списком: в телах тиков
+        /// после <c>style.</c> разрешены только четыре имени. Чёрный список
+        /// при этом остаётся: он покрывает файл целиком, а не два тела.
+        /// </remarks>
+        [Test]
+        public void TickBodies_WriteNothingButTransformAndOpacity()
+        {
+            string[] allowed = { "translate", "scale", "rotate", "opacity" };
+            string[] methods = { "private void TickClouds()", "private void TickWind()" };
+            string source = File.ReadAllText(SourcePath);
+            int inspected = 0;
+
+            foreach (string method in methods)
+            {
+                string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(source, method));
+                foreach (System.Text.RegularExpressions.Match match in
+                    System.Text.RegularExpressions.Regex.Matches(body, @"style\.([A-Za-z]+)"))
+                {
+                    string property = match.Groups[1].Value;
+                    inspected++;
+                    Assert.IsTrue(System.Array.IndexOf(allowed, property) >= 0,
+                        $"{method} пишет style.{property} каждый тик. Разрешены только translate/scale/rotate/opacity — всё остальное так или иначе задевает лэйаут, а весь дизайн ambient-драйвера держится на том, что он геометрию не трогает.");
+                }
+            }
+
+            Assert.GreaterOrEqual(inspected, 4,
+                "Проверять было нечего: тела тиков не прочитались, и сторож прошёл вхолостую. TickClouds пишет как минимум translate/scale/rotate/opacity.");
         }
     }
 }
