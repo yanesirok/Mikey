@@ -162,6 +162,42 @@ namespace Mikey.UI.Map.Tests
 
         // ---------- движение ----------
 
+        /// <remarks>
+        /// Рамка и ветер входят в кадр ДВУМЯ разными константами
+        /// (<see cref="MapWindLayer.SettleSeconds"/> и
+        /// <see cref="MapAmbientMath.DriftSettleSeconds"/>), и каждый тест до
+        /// этого смотрел только в зеркало своей: мутация
+        /// <c>SettleSeconds = 6.0f</c> проходила зелёной — рамка входила за
+        /// полторы секунды, ветер за шесть, набор был доволен. Композиция
+        /// первой секунды после показа экрана не охранялась ничем от начала до
+        /// конца. Здесь она сшивается: и константы, и множитель, реально
+        /// дошедший до прозрачности облака.
+        /// </remarks>
+        [Test]
+        public void WindAndFrameEnterTheFrameOnOneClock()
+        {
+            Assert.AreEqual(MapAmbientMath.DriftSettleSeconds, MapWindLayer.SettleSeconds, 1e-6f,
+                "Рамка и ветер обязаны входить в кадр за одно и то же время: экран показывается "
+                + "один, и два разных срока превращают вход в две накладывающиеся анимации.");
+
+            const float Early = 0.4f;
+            const int Near = 6;
+            VisualElement root = BuildScreen();
+            MapWindLayer layer = BoundLayer(root);
+
+            layer.Tick(Early, W, H, 0f, 0f);
+
+            WindCloud lane = MapWindLayout.Clouds[Near];
+            float progress = MapWindMath.LaneProgress(Early, lane.CrossSeconds, lane.Phase);
+            float unsettled = MapWindMath.Opacity(
+                lane.RestOpacity, progress, Early, lane.CrossSeconds, lane.Phase, 1f);
+            Assert.Greater(unsettled, 0f, "Проверка пуста, если облако в этот момент и так невидимо.");
+
+            float settleOfWind = Cloud(root, Near).style.opacity.value / unsettled;
+            Assert.AreEqual(MapAmbientMath.DriftSettle(Early), settleOfWind, 1e-4f,
+                "Множитель ввода ветра разошёлся с множителем ввода рамки в ту же секунду.");
+        }
+
         [Test]
         public void EntrySettleReachesOpacityOnly_NeverPosition()
         {
@@ -191,8 +227,10 @@ namespace Mikey.UI.Map.Tests
                 VisualElement c = Cloud(root, i);
                 float progress = MapWindMath.LaneProgress(Early, lane.CrossSeconds, lane.Phase);
 
-                float parallaxX = MapAmbientMath.ParallaxOffset(PanX, lane.ParallaxFactor);
-                float parallaxY = MapAmbientMath.ParallaxOffset(PanY, lane.ParallaxFactor);
+                float parallaxX = MapAmbientMath.ParallaxOffset(
+                    PanX, lane.ParallaxFactor, MapWindMath.ParallaxPanLimit(W));
+                float parallaxY = MapAmbientMath.ParallaxOffset(
+                    PanY, lane.ParallaxFactor, MapWindMath.ParallaxPanLimit(H));
                 Assert.AreNotEqual(0f, parallaxX, "Проверка пуста, если слагаемое параллакса нулевое.");
 
                 Assert.AreEqual(
@@ -251,34 +289,110 @@ namespace Mikey.UI.Map.Tests
         }
 
         [Test]
-        public void ParallaxRespectsTheSharedCeiling()
+        public void ParallaxRespectsTheWindsOwnCeiling()
         {
             VisualElement root = BuildScreen();
             MapWindLayer layer = BoundLayer(root);
 
-            layer.Tick(20f, W, H, 0f, 0f);
-            var baseX = new float[MapWindLayout.Clouds.Length];
-            var baseY = new float[MapWindLayout.Clouds.Length];
-            for (int i = 0; i < baseX.Length; i++)
-            {
-                baseX[i] = Cloud(root, i).style.translate.value.x.value;
-                baseY[i] = Cloud(root, i).style.translate.value.y.value;
-            }
+            float[] baseX = Snapshot(root, layer, 0f, 0f, out float[] baseY);
 
             layer.Tick(20f, W, H, 100000f, -100000f);
             for (int i = 0; i < baseX.Length; i++)
             {
+                float depth = Mathf.Abs(MapWindLayout.Clouds[i].ParallaxFactor - 1f);
+
                 // Обе оси: потолок только на горизонтали оставлял бы ветру право
                 // уехать на шестьдесят тысяч пикселей вверх при зелёном наборе.
                 Assert.LessOrEqual(
                     Mathf.Abs(Cloud(root, i).style.translate.value.x.value - baseX[i]),
-                    MapAmbientMath.MaxParallaxOffsetPixels + 1e-3f,
+                    depth * MapWindMath.ParallaxPanLimit(W) + 1e-3f,
                     "Потолок обязан держать горизонталь облака " + i + ".");
                 Assert.LessOrEqual(
                     Mathf.Abs(Cloud(root, i).style.translate.value.y.value - baseY[i]),
-                    MapAmbientMath.MaxParallaxOffsetPixels + 1e-3f,
+                    depth * MapWindMath.ParallaxPanLimit(H) + 1e-3f,
                     "Потолок обязан держать и вертикаль облака " + i + ".");
             }
+        }
+
+        /// <remarks>
+        /// Потолок, унаследованный от рамки, был задан ОДНИМ числом на
+        /// результат — и на множителях ветра (0.40 / 0.75 / 1.30 против
+        /// 1.04…1.12 у рамки) насыщал дальнюю полосу уже к 67 пикселям пана
+        /// при разрешённых 468. Выше насыщения все полосы отдавали одно и то
+        /// же смещение, то есть ехали ровно с картой и друг с другом: глубина,
+        /// которую §5 спеки называет ключевой, выключалась на большей части
+        /// реального панорамирования. Проверка «эффект жив у нуля» этого не
+        /// ловила вовсе, поэтому здесь перебирается ВЕСЬ разрешённый игрой
+        /// диапазон пана, вплоть до максимального зума.
+        /// </remarks>
+        [Test]
+        public void WindParallaxKeepsItsDepthAcrossTheWholePanRange()
+        {
+            const int Far = 0;
+            const int Mid = 3;
+            const int Near = 6;
+
+            VisualElement root = BuildScreen();
+            MapWindLayer layer = BoundLayer(root);
+            float[] baseX = Snapshot(root, layer, 0f, 0f, out float[] _);
+
+            float maxPan = MapPanZoomMath.MaxPanForZoom(MapPanZoomMath.MaxZoom, W);
+            Assert.Greater(maxPan, MapWindMath.ParallaxPanLimit(W),
+                "Проверка пуста, если игра и так не пускает пан за предел ветра.");
+
+            float[] fractions = { 0.1f, 0.25f, 0.5f, 0.75f, 1f };
+            int compared = 0;
+
+            foreach (float fraction in fractions)
+            {
+                float pan = maxPan * fraction;
+                layer.Tick(20f, W, H, pan, 0f);
+
+                float far = Cloud(root, Far).style.translate.value.x.value - baseX[Far];
+                float mid = Cloud(root, Mid).style.translate.value.x.value - baseX[Mid];
+                float near = Cloud(root, Near).style.translate.value.x.value - baseX[Near];
+
+                // Дальняя отстаёт от карты, ближняя обгоняет — знаки разные, и
+                // ни одна пара не смеет совпасть НИ НА ОДНОЙ точке диапазона.
+                Assert.Less(far, 0f, $"Дальняя полоса обязана отставать от карты при пане {pan:F0}.");
+                Assert.Less(mid, 0f, $"Средняя полоса обязана отставать от карты при пане {pan:F0}.");
+                Assert.Greater(near, 0f, $"Ближняя полоса обязана обгонять карту при пане {pan:F0}.");
+
+                Assert.Greater(mid - far, 1f,
+                    $"При пане {pan:F0} дальняя и средняя полосы едут одинаково — глубина выключена.");
+                Assert.Greater(near - mid, 1f,
+                    $"При пане {pan:F0} средняя и ближняя полосы едут одинаково — глубина выключена.");
+
+                // Мало «полосы различимы» — обязаны сохраняться ПРОПОРЦИИ.
+                // Потолок на результате (тот, что ветер унаследовал от рамки)
+                // знаки оставляет на месте, а отношение плющит к единице:
+                // дальняя перестаёт быть в 2.4 раза быстрее средней и
+                // становится в 1.07. Найдено мутацией — без этой проверки
+                // возврат к потолку на результате проходил зелёным здесь.
+                float expectedRatio = (MapWindLayout.Clouds[Far].ParallaxFactor - 1f)
+                    / (MapWindLayout.Clouds[Mid].ParallaxFactor - 1f);
+                Assert.AreEqual(expectedRatio, far / mid, 1e-3f,
+                    $"При пане {pan:F0} отношение скоростей дальней и средней полос уехало от "
+                    + "заявленного таблицей: потолок жмёт результат, а не пан.");
+                compared++;
+            }
+
+            Assert.AreEqual(fractions.Length, compared, "Цикл прошёл вхолостую.");
+        }
+
+        /// <summary>Снимок горизонталей и вертикалей всех облаков после тика с данным паном.</summary>
+        private static float[] Snapshot(VisualElement root, MapWindLayer layer, float panX, float panY, out float[] y)
+        {
+            layer.Tick(20f, W, H, panX, panY);
+            var x = new float[MapWindLayout.Clouds.Length];
+            y = new float[MapWindLayout.Clouds.Length];
+            for (int i = 0; i < x.Length; i++)
+            {
+                x[i] = Cloud(root, i).style.translate.value.x.value;
+                y[i] = Cloud(root, i).style.translate.value.y.value;
+            }
+
+            return x;
         }
 
         // ---------- показ, покой, привязка ----------

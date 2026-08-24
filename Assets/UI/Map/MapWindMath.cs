@@ -133,6 +133,38 @@ namespace Mikey.UI.Map
                 * (1f + MapAmbientMath.Wave(timeSeconds, crossSeconds * SwellPeriodRatio, phase01));
         }
 
+        /// <summary>
+        /// Предел пана для параллакса ВЕТРА: полный диапазон пана на зуме
+        /// входа в экран.
+        ///
+        /// <para>
+        /// Потолок рамки (<see cref="MapAmbientMath.FrameParallaxPanLimitFraction"/>)
+        /// ветру не годится ни по величине, ни по смыслу. Множители ветра —
+        /// 0.40 / 0.75 / 1.30, то есть <c>|factor - 1|</c> равен 0.60 / 0.25 /
+        /// 0.30 против 0.04…0.12 у рамки: на общем потолке дальняя полоса
+        /// насыщалась уже к 67 пикселям пана и дальше ехала ровно с картой,
+        /// то есть глубина — то самое, ради чего полосы и разведены по
+        /// скоростям — выключалась на 86% реального диапазона.
+        /// </para>
+        ///
+        /// <para>
+        /// Отсюда предел: <c>MaxPanForZoom(DefaultZoom)</c> = 0.2 размера
+        /// канваса. Внутри диапазона пана зума входа параллакс строго
+        /// линеен, а выше — просто перестаёт расти, СОХРАНЯЯ пропорции между
+        /// полосами (ограничен вход, а не результат, см.
+        /// <see cref="MapAmbientMath.ParallaxOffset"/>). Дальняя полоса
+        /// уезжает максимум на <c>0.60 · 0.2 = 0.12</c> размера канваса —
+        /// вместо 0.45 без всякого потолка на максимальном зуме.
+        /// </para>
+        /// </summary>
+        public static float ParallaxPanLimit(float canvasDimension)
+        {
+            if (!IsFinite(canvasDimension) || canvasDimension <= 0f)
+                return 0f;
+
+            return MapPanZoomMath.MaxPanForZoom(MapPanZoomMath.DefaultZoom, canvasDimension);
+        }
+
         /// <summary>Крен в градусах.</summary>
         public static float RollDegrees(float timeSeconds, float crossSeconds, float phase01)
         {

@@ -194,23 +194,51 @@ namespace Mikey.UI.Map.Tests
         [Test]
         public void ParallaxOffset_IsZeroWhenFactorIsOne()
         {
-            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(250f, 1f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(250f, 1f, 400f), Tolerance);
         }
 
         [Test]
         public void ParallaxOffset_MovesWithThePanForFactorsAboveOne()
         {
-            float offset = MapAmbientMath.ParallaxOffset(100f, 1.1f);
+            float offset = MapAmbientMath.ParallaxOffset(100f, 1.1f, 400f);
             Assert.Greater(offset, 0f, "Ближнее облако должно уходить в ту же сторону, что и пан, но дальше.");
             Assert.AreEqual(10f, offset, Tolerance);
         }
 
+        /// <remarks>
+        /// Ограничен ВХОД, а не результат, и это не косметика. Потолок на
+        /// результате выше насыщения выдаёт всем множителям одно и то же
+        /// число — полосы схлопываются в одну, и глубина, ради которой
+        /// множители и разведены, выключается. Проверяется именно тем, что
+        /// два РАЗНЫХ множителя дают два РАЗНЫХ смещения при пане далеко за
+        /// пределом.
+        /// </remarks>
         [Test]
-        public void ParallaxOffset_IsCapped()
+        public void ParallaxOffset_LimitsThePanAndKeepsDepthAboveIt()
         {
-            float offset = MapAmbientMath.ParallaxOffset(100000f, 1.12f);
-            Assert.AreEqual(MapAmbientMath.MaxParallaxOffsetPixels, offset, Tolerance);
-            Assert.AreEqual(-MapAmbientMath.MaxParallaxOffsetPixels, MapAmbientMath.ParallaxOffset(-100000f, 1.12f), Tolerance);
+            const float Limit = 400f;
+
+            Assert.AreEqual(Limit * 0.12f, MapAmbientMath.ParallaxOffset(100000f, 1.12f, Limit), Tolerance);
+            Assert.AreEqual(-Limit * 0.12f, MapAmbientMath.ParallaxOffset(-100000f, 1.12f, Limit), Tolerance);
+
+            float near = MapAmbientMath.ParallaxOffset(100000f, 1.12f, Limit);
+            float far = MapAmbientMath.ParallaxOffset(100000f, 1.04f, Limit);
+            Assert.Greater(near - far, 1f,
+                "Выше предела полосы обязаны остаться РАЗНЫМИ — иначе потолок убивает глубину, а не бережёт композицию.");
+
+            // До предела — строго линейно, без всякого поджатия.
+            Assert.AreEqual(Limit * 0.5f * 0.12f,
+                MapAmbientMath.ParallaxOffset(Limit * 0.5f, 1.12f, Limit), Tolerance);
+        }
+
+        [Test]
+        public void ParallaxOffset_IsSafeOnDegenerateLimit()
+        {
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(500f, 1.12f, 0f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(500f, 1.12f, -10f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(500f, 1.12f, float.NaN), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(float.NaN, 1.12f, 400f), Tolerance);
+            Assert.AreEqual(0f, MapAmbientMath.ParallaxOffset(500f, float.NaN, 400f), Tolerance);
         }
 
         [Test]
@@ -510,7 +538,15 @@ namespace Mikey.UI.Map.Tests
             // Прежние 0.012/0.006 давали размах ниже порога различения — это и
             // была вся причина, по которой небо читалось мёртвым.
             Assert.GreaterOrEqual(MapAmbientMath.DriftAmplitudeX, 0.03f);
-            Assert.GreaterOrEqual(MapAmbientMath.DriftAmplitudeY, 0.014f);
+
+            // По вертикали пол НИЖЕ, чем хотелось бы, и это осознанный
+            // проигрыш заметности геометрии: под нижним облаком Японии всего
+            // 0.0308 высоты канваса запаса, и его делят дрейф, параллакс и
+            // подъём от крена (FrameMotionNeverUncoversTheMapEdge). Выше
+            // примерно 0.0134 инвариант края нарушается при любых остальных
+            // амплитудах, так что «заметная вертикаль» здесь просто не
+            // помещается. Заметность несёт горизонталь, у которой запас есть.
+            Assert.GreaterOrEqual(MapAmbientMath.DriftAmplitudeY, 0.009f);
             Assert.Less(MapAmbientMath.DriftAmplitudeY, MapAmbientMath.DriftAmplitudeX,
                 "Небо обязано читаться как боковой снос, а не как качели.");
         }
@@ -728,8 +764,13 @@ namespace Mikey.UI.Map.Tests
                 "Дальше этого облако рамки перестаёт маскировать обрез карты, ради чего оно и стоит на своём месте.");
             Assert.Less(MapAmbientMath.FrameSwellAmplitude, 0.08f,
                 "Набухание — дыхание объёма, а не наезд камеры.");
-            Assert.Less(MapAmbientMath.FrameRollAmplitudeDegrees, 3f,
-                "Крен — покачивание, а не поворот.");
+            // Потолка крена здесь БОЛЬШЕ НЕТ намеренно. Стоявший тут
+            // Assert.Less(FrameRollAmplitudeDegrees, 3f) был выведен из
+            // ничего: он не связан ни с одним числом геометрии, и мутация до
+            // 2.9° проходила зелёной, съедая полтора запаса нижнего облака
+            // целиком. Крен теперь охраняет
+            // FrameMotionNeverUncoversTheMapEdge — по фактическим прямоугольникам
+            // MapCloudLayout, а не по круглому числу.
 
             // «Вдвое меньше горизонтали» из doc-комментария и таблицы спеки:
             // одного лишь Y < X мало — 0.034 против 0.035 его удовлетворяет и
@@ -774,6 +815,133 @@ namespace Mikey.UI.Map.Tests
 
             Assert.AreEqual(MapAmbientMath.CloudCount * 10, comparisons,
                 "Ни одна пара не осталась непроверенной — иначе циклы прошли бы вхолостую.");
+        }
+
+        /// <summary>
+        /// Потолок движения рамки, выведенный из ФАКТИЧЕСКОЙ геометрии
+        /// <see cref="MapCloudLayout"/>, а не из круглого числа.
+        ///
+        /// <para>
+        /// Вся спека стоит на том, что четыре облака рамки маскируют обрез
+        /// карты по периметру: «если они поплывут, откроется голый край».
+        /// Значит, у каждого облака есть кромки, свисающие ЗА канвас, и запас
+        /// под каждой из них конечен. Самый узкий — под нижним облаком
+        /// Японии: 0.0308 высоты канваса. Крен вокруг центра поднимает один
+        /// его угол на <c>полуширина · sin θ</c>, а полуширина этого облака —
+        /// целая высота канваса, то есть рычаг в тридцать три раза длиннее
+        /// запаса. Прежние 1.5° съедали 86% запаса ОДНИМ креном, и вместе с
+        /// дрейфом и параллаксом ход вдвое превышал запас: игрок, дотянувший
+        /// карту вверх до упора, видел клин голого низа.
+        /// </para>
+        ///
+        /// <para>
+        /// Считается худший случай: все три вклада в фазе, пан на упоре.
+        /// Набухание в сумму НЕ входит намеренно — <c>Breath</c> лежит в
+        /// <c>[1, 1 + A]</c> и только растит бокс от центра, то есть уводит
+        /// кромку наружу, в запас.
+        /// </para>
+        ///
+        /// <para>
+        /// Проверяется только ВЕРТИКАЛЬ. Горизонтальные кромки этой рамки
+        /// инвариантом не описываются вовсе: у левого облака Окинавы
+        /// <c>x = 0.00000</c>, то есть на канвасе с пропорцией исходной
+        /// картинки его левая кромка стоит ровно на кромке канваса, а на
+        /// более широком — уже внутри неё. Горизонтальный запас там равен
+        /// нулю по построению композиции, и никакая амплитуда его не
+        /// соблюдёт. См. «известный потолок» в §8 спеки.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void FrameMotionNeverUncoversTheMapEdge()
+        {
+            // Высота фиксирована, пропорции перебираются: вертикальные запасы
+            // у cover-fit постоянны на всём диапазоне пропорций НЕ шире
+            // исходной картинки (там кроп идёт по горизонтали, и по вертикали
+            // 1:1), а на более широких только растут. Худший случай поэтому
+            // покрыт первыми тремя, четвёртая — контроль того, что он
+            // действительно не хуже.
+            const float H = 1000f;
+            float sourceAspect = MapCloudLayout.SourceImageWidth / MapCloudLayout.SourceImageHeight;
+            float[] aspects = { 16f / 9f, 2.17f, sourceAspect, 2.5f };
+
+            double radians = MapAmbientMath.FrameRollAmplitudeDegrees * System.Math.PI / 180.0;
+            float sin = (float)System.Math.Abs(System.Math.Sin(radians));
+            float versine = (float)(1.0 - System.Math.Cos(radians));
+
+            var presets = new[] { MapCloudLayout.JapanRest, MapCloudLayout.OkinawaRest };
+            int checkedEdges = 0;
+
+            foreach (float aspect in aspects)
+            {
+                float W = H * aspect;
+
+                foreach (MapCloudPreset preset in presets)
+                {
+                    // Порядок в точности как в MapAmbientController.ResolveScreenElements:
+                    // индекс облака ЕСТЬ индекс его периода дрейфа и его множителя
+                    // параллакса, и путать их нельзя — рычаги у облаков разные.
+                    CloudLayout[] byIndex = { preset.Right1, preset.Left1, preset.Left2, preset.Bottom1 };
+                    Assert.AreEqual(MapAmbientMath.CloudCount, byIndex.Length);
+
+                    for (int i = 0; i < byIndex.Length; i++)
+                    {
+                        MapCoordinateMapping.SourceRectToViewport(
+                            byIndex[i].NormalizedX, byIndex[i].NormalizedY,
+                            byIndex[i].NormalizedWidth, byIndex[i].NormalizedHeight,
+                            MapCloudLayout.SourceImageWidth, MapCloudLayout.SourceImageHeight,
+                            W, H, out float vx, out float vy, out float vw, out float vh);
+
+                        float boxWidth = vw * W;
+                        float boxHeight = vh * H;
+
+                        // Подъём считается от ПОЛУШИРИНЫ: широкое облако
+                        // рычагом усиливает малый угол. Второе слагаемое —
+                        // просадка от косинуса, на малых углах почти ноль, но
+                        // выписана, чтобы формула была геометрией, а не
+                        // приближением.
+                        float rollRise = 0.5f * boxWidth * sin + 0.5f * boxHeight * versine;
+
+                        // Пан на входе параллакса уже ограничен ClampPan своим
+                        // MaxPanForZoom, но предел рамки ниже любого из них,
+                        // поэтому худший случай — ровно предел.
+                        float parallax = System.Math.Abs(MapAmbientMath.CloudParallaxFactors[i] - 1f)
+                            * H * MapAmbientMath.FrameParallaxPanLimitFraction;
+
+                        float travel = H * MapAmbientMath.DriftAmplitudeY + parallax + rollRise;
+
+                        if (vy < 0f)
+                        {
+                            checkedEdges++;
+                            AssertMaskingEdgeStaysOutside(-vy * H, travel, aspect, i, "Верхняя");
+                        }
+
+                        if (vy + vh > 1f)
+                        {
+                            checkedEdges++;
+                            AssertMaskingEdgeStaysOutside((vy + vh - 1f) * H, travel, aspect, i, "Нижняя");
+                        }
+                    }
+                }
+            }
+
+            // У каждого из четырёх облаков обоих пресетов ровно одна
+            // вертикальная маскирующая кромка (right1/left1/left2 — верхняя,
+            // bottom1 — нижняя). Без этой сверки перестановка координат,
+            // втянувшая облако целиком внутрь канваса, дала бы зелёный тест,
+            // ничего не проверивший.
+            Assert.AreEqual(aspects.Length * presets.Length * MapAmbientMath.CloudCount, checkedEdges,
+                "Число проверенных кромок не совпало с ожидаемым — часть облаков перестала маскировать край.");
+        }
+
+        private static void AssertMaskingEdgeStaysOutside(
+            float marginPixels, float travelPixels, float aspect, int index, string edge)
+        {
+            Assert.Greater(marginPixels, travelPixels,
+                $"Пропорция {aspect:F3}, облако {index}. {edge} кромка свисает за канвас на "
+                + $"{marginPixels:F2} px (канвас высотой 1000), а суммарный вертикальный ход — дрейф "
+                + $"{1000f * MapAmbientMath.DriftAmplitudeY:F2} + параллакс + подъём от крена — "
+                + $"составляет {travelPixels:F2} px. Кромка заходит ВНУТРЬ канваса: игрок, дотянувший "
+                + "карту до упора, видит клин голого края карты.");
         }
     }
 }

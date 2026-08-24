@@ -20,8 +20,17 @@ namespace Mikey.UI.Map
         /// <summary>Доля ширины канваса, на которую облако рамки уходит от своей раскладки по горизонтали. 0.035, а не прежние 0.012: ниже примерно трёх процентов движение просто не различается глазом, и небо читается мёртвым.</summary>
         public const float DriftAmplitudeX = 0.035f;
 
-        /// <summary>Доля высоты канваса по вертикали — вдвое меньше горизонтальной: небо читается как боковой снос, а не как качели.</summary>
-        public const float DriftAmplitudeY = 0.016f;
+        /// <summary>
+        /// Доля высоты канваса по вертикали. Вертикаль намеренно много меньше
+        /// горизонтали — и не только ради «бокового сноса, а не качелей»:
+        /// вертикальный запас у рамки почти отсутствует. Нижнее облако
+        /// Японии свисает под канвас всего на 0.0308 его высоты (посчитано из
+        /// MapCloudLayout через тот же cover-fit, что и раскладка), и этот
+        /// запас делят между собой дрейф, параллакс и подъём от крена. См.
+        /// FrameMotionNeverUncoversTheMapEdge — оттуда и взято это значение,
+        /// а не из вкуса.
+        /// </summary>
+        public const float DriftAmplitudeY = 0.010f;
 
         /// <summary>На сколько прозрачность облака уходит от своего значения покоя из MapCloudLayout.</summary>
         public const float DriftOpacityAmplitude = 0.07f;
@@ -139,8 +148,21 @@ namespace Mikey.UI.Map
         /// <summary>Период набухания рамки как доля периода дрейфа своего облака.</summary>
         public const float FrameSwellPeriodRatio = 0.618f;
 
-        /// <summary>Амплитуда крена рамки в градусах.</summary>
-        public const float FrameRollAmplitudeDegrees = 1.5f;
+        /// <summary>
+        /// Амплитуда крена рамки в градусах.
+        ///
+        /// <para>
+        /// Мало не по робости, а по рычагу. Крен идёт вокруг ЦЕНТРА элемента,
+        /// поэтому нижний угол поднимается на <c>полуширина · sin θ</c> — а
+        /// нижнее облако Японии шириной 2.018 высоты канваса, то есть его
+        /// полуширина в тридцать три раза больше всего запаса под нижним
+        /// краем (0.0308 высоты). На прежних 1.5° один только крен съедал 86%
+        /// запаса, и рамка открывала клин голого низа карты при пане вниз до
+        /// упора. Потолок выведен из геометрии MapCloudLayout, а не выбран:
+        /// см. FrameMotionNeverUncoversTheMapEdge.
+        /// </para>
+        /// </summary>
+        public const float FrameRollAmplitudeDegrees = 0.7f;
 
         /// <summary>Период крена рамки как доля периода дрейфа своего облака.</summary>
         public const float FrameRollPeriodRatio = 0.347f;
@@ -182,24 +204,47 @@ namespace Mikey.UI.Map
         public static readonly float[] CloudParallaxFactors = { 1.04f, 1.06f, 1.10f, 1.12f };
 
         /// <summary>
-        /// Потолок параллакс-смещения. Без него на максимальном зуме, где пан
-        /// исчисляется сотнями пикселей, облака уехали бы из композиции
-        /// целиком — а они часть рисунка карты, а не свободный слой.
+        /// Доля размера канваса, за которой пан перестаёт двигать облако
+        /// РАМКИ относительно карты. Не вкус: смещение самого быстрого облака
+        /// рамки (<c>0.12 · limit</c>) складывается с дрейфом и подъёмом от
+        /// крена в тот же запас 0.0308 высоты под нижним облаком Японии — см.
+        /// FrameMotionNeverUncoversTheMapEdge. Прежний потолок был задан в
+        /// ПИКСЕЛЯХ (40) и потому не имел отношения к запасу вовсе: запас —
+        /// доля высоты канваса, и на любом канвасе ниже 1300 пикселей сорок
+        /// пикселей съедали его целиком сами по себе.
         /// </summary>
-        public const float MaxParallaxOffsetPixels = 40f;
+        public const float FrameParallaxPanLimitFraction = 0.04f;
 
-        /// <summary>Смещение облака относительно карты при данном пане и его множителе глубины.</summary>
-        public static float ParallaxOffset(float pan, float factor)
+        /// <summary>
+        /// Смещение облака относительно карты при данном пане и его множителе
+        /// глубины.
+        ///
+        /// <para>
+        /// Ограничивается ПАН, а не результат. Потолок на результате выше
+        /// насыщения схлопывает все полосы в одно и то же число и убивает
+        /// ровно ту глубину, ради которой параллакс и введён: с общим
+        /// потолком в 40 пикселей дальняя и средняя полосы ветра ехали
+        /// одинаково на 86% реального диапазона пана. Ограничение на входе
+        /// сохраняет пропорции между полосами на всём диапазоне, включая
+        /// область насыщения.
+        /// </para>
+        ///
+        /// <para>
+        /// <paramref name="panLimitPixels"/> у рамки и у ветра РАЗНЫЙ и
+        /// обоснован по-разному: у рамки — запасом маскировки края карты
+        /// (<see cref="FrameParallaxPanLimitFraction"/>), у ветра — полным
+        /// диапазоном пана на зуме входа (см. MapWindMath.ParallaxPanLimit).
+        /// Ветер ничего не маскирует, и запас у него другой по природе.
+        /// </para>
+        /// </summary>
+        public static float ParallaxOffset(float pan, float factor, float panLimitPixels)
         {
             if (!IsFinite(pan) || !IsFinite(factor))
                 return 0f;
 
-            float offset = pan * (factor - 1f);
-            if (offset > MaxParallaxOffsetPixels)
-                return MaxParallaxOffsetPixels;
-            if (offset < -MaxParallaxOffsetPixels)
-                return -MaxParallaxOffsetPixels;
-            return offset;
+            float limit = IsFinite(panLimitPixels) && panLimitPixels > 0f ? panLimitPixels : 0f;
+            float clampedPan = pan > limit ? limit : (pan < -limit ? -limit : pan);
+            return clampedPan * (factor - 1f);
         }
 
         /// <summary>Период «дыхания бумаги» — очень длинный специально: это должно чувствоваться телом, а не читаться глазом.</summary>

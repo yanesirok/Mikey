@@ -537,8 +537,13 @@ namespace Mikey.UI.Map
                     out float dx, out float dy, out float dOpacity);
 
                 float factor = MapAmbientMath.CloudParallaxFactors[i];
-                dx += MapAmbientMath.ParallaxOffset(panX, factor);
-                dy += MapAmbientMath.ParallaxOffset(panY, factor);
+                // Предел пана у рамки свой и выведен из запаса маскировки
+                // края карты, а не из круглого числа пикселей — см.
+                // MapAmbientMath.FrameParallaxPanLimitFraction.
+                dx += MapAmbientMath.ParallaxOffset(
+                    panX, factor, width * MapAmbientMath.FrameParallaxPanLimitFraction);
+                dy += MapAmbientMath.ParallaxOffset(
+                    panY, factor, height * MapAmbientMath.FrameParallaxPanLimitFraction);
 
                 cloud.style.translate = new Translate(dx, dy);
                 float swell = MapAmbientMath.FrameSwell(i, _elapsedSeconds);

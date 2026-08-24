@@ -71,6 +71,10 @@ namespace Mikey.UI.Map
 
             float settle = MapPanZoomMath.EaseOutCubic(timeSeconds / SettleSeconds);
 
+            // Свой предел пана, не общий с рамкой: см. MapWindMath.ParallaxPanLimit.
+            float panLimitX = MapWindMath.ParallaxPanLimit(canvasWidth);
+            float panLimitY = MapWindMath.ParallaxPanLimit(canvasHeight);
+
             for (int i = 0; i < _clouds.Length; i++)
             {
                 VisualElement cloud = _clouds[i];
@@ -82,9 +86,9 @@ namespace Mikey.UI.Map
                 float cloudWidth = canvasWidth * lane.WidthFraction;
 
                 float x = MapWindMath.LaneOffsetX(progress, canvasWidth, cloudWidth)
-                    + MapAmbientMath.ParallaxOffset(panX, lane.ParallaxFactor);
+                    + MapAmbientMath.ParallaxOffset(panX, lane.ParallaxFactor, panLimitX);
                 float y = MapWindMath.Bob(timeSeconds, lane.CrossSeconds, lane.Phase, canvasHeight)
-                    + MapAmbientMath.ParallaxOffset(panY, lane.ParallaxFactor);
+                    + MapAmbientMath.ParallaxOffset(panY, lane.ParallaxFactor, panLimitY);
 
                 float swell = MapWindMath.Swell(timeSeconds, lane.CrossSeconds, lane.Phase);
                 float roll = MapWindMath.RollDegrees(timeSeconds, lane.CrossSeconds, lane.Phase);
