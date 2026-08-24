@@ -103,8 +103,21 @@ namespace Mikey.UI.Map
         /// </summary>
         private const float TransitionApproachZoom = 1.6f;
 
-        /// <summary>Okinawa's post-swap settle target zoom (Japan -&gt; Okinawa only) — higher than <see cref="TransitionApproachZoom"/> so the settle phase reads as continuing to zoom deeper into the same location, never a snap.</summary>
-        private const float OkinawaSettleZoom = 2.0f;
+        /// <summary>
+        /// Okinawa's post-swap settle target zoom (Japan -&gt; Okinawa only) —
+        /// higher than <see cref="TransitionApproachZoom"/> so the settle phase
+        /// reads as continuing to zoom deeper into the same location, never a
+        /// snap.
+        ///
+        /// <para>
+        /// Public because it is the DEEPEST zoom at which a map ever comes to
+        /// rest, and the wind layer's drawing-cost budget is measured at
+        /// exactly that zoom — see MapWindLayout.AreaBudgetScreens. Measuring
+        /// that budget at zoom 1 (as it used to be) describes a state the map
+        /// is never in.
+        /// </para>
+        /// </summary>
+        public const float OkinawaSettleZoom = 2.0f;
 
         /// <summary>True for the whole approach-swap-settle sequence. Static/session-scoped like MapNavigationState: other Map controllers (including MapPanZoomController) check this to ignore input mid-transition and to prevent a transition starting twice.</summary>
         public static bool IsTransitioning { get; private set; }

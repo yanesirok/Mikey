@@ -625,12 +625,21 @@
                 <ui:VisualElement name="map-stage" class="pan-stage">
                     <ui:VisualElement name="map-canvas" class="pan-canvas">
                         <ui:VisualElement class="map-canvas-art" picking-mode="Ignore" />
-                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
                         <!-- Плывущий слой: семь облаков на трёх полосах
                              глубины, см. MapWindLayout. Объявлен здесь, а не
                              рядом со слоем рамки внизу, намеренно: тут он
                              красится над артом карты, но ПОД маркерами.
+                             И ПЕРЕД ".pan-canvas-scrim": скрим читаемости
+                             приглушает арт, и слой погоды обязан приглушаться
+                             вместе с ним, иначе он работает против контраста
+                             подписей. Второе следствие того же порядка —
+                             открытие панели главы уводит скрим в
+                             rgba(8,10,12,0.32) за 0.34 с (см. Map.uss,
+                             правило скрима под классом "pushed" у стейджа):
+                             под скримом облака темнеют вместе с картой, над ним —
+                             отлипали бы от арта на каждом тапе, а собственных
+                             CSS-переходов у ветра нет и быть не должно.
                              Размер и высоту пишет MapWindLayout.Apply при
                              показе и на смене размера; путь, крен, набухание и
                              прозрачность считает MapWindLayer.Tick. Классы
@@ -643,8 +652,10 @@
                             <ui:VisualElement name="map-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
                             <ui:VisualElement name="map-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
                             <ui:VisualElement name="map-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-6" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="map-wind-6" class="map-wind map-wind--left-02" picking-mode="Ignore" />
                         </ui:VisualElement>
+
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
                         <!-- Chapter 0: unlocked, current starting chapter. Position
                              (style.left/top, percent) is applied at bind time by
@@ -841,11 +852,12 @@
                 <ui:VisualElement name="okinawa-stage" class="pan-stage">
                     <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
                         <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
-                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
                         <!-- Плывущий слой Окинавы. Полосы те же, что на
                              Японии, см. MapWindLayout: композиция полос от
-                             экрана не зависит. -->
+                             экрана не зависит. Порядок относительно
+                             ".pan-canvas-scrim" тоже тот же и по тем же
+                             причинам — см. слой Японии выше. -->
                         <ui:VisualElement name="okinawa-wind-layer" class="map-wind-layer" picking-mode="Ignore">
                             <ui:VisualElement name="okinawa-wind-0" class="map-wind map-wind--left-01" picking-mode="Ignore" />
                             <ui:VisualElement name="okinawa-wind-1" class="map-wind map-wind--right-01" picking-mode="Ignore" />
@@ -853,8 +865,10 @@
                             <ui:VisualElement name="okinawa-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
                             <ui:VisualElement name="okinawa-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
                             <ui:VisualElement name="okinawa-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-6" class="map-wind map-wind--left-01" picking-mode="Ignore" />
+                            <ui:VisualElement name="okinawa-wind-6" class="map-wind map-wind--left-02" picking-mode="Ignore" />
                         </ui:VisualElement>
+
+                        <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
                         <!-- LVL 0-8: Okinawa's mission set (1 Special + 4
                              Training + 3 Fight + 1 Boss Fight, see

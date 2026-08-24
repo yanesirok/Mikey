@@ -68,6 +68,45 @@ namespace Mikey.UI.Map.Tests
             Assert.Less(okiWind, okiMarker);
         }
 
+        /// <summary>
+        /// Слой ветра обязан стоять ПОД ".pan-canvas-scrim".
+        ///
+        /// <para>
+        /// Два следствия обратного порядка, и второе видно каждым тапом.
+        /// Первое: скрим читаемости приглушает арт, и атмосферный слой поверх
+        /// него работает против контраста подписей, а не заодно с ним.
+        /// Второе: при открытии панели главы скрим уходит в
+        /// rgba(8, 10, 12, 0.32) за 0.34 с (Map.uss,
+        /// ".pan-stage--pushed .pan-canvas-scrim") — карта темнеет, а слой
+        /// поверх скрима не темнеет вовсе и визуально отлипает от арта.
+        /// Участвовать в переходе своими средствами он не может: собственных
+        /// CSS-переходов у ветра нет и быть не должно.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void WindLayerIsDeclaredUnderTheReadabilityScrim()
+        {
+            string uxml = File.ReadAllText(UxmlPath);
+
+            AssertWindPrecedesItsScrim(uxml, "map-canvas", "map-wind-layer");
+            AssertWindPrecedesItsScrim(uxml, "okinawa-canvas", "okinawa-wind-layer");
+        }
+
+        private static void AssertWindPrecedesItsScrim(string uxml, string canvasName, string windLayerName)
+        {
+            int canvas = uxml.IndexOf($"name=\"{canvasName}\"", System.StringComparison.Ordinal);
+            Assert.Greater(canvas, -1, $"Канвас {canvasName} не найден в разметке.");
+
+            int wind = uxml.IndexOf($"name=\"{windLayerName}\"", canvas, System.StringComparison.Ordinal);
+            int scrim = uxml.IndexOf("class=\"pan-canvas-scrim\"", canvas, System.StringComparison.Ordinal);
+
+            Assert.Greater(wind, -1, $"Слой ветра {windLayerName} не найден внутри {canvasName}.");
+            Assert.Greater(scrim, -1, $"Скрим читаемости не найден внутри {canvasName}.");
+            Assert.Less(wind, scrim,
+                $"{windLayerName} объявлен ПОСЛЕ .pan-canvas-scrim — значит, красится поверх "
+                + "скрима: не приглушается им и не темнеет вместе с картой при открытии панели главы.");
+        }
+
         [Test]
         public void FramingCloudLayerStillPaintsAboveTheWind()
         {

@@ -162,7 +162,10 @@ namespace Mikey.UI.Map.Tests
             // settle target to exceed the approach/transfer zoom.
             string source = File.ReadAllText(SourcePath);
             StringAssert.Contains("private const float TransitionApproachZoom = 1.6f;", source);
-            StringAssert.Contains("private const float OkinawaSettleZoom = 2.0f;", source);
+            // public, а не private: тот же зум — единственная точка покоя
+            // глубже входного, и на нём меряется бюджет площади ветра
+            // (MapWindLayout.AreaBudgetScreens).
+            StringAssert.Contains("public const float OkinawaSettleZoom = 2.0f;", source);
             Assert.Greater(2.0f, 1.6f);
         }
 

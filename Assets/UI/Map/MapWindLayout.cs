@@ -81,8 +81,28 @@ namespace Mikey.UI.Map
         public const float MidParallax = 0.75f;
         public const float NearParallax = 1.30f;
 
-        /// <summary>Потолок суммарной площади ветровых квадов в долях экрана. Рамка стоит около 2.0 — ветер обязан быть дешевле.</summary>
-        public const float AreaBudgetScreens = 1.8f;
+        /// <summary>
+        /// Потолок ВИДИМОЙ площади ветровых квадов в долях экрана на зуме
+        /// покоя.
+        ///
+        /// <para>
+        /// Считается именно видимая площадь при реальном зуме, а не сумма
+        /// долей канваса. Слой — ребёнок <c>.pan-canvas</c>, а канвас рисуется
+        /// с зумом, и площадь на экране растёт как КВАДРАТ зума: сырая сумма
+        /// по таблице (1.52 экрана) — число состояния, которого не бывает
+        /// никогда, потому что зум не опускается ниже 1.4 на входе и стоит на
+        /// 2.0 в покое Окинавы. Реальный пик на зуме покоя Окинавы — около
+        /// 2.45 экрана.
+        /// </para>
+        ///
+        /// <para>
+        /// Защищается это тем же, чем и раньше: карта — статичное меню, а не
+        /// бой, и <c>OnDemandRendering.renderFrameInterval = 2</c> уже вдвое
+        /// режет частоту обновления. См. §9 спеки и
+        /// MapWindLayoutTests.VisibleQuadAreaStaysInsideTheBudget.
+        /// </para>
+        /// </summary>
+        public const float AreaBudgetScreens = 2.7f;
 
         /// <summary>Пропорция альбомного телефона, на которой считается бюджет площади.</summary>
         public const float BudgetCanvasAspect = 2.17f;
@@ -95,7 +115,15 @@ namespace Mikey.UI.Map
             new WindCloud(MidWidthFraction, 0.26f, 0.17f, MidCrossSeconds, MidRestOpacity, MidParallax, "map-wind--right-01"),
             new WindCloud(MidWidthFraction, 0.44f, 0.55f, MidCrossSeconds, MidRestOpacity, MidParallax, "map-wind--left-01"),
             new WindCloud(MidWidthFraction, 0.35f, 0.88f, MidCrossSeconds, MidRestOpacity, MidParallax, "map-wind--bottom-01"),
-            new WindCloud(NearWidthFraction, 0.30f, 0.31f, NearCrossSeconds, NearRestOpacity, NearParallax, "map-wind--left-01"),
+            // Текстура ближней полосы — left_02, а НЕ left_01. Ближнее облако
+            // шириной 0.78 канваса проходит ровно сквозь зону рамочного left1
+            // (0.6736 после cover-fit, разница масштаба всего 16%, базовый угол
+            // у обоих 0°, зоны пересекаются по y = [0.300 ... 0.500]): каждые 95
+            // секунд облако проплывало сквозь собственного статичного двойника.
+            // left_02 — единственная из четырёх текстур, чьё рамочное облако
+            // (y = [-0.393 ... 0.081] на Японии, ещё выше на Окинаве) не
+            // пересекается с полосой ближнего вовсе. См. §11 спеки.
+            new WindCloud(NearWidthFraction, 0.30f, 0.31f, NearCrossSeconds, NearRestOpacity, NearParallax, "map-wind--left-02"),
         };
 
         /// <summary>Высота элемента в долях высоты канваса, сохраняющая пропорции исходного PNG.</summary>

@@ -111,25 +111,152 @@ namespace Mikey.UI.Map.Tests
         /// <summary>
         /// Потолок стоимости слоя. GPU растеризует и смешивает весь квад, а не
         /// только видимую тушь, поэтому цена считается по площади
-        /// прямоугольников. Рамка стоит около 2.0 экранов; ветер обязан
-        /// остаться дешевле неё.
+        /// прямоугольников — но именно ВИДИМЫХ и именно при реальном зуме.
+        ///
+        /// <para>
+        /// Прежний вид этого теста складывал доли КАНВАСА и сравнивал сумму с
+        /// потолком, то есть мерил состояние, которого не бывает: слой —
+        /// ребёнок <c>.pan-canvas</c>, канвас рисуется с зумом, а площадь на
+        /// экране растёт как КВАДРАТ зума. Зум не опускается ниже 1.4 на
+        /// входе и стоит на 2.0 в покое Окинавы, так что «1.52 экрана» было
+        /// занижением вдвое с лишним.
+        /// </para>
+        ///
+        /// <para>
+        /// Меряется пик по всему циклу полос и по всему разрешённому диапазону
+        /// пана на зуме покоя Окинавы — самом глубоком, на котором карта
+        /// когда-либо останавливается.
+        /// </para>
         /// </summary>
         [Test]
-        public void TotalQuadAreaStaysInsideTheBudget()
+        public void VisibleQuadAreaStaysInsideTheBudget()
         {
-            float total = 0f;
+            float peak = PeakVisibleScreens(MapCloudTransitionController.OkinawaSettleZoom);
+
+            Assert.Greater(peak, 0f, "Тест обязан был что-то посчитать.");
+            Assert.LessOrEqual(peak, MapWindLayout.AreaBudgetScreens,
+                $"Пик видимой площади ветровых квадов — {peak:F3} экрана на зуме покоя "
+                + $"{MapCloudTransitionController.OkinawaSettleZoom:F1} — превышает потолок "
+                + $"{MapWindLayout.AreaBudgetScreens}. Это прямая плата кадром на телефоне.");
+        }
+
+        /// <summary>
+        /// Сырая сумма долей канваса — то, что мерил прежний тест, — обязана
+        /// остаться СИЛЬНО ниже реального пика. Тест против отката к «мерим
+        /// при единичном зуме»: без него подмена меры обратно на сырую сумму
+        /// прошла бы зелёной, ведь 1.52 меньше любого разумного потолка.
+        /// </summary>
+        [Test]
+        public void RawFractionSumUnderstatesTheRealCost()
+        {
+            float raw = 0f;
             foreach (WindCloud cloud in MapWindLayout.Clouds)
             {
                 float height = MapWindLayout.HeightFraction(
                     cloud.WidthFraction, MapWindLayout.BudgetCanvasAspect, 1f);
-                total += cloud.WidthFraction * height;
+                raw += cloud.WidthFraction * height;
             }
 
-            Assert.Greater(total, 0f, "Тест обязан был что-то посчитать.");
-            Assert.LessOrEqual(total, MapWindLayout.AreaBudgetScreens,
-                $"Суммарная площадь ветровых квадов {total:F3} экрана превышает потолок " +
-                $"{MapWindLayout.AreaBudgetScreens}. Это прямая плата кадром на телефоне.");
+            float peak = PeakVisibleScreens(MapCloudTransitionController.OkinawaSettleZoom);
+
+            // 1.3, а не 1.5: измеренный запас (2.452 против 1.518, то есть
+            // 1.62) сам по себе свойство таблицы полос, и порог впритык к нему
+            // краснел бы от безобидной правки ширины. От единицы — а именно
+            // единицу дал бы возврат к сырой сумме — 1.3 отстоит уверенно.
+            Assert.Greater(peak, raw * 1.3f,
+                $"Сырая сумма {raw:F3} и измеренный пик {peak:F3} слишком близки — похоже, "
+                + "мера снова считает доли канваса, а не видимую площадь при реальном зуме.");
         }
+
+        /// <summary>
+        /// Пик видимой площади всех семи квадов в долях ЭКРАНА при данном
+        /// зуме. Канвас масштабируется вокруг своего центра и сдвигается на
+        /// пан, поэтому в координатах канваса видно окно шириной
+        /// <c>W / zoom</c>; площадь пересечения переводится на экран
+        /// множителем <c>zoom * zoom</c>.
+        ///
+        /// <para>
+        /// В геометрию входит набухание: <c>Swell</c> растит квад от центра, и
+        /// растеризуется именно увеличенный прямоугольник. Крен (±1.6°) в
+        /// расчёт не входит — на таком угле прирост охватывающего
+        /// прямоугольника ниже процента и тонет в шаге выборки.
+        /// </para>
+        /// </summary>
+        private static float PeakVisibleScreens(float zoom)
+        {
+            const float H = 1000f;
+            const int TimeSamples = 6000;
+
+            // Общий период трёх полос: НОК(200, 140, 95). Меньший интервал
+            // оставил бы часть взаимных положений полос неопробованной.
+            const float Span = 26600f;
+
+            float W = H * MapWindLayout.BudgetCanvasAspect;
+            float maxPanX = MapPanZoomMath.MaxPanForZoom(zoom, W);
+            float maxPanY = MapPanZoomMath.MaxPanForZoom(zoom, H);
+
+            float peak = 0f;
+            for (int s = 0; s < TimeSamples; s++)
+            {
+                float t = s * (Span / TimeSamples);
+                for (int ix = -2; ix <= 2; ix++)
+                {
+                    for (int iy = -2; iy <= 2; iy++)
+                    {
+                        float value = VisibleScreens(t, zoom, maxPanX * ix * 0.5f, maxPanY * iy * 0.5f, W, H);
+                        if (value > peak)
+                            peak = value;
+                    }
+                }
+            }
+
+            return peak;
+        }
+
+        /// <summary>Видимая площадь всех квадов в долях экрана в один момент времени при данных зуме и пане.</summary>
+        private static float VisibleScreens(float t, float zoom, float panX, float panY, float W, float H)
+        {
+            float loX = W * 0.5f - (W * 0.5f + panX) / zoom;
+            float hiX = W * 0.5f + (W * 0.5f - panX) / zoom;
+            float loY = H * 0.5f - (H * 0.5f + panY) / zoom;
+            float hiY = H * 0.5f + (H * 0.5f - panY) / zoom;
+
+            float panLimitX = MapWindMath.ParallaxPanLimit(W);
+            float panLimitY = MapWindMath.ParallaxPanLimit(H);
+
+            float total = 0f;
+            foreach (WindCloud lane in MapWindLayout.Clouds)
+            {
+                float width = lane.WidthFraction * W;
+                float height = MapWindLayout.HeightFraction(lane.WidthFraction, W, H) * H;
+                float progress = MapWindMath.LaneProgress(t, lane.CrossSeconds, lane.Phase);
+
+                float x = MapWindMath.LaneOffsetX(progress, W, width)
+                    + MapAmbientMath.ParallaxOffset(panX, lane.ParallaxFactor, panLimitX);
+                float y = lane.TopFraction * H
+                    + MapWindMath.Bob(t, lane.CrossSeconds, lane.Phase, H)
+                    + MapAmbientMath.ParallaxOffset(panY, lane.ParallaxFactor, panLimitY);
+
+                float swell = MapWindMath.Swell(t, lane.CrossSeconds, lane.Phase);
+                float halfWidth = width * swell * 0.5f;
+                float halfHeight = height * swell * 0.5f;
+                float centerX = x + width * 0.5f;
+                float centerY = y + height * 0.5f;
+
+                float overlapX = Min(centerX + halfWidth, hiX) - Max(centerX - halfWidth, loX);
+                float overlapY = Min(centerY + halfHeight, hiY) - Max(centerY - halfHeight, loY);
+                if (overlapX <= 0f || overlapY <= 0f)
+                    continue;
+
+                total += overlapX * overlapY;
+            }
+
+            return total * zoom * zoom / (W * H);
+        }
+
+        private static float Min(float a, float b) => a < b ? a : b;
+
+        private static float Max(float a, float b) => a > b ? a : b;
 
         [Test]
         public void EveryTextureClassIsOneOfTheFourKnownOnes()
@@ -165,7 +292,7 @@ namespace Mikey.UI.Map.Tests
                 new WindCloud(0.52f, 0.26f, 0.17f, 140f, 0.24f, 0.75f, "map-wind--right-01"),
                 new WindCloud(0.52f, 0.44f, 0.55f, 140f, 0.24f, 0.75f, "map-wind--left-01"),
                 new WindCloud(0.52f, 0.35f, 0.88f, 140f, 0.24f, 0.75f, "map-wind--bottom-01"),
-                new WindCloud(0.78f, 0.30f, 0.31f, 95f, 0.18f, 1.30f, "map-wind--left-01"),
+                new WindCloud(0.78f, 0.30f, 0.31f, 95f, 0.18f, 1.30f, "map-wind--left-02"),
             };
 
             Assert.AreEqual(expected.Length, MapWindLayout.Clouds.Length);
