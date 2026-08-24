@@ -645,17 +645,8 @@
                              прозрачность считает MapWindLayer.Tick. Классы
                              текстур переиспользуют те же четыре PNG, что и
                              рамка. -->
-                        <ui:VisualElement name="map-wind-layer" class="map-wind-layer" picking-mode="Ignore">
-                            <ui:VisualElement name="map-wind-0" class="map-wind map-wind--left-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-1" class="map-wind map-wind--right-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-2" class="map-wind map-wind--left-02" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="map-wind-6" class="map-wind map-wind--left-02" picking-mode="Ignore" />
-                        </ui:VisualElement>
-
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
+
 
                         <!-- Chapter 0: unlocked, current starting chapter. Position
                              (style.left/top, percent) is applied at bind time by
@@ -853,20 +844,6 @@
                     <ui:VisualElement name="okinawa-canvas" class="pan-canvas">
                         <ui:VisualElement class="okinawa-canvas-art" picking-mode="Ignore" />
 
-                        <!-- Плывущий слой Окинавы. Полосы те же, что на
-                             Японии, см. MapWindLayout: композиция полос от
-                             экрана не зависит. Порядок относительно
-                             ".pan-canvas-scrim" тоже тот же и по тем же
-                             причинам — см. слой Японии выше. -->
-                        <ui:VisualElement name="okinawa-wind-layer" class="map-wind-layer" picking-mode="Ignore">
-                            <ui:VisualElement name="okinawa-wind-0" class="map-wind map-wind--left-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-1" class="map-wind map-wind--right-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-2" class="map-wind map-wind--left-02" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-3" class="map-wind map-wind--right-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-4" class="map-wind map-wind--left-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-5" class="map-wind map-wind--bottom-01" picking-mode="Ignore" />
-                            <ui:VisualElement name="okinawa-wind-6" class="map-wind map-wind--left-02" picking-mode="Ignore" />
-                        </ui:VisualElement>
 
                         <ui:VisualElement class="pan-canvas-scrim" picking-mode="Ignore" />
 
@@ -980,42 +957,6 @@
                     <ui:VisualElement name="okinawa-outside-catcher" class="map-outside-catcher" picking-mode="Ignore" />
                 </ui:VisualElement>
 
-                <!-- level detail OVERLAY popup: unlike the shared ".detail-panel"
-                     slide used by the Japan chapter panel, this one raises as a
-                     SCROLL, requested by name by the product owner. Contract:
-                     the outer container (".detail-panel", "scroll" modifier
-                     below) never moves and only clips (overflow:hidden); the
-                     ".scroll-panel__paper" inside it is what slides, via
-                     translate, out from under the container's own top edge,
-                     carrying the rod at its bottom edge along with it. Height
-                     is never touched (animating it would be a full layout
-                     pass every frame, exactly what this whole design avoids),
-                     and scaling Y from 0 was rejected too because it would
-                     squash the text. See Map.uss for the ".scroll-panel__*"
-                     rules and OkinawaMapController for the "revealed"
-                     modifier class that staggers the content in after the
-                     paper has mostly unrolled. NOTE: XML comments can't
-                     contain a literal double hyphen, so BEM modifier classes
-                     are named here without their leading two dashes. -->
-                <ui:VisualElement name="level-panel" class="detail-panel detail-panel--scroll" picking-mode="Ignore">
-                    <ui:VisualElement name="level-panel-paper" class="scroll-panel__paper" picking-mode="Ignore">
-                        <ui:VisualElement class="detail-panel__content">
-                            <ui:Label name="level-panel-eyebrow" text="LEVEL" class="detail-panel__eyebrow" />
-                            <ui:Label name="level-panel-title" text="LVL 0" class="detail-panel__title" />
-                            <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="detail-panel__subtitle" />
-                            <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="detail-panel__desc" />
-
-                            <!-- local controller-bound action (NOT a "go-" navigator):
-                                 OkinawaMapController routes LVL 0 to "combineIntro"
-                                 and LVL 1 to the existing lesson/techniques flow;
-                                 disabled while locked. -->
-                            <ui:Button name="level-panel-cta" class="detail-panel__cta tap-target-lg">
-                                <ui:Label name="level-panel-cta-text" text="BEGIN" class="detail-panel__cta-text" picking-mode="Ignore" />
-                            </ui:Button>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="scroll-panel__rod" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
 
                 <!-- starts opaque; OkinawaMapController fades it out on entry,
                      completing the ink-fade begun by the Japan screen. -->
@@ -1076,6 +1017,96 @@
                                 <ui:VisualElement class="map-topbar__xp-bar__fill" picking-mode="Ignore" />
                             </ui:VisualElement>
                         </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- level detail popup: a centred hanging-scroll (makimono)
+                     modal over a full-screen dim, NOT the right-side slide the
+                     Japan chapter panel uses. It no longer shares ".detail-panel"
+                     with that panel at all — it has its own ".scroll-panel"
+                     system in Map.uss, precisely so the Japan panel can never be
+                     restyled by accident from here.
+                     Contract: the top roll stands still, the paper grows
+                     DOWNWARD (its own height animates), and the bottom roll
+                     rides the paper's lower edge simply by being the next flex
+                     child of the column. Animating height was the product
+                     owner's explicit call, overriding this file's earlier
+                     translate-based scroll — see the long note above
+                     ".scroll-panel" in Map.uss for what that costs and how to
+                     revert it if the frame ever gets expensive.
+                     Locked levels unroll shorter and carry a cord across the
+                     paper instead of a CTA; both are pure USS off the "locked"
+                     modifier, so the controller toggles ONE class and never
+                     touches display in C#.
+                     DECLARED AFTER THE HUD ON PURPOSE, unlike the Japan
+                     chapter panel. Map.uss's ".map-topbar" note gives the
+                     rule: the HUD paints above PANELS (so a tap on it is
+                     never swallowed) but below MODALS (so an open modal still
+                     covers it). The scroll is a modal — its dim has to reach
+                     the HUD, and while it is open the HUD must not be
+                     tappable, or the player could navigate away through a
+                     bar the popup is supposed to be covering. Moving this
+                     block back above the HUD silently un-dims the bar.
+                     NOTE: XML comments can't contain a literal double hyphen,
+                     so BEM modifier classes are named here without their
+                     leading two dashes. -->
+                <ui:VisualElement name="level-panel" class="scroll-panel" picking-mode="Ignore">
+                    <!-- also the tap-outside close surface: the scroll covers the
+                         whole screen, so Okinawa's own ".map-outside-catcher"
+                         underneath it can no longer be reached by a tap. Same
+                         handler, same pickingMode toggle — see
+                         OkinawaMapController.SetOutsideCatcherActive. -->
+                    <ui:VisualElement name="level-panel-backdrop" class="scroll-panel__backdrop" picking-mode="Ignore" />
+                    <ui:VisualElement class="scroll-panel__column" picking-mode="Ignore">
+                        <ui:VisualElement class="scroll-panel__roll scroll-panel__roll--top" picking-mode="Ignore" />
+                        <!-- Position (not Ignore): a tap on the scroll itself must
+                             stop here and NOT fall through to the backdrop behind
+                             it, which would close the popup the player just
+                             opened. Closed, its height is 0, so there is nothing
+                             to hit. -->
+                        <ui:VisualElement name="level-panel-paper" class="scroll-panel__paper">
+                            <ui:VisualElement class="scroll-panel__wash" picking-mode="Ignore" />
+                            <ui:VisualElement name="level-panel-text" class="scroll-panel__text" picking-mode="Ignore">
+                                <ui:VisualElement class="scroll-panel__head" picking-mode="Ignore">
+                                    <!-- text set by OkinawaMapController.ShowLevelPanel;
+                                         the eyebrow comes from MapMarkerLayout.Missions,
+                                         the one source of mission type, never from here. -->
+                                    <ui:Label name="level-panel-eyebrow" text="SPECIAL MISSION" class="scroll-panel__eyebrow" />
+                                    <ui:Label name="level-panel-title" text="Level 0" class="scroll-panel__title" />
+                                    <ui:Label name="level-panel-subtitle" text="ASSESSMENT" class="scroll-panel__subtitle" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="scroll-panel__rule" picking-mode="Ignore">
+                                    <ui:VisualElement class="scroll-panel__rule__echo" picking-mode="Ignore" />
+                                </ui:VisualElement>
+                                <ui:Label name="level-panel-desc" text="Measure your starting ability and learn how Mikey evaluates your movement." class="scroll-panel__desc" />
+                                <!-- locked only (USS "locked" modifier); the design
+                                     has no greyed-out LOCKED button by design. -->
+                                <ui:Label name="level-panel-requirement" text="Finish Level 0 to unlock." class="scroll-panel__requirement" />
+
+                                <!-- local controller-bound action (NOT a "go-" navigator):
+                                     OkinawaMapController routes LVL 0 to "combineIntro"
+                                     and LVL 1 to the existing lesson/techniques flow.
+                                     Hidden outright while locked. -->
+                                <ui:Button name="level-panel-cta" class="scroll-panel__cta tap-target">
+                                    <ui:Label name="level-panel-cta-text" text="BEGIN" class="scroll-panel__cta-text" picking-mode="Ignore" />
+                                    <ui:VisualElement class="scroll-panel__cta-underline" picking-mode="Ignore">
+                                        <ui:VisualElement class="scroll-panel__cta-underline__stroke scroll-panel__cta-underline__stroke--a" picking-mode="Ignore" />
+                                        <ui:VisualElement class="scroll-panel__cta-underline__stroke scroll-panel__cta-underline__stroke--b" picking-mode="Ignore" />
+                                        <ui:VisualElement class="scroll-panel__cta-underline__stroke scroll-panel__cta-underline__stroke--c" picking-mode="Ignore" />
+                                    </ui:VisualElement>
+                                </ui:Button>
+                            </ui:VisualElement>
+                            <!-- locked only: a cord tied across the paper. Five flat
+                                 bars, because USS has no gradients at all. -->
+                            <ui:VisualElement class="scroll-panel__cord" picking-mode="Ignore">
+                                <ui:VisualElement class="scroll-panel__cord__strand scroll-panel__cord__strand--light" picking-mode="Ignore" />
+                                <ui:VisualElement class="scroll-panel__cord__strand scroll-panel__cord__strand--mid" picking-mode="Ignore" />
+                                <ui:VisualElement class="scroll-panel__cord__strand scroll-panel__cord__strand--dark" picking-mode="Ignore" />
+                                <ui:VisualElement class="scroll-panel__cord__strand scroll-panel__cord__strand--lower-light" picking-mode="Ignore" />
+                                <ui:VisualElement class="scroll-panel__cord__strand scroll-panel__cord__strand--lower-dark" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="scroll-panel__roll scroll-panel__roll--bottom" picking-mode="Ignore" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

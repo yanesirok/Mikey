@@ -117,30 +117,36 @@ namespace Mikey.UI.Map
         /// IsLevelLocked always locks them) but their mission TYPE is assigned
         /// here regardless — type and progression state are separate
         /// concerns, so a locked Boss Fight still shows the Boss Fight
-        /// marker. Coordinates are exact, measured directly on the 6336x2688
-        /// okinawa_map_final.jpg source, not estimated by eye:
-        /// LVL0 (2118, 2039), LVL1 (2742, 1613), LVL2 (3117, 1357),
-        /// LVL3 (3498, 1319), LVL4 (3834, 851), LVL5 (4188, 1217),
-        /// LVL6 (4460, 1196), LVL7 (4734, 1187), LVL8 (5154, 983).
+        /// marker. Coordinates are exact, on the 6336x2688
+        /// okinawa_map_final.jpg source:
+        /// LVL0 (2118, 2039), LVL1 (2742, 1613), LVL2 (3374, 1430),
+        /// LVL3 (3698, 1428), LVL4 (3834, 899), LVL5 (4188, 1334),
+        /// LVL6 (4517, 1252), LVL7 (4829, 1179), LVL8 (5141, 1103).
         ///
-        /// LVL2 and LVL6 are the two added when the chapter grew from 7 to 9:
-        /// they were placed BETWEEN existing markers (on the isthmus and on the
-        /// eastern body respectively) rather than appended past the old last
-        /// one, because the island simply ends there — anything further
-        /// north-east would float in open sea. Every other marker kept its
-        /// original coordinate and only its level number shifted.
+        /// <b>A coordinate here is the pin's TIP, but the 54px icon is drawn
+        /// ABOVE it</b> (see the anchoring note above), so the land a marker needs
+        /// is not the single point under the tip — it is a whole icon-sized box
+        /// reaching upward from it, about 168x168 source px at min zoom. Okinawa
+        /// is a thin island: several of these markers previously had a tip on
+        /// land while their icon hung out over open sea, worst of all the boss,
+        /// whose icon cleared the north-east coast entirely. Every coordinate
+        /// below was therefore re-seated against a flood-filled land mask of the
+        /// source art so the FULL icon box is on land, keeping each marker as
+        /// close to its earlier spot as that allows and at least ~320 source px
+        /// from its neighbour. Moving one by hand means re-checking the icon
+        /// box, not just the point.
         /// </summary>
         public static readonly MissionMarkerLayout[] Missions =
         {
             new MissionMarkerLayout(0, 0.33428f, 0.75856f, MissionMarkerType.Special),
             new MissionMarkerLayout(1, 0.43277f, 0.60007f, MissionMarkerType.Training),
-            new MissionMarkerLayout(2, 0.49195f, 0.50484f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(3, 0.55208f, 0.49070f, MissionMarkerType.Training),
-            new MissionMarkerLayout(4, 0.60511f, 0.31659f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(5, 0.66098f, 0.45275f, MissionMarkerType.Training),
-            new MissionMarkerLayout(6, 0.70391f, 0.44494f, MissionMarkerType.Fight),
-            new MissionMarkerLayout(7, 0.74716f, 0.44159f, MissionMarkerType.Training),
-            new MissionMarkerLayout(8, 0.81345f, 0.36570f, MissionMarkerType.BossFight),
+            new MissionMarkerLayout(2, 0.53245f, 0.53184f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(3, 0.58358f, 0.53120f, MissionMarkerType.Training),
+            new MissionMarkerLayout(4, 0.60511f, 0.33459f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(5, 0.66098f, 0.49625f, MissionMarkerType.Training),
+            new MissionMarkerLayout(6, 0.71291f, 0.46594f, MissionMarkerType.Fight),
+            new MissionMarkerLayout(7, 0.76216f, 0.43859f, MissionMarkerType.Training),
+            new MissionMarkerLayout(8, 0.81133f, 0.41050f, MissionMarkerType.BossFight),
         };
 
         /// <summary>

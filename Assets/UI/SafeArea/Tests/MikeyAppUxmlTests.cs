@@ -320,35 +320,74 @@ namespace Mikey.UI.SafeArea.Tests
                 "The Vow overlay is retired with the Main Menu.");
         }
 
-        // 33 — theme.uss ".mikey-app" remains the ONE place the global Mikey font
-        // is declared. Every descendant TextElement (including labels the Profile
-        // radar creates dynamically in C#) inherits it purely through the USS
-        // cascade; a local "-unity-font-definition" override anywhere else would
-        // both defeat that inheritance for its subtree and violate theme.uss's
-        // own "screens should not redeclare font-family locally" contract.
+        // 33 — theme.uss ".mikey-app" remains the ONE place the GLOBAL Mikey
+        // font is declared, and no other stylesheet may restate it. Every
+        // descendant TextElement (including labels the Profile radar creates
+        // dynamically in C#) inherits it purely through the USS cascade; a
+        // local re-declaration of that same font would both defeat the
+        // inheritance for its subtree and violate theme.uss's own "screens
+        // should not redeclare font-family locally" contract.
+        //
+        // What this does NOT forbid is a DIFFERENT typeface deliberately
+        // introduced for one component. The Okinawa level scroll is the first:
+        // its brush display and body serif ARE the design, not a screen
+        // restating the app font. So the rule is "one global font, plus an
+        // explicit allowlist of intentional faces" rather than a raw count of
+        // declarations — a raw count could only be satisfied by hoisting the
+        // scroll's two fonts into theme.uss, where nothing else would ever use
+        // them and where they would sit further from the rules that need them.
+        // Adding a face to the allowlist is meant to be a deliberate edit; a
+        // screen quietly reaching for its own font still fails here.
+        private static readonly string[] IntentionalLocalFonts =
+        {
+            "YujiMai-Latin.ttf",        // Okinawa level scroll — brush display
+            "ShipporiMincho-Latin.ttf", // Okinawa level scroll — body serif
+        };
+
+        private const string GlobalFontFile = "mikey_ui.otf";
+
         [Test]
         public void GlobalMikeyFont_IsDeclaredExactlyOnce_InThemeUss()
         {
             string uiRoot = Path.Combine(UnityEngine.Application.dataPath, "UI");
             Assert.IsTrue(Directory.Exists(uiRoot), $"Expected {uiRoot} to exist.");
 
-            int totalDeclarations = 0;
+            int globalDeclarations = 0;
             foreach (string path in Directory.GetFiles(uiRoot, "*.uss", SearchOption.AllDirectories))
             {
                 string source = File.ReadAllText(path);
-                int count = CountOccurrences(source, "-unity-font-definition");
-                if (count == 0)
-                    continue;
+                string file = Path.GetFileName(path);
 
-                totalDeclarations += count;
-                Assert.AreEqual("theme.uss", Path.GetFileName(path),
-                    $"'{Path.GetFileName(path)}' must not redeclare the font locally — theme.uss's '.mikey-app' is the sole authoritative source.");
+                var declared = System.Text.RegularExpressions.Regex
+                    .Matches(source, "-unity-font-definition\\s*:\\s*url\\(\"([^\"]+)\"\\)")
+                    .Cast<System.Text.RegularExpressions.Match>()
+                    .Select(m => Path.GetFileName(m.Groups[1].Value))
+                    .ToList();
+
+                // Every declaration must be the url("...") form, or this test
+                // silently stops seeing which face a rule actually names.
+                Assert.AreEqual(CountOccurrences(source, "-unity-font-definition"), declared.Count,
+                    $"'{file}' declares a font in a form this test cannot read — write it as -unity-font-definition: url(\"/Assets/...\").");
+
+                foreach (string font in declared)
+                {
+                    if (font == GlobalFontFile)
+                    {
+                        globalDeclarations++;
+                        Assert.AreEqual("theme.uss", file,
+                            $"'{file}' restates the global app font — theme.uss's '.mikey-app' is the sole authoritative source, and every screen inherits from it.");
+                        continue;
+                    }
+
+                    CollectionAssert.Contains(IntentionalLocalFonts, font,
+                        $"'{file}' introduces the typeface '{font}', which is not on the intentional-faces allowlist in this test. A new face is a design decision: add it here with the component it belongs to, or use the inherited app font.");
+                }
             }
 
-            Assert.AreEqual(1, totalDeclarations, "Expected exactly one '-unity-font-definition' declaration across all of Assets/UI (in theme.uss).");
+            Assert.AreEqual(1, globalDeclarations, $"Expected exactly one '{GlobalFontFile}' declaration across all of Assets/UI (in theme.uss).");
 
             string themeUss = File.ReadAllText("Assets/UI/theme.uss");
-            StringAssert.Contains("mikey_ui.otf", themeUss);
+            StringAssert.Contains(GlobalFontFile, themeUss);
         }
 
         private static int CountOccurrences(string haystack, string needle)

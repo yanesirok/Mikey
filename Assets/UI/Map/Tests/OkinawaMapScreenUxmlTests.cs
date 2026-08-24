@@ -89,7 +89,8 @@ namespace Mikey.UI.Map.Tests
 
             var panel = screen.Q<VisualElement>("level-panel");
             Assert.IsNotNull(panel, "Expected a 'level-panel' overlay.");
-            Assert.IsFalse(panel.ClassListContains("detail-panel--open"), "Entering Okinawa must never auto-select a level.");
+            Assert.IsFalse(panel.ClassListContains("scroll-panel--open"), "Entering Okinawa must never auto-select a level.");
+            Assert.IsFalse(panel.ClassListContains("scroll-panel--locked"), "The locked look is applied per level when the scroll opens, never baked into the markup.");
 
             for (int i = 0; i < 9; i++)
                 Assert.IsFalse(screen.Q<Button>($"level-node-{i}").ClassListContains("level-node--selected"));
@@ -101,6 +102,85 @@ namespace Mikey.UI.Map.Tests
             var screen = OkinawaScreen(BuildTree());
             Assert.IsNotNull(screen.Q<Button>("level-panel-cta"));
             Assert.IsNotNull(screen.Q<Label>("level-panel-cta-text"));
+        }
+
+        /// <summary>
+        /// The popup is a scroll now, not the shared right-side
+        /// ".detail-panel" slide. Sharing that class was the whole hazard the
+        /// redesign had to remove: restyling it here would have silently
+        /// restyled the Japan chapter panel, which still uses it.
+        /// </summary>
+        [Test]
+        public void LevelPanel_NoLongerSharesTheJapanChapterPanelStyle()
+        {
+            var panel = OkinawaScreen(BuildTree()).Q<VisualElement>("level-panel");
+
+            Assert.IsTrue(panel.ClassListContains("scroll-panel"));
+            foreach (string shared in panel.GetClasses())
+            {
+                Assert.IsFalse(shared.StartsWith("detail-panel"),
+                    $"'level-panel' still carries \"{shared}\" -- the Japan chapter panel's style must not reach the Okinawa scroll.");
+            }
+        }
+
+        /// <summary>
+        /// Locked levels get a cord across the paper instead of a call to
+        /// action, and unlocked ones a brushstroke CTA. Both live in the
+        /// markup and are switched by ONE class in USS, so the controller
+        /// never touches style.display -- these ids/classes existing is what
+        /// makes that possible.
+        /// </summary>
+        [Test]
+        public void LevelPanel_CarriesBothLockedAndUnlockedFurniture()
+        {
+            var screen = OkinawaScreen(BuildTree());
+
+            Assert.IsNotNull(screen.Q<VisualElement>("level-panel-backdrop"), "Expected the dim backdrop -- it is also the tap-outside close surface.");
+            Assert.IsNotNull(screen.Q<VisualElement>("level-panel-paper"), "Expected the paper -- it is the element whose height unrolls.");
+            Assert.IsNotNull(screen.Q<Label>("level-panel-requirement"), "Expected the locked requirement line.");
+            Assert.IsNotNull(screen.Q<VisualElement>(className: "scroll-panel__cord"), "Expected the locked cord.");
+            Assert.IsNotNull(screen.Q<VisualElement>(className: "scroll-panel__roll--top"), "Expected the top roll.");
+            Assert.IsNotNull(screen.Q<VisualElement>(className: "scroll-panel__roll--bottom"), "Expected the bottom roll.");
+        }
+
+        /// <summary>
+        /// The scroll covers the whole screen, so a tap on the paper that fell
+        /// through to the backdrop behind it would close the popup the player
+        /// just opened. The paper must therefore stop picking itself.
+        /// </summary>
+        [Test]
+        public void LevelPanel_PaperStopsTapsFromReachingTheBackdrop()
+        {
+            var paper = OkinawaScreen(BuildTree()).Q<VisualElement>("level-panel-paper");
+            Assert.AreEqual(PickingMode.Position, paper.pickingMode);
+        }
+
+        /// <summary>
+        /// Paint order is the whole reason the dim works. UI Toolkit paints —
+        /// and hit-tests in reverse — document order, so the scroll must be
+        /// declared AFTER the HUD: otherwise the bar stays at full brightness
+        /// on top of a 0.9 backdrop and, worse, stays tappable, letting the
+        /// player navigate away through a bar the modal is supposed to be
+        /// covering. Map.uss's ".map-topbar" note carries the rule (HUD above
+        /// panels, below modals); this test is what stops the block drifting
+        /// back above it, which would look like nothing more than a
+        /// reordered chunk of markup in review.
+        /// </summary>
+        [Test]
+        public void LevelPanel_IsDeclaredAfterTheHud_SoTheDimCoversIt()
+        {
+            var screen = OkinawaScreen(BuildTree());
+            var panel = screen.Q<VisualElement>("level-panel");
+            var topbar = screen.Query<VisualElement>(className: "map-topbar").First();
+            Assert.IsNotNull(topbar, "Expected the Okinawa screen's shared top HUD.");
+
+            var siblings = panel.parent.Children().ToList();
+            int panelIndex = siblings.IndexOf(panel);
+            int topbarIndex = siblings.IndexOf(topbar);
+
+            Assert.Greater(topbarIndex, -1, "The HUD must be a sibling of 'level-panel' for their paint order to be comparable.");
+            Assert.Greater(panelIndex, topbarIndex,
+                "'level-panel' must be declared after the '.map-topbar' block so the scroll's dim covers the HUD and blocks taps on it while the popup is open.");
         }
 
         [Test]

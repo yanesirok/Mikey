@@ -94,7 +94,13 @@
    MikeyApp.uxml) so it always paints above them — UI Toolkit hit-tests in
    reverse document order, so this also means a tap on the HUD is never
    swallowed by the map/panel beneath it, with no extra picking-mode work
-   needed — but before the Settings modal, so an open modal still covers it.
+   needed — but before the MODALS, so an open modal still covers it. That
+   second half is not only about the shared Settings modal: on the Okinawa
+   screen the level scroll (".scroll-panel", declared after this block in
+   MikeyApp.uxml) is a modal too, and its dim is supposed to reach the HUD
+   and make it untappable while a scroll is open. So "HUD above panels,
+   below modals" is the whole rule — the Japan chapter panel is a panel and
+   stays under this bar; the Okinawa scroll is a modal and sits over it.
    Visible on both the Japan and Okinawa map screens, >= 48px targets,
    Title Case text (never a wall of all-caps) — the previous Map's text was
    reported both unreadable on device and too "heavy black bar with
@@ -820,86 +826,366 @@
     background-color: var(--base-3);
 }
 
-/* ---------- свиток (попап уровня) ----------
-   Единственная анимация во всём плане, чью форму назвал сам владелец
-   продукта: детали уровня раскрываются как свиток. Внешний контейнер
-   НЕ ездит: он стоит на месте и обрезает (overflow:hidden). Едет бумага
-   внутри него. Поэтому здесь снимается выездной translate базовой
-   ".detail-panel" (которая ездит справа налево для панели главы) — этот
-   контейнер всегда на экране, чтобы picking-mode:Ignore на нём и мог
-   держать свиток непроницаемым для тапов, пока он закрыт.
-   ВАЖНО: высота ".scroll-panel__paper" никогда не анимируется. Наивный
-   свиток раскрывался бы через height — это полный проход лэйаута каждый
-   кадр, ровно то, чего весь этот план анимаций избегает. Вариант
-   "scaleY от нуля" тоже был отвергнут: он сплющивал бы текст, а не
-   разворачивал его. Если через полгода это захочется «упростить» обратно
-   в height — не надо, оно будет выглядеть рабочим и стоить кадров. */
-.detail-panel--scroll {
-    translate: 0 0;
-    overflow: hidden;
-    /* "transition-property: opacity" is not a live effect -- nothing on this
-       element ever changes opacity. It exists only to overwrite the base
-       ".detail-panel" rule's "transition-property: translate", since this
-       container's own translate is now pinned at 0 0 forever and must never
-       pick up a transition again. No transition-duration is declared
-       because there is nothing here for one to time. */
-    transition-property: opacity;
-    background-color: rgba(0, 0, 0, 0);
-    border-left-width: 0;
-}
-.detail-panel--scroll .detail-panel__content {
-    flex-grow: 1;
-}
+/* ---------- свиток (попап уровня, Окинава) ----------
+   СОБСТВЕННАЯ система, а НЕ ".detail-panel": попап уровня больше не делит
+   стиль с панелью главы. Та осталась правой выезжающей шторкой, её блок
+   выше по файлу трогать нельзя — на нём висят MapHudRedesignTests и
+   JapanMapScreenUxmlTests, и любая правка там молча перекрасила бы Японию.
+   Здесь — центрированная модалка-макимоно: верхний валик стоит на месте,
+   бумага растёт вниз, нижний валик едет на её нижнем крае просто потому,
+   что он следующий flex-ребёнок колонки.
 
-/* Бумага: закрытая полностью выведена за верхний край собственного
-   контейнера (translate -100% по Y, а не height:0), открытая стоит на
-   месте. Перелёт "ease-out-back" читается как разворачивание, а не как
-   выезд ящика — первая функция сглаживания такого рода в проекте, см.
-   отчёт задачи 12 о том, поддержала ли её версия редактора.
-   Закрытие и открытие сознательно НЕ различены через ":not()" — эта
+   ОТМЕНЁННОЕ РЕШЕНИЕ, а не забытое. До этой задачи бумага раскрывалась
+   смещением (translate) внутри контейнера с overflow:hidden — ровно
+   затем, чтобы не трогать height, потому что height это полный проход
+   лэйаута каждый кадр. Владелец продукта отменил то решение осознанно,
+   ради точного совпадения с макетом: при translate краска едет вниз
+   ВМЕСТЕ с бумагой, при height — стоит на месте, а бумага открывается
+   из-под валика. Разница читается, и выбрана вторая. Цена принята и она
+   ограничена: height анимирует РОВНО ОДИН элемент шириной 766px, все его
+   дети спозиционированы абсолютно и в потоке не участвуют. Если кадр
+   когда-нибудь станет дорогим — возвращать надо translate-вариант
+   целиком (бумага и нижний валик одной едущей группой внутри клипующего
+   контейнера), а не «оптимизировать» этот наполовину.
+
+   Открытие и закрытие сознательно НЕ различены через ":not()": эта
    комбинация ловится живой ошибкой парсера USS в этой версии редактора
-   ("Recursive pseudo classes are not supported", подтверждено импортом
-   этого самого файла), а ".chapter-node--locked.chapter-node--selected"
-   выше по файлу (см. комментарий там) уже документирует ту же
-   осторожность с :not() — поддержка была "непроверена", теперь она
-   проверена и не подтвердилась. Вместо этого база ".scroll-panel__paper"
-   САМА является состоянием закрытия
-   (короче, без перелёта), а более специфичный потомковый селектор
-   ".detail-panel--open .scroll-panel__paper" перебивает её на состояние
-   открытия — обычный descendant-селектор, уже проверенно рабочий по
-   всему этому файлу. */
-.scroll-panel__paper {
+   ("Recursive pseudo classes are not supported"), см. ту же осторожность
+   у ".chapter-node--locked.chapter-node--selected" выше. Вместо этого
+   БАЗОВОЕ правило каждого элемента — это состояние ЗАКРЫТО, а более
+   специфичный потомковый селектор ".scroll-panel--open X" перебивает его
+   на состояние ОТКРЫТО. */
+.scroll-panel {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--base-2);
-    border-left-width: 1px;
-    border-left-color: var(--line);
-    translate: 0 -100%;
-    transition-property: translate;
-    transition-duration: 0.26s;
-    transition-timing-function: ease-in;
-}
-.detail-panel--open .scroll-panel__paper {
-    translate: 0 0;
-    transition-duration: 0.42s;
-    transition-timing-function: ease-out-back;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Валик внизу бумаги. Едет вместе с ней (translate у родителя), поэтому
-   собственной анимации не имеет — одна анимируемая сущность вместо двух. */
-.scroll-panel__rod {
+/* Затемнение. Оно же — поверхность закрытия по тапу «мимо»: свиток
+   накрывает весь экран, поэтому лежащий ПОД ним ".map-outside-catcher"
+   Окинавы до тапа уже не достаёт. Обработчик тот же самый
+   (OkinawaMapController.OnOutsideCatcherPointerDown) и pickingMode
+   переключается тем же SetOutsideCatcherActive — одна механика на две
+   поверхности, а не вторая копия логики закрытия. */
+.scroll-panel__backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 14, 17, 0.9);
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out;
+}
+.scroll-panel--open .scroll-panel__backdrop {
+    opacity: 1;
+}
+
+/* 840 — ширина ВАЛИКОВ. Бумага уже, 766: валики свисают на 37px с каждой
+   стороны, и этот свес нарисован в самой картинке, это не отступ.
+   Прозрачность колонки на ЗАКРЫТИИ уходит с задержкой 0.38s + 0.24s =
+   0.62s, ровно за длительность сворачивания бумаги, чтобы свиток не
+   растворился в воздухе раньше, чем свернулся. На ОТКРЫТИИ задержки нет:
+   0.24s, свиток проявляется, пока разворачивается. */
+.scroll-panel__column {
+    width: 840px;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.24s;
+    transition-delay: 0.38s;
+    transition-timing-function: ease-out;
+}
+.scroll-panel--open .scroll-panel__column {
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* Валики не тянутся никогда: у них своя коробка ровно 840x120, как
+   нарезано. Отрицательные margin убирают шов между валиком и бумагой. */
+.scroll-panel__roll {
+    width: 840px;
+    height: 120px;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+.scroll-panel__roll--top {
+    margin-bottom: -2px;
+    background-image: url("/Assets/UI/Media/Images/Map/Scroll/scroll-top.png");
+}
+.scroll-panel__roll--bottom {
+    margin-top: -4px;
+    background-image: url("/Assets/UI/Media/Images/Map/Scroll/scroll-bottom.png");
+}
+
+/* Бумага. Растяжение ТОЛЬКО по вертикали ("stretch", не "scale-to-fit":
+   тот вписал бы текстуру с полями). overflow:hidden здесь несёт двойную
+   службу — обрезает содержимое, пока свиток не развернулся, и он же
+   гасит попадания по невидимой кнопке CTA в закрытом состоянии. */
+.scroll-panel__paper {
+    width: 766px;
+    height: 0;
+    overflow: hidden;
+    background-image: url("/Assets/UI/Media/Images/Map/Scroll/scroll-center.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    transition-property: height;
+    transition-duration: 0.62s;
+    transition-timing-function: ease-out-cubic;
+}
+.scroll-panel--open .scroll-panel__paper {
+    height: 690px;
+}
+/* (0,3,0) против (0,2,0) выше — заблокированный свиток разворачивается
+   короче, потому что говорить ему нечего: ни кнопки, ни метрик. */
+.scroll-panel--open.scroll-panel--locked .scroll-panel__paper {
+    height: 460px;
+}
+
+/* Подложка читаемости. У бумаги в текстуре есть тёмные потёки, и на них
+   строки 22-23px проваливаются ниже контраста 3:1. Радиального градиента
+   в USS нет, поэтому это одна плоская заливка по инструкции макета, а не
+   мягкое пятно. Убирать её нельзя — она несёт контраст вместо
+   mix-blend-mode:multiply, которого в UI Toolkit тоже нет. */
+.scroll-panel__wash {
+    position: absolute;
+    left: 74px;
+    right: 74px;
+    top: 3%;
+    bottom: 4%;
+    background-color: rgba(244, 234, 214, 0.34);
+}
+
+/* Текстовый блок. Врезки — из макета: top = paperHeight*0.06 + 18,
+   height = paperHeight*0.88 - 36, посчитано для обеих высот бумаги и
+   зашито числами, чтобы не считать это в C# на каждое открытие. */
+.scroll-panel__text {
+    position: absolute;
+    left: 84px;
+    right: 78px;
+    top: 59px;
+    height: 571px;
+    flex-direction: column;
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out;
+}
+.scroll-panel--locked .scroll-panel__text {
+    top: 46px;
+    height: 369px;
+}
+/* Текст проступает с задержкой 0.3s — на середине разворота бумаги, а не
+   вместе с ней: сначала разворачивается свиток, потом на нём проступают
+   чернила. На закрытии задержки нет (базовое правило выше), поэтому
+   чернила уходят первыми, и бумага сворачивается уже пустой. */
+.scroll-panel--open .scroll-panel__text {
+    opacity: 1;
+    transition-delay: 0.3s;
+}
+
+.scroll-panel__head {
+    flex-direction: column;
+    padding-right: 96px;
+}
+.scroll-panel__eyebrow {
+    -unity-font-definition: url("/Assets/UI/Fonts/YujiMai-Latin.ttf");
+    font-size: 19px;
+    letter-spacing: 6px;
+    color: #8A2A16;
+}
+.scroll-panel__title {
+    -unity-font-definition: url("/Assets/UI/Fonts/YujiMai-Latin.ttf");
+    font-size: 54px;
+    color: #1E1409;
+    margin-top: 4px;
+    rotate: -0.5deg;
+}
+.scroll-panel__subtitle {
+    -unity-font-definition: url("/Assets/UI/Fonts/YujiMai-Latin.ttf");
+    font-size: 24px;
+    letter-spacing: 3px;
+    color: #4A3520;
+    margin-top: 4px;
+}
+
+/* Черта под шапкой: две линии с разным креном, чтобы читалась мазком, а
+   не линейкой. Затухания к краю нет — градиентов в USS нет. */
+.scroll-panel__rule {
+    height: 2px;
+    margin-top: 18px;
+    background-color: rgba(42, 32, 24, 0.5);
+    rotate: -0.12deg;
+}
+.scroll-panel__rule__echo {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    width: 58%;
+    height: 1px;
+    background-color: rgba(42, 32, 24, 0.14);
+    rotate: 0.16deg;
+}
+
+.scroll-panel__desc {
+    -unity-font-definition: url("/Assets/UI/Fonts/ShipporiMincho-Latin.ttf");
+    font-size: 23px;
+    color: #2A1B10;
+    white-space: normal;
+    margin-top: 22px;
+}
+
+/* Строка требования — только у заблокированного уровня, прижата к низу
+   текстового блока. Кнопки там нет вообще: приглушённой "LOCKED" макет
+   не предусматривает, и это намеренно. */
+.scroll-panel__requirement {
+    display: none;
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
+    -unity-font-definition: url("/Assets/UI/Fonts/ShipporiMincho-Latin.ttf");
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: #3A2A1C;
+    white-space: normal;
+}
+.scroll-panel--locked .scroll-panel__requirement {
+    display: flex;
+}
+
+/* CTA — само слово над рисованным подчёркиванием, а не кнопка-плашка.
+   Коробка прозрачна и без рамки; три полосы подчёркивания построены тем
+   же приёмом, что ".map-topbar__nav-btn-underline__stroke--a/b/c" выше
+   по файлу. Нижний padding 22px держит высоту попадания выше 48px при
+   14px-полосе — тот же порог, что задаёт ".tap-target". */
+.scroll-panel__cta {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px 22px 6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    transition-property: scale;
+    transition-duration: 0.14s;
+    transition-timing-function: ease-out;
+}
+.scroll-panel--locked .scroll-panel__cta {
+    display: none;
+}
+.scroll-panel__cta:hover {
+    scale: 1.04;
+}
+/* Не дубликат ".tap-target:active" (та же 0.97, но объявлена в начале
+   файла): нажатие почти всегда происходит С наведением, и тогда правило
+   ":hover" прямо над этим — тоже (0,2,0), но объявленное позже — побило бы
+   ту раннюю ":active", и кнопка на нажатии РАСТЯГИВАЛАСЬ бы вместо того,
+   чтобы вдавиться. Это объявление идёт последним и выигрывает. */
+.scroll-panel__cta:active {
+    scale: 0.97;
+}
+.scroll-panel__cta-text {
+    -unity-font-definition: url("/Assets/UI/Fonts/YujiMai-Latin.ttf");
+    font-size: 44px;
+    letter-spacing: 8px;
+    color: #1E1409;
+}
+.scroll-panel__cta-underline {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
     height: 14px;
-    border-radius: 7px;
-    background-color: #2A2118;
-    border-top-width: 1px;
-    border-top-color: rgba(237, 230, 216, 0.18);
+}
+.scroll-panel__cta-underline__stroke {
+    position: absolute;
+    left: 0;
+    border-radius: 3px;
+    background-color: #8A2A16;
+}
+.scroll-panel__cta-underline__stroke--a {
+    top: 4px;
+    width: 100%;
+    height: 4px;
+    opacity: 0.85;
+    rotate: -1.1deg;
+}
+.scroll-panel__cta-underline__stroke--b {
+    top: 8px;
+    left: 7%;
+    width: 80%;
+    height: 3px;
+    opacity: 0.5;
+    rotate: 1.4deg;
+}
+.scroll-panel__cta-underline__stroke--c {
+    top: 1px;
+    left: 18%;
+    width: 56%;
+    height: 2px;
+    opacity: 0.4;
+    rotate: -1.9deg;
+}
+
+/* Шнур поперёк бумаги — вместо CTA у заблокированного уровня.
+   Вертикальный градиент шнура собран из плоских полос: градиентов в USS
+   нет вовсе, повторяющейся штриховки «витья» тоже — макет сам называет
+   этот запасной вариант. Свеса за края бумаги нет: бумага клипует
+   (её overflow:hidden несёт разворот), поэтому шнур идёт ровно по её
+   ширине. */
+.scroll-panel__cord {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 96px;
+    height: 150px;
+}
+.scroll-panel--locked .scroll-panel__cord {
+    display: flex;
+}
+.scroll-panel__cord__strand {
+    position: absolute;
+    left: 0;
+    right: 0;
+    rotate: -0.7deg;
+}
+.scroll-panel__cord__strand--light {
+    top: 0;
+    height: 7px;
+    background-color: #6B4526;
+}
+.scroll-panel__cord__strand--mid {
+    top: 7px;
+    height: 11px;
+    background-color: #3E2716;
+}
+.scroll-panel__cord__strand--dark {
+    top: 18px;
+    height: 8px;
+    background-color: #22140B;
+}
+.scroll-panel__cord__strand--lower-light {
+    top: 60px;
+    height: 7px;
+    background-color: #5C3D22;
+    opacity: 0.9;
+    rotate: -0.5deg;
+}
+.scroll-panel__cord__strand--lower-dark {
+    top: 67px;
+    height: 7px;
+    background-color: #22140B;
+    opacity: 0.9;
+    rotate: -0.5deg;
 }
 
 /* Каскад содержимого: общий для обеих панелей — свитка (уровня) и панели
@@ -1024,8 +1310,17 @@
    opacity:0 — это состояние покоя. Тик снимает свой инлайн в
    StyleKeyword.Null, а Null отдаёт значение обратно сюда; без нуля здесь
    сброшенное облако вспыхнуло бы полностью непрозрачным. */
+/* Плывущий слой скрыт целиком по решению владельца от 2026-08-24: облака на
+   карте не подошли ни в каком виде — ни крупные облака рамки, ни этот
+   еле заметный слой. Скрыт весь контейнер разом, а не семь его детей:
+   один "display: none" вырезает из отрисовки всё поддерево.
+
+   Элементы оставлены в дереве, чтобы решение было обратимым одной строкой.
+   Вся машинерия слоя (MapWindMath, MapWindLayout, MapWindLayer и их тесты)
+   тоже на месте и зелёная — она просто больше ничего не показывает. */
 .map-wind-layer {
     position: absolute;
+    display: none;
     top: 0;
     left: 0;
     right: 0;
@@ -1071,9 +1366,24 @@
     right: 0;
     bottom: 0;
 }
+/* Четыре облака РАМКИ скрыты по решению владельца от 2026-08-24: крупные
+   тёмные массы по углам не подошли композиции карты. Убран именно рисунок,
+   а не элементы: контейнер "map-cloud-layer" и эти четыре ребёнка остаются
+   в дереве, потому что на них завязано не только оформление —
+   MapCloudTransitionController требует все восемь элементов ненулевыми,
+   иначе переход между главами не привяжется вовсе, а picking-mode самого
+   слоя работает блокировщиком ввода на время перехода.
+
+   "display: none" вырезает их из цепочки отрисовки целиком, то есть это
+   ещё и дешевле, чем прозрачность.
+
+   Что при этом становится пустым: церемония открытия главы раздвигает
+   этот слой в стороны (см. MapCeremonyController.PlayChapterUnlockRoutine)
+   — двигать теперь нечего. Плывущий слой ".map-wind" не затронут. */
 .map-cloud {
     position: absolute;
-    -unity-background-scale-mode: stretch;
+    display: none;
+    -unity-background-scale-mode: stretch-to-fill;
 }
 .map-cloud--left-01 {
     background-image: url("/Assets/UI/Media/Images/Map/Clouds/cloud_left_01.png");

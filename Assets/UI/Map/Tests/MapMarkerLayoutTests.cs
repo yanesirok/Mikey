@@ -143,13 +143,13 @@ namespace Mikey.UI.Map.Tests
         // Exact pixel-measured positions on the 6336x2688 okinawa_map_final.jpg.
         [TestCase(0, 0.33428f, 0.75856f)]
         [TestCase(1, 0.43277f, 0.60007f)]
-        [TestCase(2, 0.49195f, 0.50484f)]
-        [TestCase(3, 0.55208f, 0.49070f)]
-        [TestCase(4, 0.60511f, 0.31659f)]
-        [TestCase(5, 0.66098f, 0.45275f)]
-        [TestCase(6, 0.70391f, 0.44494f)]
-        [TestCase(7, 0.74716f, 0.44159f)]
-        [TestCase(8, 0.81345f, 0.36570f)]
+        [TestCase(2, 0.53245f, 0.53184f)]
+        [TestCase(3, 0.58358f, 0.53120f)]
+        [TestCase(4, 0.60511f, 0.33459f)]
+        [TestCase(5, 0.66098f, 0.49625f)]
+        [TestCase(6, 0.71291f, 0.46594f)]
+        [TestCase(7, 0.76216f, 0.43859f)]
+        [TestCase(8, 0.81133f, 0.41050f)]
         public void MissionCoordinate_MatchesExactPixelMeasurement(int levelIndex, float expectedX, float expectedY)
         {
             var mission = MapMarkerLayout.Missions[levelIndex];

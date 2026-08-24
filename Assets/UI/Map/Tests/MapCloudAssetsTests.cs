@@ -172,18 +172,27 @@ namespace Mikey.UI.Map.Tests
         public void CloudSprites_UseStretchScaleMode_NeverCropTheSourceCanvas(string selector)
         {
             // "scale-and-crop" (cover-fit) would crop away part of the PNG's
-            // own canvas to fill a mismatched-aspect box — "stretch" always
-            // renders the FULL canvas (including any transparent padding it
-            // has), non-uniformly scaled to fit. Investigation (see the
-            // pixel-level report) found the reported hard rectangular edge
-            // is caused by the source art itself having zero transparent
-            // padding on the affected edges, not by a Unity-side crop — this
-            // guards against ever silently reintroducing an ADDITIONAL crop
-            // on top of that.
+            // own canvas to fill a mismatched-aspect box — "stretch-to-fill"
+            // always renders the FULL canvas (including any transparent
+            // padding it has), non-uniformly scaled to fit. Investigation
+            // (see the pixel-level report) found the reported hard
+            // rectangular edge is caused by the source art itself having zero
+            // transparent padding on the affected edges, not by a Unity-side
+            // crop — this guards against ever silently reintroducing an
+            // ADDITIONAL crop on top of that.
+            //
+            // The value was "stretch" until the scroll pass. That is not a
+            // USS keyword at all: the importer rejected it with "Expected
+            // (stretch-to-fill | scale-and-crop | scale-to-fit) but found
+            // 'stretch'" and dropped the whole declaration, so the clouds
+            // were running on the property's DEFAULT the entire time. The
+            // default happens to be stretch-to-fill, which is why nothing
+            // looked wrong and why this test stayed green while pinning a
+            // string Unity never honoured.
             string uss = File.ReadAllText(UssPath);
             string block = ExtractRuleBlock(uss, selector);
             Assert.IsNotNull(block, $"Expected a '{selector}' rule in Map.uss.");
-            StringAssert.Contains("-unity-background-scale-mode: stretch;", block);
+            StringAssert.Contains("-unity-background-scale-mode: stretch-to-fill;", block);
             StringAssert.DoesNotContain("scale-and-crop", block);
         }
 

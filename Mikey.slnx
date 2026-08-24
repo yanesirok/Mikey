@@ -3,6 +3,7 @@
   <Project Path="Mikey.Pose.csproj" />
   <Project Path="Mikey.UI.Map.Tests.csproj" />
   <Project Path="Mikey.UI.Profile.Tests.csproj" />
+  <Project Path="Mikey.UI.Settings.csproj" />
   <Project Path="Mikey.UI.Home.Tests.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Mikey.Fight.csproj" />
@@ -15,7 +16,6 @@
   <Project Path="Mikey.UI.Map.csproj" />
   <Project Path="Mikey.UI.Profile.csproj" />
   <Project Path="Mikey.UI.Settings.Tests.csproj" />
-  <Project Path="Mikey.UI.Settings.csproj" />
   <Project Path="Mikey.UI.Combine.csproj" />
   <Project Path="Mikey.UI.Navigation.csproj" />
   <Project Path="Mikey.Pose.DevSandbox.Editor.csproj" />

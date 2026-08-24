@@ -36,14 +36,18 @@ namespace Mikey.UI.Map
 
         private const string SelectedNodeClass = "level-node--selected";
         private const string LockedNodeClass = "level-node--locked";
-        private const string PanelOpenClass = "detail-panel--open";
-        // Каскад содержимого свитка (см. ".scroll-panel__*" в Map.uss).
-        // Держится ровно вместе с PanelOpenClass, весь срок жизни открытой
-        // панели — не ставится классом и не снимается на следующий кадр,
-        // иначе переход обрывается, не доиграв (тот же урок, что и с
-        // каскадом задачи 9).
-        private const string PanelRevealedClass = "detail-panel--revealed";
-        private const string LockedCtaClass = "detail-panel__cta--locked";
+        // Свиток уровня живёт на СВОЁМ наборе классов (".scroll-panel*" в
+        // Map.uss), а не на общем с панелью главы ".detail-panel": та —
+        // правая выезжающая шторка Японии, и её стиль этот попап больше не
+        // делит, а значит и перекрасить не может.
+        // Класс держится весь срок жизни открытой панели — не ставится и не
+        // снимается на следующий кадр, иначе переходы обрываются, не
+        // доиграв (тот же урок, что и с каскадом задачи 9).
+        private const string PanelOpenClass = "scroll-panel--open";
+        // Один класс решает ВСЁ, чем заблокированный уровень отличается:
+        // высоту разворота, врезки текста, наличие шнура и отсутствие
+        // кнопки. Это чистый USS, поэтому ниже нет ни одного style.display.
+        private const string PanelLockedClass = "scroll-panel--locked";
         private const string TransitionVisibleClass = "map-transition-overlay--visible";
         private const string NavLockedClass = "map-topbar__nav-btn--locked";
 
@@ -58,8 +62,10 @@ namespace Mikey.UI.Map
         private Label _panelTitle;
         private Label _panelSubtitle;
         private Label _panelDesc;
+        private Label _panelRequirement;
         private Button _panelCta;
         private Label _panelCtaText;
+        private VisualElement _panelBackdrop;
         private VisualElement _transitionOverlay;
 
         private Button _topbarMap;
@@ -103,6 +109,7 @@ namespace Mikey.UI.Map
                         _levelNodes[i].clicked -= _levelClickHandlers[i];
                 }
                 _outsideCatcher.UnregisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
+                _panelBackdrop?.UnregisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
                 _panelCta.clicked -= OnLevelCtaClicked;
                 if (_topbarMap != null)
                     _topbarMap.clicked -= OnTopbarMapClicked;
@@ -160,8 +167,10 @@ namespace Mikey.UI.Map
             _panelTitle = _root.Q<Label>("level-panel-title");
             _panelSubtitle = _root.Q<Label>("level-panel-subtitle");
             _panelDesc = _root.Q<Label>("level-panel-desc");
+            _panelRequirement = _root.Q<Label>("level-panel-requirement");
             _panelCta = _root.Q<Button>("level-panel-cta");
             _panelCtaText = _root.Q<Label>("level-panel-cta-text");
+            _panelBackdrop = _root.Q<VisualElement>("level-panel-backdrop");
             _transitionOverlay = _root.Q<VisualElement>("okinawa-transition-overlay");
 
             _topbarMap = _root.Q<Button>("okinawa-topbar-map");
@@ -198,6 +207,11 @@ namespace Mikey.UI.Map
             _canvas?.RegisterCallback<GeometryChangedEvent>(OnCanvasGeometryChanged);
 
             _outsideCatcher?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
+            // Затемнение свитка — вторая поверхность того же самого «тапа
+            // мимо»: свиток накрывает весь экран, поэтому лежащий под ним
+            // ".map-outside-catcher" тапом уже недостижим. Обработчик и
+            // переключатель pickingMode те же, а не вторая копия логики.
+            _panelBackdrop?.RegisterCallback<PointerDownEvent>(OnOutsideCatcherPointerDown);
             _panelCta.clicked += OnLevelCtaClicked;
             if (_topbarMap != null)
                 _topbarMap.clicked += OnTopbarMapClicked;
@@ -282,17 +296,7 @@ namespace Mikey.UI.Map
         /// </summary>
         private static void ApplyMissionLayout(VisualElement node, int levelIndex, float viewportWidth, float viewportHeight)
         {
-            MissionMarkerLayout mission = default;
-            bool found = false;
-            foreach (var candidate in MapMarkerLayout.Missions)
-            {
-                if (candidate.LevelIndex != levelIndex)
-                    continue;
-                mission = candidate;
-                found = true;
-                break;
-            }
-            if (!found)
+            if (!TryGetMission(levelIndex, out MissionMarkerLayout mission))
                 return;
 
             MapMarkerLayout.ApplySourceCoordinate(node, mission.NormalizedX, mission.NormalizedY, viewportWidth, viewportHeight);
@@ -305,6 +309,29 @@ namespace Mikey.UI.Map
             icon.RemoveFromClassList(FightIconClass);
             icon.RemoveFromClassList(BossFightIconClass);
             icon.AddToClassList(IconClassFor(mission.Type));
+        }
+
+        /// <summary>
+        /// Looks a level up in <see cref="MapMarkerLayout.Missions"/> — the
+        /// ONE place a mission's coordinates and type live. Both callers (the
+        /// marker's position/icon at bind time and the scroll popup's eyebrow
+        /// at open time) go through here rather than each walking the table,
+        /// so "which mission is level N" is answered in exactly one place.
+        /// A level with no row (LevelCount is 9, the table is the MVP's 7
+        /// missions plus room) simply has no mission.
+        /// </summary>
+        private static bool TryGetMission(int levelIndex, out MissionMarkerLayout mission)
+        {
+            foreach (var candidate in MapMarkerLayout.Missions)
+            {
+                if (candidate.LevelIndex != levelIndex)
+                    continue;
+                mission = candidate;
+                return true;
+            }
+
+            mission = default;
+            return false;
         }
 
         private static string IconClassFor(MissionMarkerType type)
@@ -359,9 +386,12 @@ namespace Mikey.UI.Map
             }
             SetOutsideCatcherActive(true);
 
+            // Строго ПОСЛЕ ShowLevelPanel: тот ставит/снимает
+            // PanelLockedClass, а от него зависит целевая высота разворота.
+            // Поставить "open" раньше — значит на один кадр развернуть
+            // свиток не на ту высоту и переиграть переход с середины.
             ShowLevelPanel(index);
             _panel.AddToClassList(PanelOpenClass);
-            _panel.AddToClassList(PanelRevealedClass);
             _panel.pickingMode = PickingMode.Position;
         }
 
@@ -369,8 +399,15 @@ namespace Mikey.UI.Map
         {
             bool locked = IsLevelLocked(index);
 
-            _panelEyebrow.text = "LEVEL";
-            _panelTitle.text = $"LVL {index}";
+            // Надзаголовок — тип миссии, и берётся он из
+            // MapMarkerLayout.Missions, откуда его же берут иконки маркеров.
+            // Прописать его строкой здесь (или тем более в UXML) значило бы
+            // завести второй источник правды о типе уровня, который однажды
+            // разойдётся с первым и покажет «TRAINING» над боем.
+            _panelEyebrow.text = TryGetMission(index, out MissionMarkerLayout mission)
+                ? EyebrowFor(mission.Type)
+                : "MISSION";
+            _panelTitle.text = $"Level {index}";
 
             switch (index)
             {
@@ -388,24 +425,44 @@ namespace Mikey.UI.Map
                     break;
             }
 
-            if (!locked)
-            {
-                _panelCtaText.text = index == 0 ? "BEGIN" : "START";
-                _panelCta.SetEnabled(true);
-                _panelCta.RemoveFromClassList(LockedCtaClass);
-            }
+            // Единственный переключатель заблокированного вида. Всё
+            // остальное — высота разворота, врезки текста, шнур вместо
+            // кнопки — висит на этом классе в Map.uss. Приглушённой кнопки
+            // "LOCKED" больше нет: у заблокированного свитка кнопки нет
+            // вообще, так решено в макете.
+            if (locked)
+                _panel.AddToClassList(PanelLockedClass);
             else
+                _panel.RemoveFromClassList(PanelLockedClass);
+
+            if (locked)
+                _panelRequirement.text = index == 1 ? "Finish Level 0 to unlock." : "Locked.";
+            else
+                _panelCtaText.text = index == 0 ? "BEGIN" : "START";
+        }
+
+        private static string EyebrowFor(MissionMarkerType type)
+        {
+            switch (type)
             {
-                _panelCtaText.text = index == 1 ? "COMPLETE LVL 0" : "LOCKED";
-                _panelCta.SetEnabled(false);
-                _panelCta.AddToClassList(LockedCtaClass);
+                case MissionMarkerType.Special:
+                    return "SPECIAL MISSION";
+                case MissionMarkerType.Fight:
+                    return "FIGHT";
+                case MissionMarkerType.BossFight:
+                    return "BOSS FIGHT";
+                default:
+                    return "TRAINING";
             }
         }
 
         private void ClosePanel()
         {
+            // PanelLockedClass сознательно НЕ снимается: он задаёт, с какой
+            // высоты бумага сворачивается обратно. Снять его здесь значило бы
+            // на кадр закрытия подменить целевую высоту с 460 на 690 и дёрнуть
+            // свиток вверх рывком.
             _panel.RemoveFromClassList(PanelOpenClass);
-            _panel.RemoveFromClassList(PanelRevealedClass);
             _panel.pickingMode = PickingMode.Ignore;
             SetOutsideCatcherActive(false);
             DeselectCurrentNode();
@@ -422,6 +479,11 @@ namespace Mikey.UI.Map
         {
             if (_outsideCatcher != null)
                 _outsideCatcher.pickingMode = active ? PickingMode.Position : PickingMode.Ignore;
+            // Затемнение свитка ловит тот же тап «мимо» и тем же обработчиком.
+            // Закрытым оно обязано быть непроницаемым, иначе накрывающая весь
+            // экран прозрачная модалка съедала бы пан и тапы по маркерам.
+            if (_panelBackdrop != null)
+                _panelBackdrop.pickingMode = active ? PickingMode.Position : PickingMode.Ignore;
         }
 
         private void OnOutsideCatcherPointerDown(PointerDownEvent evt) => ClosePanel();
