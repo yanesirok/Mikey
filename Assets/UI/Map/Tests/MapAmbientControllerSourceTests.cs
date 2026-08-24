@@ -17,6 +17,7 @@ namespace Mikey.UI.Map.Tests
     {
         private const string SourcePath = "Assets/UI/Map/MapAmbientController.cs";
         private const string MathSourcePath = "Assets/UI/Map/MapAmbientMath.cs";
+        private const string WindLayerSourcePath = "Assets/UI/Map/MapWindLayer.cs";
 
         [Test]
         public void NeverWritesLayoutProperties()
@@ -338,15 +339,21 @@ namespace Mikey.UI.Map.Tests
         // ---------- плывущий слой облаков (MapWindLayer) ----------
 
         /// <summary>
-        /// Вырезает //-комментарии и схлопывает пробелы. Оба шага несущие:
-        /// файл комментирует прозой каждое решение, поэтому проверка по
-        /// подстроке без вырезания удовлетворялась бы ЗАКОММЕНТИРОВАННЫМ
-        /// вызовом, а схлопывание пробелов даёт право требовать соседства
-        /// двух операторов, не завися от переносов строк.
+        /// Вырезает комментарии ОБЕИХ форм и схлопывает пробелы. Все три шага
+        /// несущие: файл комментирует прозой каждое решение, поэтому проверка
+        /// по подстроке без вырезания удовлетворялась бы ЗАКОММЕНТИРОВАННЫМ
+        /// вызовом — и блочная форма тут не теоретическая: ею глушится ровно
+        /// то же самое, а следа в тексте остаётся ещё меньше, чем от «//».
+        /// Схлопывание пробелов даёт право требовать соседства двух
+        /// операторов, не завися от переносов строк. Блочные вырезаются
+        /// ПЕРВЫМИ: закомментированная блоком строка сама может содержать
+        /// «//», и обратный порядок распилил бы её пополам.
         /// </summary>
         private static string Code(string body)
         {
-            string withoutComments = System.Text.RegularExpressions.Regex.Replace(body, @"//[^\r\n]*", string.Empty);
+            string withoutBlocks = System.Text.RegularExpressions.Regex.Replace(
+                body, @"/\*.*?\*/", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+            string withoutComments = System.Text.RegularExpressions.Regex.Replace(withoutBlocks, @"//[^\r\n]*", string.Empty);
             return System.Text.RegularExpressions.Regex.Replace(withoutComments, @"\s+", " ").Trim();
         }
 
@@ -375,8 +382,11 @@ namespace Mikey.UI.Map.Tests
             string body = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
                 File.ReadAllText(SourcePath), "private void ResolveScreenElements(string screenId)"));
 
-            StringAssert.Contains("_wind.Reset(); _wind.Bind(", body,
-                "Reset must sit immediately BEFORE the rebind: after it, it would clear the new screen's clouds while the previous screen's inline transform stays on its own clouds until the session ends (Japan<->Okinawa never goes through StopTicking).");
+            StringAssert.Contains(
+                "_clouds[i].usageHints = UsageHints.DynamicTransform | UsageHints.DynamicColor; } "
+                + "_wind.Reset(); _wind.Bind(_root, japan ? \"map-wind-\" : \"okinawa-wind-\");",
+                body,
+                "Reset must START a statement of its own right where the frame-cloud loop closes, immediately before the rebind. Anchoring it to that closing brace is what forbids a condition in front of it: \"if (!japan) _wind.Reset();\" satisfies a bare \"Reset(); Bind(\" check while leaving Okinawa's inline transform on Okinawa's clouds on every Okinawa->Japan move. Placed after the rebind it would clear the new screen's clouds instead, and the previous screen's inline would outlive the session — Japan<->Okinawa never goes through StopTicking.");
         }
 
         [Test]
@@ -416,9 +426,12 @@ namespace Mikey.UI.Map.Tests
                 File.ReadAllText(SourcePath), "private void TickWind()"));
 
             StringAssert.Contains(
-                "_wind.Tick(_elapsedSeconds, width, height, _panZoom?.CurrentPanX ?? 0f, _panZoom?.CurrentPanY ?? 0f)",
+                "float width = _canvas?.resolvedStyle.width ?? 0f; "
+                + "float height = _canvas?.resolvedStyle.height ?? 0f; "
+                + "if (width <= 0f || height <= 0f) return; "
+                + "_wind.Tick(_elapsedSeconds, width, height, _panZoom?.CurrentPanX ?? 0f, _panZoom?.CurrentPanY ?? 0f);",
                 body,
-                "The layer's clock is the ambient _elapsedSeconds: the other elapsed field in this class (_markerEntranceElapsedSeconds) is driven to +Infinity by SettleMarkerEntranceImmediately and would turn every cloud position into NaN. The two pan axes must not be swapped either — the parallax would then run across the gesture.");
+                "The whole body is pinned, not just the call. (1) The clock must be the ambient _elapsedSeconds — the other elapsed field in this class is driven to +Infinity by SettleMarkerEntranceImmediately and would turn every cloud position into NaN. (2) The pan axes must not be swapped, or the parallax runs across the gesture. (3) width must be read from resolvedStyle.width and height from resolvedStyle.height: the argument list alone says nothing about where the two locals came from, and \"height = resolvedStyle.width\" reads as a plain copy-paste. (4) The call must be unconditional — pinning only the call lets it be tucked under a foreign condition and skipped for good.");
         }
 
         /// <remarks>
@@ -436,6 +449,29 @@ namespace Mikey.UI.Map.Tests
                 "Inline transforms live on the markup elements and outlive the visit — the stopped tick must clear its own.");
             StringAssert.Contains("_wind.SetVisible(false)", body,
                 "Turning reduced motion on mid-visit stops the tick from OnMotionSettingsChanged, bypassing Tick's SetVisible: without this line the layer stays display:Flex and its seven quads stay in the draw chain, which is the whole saving the setting promises. Hiding is right at all three stop sites — the other two are leaving the map and the tick self-stopping under the same setting.");
+        }
+
+        /// <remarks>
+        /// Рукопожатие из двух половин, каждая по отдельности бессмысленна.
+        /// Bind ПОКАЗЫВАЕТ слой безусловно — это лечение залипшего
+        /// display:none, — значит спрятать слой на входе при включённой
+        /// настройке может только тик, а тик обязан стартовать на КАЖДОМ
+        /// входе на экран карты, в том числе под настройкой. MapWindLayerTests
+        /// держит лишь свою половину, со стороны слоя; связку не проверял
+        /// никто.
+        /// </remarks>
+        [Test]
+        public void EveryEntryStartsTheTickThatHidesTheUnconditionallyShownLayer()
+        {
+            string entry = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(SourcePath), "private void OnScreenChanged(string screenId)"));
+            StringAssert.Contains("ResolveScreenElements(screenId); StartTicking();", entry,
+                "Entering a map screen must start the tick unconditionally. Gate StartTicking on the motion setting and nothing ever undoes the unconditional show inside Bind: the layer stays in the draw chain for the whole visit, which is the one saving the setting is sold on.");
+
+            string bind = Code(MapPanZoomControllerAmbientSourceTests.ExtractMethodBody(
+                File.ReadAllText(WindLayerSourcePath), "public void Bind(VisualElement root, string prefix)"));
+            StringAssert.Contains("if (_layer != null) _layer.style.display = DisplayStyle.Flex;", bind,
+                "The other half of the handshake: Bind must show the layer, guarded by nothing but the null check. Make that show conditional again and a visit that ended under reduced motion leaves display:none on the markup element, where it outlives the screen — SetVisible(true) then hits its own visible == _visible early return and the layer stays invisible for the rest of the session.");
         }
 
     }
